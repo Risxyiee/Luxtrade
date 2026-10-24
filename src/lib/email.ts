@@ -1928,6 +1928,12 @@ export function getWeeklySummaryHtml(params: {
  * Daily Reminder email — sent every morning to active users
  * Encourages daily trade logging habit with motivational message
  */
+export interface DailyReminderNewsItem {
+  title: string
+  source: string
+  url: string
+}
+
 export function getDailyReminderHtml(params: {
   name: string
   streak: number
@@ -1937,6 +1943,7 @@ export function getDailyReminderHtml(params: {
   dayName: string
   ctaUrl: string
   unsubUrl: string
+  news?: DailyReminderNewsItem[]
 }): string {
   const {
     name,
@@ -1947,6 +1954,7 @@ export function getDailyReminderHtml(params: {
     dayName,
     ctaUrl,
     unsubUrl,
+    news = [],
   } = params
 
   const pnlColor = pnlThisWeek >= 0 ? "#059669" : "#dc2626"
@@ -2046,6 +2054,30 @@ export function getDailyReminderHtml(params: {
                   </table>
                 </td>
               </tr>
+
+              <!-- Market News -->
+              ${news.length > 0 ? `
+              <tr>
+                <td style="padding: 0 40px 24px 40px;">
+                  <p style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 14px; font-weight: 600;">📰 Berita Pasar Hari Ini</p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0f7ff; border-radius: 10px; border: 1px solid #dbeafe;">
+                    ${news.map((item, idx) => `
+                    <tr>
+                      <td style="padding: 14px 20px; ${idx < news.length - 1 ? 'border-bottom: 1px solid #dbeafe;' : ''}">
+                        <a href="${item.url}" style="color: #1e40af; font-size: 13px; font-weight: 600; text-decoration: none; display: block; line-height: 1.5;">
+                          ${item.title}
+                        </a>
+                        <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 11px;">${item.source}</p>
+                      </td>
+                    </tr>
+                    `).join('')}
+                  </table>
+                  <p style="margin: 10px 0 0 0; text-align: right;">
+                    <a href="${ctaUrl}" style="color: #f97316; font-size: 12px; font-weight: 600; text-decoration: none;">Lihat semua berita & analisis →</a>
+                  </p>
+                </td>
+              </tr>
+              ` : ''}
 
               <!-- CTA -->
               <tr>
