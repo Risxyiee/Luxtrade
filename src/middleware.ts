@@ -13,6 +13,7 @@ export const config = {
     '/admin-email',
     '/admin-subscriptions',
     '/admin-subscriptions/:path*',
+    '/admin/:path*',
   ],
 }
 
@@ -43,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only paths — require login + admin email
-  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-subscriptions']
+  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-subscriptions', '/admin']
   const isAdminPath = adminPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   // Protected paths — require login

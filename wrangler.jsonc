@@ -86,6 +86,6 @@
 	// 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary)
 	// */15 * * * = tiap 15 menit     (econ-calendar-notify)
 	"triggers": {
-		"crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
+		"crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *", "30 2 * * *", "0 9 * * 2,5"]
 	}
 }
