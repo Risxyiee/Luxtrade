@@ -8,7 +8,7 @@ import {
   Clock, Ban, CheckCircle, XCircle, Share2, CreditCard,
   AlertTriangle, Bug, Info, DatabaseBackup,
   Tag, Send, UserPen, ChevronDown, ChevronLeft, ChevronRight,
-  Link2, Award,
+  Link2, Award, Bot,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -51,6 +51,7 @@ interface UserProfile {
 // Quick action links configuration
 const quickActions = [
   { href: '/admin-email', label: 'Email Broadcast', icon: Mail },
+  { href: '/admin/ai-staff', label: 'AI Staff', icon: Bot },
   { href: '/dashboard/admin/affiliate', label: 'Affiliate', icon: Share2 },
   { href: '/dashboard/admin/promo-codes', label: 'Promo Codes', icon: Tag },
   { href: '/dashboard/admin/social-links', label: 'Social Links', icon: Link2 },
