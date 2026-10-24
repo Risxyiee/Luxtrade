@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { createAdminClientAsync } from '@/lib/supabase/admin'
 import { isUserPro } from '@/lib/pro-check'
 
 export async function POST(req: NextRequest) {
@@ -20,26 +20,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Use Supabase admin client (service role) — Prisma is NOT available on
+    // Cloudflare Workers (its engine requires fs.readdir). The admin client
+    // bypasses RLS and works in edge/worker runtimes.
+    const adminClient = await createAdminClientAsync()
+    if (!adminClient) {
+      console.error('[push/subscribe] Supabase admin client unavailable — service role key missing')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
     // Upsert — if endpoint already exists, update keys & userId
-    const subscription = await db.pushSubscription.upsert({
-      where: { endpoint },
-      create: {
-        userId,
+    const { data: subscription, error: upsertErr } = await adminClient
+      .from('push_subscriptions')
+      .upsert({
+        user_id: userId,
         endpoint,
         p256dh,
         auth,
-        userAgent: userAgent || null,
-      },
-      update: {
-        userId,
-        p256dh,
-        auth,
-        userAgent: userAgent || null,
-        updatedAt: new Date(),
-      },
-    })
+        user_agent: userAgent || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'endpoint' })
+      .select()
+      .single()
 
-    return NextResponse.json({ success: true, id: subscription.id })
+    if (upsertErr) {
+      console.error('[push/subscribe] Upsert failed:', upsertErr.message)
+      return NextResponse.json({ error: 'Failed to save subscription', detail: upsertErr.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, id: subscription?.id })
   } catch (error: any) {
     console.error('[push/subscribe] Error:', error.message)
     return NextResponse.json({ error: 'Failed to save subscription' }, { status: 500 })

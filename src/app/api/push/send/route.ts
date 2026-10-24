@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { createAdminClientAsync } from '@/lib/supabase/admin'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
 import { isUserPro } from '@/lib/pro-check'
 
@@ -18,13 +18,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sent: 0, message: 'Target user is not Pro — push notifications require Pro' })
     }
 
-    // Get all subscriptions for this user
-    const subscriptions = await db.pushSubscription.findMany({
-      where: { userId },
-      select: { endpoint: true, p256dh: true, auth: true },
-    })
+    const adminClient = await createAdminClientAsync()
+    if (!adminClient) {
+      console.error('[push/send] Supabase admin client unavailable')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
 
-    if (subscriptions.length === 0) {
+    // Get all subscriptions for this user
+    const { data: subscriptions, error: subErr } = await adminClient
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth')
+      .eq('user_id', userId)
+
+    if (subErr) {
+      console.error('[push/send] Fetch subscriptions failed:', subErr.message)
+      return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 })
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
       return NextResponse.json({ sent: 0, message: 'No subscriptions found for user' })
     }
 
@@ -42,9 +53,10 @@ export async function POST(req: NextRequest) {
 
     // Clean up expired subscriptions
     if (result.expired.length > 0) {
-      await db.pushSubscription.deleteMany({
-        where: { endpoint: { in: result.expired } },
-      })
+      await adminClient
+        .from('push_subscriptions')
+        .delete()
+        .in('endpoint', result.expired)
     }
 
     return NextResponse.json({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { createAdminClientAsync } from '@/lib/supabase/admin'
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,9 +10,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 })
     }
 
-    await db.pushSubscription.deleteMany({
-      where: { endpoint },
-    })
+    const adminClient = await createAdminClientAsync()
+    if (!adminClient) {
+      console.error('[push/unsubscribe] Supabase admin client unavailable')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const { error: delErr } = await adminClient
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint)
+
+    if (delErr) {
+      console.error('[push/unsubscribe] Delete failed:', delErr.message)
+      return NextResponse.json({ error: 'Failed to remove subscription' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
