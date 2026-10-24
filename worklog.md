@@ -652,3 +652,24 @@ Stage Summary:
 - Known caveat: wrangler.jsonc has no triggers.crons - if cron schedules were set via CF dashboard, next wrangler deploy may wipe them; schedules needed from user to add to config
 - daily-reminder dry returns 0 users (data-dependent: >=1 trade + login 14d + not unsub + not sent today); self-test via ?uid=<user_id>
 - Secrets untouched
+
+---
+Task ID: cron-triggers-vars-wiring
+Agent: Z.ai Code (main)
+Task: Add user's env vars to wrangler.jsonc + enable cron triggers (user never set any) + wire scheduled handler
+
+Work Log:
+- User confirmed never set CF cron triggers -> daily-reminder etc. NEVER ran on schedule before
+- Discovered orphaned worker-entry.ts (custom entry with scheduled() + CRON_ROUTES map, set globalThis __cloudflare-context__) - was NOT wired: wrangler.jsonc main pointed to .open-next/worker.js
+- wrangler.jsonc: main -> worker-entry.ts; added vars (MIDTRANS_IS_PRODUCTION, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SITE_URL - user request, plain dashboard vars get wiped by wrangler deploy); added triggers.crons [0 1 * * *, 0 3 * * *, 0 3 * * 1, */15 * * * *]
+- worker-entry.ts: mapped */15 * * * * -> econ-calendar-notify; siteUrl trailing-slash strip (vars have trailing slash)
+- Auth hardening all 5 cron routes: process.env.CRON_SECRET -> (await getEnvVar('CRON_SECRET')) || process.env fallback; econ isAuthorized made async (also VAPID_PRIVATE_KEY)
+- Schedules: daily-reminder 08:00 WIB, re-engage + downgrade 10:00 WIB, weekly-summary Mon 10:00 WIB, econ-notify every 15 min
+- Verified: JSONC valid (string-aware parse), eslint clean, local smoke all 5 endpoints graceful, dev.log clean
+- Pushed 0a174245
+
+Stage Summary:
+- After next deploy (build FIRST then deploy - worker-entry imports .open-next/worker.js): crons run automatically, vars survive deploy, observability active
+- Deploy cmd: bun run build && npx wrangler deploy
+- Recommend: npx wrangler secret put CRON_SECRET to lock cron routes from public trigger
+- Secrets untouched
