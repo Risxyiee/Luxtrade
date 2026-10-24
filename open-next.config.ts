@@ -10,9 +10,9 @@ const config = defineCloudflareConfig({
   // Exclude large static assets from Workers deployment
   // Cloudflare Workers has a 25 MiB per-asset limit
   // Large videos should be served from R2/CDN instead
+  // NOTE: luxtradee.apk (~1.5 MB) intentionally stays included — served as a static asset
   assets: {
     exclude: [
-      "*.apk",
       "*.mov",
       "demo-tutorial.mp4",
     ]
