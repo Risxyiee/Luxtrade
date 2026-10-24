@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, fetchAllRows } from '@/lib/cron-supabase'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 /**
  * GET /api/cron/econ-calendar-notify
@@ -18,10 +19,13 @@ import { getCronAdmin, fetchAllRows } from '@/lib/cron-supabase'
 export const dynamic = 'force-dynamic'
 
 // Auth check
-function isAuthorized(request: NextRequest): boolean {
+async function isAuthorized(request: NextRequest): Promise<boolean> {
   const auth = request.headers.get('authorization')
-  if (auth === `Bearer ${process.env.CRON_SECRET}`) return true
-  if (auth === `Bearer ${process.env.VAPID_PRIVATE_KEY}`) return true
+  // getEnvVar reads CF bindings/secrets reliably on Workers
+  const cronSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
+  const vapidKey = (await getEnvVar('VAPID_PRIVATE_KEY')) || process.env.VAPID_PRIVATE_KEY
+  if (cronSecret && auth === `Bearer ${cronSecret}`) return true
+  if (vapidKey && auth === `Bearer ${vapidKey}`) return true
   if (process.env.NODE_ENV === 'development') return true
   return false
 }
@@ -40,7 +44,7 @@ interface CalendarEvent {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

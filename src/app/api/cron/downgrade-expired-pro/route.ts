@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 /**
  * GET|POST /api/cron/downgrade-expired-pro
@@ -23,9 +24,10 @@ async function handleRequest(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const force = searchParams.get('force') === 'true'
 
-  // Auth check: require CRON_SECRET (consistent with daily-reminder, re-engage, weekly-summary)
+  // Auth check (getEnvVar reads CF bindings/secrets reliably on Workers)
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!force && process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  const expectedSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
+  if (!force && expectedSecret && cronSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

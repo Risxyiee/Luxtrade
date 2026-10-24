@@ -1,6 +1,8 @@
 {
         "$schema": "node_modules/wrangler/config-schema.json",
-        "main": ".open-next/worker.js",
+        // Custom entrypoint: wraps .open-next/worker.js + adds scheduled() cron handler
+        // (must run `opennextjs-cloudflare build` BEFORE `wrangler deploy`)
+        "main": "worker-entry.ts",
         "name": "luxtrade-nextjs",
         "compatibility_date": "2025-07-18",
         "compatibility_flags": ["nodejs_compat"],
@@ -26,6 +28,24 @@
         "assets": {
                 "directory": ".open-next/assets",
                 "binding": "ASSETS"
+        },
+
+        // Plain-text variables (dashboard plain vars get WIPED by wrangler deploy
+        // unless declared here). Secrets must NEVER go here - use
+        // `wrangler secret put` or dashboard -> Encrypt.
+        "vars": {
+                "MIDTRANS_IS_PRODUCTION": "true",
+                "NEXT_PUBLIC_APP_URL": "https://luxtradee.web.id/",
+                "NEXT_PUBLIC_SITE_URL": "https://luxtradee.web.id/"
+        },
+
+        // Cron triggers -> worker-entry.ts scheduled() -> /api/cron/* routes
+        // 0 1 * * *  = 08:00 WIB harian  (daily-reminder + downgrade-expired-pro)
+        // 0 3 * * *  = 10:00 WIB harian  (re-engage + downgrade-expired-pro)
+        // 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary)
+        // */15 * * * = tiap 15 menit     (econ-calendar-notify)
+        "triggers": {
+                "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
         },
 
         // Uncomment to enable R2 incremental cache for ISR/SSG
