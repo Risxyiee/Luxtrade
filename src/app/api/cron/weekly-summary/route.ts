@@ -240,9 +240,10 @@ async function handleRequest(request: NextRequest) {
   const weekOverride = searchParams.get('week')
 
   // Auth check (getEnvVar reads CF bindings/secrets reliably on Workers)
+  // NOTE: ?force=true no longer bypasses auth — it only ignores the week window.
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   const expectedSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  if (!force && expectedSecret && cronSecret !== expectedSecret) {
+  if (expectedSecret && cronSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

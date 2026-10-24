@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
  *   3. Insert new trades (dedup by deal_id or open_time+symbol)
  *   4. Check PropFirm rules for each user → send alerts
  *
- * Auth: CRON_SECRET via Bearer header, or ?force=true to bypass
+ * Auth: CRON_SECRET via Bearer header (?force=true no longer bypasses auth)
  */
 
 // Lazy Supabase admin client

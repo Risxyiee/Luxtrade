@@ -19,7 +19,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  *
  * Supported params:
  *   ?dry=true       — preview users without sending
- *   ?force=true     — bypass auth + send to all active users
+ *   ?force=true     — send to all active users (auth still required)
  *   ?uid=xxx        — send to single user (for testing)
  *
  * Cron: runs daily at 08:00 WIB (01:00 UTC) via Cloudflare Workers cron trigger
@@ -282,9 +282,10 @@ async function handleRequest(request: NextRequest) {
   const targetUid = searchParams.get('uid') || undefined
 
   // Auth check (getEnvVar reads CF bindings/secrets reliably on Workers)
+  // NOTE: ?force=true no longer bypasses auth — it only widens the send scope.
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   const expectedSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  if (!force && expectedSecret && cronSecret !== expectedSecret) {
+  if (expectedSecret && cronSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -301,9 +301,9 @@ async function handleRequest(request: NextRequest) {
   const force = searchParams.get('force') === 'true'
   const targetUid = searchParams.get('uid') || undefined
 
-  // Auth check
+  // Auth check — NOTE: ?force=true no longer bypasses auth.
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!force && process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
