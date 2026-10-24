@@ -853,3 +853,24 @@ Stage Summary:
 - Zero image binaries touched (user rule respected) — only manifest metadata + deletion of 2 conflicting manifest sources
 - Optional future cleanup: public/*-fake .webp duplicates (~4.5MB unreferenced deploy weight) can be deleted someday; not done to respect "don't change images"
 - After deploy: SW install handler caches the fixed /manifest.webmanifest URL automatically on next SW update
+
+---
+Task ID: 10
+Agent: Z.ai Code (main)
+Task: AppInstallBanner component + real signed Android APK download
+
+Work Log:
+- User uploaded LuxTradee.aab (1.6MB, TWA/Capacitor wrapper, signed MY-KEY-A) and asked for install banner with direct-install flow
+- KEY FACT: .aab is NOT directly installable on Android (Play upload format only) — converted to universal APK via bundletool 1.18.1 (downloaded jar) with --mode=universal
+- Signed APK with repo keystore android/keystore.jks (password luxtradee123, alias luxtradee) — note: AAB cert (0F:3E:C2..., MY-KEY-A, created same day locally) DIFFERS from repo keystore cert (5F:73:3F...) — sideload APK uses repo key, so it cannot update-over a future Play install (uninstall first); fresh sideload installs unaffected
+- Output public/luxtradee.apk (1,552,501 bytes, APK Signing Block v2) — force-added to git (public/*.apk was gitignored from old cleanup); removed *.apk from open-next.config assets.exclude (1.5MB well under 25MiB)
+- Repurposed /api/download-apk: was 404 stub → now 302 to /luxtradee.apk (verified: 200 with MIME application/vnd.android.package-archive)
+- Created src/components/AppInstallBanner.tsx: 'use client', osType via userAgent in useEffect (iPadOS 13+ MacIntel+maxTouchPoints quirk handled), glassmorphism (bg-black/40 backdrop-blur-md border-white/10 rounded-xl), purple-900 icon badge + emerald CTA, dismiss X → localStorage 'hideInstallBannerLuxtrade', standalone-mode skip, null until mounted (hydration-safe), 0 images
+- Integrated into src/app/dashboard/LuxTradeDashboard.tsx below <Header> (page.tsx is a dynamic re-export only — banner would sit outside dashboard layout there)
+- Visual verification via temp mount on landing (restored after): desktop/iOS (Pixel 7 + iPhone 14 emulation) all 3 variants screenshot-verified; dismiss flow verified via JS click → banner gone + localStorage set + stays hidden after reload
+- Sandbox quirks handled: dev server died mid-session (restarted, new dev.log); git status showed mode-only (0-line) diffs on 8 untouched files → restored via git checkout before commit
+
+Stage Summary:
+- Commit 0b8a2f1d pushed → CF Pages deploy; after deploy Android users get real signed APK v1.2.0 (1.5MB) from /luxtradee.apk or /api/download-apk
+- iOS branch intentionally has no download (Apple doesn't allow APK/APPA) — PWA Add-to-Home-Screen guide instead
+- User should keep using the AAB for Play Store uploads; direct-download channel uses this repo-key-signed APK
