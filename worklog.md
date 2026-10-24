@@ -613,3 +613,21 @@ Stage Summary:
 - All cron email/notification routes now Workers-compatible; daily reminder feature works on luxtradee.web.id once deployed
 - Log tables daily_reminder_logs / re_engagement_emails likely missing in Supabase prod — routes degrade gracefully; user should paste CRON_LOG_TABLES_SQL (in src/lib/cron-supabase.ts) into Supabase SQL Editor for dedup + unsubscribe persistence
 - Secrets untouched
+
+---
+Task ID: login-supabase-config-fix
+Agent: Z.ai Code (main)
+Task: Fix login "Gagal memuat Supabase" + residual fs.readdir crash reports after cron fix
+
+Work Log:
+- Analyzed user's CF logs: fs.readdir stack (getCurrentBinaryTarget/instantiateLibrary = Prisma engine) at 07:57-07:58 UTC = OLD build still live (deploy is manual via wrangler; commit f4c27d05 not deployed yet)
+- Traced login failure: auth/login/page.tsx → getClientBrowserAsync() → /api/supabase/config → route read raw process.env → returns empty on CF Workers → "Gagal memuat Supabase"
+- Fixed /api/supabase/config to use getEnvVar() chain (globalThis CF ctx → getCloudflareContext → process.env) + no-store cache header
+- Global guard in src/lib/db.ts: on CF Workers never construct PrismaClient (detect via navigator.userAgent === 'Cloudflare-Workers' / WebSocketPair); db = stub Proxy throwing clear error; isDatabaseAvailable() = false on Workers → all 38 remaining db-importing routes degrade gracefully instead of fs.readdir crash; local dev unchanged
+- Verified: only one new PrismaClient in src (guarded); lint clean; tsc clean on changed files; local E2E: home 200, config route responds, cron routes graceful
+- Pushed commit e8e398ea to GitHub main
+
+Stage Summary:
+- Login path fully Supabase-based on Workers; config route Workers-safe
+- Prisma crash class eliminated project-wide via db.ts guard (even if old routes still import db)
+- User must DEPLOY (manual wrangler or CF git build) — past logs were from pre-fix build
