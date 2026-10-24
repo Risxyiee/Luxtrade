@@ -72,9 +72,9 @@ function coerceEnvString(val: unknown): string {
   return '';
 }
 
-async function getEnvVar(key: string): Promise<string> {
+async function getEnvVar(key: string, options?: { quiet?: boolean }): Promise<string> {
   // 1. Try the centralized CF env var reader (handles process.env + CF ctx.env)
-  const centralized = await getCfEnvVar(key);
+  const centralized = await getCfEnvVar(key, options);
   if (centralized && centralized.length > 0 && !isPlaceholder(centralized)) {
     console.log(`[News:getEnvVar] ${key} found via centralized getter (${centralized.length} chars, starts: ${centralized.substring(0, 4)}...)`);
     return centralized;
@@ -104,7 +104,9 @@ async function getEnvVar(key: string): Promise<string> {
           return fromCtx;
         }
         const envKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS'));
-        console.warn(`[News:getEnvVar] ${key} NOT in CF ctx.env (async). Available keys: [${envKeys.join(', ')}]`);
+        if (!options?.quiet) {
+          console.warn(`[News:getEnvVar] ${key} NOT in CF ctx.env (async). Available keys: [${envKeys.join(', ')}]`);
+        }
       }
     } catch (asyncErr: any) {
       console.warn(`[News:getEnvVar] getCloudflareContext({async:true}) failed: ${asyncErr?.message || asyncErr}`);
@@ -126,7 +128,9 @@ async function getEnvVar(key: string): Promise<string> {
     console.info(`[News:getEnvVar] @opennextjs/cloudflare import failed: ${importErr?.message || importErr}`);
   }
 
-  console.warn(`[News:getEnvVar] ${key} NOT FOUND in any source`);
+  if (!options?.quiet) {
+    console.warn(`[News:getEnvVar] ${key} NOT FOUND in any source`);
+  }
   return '';
 }
 
@@ -135,8 +139,8 @@ let _envCache: Record<string, string> | null = null;
 
 async function getTeApiKey(): Promise<string> {
   _envCache ??= {};
-  _envCache.RAPIDAPI_KEY ??= await getEnvVar('RAPIDAPI_KEY');
-  _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY ??= await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY');
+  _envCache.RAPIDAPI_KEY ??= await getEnvVar('RAPIDAPI_KEY', { quiet: true });
+  _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY ??= await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY', { quiet: true });
   return _envCache.RAPIDAPI_KEY || _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 
@@ -308,7 +312,7 @@ const FINNHUB_NEWS_URL = 'https://finnhub.io/api/v1/news';
 
 async function getFinnhubApiKey(): Promise<string> {
   _envCache ??= {};
-  _envCache.FINNHUB_API_KEY ??= await getEnvVar('FINNHUB_API_KEY');
+  _envCache.FINNHUB_API_KEY ??= await getEnvVar('FINNHUB_API_KEY', { quiet: true });
   return _envCache.FINNHUB_API_KEY || '';
 }
 
@@ -867,8 +871,8 @@ export async function GET(request: NextRequest) {
       environment: process.env.NODE_ENV || 'unknown',
       cfContextAvailable,
       apiKeys: {
-        RAPIDAPI_TRADING_ECONOMICS_KEY: (await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY')) ? 'SET' : 'NOT SET',
-        RAPIDAPI_KEY: (await getEnvVar('RAPIDAPI_KEY')) ? 'SET' : 'NOT SET',
+        RAPIDAPI_TRADING_ECONOMICS_KEY: (await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY', { quiet: true })) ? 'SET' : 'NOT SET',
+        RAPIDAPI_KEY: (await getEnvVar('RAPIDAPI_KEY', { quiet: true })) ? 'SET' : 'NOT SET',
         FINNHUB_API_KEY: fhKey ? `SET (${fhKey.length} chars)` : 'NOT SET',
       },
       teApiKeyAvailable: teKey ? `YES (${teKey.length} chars)` : 'NO',

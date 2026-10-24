@@ -82,7 +82,7 @@ function isPlaceholderEnvVar(value: string): boolean {
   return FOREX_PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p))
 }
 
-async function getEnvVar(key: string): Promise<string> {
+async function getEnvVar(key: string, options?: { quiet?: boolean }): Promise<string> {
   // 1. Try CF Workers env FIRST (primary for production)
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
@@ -109,18 +109,20 @@ async function getEnvVar(key: string): Promise<string> {
     console.log(`[Forex:getEnvVar] ${key} found in process.env (${fromProcess.length} chars)`)
     return fromProcess
   }
-  console.warn(`[Forex:getEnvVar] ${key} NOT FOUND in any source`)
+  if (!options?.quiet) {
+    console.warn(`[Forex:getEnvVar] ${key} NOT FOUND in any source`)
+  }
   return ''
 }
 
 async function getAlphaVantageKey(): Promise<string> {
   _envCache ??= {}
-  _envCache.ALPHA_VANTAGE_API_KEY ??= await getEnvVar('ALPHA_VANTAGE_API_KEY')
+  _envCache.ALPHA_VANTAGE_API_KEY ??= await getEnvVar('ALPHA_VANTAGE_API_KEY', { quiet: true })
   return _envCache.ALPHA_VANTAGE_API_KEY || ''
 }
 async function getTwelveDataKey(): Promise<string> {
   _envCache ??= {}
-  _envCache.TWELVE_DATA_API_KEY ??= await getEnvVar('TWELVE_DATA_API_KEY')
+  _envCache.TWELVE_DATA_API_KEY ??= await getEnvVar('TWELVE_DATA_API_KEY', { quiet: true })
   return _envCache.TWELVE_DATA_API_KEY || ''
 }
 

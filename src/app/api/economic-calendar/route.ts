@@ -42,18 +42,18 @@ let _envCache: Record<string, string> | null = null;
 
 async function getFinnhubKey(): Promise<string> {
   _envCache ??= {};
-  _envCache.FINNHUB_API_KEY ??= await getEnvVar('FINNHUB_API_KEY');
+  _envCache.FINNHUB_API_KEY ??= await getEnvVar('FINNHUB_API_KEY', { quiet: true });
   return _envCache.FINNHUB_API_KEY || '';
 }
 async function getRapidApiKey(): Promise<string> {
   _envCache ??= {};
-  _envCache.RAPIDAPI_KEY ??= await getEnvVar('RAPIDAPI_KEY');
-  _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY ??= await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY');
+  _envCache.RAPIDAPI_KEY ??= await getEnvVar('RAPIDAPI_KEY', { quiet: true });
+  _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY ??= await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY', { quiet: true });
   return _envCache.RAPIDAPI_KEY || _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 async function getFcsApiKey(): Promise<string> {
   _envCache ??= {};
-  _envCache.FCSAPI_KEY ??= await getEnvVar('FCSAPI_KEY');
+  _envCache.FCSAPI_KEY ??= await getEnvVar('FCSAPI_KEY', { quiet: true });
   return _envCache.FCSAPI_KEY || '';
 }
 

@@ -21,11 +21,11 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = 'gemini-2.0-flash'
 
 async function getGroqKey(): Promise<string> {
-  try { return (await getEnvVar('GROQ_API_KEY')) || process.env.GROQ_API_KEY || '' } catch { return process.env.GROQ_API_KEY || '' }
+  try { return (await getEnvVar('GROQ_API_KEY', { quiet: true })) || process.env.GROQ_API_KEY || '' } catch { return process.env.GROQ_API_KEY || '' }
 }
 
 async function getGeminiKey(): Promise<string> {
-  try { return (await getEnvVar('GEMINI_API_KEY')) || process.env.GEMINI_API_KEY || '' } catch { return process.env.GEMINI_API_KEY || '' }
+  try { return (await getEnvVar('GEMINI_API_KEY', { quiet: true })) || process.env.GEMINI_API_KEY || '' } catch { return process.env.GEMINI_API_KEY || '' }
 }
 
 /** Cek ketersediaan LLM tanpa melakukan panggilan (untuk logging & response meta). */
