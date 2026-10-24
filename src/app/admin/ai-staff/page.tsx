@@ -207,12 +207,28 @@ export default function AiStaffPage() {
 
   return (
     <div className="min-h-screen bg-[#05070d] text-white flex flex-col">
+      {/* ── Ambient glow (ringan — pure CSS, tanpa gambar) ── */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute -top-32 -left-24 w-96 h-96 rounded-full bg-purple-600/10 blur-3xl" />
+        <div className="absolute -top-24 right-0 w-80 h-80 rounded-full bg-emerald-600/[0.07] blur-3xl" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-40 rounded-full bg-fuchsia-600/[0.04] blur-3xl" />
+      </div>
+
       {/* ── Header ── */}
-      <header className="border-b border-white/5 bg-[#070a12]/80 backdrop-blur sticky top-0 z-20">
+      <header className="relative border-b border-white/5 bg-[#070a12]/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-purple-400" />
+            <div className="relative">
+              {/* glow pulse di belakang avatar */}
+              <div aria-hidden className="absolute inset-0 rounded-xl bg-purple-500/40 blur-md animate-pulse" />
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/30 to-fuchsia-500/10 border border-purple-400/40 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-purple-300" />
+              </div>
+              {/* titik status: agent aktif */}
+              <span
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#070a12] animate-pulse"
+                title="Agents aktif — cron berjalan"
+              />
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-bold leading-tight">AI Staff — Approval Center</h1>
@@ -243,7 +259,30 @@ export default function AiStaffPage() {
       </header>
 
       {/* ── Main ── */}
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <main className="relative flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {/* ── Stat strip (ringan) ── */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
+          <StatChip
+            icon={<Mail className="w-3.5 h-3.5" />}
+            label="Email pending"
+            value={tasksLoading ? '—' : csTasks.length}
+            accent="purple"
+          />
+          <StatChip
+            icon={<Clapperboard className="w-3.5 h-3.5" />}
+            label="Konten pending"
+            value={tasksLoading ? '—' : mktTasks.length}
+            accent="emerald"
+          />
+          <StatChip
+            icon={<Zap className="w-3.5 h-3.5" />}
+            label="Agents"
+            value="2 online"
+            accent="amber"
+            pulse
+          />
+        </div>
+
         {tasksLoading && tasks.length === 0 ? (
           <div className="space-y-4">
             {[0, 1, 2].map(i => (
@@ -494,7 +533,7 @@ export default function AiStaffPage() {
       </main>
 
       {/* ── Footer (sticky ke bawah) ── */}
-      <footer className="mt-auto border-t border-white/5">
+      <footer className="relative mt-auto border-t border-white/5">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] text-gray-600">
             LuxTradee AI Staff · draf dibuat otomatis oleh cron, eksekusi final selalu butuh approval manusia
@@ -510,13 +549,64 @@ export default function AiStaffPage() {
 function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
   return (
     <Card className="bg-[#0a0c12] border-white/5">
-      <CardContent className="py-14 flex flex-col items-center text-center gap-3">
-        {icon}
+      <CardContent className="py-14 flex flex-col items-center text-center gap-4">
+        <div className="relative">
+          <div aria-hidden className="absolute inset-0 rounded-full bg-purple-500/20 blur-lg" />
+          <div className="relative w-16 h-16 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center">
+            {icon}
+          </div>
+        </div>
         <div>
           <p className="text-sm font-semibold text-gray-300">{title}</p>
           <p className="text-xs text-gray-600 mt-1 max-w-sm">{subtitle}</p>
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// ─── Stat chip (kartu statistik mini) ────────────────────────────────────────
+const STAT_ACCENTS = {
+  purple: {
+    chip: 'border-purple-500/20 bg-purple-500/[0.05]',
+    bar: 'bg-gradient-to-b from-purple-400/80 to-purple-400/0',
+    text: 'text-purple-300',
+  },
+  emerald: {
+    chip: 'border-emerald-500/20 bg-emerald-500/[0.05]',
+    bar: 'bg-gradient-to-b from-emerald-400/80 to-emerald-400/0',
+    text: 'text-emerald-300',
+  },
+  amber: {
+    chip: 'border-amber-500/20 bg-amber-500/[0.05]',
+    bar: 'bg-gradient-to-b from-amber-400/80 to-amber-400/0',
+    text: 'text-amber-300',
+  },
+} as const
+
+function StatChip({
+  icon,
+  label,
+  value,
+  accent,
+  pulse = false,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: React.ReactNode
+  accent: keyof typeof STAT_ACCENTS
+  pulse?: boolean
+}) {
+  const a = STAT_ACCENTS[accent]
+  return (
+    <div className={`relative overflow-hidden rounded-xl border ${a.chip} p-3`}>
+      <div aria-hidden className={`absolute left-0 top-0 bottom-0 w-0.5 ${a.bar}`} />
+      <div className="flex items-center gap-1.5">
+        <span className={a.text}>{icon}</span>
+        <span className="text-[9px] sm:text-[10px] uppercase tracking-wide text-gray-500 truncate">{label}</span>
+        {pulse && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-auto flex-shrink-0" aria-hidden />}
+      </div>
+      <p className={`mt-1 text-lg sm:text-xl font-bold ${a.text} leading-none`}>{value}</p>
+    </div>
   )
 }
