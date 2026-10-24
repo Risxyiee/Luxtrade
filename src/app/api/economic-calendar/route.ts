@@ -27,8 +27,15 @@ interface CacheEntry {
 
 // ─── In-Memory Cache ────────────────────────────────────────────────────────
 let calendarCache: CacheEntry | null = null;
-const CACHE_DURATION = 10 * 60 * 1000; // 10 min
+// 30 min — a longer serve window means fewer upstream hits. nfs.faireconomy.media
+// rate-limits shared Cloudflare Workers egress IPs, so every saved request counts.
+const CACHE_DURATION = 30 * 60 * 1000;
 const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
+
+// Last-known-good KV cache: survives long upstream outages (7 days).
+// When ALL live sources fail, we serve this instead of the synthetic fallback.
+const LASTGOOD_KV_KEY = 'economic_calendar_lastgood';
+const LASTGOOD_KV_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 // ─── API Key Helpers ────────────────────────────────────────────────────────
 let _envCache: Record<string, string> | null = null;
@@ -1375,6 +1382,73 @@ async function setKVCache(entry: CacheEntry, ttlMs?: number): Promise<void> {
   } catch { /* KV not available */ }
 }
 
+// ─── Last-Good KV Cache (outage rescue) ─────────────────────────────────────
+// Written on every successful live fetch with a 7-day TTL. Read only when ALL
+// live sources fail — serves real (slightly old) data instead of the synthetic
+// fallback schedule. Kept separate from the short-term cache key so a long
+// outage can never evict the rescue copy.
+async function setLastGoodKVCache(entry: CacheEntry): Promise<void> {
+  try {
+    if (entry.unavailable === true || isSampleCalendarData(entry.events)) return;
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
+    if (!kv) return;
+    await kv.put(LASTGOOD_KV_KEY, JSON.stringify(entry), { expirationTtl: LASTGOOD_KV_TTL_SECONDS });
+  } catch { /* KV not available */ }
+}
+
+async function getLastGoodKVCache(): Promise<CacheEntry | null> {
+  try {
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
+    if (!kv) return null;
+    const raw = await kv.get(LASTGOOD_KV_KEY, 'text');
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as CacheEntry;
+    // Only trust real live data
+    if (entry.unavailable === true) return null;
+    if (isSampleCalendarData(entry.events)) return null;
+    if (!entry.events || entry.events.length === 0) return null;
+    return entry;
+  } catch { return null; }
+}
+
+/** Build a 200 response from the last-good KV cache, or null if unavailable. */
+async function buildLastGoodResponse(
+  impactFilter: string | null,
+  currencyFilter: string | null,
+  timezone: string | null,
+  serverTime: string
+): Promise<NextResponse | null> {
+  try {
+    const lastGood = await getLastGoodKVCache();
+    if (!lastGood) return null;
+    let events = lastGood.events;
+    if (impactFilter) events = events.filter(e => e.impact === impactFilter);
+    if (currencyFilter) events = events.filter(e => e.currency === currencyFilter);
+    if (events.length === 0) events = lastGood.events; // never return empty just because of filters
+    console.warn(`[EconCalendar] All live sources failed — serving last-good KV cache from ${new Date(lastGood.timestamp).toISOString()} (${lastGood.events.length} events)`);
+    return NextResponse.json({
+      success: true, cached: true, stale: true, cacheSource: 'kv-lastgood',
+      events,
+      totalAvailable: lastGood.events.length,
+      source: lastGood.source + ' (cached)',
+      fetchedAt: new Date(lastGood.timestamp).toISOString(),
+      now: serverTime, timezone: timezone || null,
+      unavailable: false,
+      message: 'Live sources temporarily unavailable — showing saved calendar data (may be a few hours old).',
+    });
+  } catch { return null; }
+}
+
 // ─── GET Handler ────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   // Reset env cache for each request
@@ -1545,9 +1619,16 @@ export async function GET(request: NextRequest) {
       console.warn('[EconCalendar] Not caching fallback/unavailable data to prevent stale cache');
       calendarCache = null; // Clear in-memory cache of any previous fallback too
       // Don't write fallback to KV — let next request try live sources again
+
+      // Outage rescue: serve the last-known-good live data from KV (up to 7 days
+      // old) instead of the synthetic fallback schedule.
+      const rescued = await buildLastGoodResponse(impactFilter, currencyFilter, timezone || null, serverTime);
+      if (rescued) return rescued;
     } else {
       calendarCache = newCache;
       await setKVCache(newCache, cacheTTL);
+      // Persist a long-lived rescue copy (7-day TTL) for future outages
+      await setLastGoodKVCache(newCache);
     }
 
     let events = allEvents;
@@ -1577,6 +1658,10 @@ export async function GET(request: NextRequest) {
         message: 'Using cached data (fresh data unavailable)',
       });
     }
+
+    // Outage rescue via last-good KV before dropping to the synthetic schedule
+    const rescued = await buildLastGoodResponse(impactFilter, currencyFilter, timezone || null, serverTime);
+    if (rescued) return rescued;
 
     // NEVER return 500 — always 200 with fallback data
     const fallbackEvents = await fetchFallbackCalendar();

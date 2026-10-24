@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, RefreshCw, AlertTriangle, Zap } from 'lucide-react'
+import { CalendarDays, RefreshCw, AlertTriangle, Zap, Clock } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
@@ -91,6 +91,7 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [isFallback, setIsFallback] = useState(false)
+  const [isStale, setIsStale] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const userOffset = useMemo(() => getUserUtcOffset(), [])
 
@@ -108,6 +109,7 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
         const filtered = allEvents.filter((e: CalendarEvent) => majorCurrencies.includes(e.currency))
         setEvents(filtered.slice(0, 5))
         setIsFallback(data.unavailable === true || (data.source || '').includes('Fallback'))
+        setIsStale(data.stale === true)
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [userOffset])
@@ -172,6 +174,13 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
               <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 mb-1">
                 <AlertTriangle className="w-3 h-3 text-amber-500" />
                 <span className="text-[9px] text-amber-400">{L ? 'Data statis (API key belum diset)' : 'Static data (API key not set)'}</span>
+              </div>
+            )}
+            {/* Stale-but-real data indicator (served from outage rescue cache) */}
+            {isStale && !isFallback && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-sky-500/10 border border-sky-500/20 mb-1">
+                <Clock className="w-3 h-3 text-sky-400" />
+                <span className="text-[9px] text-sky-400">{L ? 'Data tersimpan — sumber live sedang terganggu' : 'Saved data — live sources temporarily down'}</span>
               </div>
             )}
             {/* Next Event Highlight */}
