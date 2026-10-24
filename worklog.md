@@ -776,3 +776,20 @@ Stage Summary:
 - When CRON_SECRET is unset (current production state), requests are allowed through without auth
 - When CRON_SECRET is later set, Bearer token must match — consistent with the rest of the cron surface
 - User needs to `bun run build && npx wrangler deploy` for this fix to go live
+---
+Task ID: 7
+Agent: main
+Task: Fix /api/admin/ai-staff 500 (GRANT missing) + lightweight AI Staff visuals
+
+Work Log:
+- Diagnosed production 500 on GET /api/admin/ai-staff: probed endpoint unauthenticated → 401 (module OK, auth OK), lalu probe Supabase REST dengan anon key → 42501 "permission denied for table ai_pending_tasks" → tabel ADA, tapi GRANT service_role belum diset
+- Root cause: service_role menembus RLS tapi TIDAK menembus table grants; isMissingTableError gak match 42501 → jatuh ke generic 500
+- Fix API route: 42501/permission-denied → 503 dengan pesan berisi SQL GRANT yang exact
+- Fix migration 011: tambah GRANT ALL → service_role + GRANT SELECT → authenticated
+- UI visuals (pure CSS, zero image): ambient glow background (purple/emerald/fuchsia blur), bot avatar dengan glow pulse + status dot hijau, stat strip 3 chip (Email pending / Konten pending / Agents 2 online), EmptyState dengan glow ring
+- Commit e23cc8a0 push ke origin/main
+
+Stage Summary:
+- USER ACTION REQUIRED: jalankan di Supabase SQL Editor → GRANT ALL ON public.ai_pending_tasks TO service_role; GRANT SELECT ON public.ai_pending_tasks TO authenticated;
+- Setelah GRANT dijalankan + deploy baru, /admin/ai-staff berfungsi penuh
+- Log error econ-calendar (Faireconomy rate-limited + TE 404) dari log user adalah transient — KV last-good rescue sudah menangani
