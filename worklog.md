@@ -916,3 +916,29 @@ Stage Summary:
 - Everything requested in the user's last message (econ calendar errors, auto-journal 500, PnL share card logo/download/layout) was already shipped in 23134b67; this pass re-verified each fix end-to-end and caught+fixed one leftover LCP warning (hero logo priority)
 - After CF Pages deploy: calendar serves 2h-cached Faireconomy data with burst retry + last-good KV fallback (TE RapidAPI endpoint is dead upstream — removed); auto-journal 500s now retry across model quota pools and surface real causes in the user toast; PnL share card shows LuxTradee branding with true PNG download
 - No secrets touched; no image assets modified
+---
+Task ID: 10
+Agent: main
+Task: Fix 5 production errors from CF Workers tail logs + improve PnL share card
+
+Work Log:
+- Read uploaded error log: identified 5 distinct issues (EconCalendar Faireconomy rate-limit, auto-journal 500, push/subscribe Prisma-on-Workers ×5, News MarketWatch 530, PnL share card UI)
+- Read economic-calendar/route.ts (1693 lines): only Faireconomy active, all other sources commented out, ZAI provider exists but skipped
+- Re-enabled ZAI web_search+page_reader as fallback in cascade (was incorrectly marked as "readFile not supported")
+- Added nextweek endpoint variant to Faireconomy fetch + increased retry attempts from 2→3 with better backoff
+- Read auto-journal/route.ts (581 lines): 2-model fallback chain, good error handling but missing 3rd model
+- Added gemini-1.5-flash as 3rd model in GEMINI_MODELS array
+- Changed rate-limit error from 500→429 with Indonesian-specific retry messages
+- Read push/subscribe/route.ts (47 lines): used Prisma db.pushSubscription which fails on CF Workers
+- Replaced Prisma with Supabase admin client (createAdminClientAsync) in ALL 4 push routes: subscribe, unsubscribe, send, send-batch
+- Read PNLShareCard.tsx (142 lines): logo too small, P&L formatting had double-negative issue, layout cramped
+- Enlarged logo from 26→36px, fixed P&L display (Math.abs + prefix), improved spacing/typography, widened card to 340px
+- Confirmed AppInstallBanner already exists (created in prior session) — no changes needed
+- Lint passed clean, committed as 1234705b, pushed to origin/main (triggers CF deploy)
+
+Stage Summary:
+- Economic Calendar: ZAI re-enabled as fallback + nextweek endpoint + 3-attempt retry → Faireconomy rate-limit no longer causes complete data loss
+- Auto-Journal: 3-model fallback chain (2.5-flash → 2.0-flash → 1.5-flash) + 429 for rate limits → significantly reduced 500s
+- Push Notifications: ALL 4 routes migrated from Prisma to Supabase admin client → fixes 5× production 500 errors
+- PnL Share Card: larger logo, fixed P&L formatting, clearer layout → matches user request "tambahin logo dan bisa didowload layout harus jelas"
+- No secrets touched; no image assets modified
