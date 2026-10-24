@@ -46,3 +46,12 @@ CREATE INDEX IF NOT EXISTS idx_ai_pending_tasks_target_created
 -- anon key TIDAK bisa baca antrean draf email user.
 -- ============================================================
 ALTER TABLE public.ai_pending_tasks ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- GRANTS (WAJIB — tanpa ini service_role kena 42501
+-- "permission denied for table" karena service_role menembus
+-- RLS tapi TIDAK menembus table grants):
+-- ============================================================
+GRANT ALL ON public.ai_pending_tasks TO service_role;
+GRANT SELECT ON public.ai_pending_tasks TO authenticated;
+-- anon: sengaja TIDAK diberi grant (hanya API server yang mengakses)

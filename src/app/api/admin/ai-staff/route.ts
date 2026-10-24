@@ -70,6 +70,17 @@ async function listPending(admin: SupabaseClient) {
         counts: { cs: 0, marketing: 0 },
       }, { status: 400 })
     }
+    // 42501: tabel ADA tapi GRANT untuk service_role belum diset
+    // (service_role menembus RLS, tapi TIDAK menembus table grants)
+    const errCode = (error as { code?: string }).code || ''
+    if (errCode === '42501' || String(error.message || '').includes('permission denied')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Akses DB ditolak (42501) — jalankan di Supabase SQL Editor: GRANT ALL ON public.ai_pending_tasks TO service_role; GRANT SELECT ON public.ai_pending_tasks TO authenticated;',
+        tasks: [],
+        counts: { cs: 0, marketing: 0 },
+      }, { status: 503 })
+    }
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
