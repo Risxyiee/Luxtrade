@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getCronAdmin, isMissingTableError } from '@/lib/cron-supabase'
 
 /**
  * GET /api/cron/weekly-summary/unsubscribe?uid=xxx
  * Unsubscribe page: marks user as unsubscribed from weekly summary emails.
- * Shows a simple HTML confirmation page.
+ * Uses Supabase REST (Prisma cannot run on CF Workers).
+ * weekly_summary_emails only uses Prisma-guaranteed columns (user_id, week_start, sent_at, status);
+ * unsubscribes are persisted via status = 'unsubscribed'.
  */
 export const dynamic = 'force-dynamic'
 
@@ -18,26 +20,46 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing uid parameter' }, { status: 400 })
   }
 
-  if (!isDatabaseAvailable()) {
+  const admin = await getCronAdmin()
+  if (!admin) {
     return new Response(getUnsubHtml('not_found'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   }
 
   try {
-    // Mark ALL existing weekly_summary_emails for this user as unsubscribed
-    await db.$executeRawUnsafe(`
-      UPDATE public.weekly_summary_emails
-      SET unsubscribed = true, unsubscribed_at = NOW()
-      WHERE user_id = $1;
-    `, uid)
+    const nowIso = new Date().toISOString()
 
-    // Also insert a record if none exists (so future queries skip this user)
-    await db.$executeRawUnsafe(`
-      INSERT INTO public.weekly_summary_emails (user_id, email, week_start, week_end, unsubscribed, unsubscribed_at)
-      VALUES ($1, 'unsubscribed', CURRENT_DATE, CURRENT_DATE, true, NOW())
-      ON CONFLICT DO NOTHING;
-    `, uid)
+    // Mark ALL existing weekly_summary_emails rows for this user as unsubscribed
+    const { error: updateErr } = await admin
+      .from('weekly_summary_emails')
+      .update({ status: 'unsubscribed', sent_at: nowIso })
+      .eq('user_id', uid)
+
+    if (updateErr && !isMissingTableError(updateErr)) {
+      console.warn('[weekly-summary/unsub] update failed:', updateErr.message)
+    }
+
+    // Insert a sentinel row (if none exists) so future queries skip this user
+    const { data: existing } = await admin
+      .from('weekly_summary_emails')
+      .select('id')
+      .eq('user_id', uid)
+      .eq('status', 'unsubscribed')
+      .limit(1)
+
+    if (!existing || existing.length === 0) {
+      // week_start = epoch so it can never collide with a real week window
+      const { error: insertErr } = await admin.from('weekly_summary_emails').insert({
+        user_id: uid,
+        week_start: '1970-01-01T00:00:00.000Z',
+        sent_at: nowIso,
+        status: 'unsubscribed',
+      })
+      if (insertErr && !isMissingTableError(insertErr)) {
+        console.warn('[weekly-summary/unsub] sentinel insert failed:', insertErr.message)
+      }
+    }
 
     return new Response(getUnsubHtml('success'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
