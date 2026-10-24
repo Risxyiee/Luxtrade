@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import { ContextGuideProvider } from '@/components/ContextGuide'
+import AppInstallBanner from '@/components/AppInstallBanner'
 
 // Tab components are now lazy-loaded via next/dynamic in TabContent.tsx
 
@@ -1044,6 +1045,8 @@ function LuxTradeDashboardContent() {
           isAdmin={isAdmin}
         />
 
+        {/* Banner install aplikasi (Android APK / iOS guide) — dismissible, persist di localStorage */}
+        <AppInstallBanner />
 
         {/* Tab Content */}
         <TabContent
