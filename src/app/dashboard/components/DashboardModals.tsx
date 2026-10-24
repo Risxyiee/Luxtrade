@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo } from 'react'
+import { useState, useRef, useCallback, memo } from 'react'
 import dynamic from 'next/dynamic'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard } from 'lucide-react'
+import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard, Download, Loader2 } from 'lucide-react'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 import OnboardingModal from '@/components/landing/OnboardingModal'
 import { formatCurrency } from '@/lib/utils-currency'
@@ -260,6 +260,34 @@ const DashboardModals = memo(function DashboardModals({
   tradingAccounts = [],
   fetchData = () => {}
 }: DashboardModalsProps) {
+  // ── PnL Share Card PNG download ──
+  const shareCardRef = useRef<HTMLDivElement>(null)
+  const [downloadingCard, setDownloadingCard] = useState(false)
+
+  const handleDownloadCard = useCallback(async () => {
+    const node = shareCardRef.current
+    if (!node || downloadingCard) return
+    try {
+      setDownloadingCard(true)
+      const { toPng } = await import('html-to-image')
+      const dataUrl = await toPng(node, {
+        pixelRatio: 3,
+        backgroundColor: '#0a0c12',
+        cacheBust: true,
+      })
+      const link = document.createElement('a')
+      const safeSymbol = (selectedTrade?.symbol || 'trade').replace(/[^A-Za-z0-9]/g, '')
+      link.download = `luxtradee-${safeSymbol}-pnl.png`
+      link.href = dataUrl
+      link.click()
+    } catch (err: any) {
+      console.error('[ShareCard] PNG download failed:', err)
+      alert('Gagal membuat gambar. Coba screenshot manual sebagai alternatif.')
+    } finally {
+      setDownloadingCard(false)
+    }
+  }, [selectedTrade, downloadingCard])
+
   return (
     <>
       {/* Edit Trade Modal */}
@@ -408,24 +436,45 @@ const DashboardModals = memo(function DashboardModals({
           </DialogHeader>
           {selectedTrade && (
             <div className="flex flex-col items-center gap-4">
-              <PNLShareCard
-                symbol={selectedTrade.symbol}
-                type={selectedTrade.type}
-                entryPrice={selectedTrade.open_price}
-                exitPrice={selectedTrade.close_price}
-                lotSize={selectedTrade.lot_size}
-                profitLoss={selectedTrade.profit_loss}
-                session={selectedTrade.session || 'Unknown'}
-                date={new Date(selectedTrade.close_time).toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })}
-              />
-              <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center">
-                Take a screenshot to share your trade on social media
-              </p>
+              <div ref={shareCardRef} className="rounded-2xl">
+                <PNLShareCard
+                  symbol={selectedTrade.symbol}
+                  type={selectedTrade.type}
+                  entryPrice={selectedTrade.open_price}
+                  exitPrice={selectedTrade.close_price}
+                  lotSize={selectedTrade.lot_size}
+                  profitLoss={selectedTrade.profit_loss}
+                  session={selectedTrade.session || 'Unknown'}
+                  date={new Date(selectedTrade.close_time).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                />
+              </div>
+              <div className="flex flex-col items-center gap-2 w-full">
+                <Button
+                  onClick={handleDownloadCard}
+                  disabled={downloadingCard}
+                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                >
+                  {downloadingCard ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating image...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PNG
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center">
+                  Save the card &amp; share your win on social media
+                </p>
+              </div>
             </div>
           )}
         </DialogContent>

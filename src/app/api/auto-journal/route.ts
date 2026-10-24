@@ -89,6 +89,56 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
   }
 }
 
+// ==================== AI CALL WITH RETRY + MODEL FALLBACK ====================
+
+/** Fallback chain: 2.5-flash first (best quality), then 2.0-flash (separate quota pool). */
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash']
+
+function isRetryableAIError(err: any): boolean {
+  const msg = String(err?.message || '').toLowerCase()
+  return (
+    msg.includes('429') || msg.includes('quota') || msg.includes('rate') ||
+    msg.includes('timeout') || msg.includes('timed out') ||
+    msg.includes('503') || msg.includes('overloaded') || msg.includes('unavailable') ||
+    msg.includes('fetch failed') || msg.includes('network') || msg.includes('internal error')
+  )
+}
+
+/**
+ * Call Gemini vision with per-model retry + cross-model fallback.
+ * Fixes the production fast-500: quota (429) / transient Google errors fail in
+ * ~300ms — a short backoff retry and a second model (different quota bucket)
+ * rescue most failures without user-visible flakiness.
+ */
+async function callGeminiWithRetry(
+  prompt: string,
+  base64Image: string,
+  mimeType: string,
+  log: (emoji: string, msg: string) => void
+): Promise<string> {
+  let lastErr: any = null
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        log('🤖', `Gemini vision call: model=${model} attempt=${attempt}`)
+        return await geminiVision(prompt, base64Image, mimeType, {
+          model,
+          temperature: 0.1,
+          maxTokens: 2048,
+          timeoutMs: attempt === 1 ? 40000 : 30000,
+        })
+      } catch (err: any) {
+        lastErr = err
+        const retryable = isRetryableAIError(err)
+        log('⚠️', `Gemini ${model} attempt ${attempt} FAILED: ${err.message} (retryable=${retryable})`)
+        if (!retryable) break // non-retryable (e.g. bad key) → jump to next model
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1500))
+      }
+    }
+  }
+  throw lastErr
+}
+
 // ==================== MAIN API ====================
 
 export const dynamic = 'force-dynamic'
@@ -106,7 +156,19 @@ export async function POST(request: NextRequest) {
 
     // ── STEP 1: Auth ──
     log('🔐', 'Checking authentication...')
-    const { user, client } = await getUserWithSession(request)
+    let user: any = null
+    let client: any = null
+    try {
+      const authResult = await getUserWithSession(request)
+      user = authResult.user
+      client = authResult.client
+    } catch (err: any) {
+      log('⛔', `AUTH step crashed: ${err.message}`)
+      return NextResponse.json(
+        { error: 'Gagal memverifikasi sesi login', detail: err.message, details: err.message, step: 'auth' },
+        { status: 500 }
+      )
+    }
     if (!user) {
       log('⛔', 'AUTH FAILED')
       return NextResponse.json(
@@ -217,7 +279,7 @@ export async function POST(request: NextRequest) {
     const gmtOffset = tradingAccount?.broker_gmt_offset ?? 0
     log('✅', `broker_gmt_offset: ${gmtOffset}`)
 
-    // ── STEP 7: AI call ──
+    // ── STEP 7: AI call (retry + model fallback) ──
     log('🤖', 'Starting AI vision call (Gemini)...')
     const t2 = performance.now()
     let aiResultText: string
@@ -230,16 +292,22 @@ export async function POST(request: NextRequest) {
         )
       }
       const prompt = buildTradeAndJournalPrompt(lang)
-      aiResultText = await geminiVision(
+      aiResultText = await callGeminiWithRetry(
         prompt,
         base64Image,
         imageFile.type || 'image/jpeg',
-        { temperature: 0.1, maxTokens: 2048 }
+        log
       )
     } catch (err: any) {
       log('⛔', `AI call FAILED after ${(performance.now() - t2).toFixed(0)}ms: ${err.message}`)
       return NextResponse.json(
-        { error: 'AI gagal menganalisis screenshot', detail: err.message, step: 'ai_call' },
+        {
+          error: 'AI gagal menganalisis screenshot',
+          detail: err.message,
+          details: err.message,
+          hint: 'Coba lagi dalam 1 menit (kuota AI bisa sedang penuh). Jika terus gagal, hubungi admin.',
+          step: 'ai_call',
+        },
         { status: 500 }
       )
     }
@@ -501,6 +569,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to create auto-journal',
+        // Surface the real cause so the client toast shows WHY it failed
+        detail: error?.message || String(error),
+        details: error?.message || String(error),
+        step: 'unhandled',
         timing: { totalMs: Math.round(performance.now() - t0) }
       },
       { status: 500 }

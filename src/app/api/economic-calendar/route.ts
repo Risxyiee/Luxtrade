@@ -27,9 +27,10 @@ interface CacheEntry {
 
 // ─── In-Memory Cache ────────────────────────────────────────────────────────
 let calendarCache: CacheEntry | null = null;
-// 30 min — a longer serve window means fewer upstream hits. nfs.faireconomy.media
-// rate-limits shared Cloudflare Workers egress IPs, so every saved request counts.
-const CACHE_DURATION = 30 * 60 * 1000;
+// 2h serve window — the calendar is WEEKLY data (only actuals update intraday),
+// and nfs.faireconomy.media rate-limits shared Cloudflare Workers egress IPs.
+// A longer window means far fewer upstream hits (max ~12/day instead of ~48).
+const CACHE_DURATION = 2 * 60 * 60 * 1000;
 const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
 
 // Last-known-good KV cache: survives long upstream outages (7 days).
@@ -93,73 +94,84 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
   ];
   const events: CalendarEvent[] = [];
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://www.forexfactory.com/',
-        },
-        signal: AbortSignal.timeout(12000),
-      });
-      if (!res.ok) {
-        console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status} ${res.statusText}`);
-        continue;
-      }
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) continue;
-
-      for (const item of data) {
-        const currency = (item.country || '').toUpperCase();
-        if (!currency || currency.length > 4) continue;
-        // Skip "All" or non-currency entries
-        if (currency === 'ALL' || currency.length < 2) continue;
-
-        const impactStr = String(item.impact || '').toLowerCase();
-        const impact: 'high' | 'medium' | 'low' =
-          impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' :
-          impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
-        // Skip "Holiday" impact entries
-        if (impactStr === 'holiday') continue;
-
-        const eventTitle = (item.title || 'Economic Event').trim();
-        if (!eventTitle || eventTitle.length < 3) continue;
-
-        // Parse date — format: "2026-10-21T02:00:00-04:00"
-        let eventDate = new Date().toISOString().split('T')[0];
-        let eventTime = '08:30';
-        if (item.date) {
-          try {
-            const d = new Date(item.date);
-            if (!isNaN(d.getTime())) {
-              // Convert to UTC for consistency
-              eventDate = d.toISOString().split('T')[0];
-              eventTime = d.toISOString().substring(11, 16);
-            }
-          } catch {}
-        }
-
-        const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
-        if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
-
-        events.push({
-          id: 'fe-' + events.length + '-' + currency + '-' + eventDate,
-          date: eventDate,
-          time: eventTime,
-          dateTime: buildDateTime(eventDate, eventTime),
-          currency,
-          impact,
-          event: eventTitle,
-          actual: item.actual != null ? String(item.actual) : undefined,
-          forecast: item.forecast != null ? String(item.forecast) : '',
-          previous: item.previous != null ? String(item.previous) : '',
-        });
-      }
-    } catch (err: any) {
-      console.warn(`[EconCalendar] Faireconomy fetch error: ${err.message}`);
+  // Two attempts with a short delay between them — the rate limiter is often a
+  // per-second burst limit, so one retry after a pause rescues transient hits.
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (events.length > 0) break;
+    if (attempt > 1) {
+      await new Promise(r => setTimeout(r, 1500));
+      console.log('[EconCalendar] Faireconomy retry attempt ' + attempt);
     }
-  }
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.forexfactory.com/',
+          },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!res.ok) {
+          console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status} ${res.statusText} (attempt ${attempt})`);
+          continue;
+        }
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) continue;
+
+        for (const item of data) {
+          const currency = (item.country || '').toUpperCase();
+          if (!currency || currency.length > 4) continue;
+          // Skip "All" or non-currency entries
+          if (currency === 'ALL' || currency.length < 2) continue;
+
+          const impactStr = String(item.impact || '').toLowerCase();
+          const impact: 'high' | 'medium' | 'low' =
+            impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' :
+            impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
+          // Skip "Holiday" impact entries
+          if (impactStr === 'holiday') continue;
+
+          const eventTitle = (item.title || 'Economic Event').trim();
+          if (!eventTitle || eventTitle.length < 3) continue;
+
+          // Parse date — format: "2026-10-21T02:00:00-04:00"
+          let eventDate = new Date().toISOString().split('T')[0];
+          let eventTime = '08:30';
+          if (item.date) {
+            try {
+              const d = new Date(item.date);
+              if (!isNaN(d.getTime())) {
+                // Convert to UTC for consistency
+                eventDate = d.toISOString().split('T')[0];
+                eventTime = d.toISOString().substring(11, 16);
+              }
+            } catch {}
+          }
+
+          const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
+          if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+          events.push({
+            id: 'fe-' + events.length + '-' + currency + '-' + eventDate,
+            date: eventDate,
+            time: eventTime,
+            dateTime: buildDateTime(eventDate, eventTime),
+            currency,
+            impact,
+            event: eventTitle,
+            actual: item.actual != null ? String(item.actual) : undefined,
+            forecast: item.forecast != null ? String(item.forecast) : '',
+            previous: item.previous != null ? String(item.previous) : '',
+          });
+        }
+      } catch (err: any) {
+        console.warn(`[EconCalendar] Faireconomy fetch error: ${err.message}`);
+      }
+    } // end urls loop
+  } // end attempts loop
 
   if (events.length === 0) throw new Error('No events from Faireconomy (thisweek returned empty or rate-limited)');
   console.log('[EconCalendar] Faireconomy SUCCESS: ' + events.length + ' events');
@@ -1216,20 +1228,24 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   // }
   console.log('[EconCalendar] Skipping ZAI (not supported in CF Workers)');
 
-  // 2. TradingEconomics Calendar (RapidAPI — proxy, works from CF Workers)
-  if (rapKey) {
-    try {
-      const events = await fetchTECalendar();
-      if (events.length > 0) {
-        if (!primarySource) primarySource = 'TradingEconomics (Live)';
-        collectedEvents.push(...events);
-        console.log(`[EconCalendar] TradingEconomics: ${events.length} events, total now ${collectedEvents.length}`);
-      }
-    } catch (err: any) {
-      errors.push('TE: ' + err.message);
-      console.error('[EconCalendar] TradingEconomics failed:', err.message);
-    }
-  }
+  // 2. TradingEconomics Calendar (RapidAPI) — SKIPPED
+  // RapidAPI removed/disabled the /calendar endpoint on tradingeconomics.p.rapidapi.com
+  // (returns 404 {"message":"API doesn't exists"} even with a valid key, verified Nov 2025).
+  // The direct api.tradingeconomics.com guest:guest access is also dead (410 Gone).
+  // if (rapKey) {
+  //   try {
+  //     const events = await fetchTECalendar();
+  //     if (events.length > 0) {
+  //       if (!primarySource) primarySource = 'TradingEconomics (Live)';
+  //       collectedEvents.push(...events);
+  //       console.log(`[EconCalendar] TradingEconomics: ${events.length} events, total now ${collectedEvents.length}`);
+  //     }
+  //   } catch (err: any) {
+  //     errors.push('TE: ' + err.message);
+  //     console.error('[EconCalendar] TradingEconomics failed:', err.message);
+  //   }
+  // }
+  console.log('[EconCalendar] Skipping TradingEconomics (RapidAPI endpoint removed — 404)');
 
   // 3. Finnhub — SKIPPED (returns 403 from CF Workers IPs on free tier)
   // if (fhKey) {
