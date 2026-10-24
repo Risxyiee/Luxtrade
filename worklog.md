@@ -874,3 +874,24 @@ Stage Summary:
 - Commit 0b8a2f1d pushed → CF Pages deploy; after deploy Android users get real signed APK v1.2.0 (1.5MB) from /luxtradee.apk or /api/download-apk
 - iOS branch intentionally has no download (Apple doesn't allow APK/APPA) — PWA Add-to-Home-Screen guide instead
 - User should keep using the AAB for Play Store uploads; direct-download channel uses this repo-key-signed APK
+
+---
+Task ID: 11
+Agent: Z.ai Code (main)
+Task: Fix production errors (econ calendar dead sources, auto-journal fast 500) + PnL share card upgrade (logo, download, clear layout)
+
+Work Log:
+- User pasted CF Workers logs: (1) Faireconomy "No events... empty or rate-limited", (2) TradingEconomics "TE Calendar returned 404", (3) POST /api/auto-journal 500 at wallTime 1297ms, plus request: "pnl share card benerin tambahin logo dan bisa didownload layout harus jelas"
+- Diagnosed econ calendar by testing upstreams from sandbox: nfs.faireconomy.media/ff_calendar_thisweek.json works (HTTP 200, 11KB) — fails only from shared CF Workers egress IPs (rate-limit); cdn-nfs mirror does not resolve; TE direct guest:guest = 410 Gone; TE RapidAPI with dummy key = 404 {"message":"API doesn't exists"} → endpoint REMOVED from RapidAPI, source is dead regardless of key; all public CORS proxies (allorigins/codetabs 522, corsproxy 401, r.jina.ai 401, thingproxy DNS fail) also dead
+- Fixed economic-calendar route: CACHE_DURATION 30min→2h (weekly data — cuts upstream hits ~4x), Faireconomy burst retry (2 attempts, 1.5s backoff — burst rate limiter rescue), TE RapidAPI call commented out with verification note (matches existing skipped-source style); last-good KV (7d) + fallback schedule chain untouched
+- Diagnosed auto-journal fast 500: auth+pro-check+account fetch ≈1s, Gemini quota/429 errors fail in ~300ms → total ≈1297ms matches AI-call failure; also found client/server key mismatch — TradeWizardForm reads data.details but route returned data.detail, so real causes were invisible in toasts
+- Fixed auto-journal route: callGeminiWithRetry helper (gemini-2.5-flash → retry → gemini-2.0-flash separate quota pool; retryable = 429/quota/timeout/503/network), auth step wrapped in try/catch with structured 500, all 500 responses now include detail+details+step so the client toast shows the real cause
+- PNLShareCard redesigned: /logo.png (512x512, untouched asset) + "LuxTradee TRADING JOURNAL" header, session pill badge, symbol+BUY/SELL badge with trend icon (fixed case bug: old code checked type==='Buy' but DB stores BUY/SELL → BUY trades got red styling), big +$616.50-style P&L hero pill (toLocaleString thousands separator), 3-col ENTRY/EXIT/LOT boxed grid with price precision formatting, footer date + luxtradee.web.id
+- DashboardModals: Download PNG button (dynamic import html-to-image toPng, pixelRatio 3, backgroundColor #0a0c12, cacheBust; filename luxtradee-{SYMBOL}-pnl.png; loading state + error alert fallback); replaced "take a screenshot" hint
+- Verified via temp test harness on landing (restored after, git checkout): card renders correctly (logo, badge, grid, hero number all screenshot-confirmed), Download PNG click → toPng succeeded ("Downloaded OK" state, no console errors); /api/economic-calendar locally returns live 82 events from Faireconomy; /api/auto-journal returns structured 401 without session (route loads fine)
+- lint clean; committed 23134b67 and pushed to origin/main (triggers CF Pages deploy)
+
+Stage Summary:
+- Calendar: TE source disabled (dead endpoint — nothing to fix client-side); Faireconomy reliability improved via 2h cache + burst retry; users on failures get last-good KV (up to 7d real data) then fallback schedule — API never 500s
+- Auto-journal: most fast-500s (Gemini quota bursts) now self-heal via retry+model fallback; remaining failures surface the real cause in the user toast (e.g. quota vs invalid key) — send me the toast text if it still fails
+- PnL share card: logo + clear layout + real PNG download shipped; 0 image assets modified (user rule respected)
