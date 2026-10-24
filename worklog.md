@@ -759,3 +759,20 @@ Stage Summary:
 - Human-in-the-loop flow complete: cron creates drafts (never sends) → Telegram pings owner → owner reviews/edits at /admin/ai-staff → approve executes (Resend email / content done), reject archives
 - USER ACTIONS REQUIRED: (1) run 011 SQL in Supabase; (2) set GROQ_API_KEY or GEMINI_API_KEY as CF secret (else template fallback used); (3) bun run build && wrangler deploy; (4) test via /api/cron/ai-cs-agent?dry=true and /api/cron/ai-marketing-agent?dry=true
 - Marketing audience snapshot is static dummy data — swap AUDIENCE_SNAPSHOT in ai-marketing-agent route when real TikTok analytics source is available
+---
+Task ID: 5
+Agent: main
+Task: Fix AI Staff cron routes (ai-cs-agent & ai-marketing-agent) returning 401 Unauthorized when accessed in browser
+
+Work Log:
+- Diagnosed root cause: both AI agent cron routes used `isAuthorized()` that returned `false` when CRON_SECRET is unset AND not in dev mode — missing the "no secrets configured" fallback
+- Compared with working auth pattern in daily-reminder: "if secret exists and doesn't match → 401; if no secret → allow"
+- Fixed `src/app/api/cron/ai-cs-agent/route.ts`: replaced `isAuthorized` with consistent pattern: `if (cronSecret && authHeader !== cronSecret) return false; return true`
+- Fixed `src/app/api/cron/ai-marketing-agent/route.ts`: same fix
+- Ran lint: passes clean
+
+Stage Summary:
+- Both AI agent cron routes now use the same "allow when no secret configured" auth pattern as all other cron routes
+- When CRON_SECRET is unset (current production state), requests are allowed through without auth
+- When CRON_SECRET is later set, Bearer token must match — consistent with the rest of the cron surface
+- User needs to `bun run build && npx wrangler deploy` for this fix to go live
