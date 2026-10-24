@@ -1,36 +1,55 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
-	"name": "luxtrade-nextjs",
-	"compatibility_date": "2025-07-18",
-	"compatibility_flags": ["nodejs_compat"],
-	"assets": {
-		"directory": ".open-next/assets",
-		"binding": "ASSETS"
-	},
+        "$schema": "node_modules/wrangler/config-schema.json",
+        "main": ".open-next/worker.js",
+        "name": "luxtrade-nextjs",
+        "compatibility_date": "2025-07-18",
+        "compatibility_flags": ["nodejs_compat"],
 
-	// Uncomment to enable R2 incremental cache for ISR/SSG
-	// See https://opennext.js.org/cloudflare/caching
-	// "services": [
-	// 	{
-	// 		"binding": "WORKER_SELF_REFERENCE",
-	// 		"service": "luxtrade-nextjs"
-	// 	}
-	// ],
-	// "r2_buckets": [
-	// 	{
-	// 		"binding": "NEXT_INC_CACHE_R2_BUCKET",
-	// 		"bucket_name": "luxtrade-nextjs-opennext-cache"
-	// 	}
-	// ],
+        // Workers Observability: logs + traces persisted to CF dashboard
+        // (Workers & Pages -> luxtrade-nextjs -> Logs). issue_detection key
+        // intentionally omitted: not in wrangler 4.128.0 config schema.
+        "observability": {
+                "enabled": true,
+                "head_sampling_rate": 1,
+                "logs": {
+                        "enabled": true,
+                        "head_sampling_rate": 1,
+                        "invocation_logs": true,
+                        "persist": true
+                },
+                "traces": {
+                        "enabled": true,
+                        "head_sampling_rate": 1,
+                        "persist": true
+                }
+        },
+        "assets": {
+                "directory": ".open-next/assets",
+                "binding": "ASSETS"
+        },
 
-	// Uncomment to enable Cloudflare Image Optimization
-	// "images": {
-	// 	"binding": "IMAGES"
-	// }
+        // Uncomment to enable R2 incremental cache for ISR/SSG
+        // See https://opennext.js.org/cloudflare/caching
+        // "services": [
+        //      {
+        //              "binding": "WORKER_SELF_REFERENCE",
+        //              "service": "luxtrade-nextjs"
+        //      }
+        // ],
+        // "r2_buckets": [
+        //      {
+        //              "binding": "NEXT_INC_CACHE_R2_BUCKET",
+        //              "bucket_name": "luxtrade-nextjs-opennext-cache"
+        //      }
+        // ],
 
-	// Secrets (set via Cloudflare dashboard or `wrangler secret put`):
-	// DATABASE_URL, DATABASE_POOLER_URL, SUPABASE_SERVICE_ROLE_KEY,
-	// NEXT_PUBLIC_SUPABASE_URL, MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY,
-	// GEMINI_API_KEY, RESEND_API_KEY, etc.
+        // Uncomment to enable Cloudflare Image Optimization
+        // "images": {
+        //      "binding": "IMAGES"
+        // }
+
+        // Secrets (set via Cloudflare dashboard or `wrangler secret put`):
+        // DATABASE_URL, DATABASE_POOLER_URL, SUPABASE_SERVICE_ROLE_KEY,
+        // NEXT_PUBLIC_SUPABASE_URL, MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY,
+        // GEMINI_API_KEY, RESEND_API_KEY, etc.
 }
