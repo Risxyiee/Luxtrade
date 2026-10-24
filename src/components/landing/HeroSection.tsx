@@ -104,6 +104,7 @@ function HeroLogo3D() {
               alt=""
               width={imageW}
               height={imageW}
+              priority
               className="object-contain"
               style={{
                 transform: 'translateZ(30px)',
