@@ -26,6 +26,10 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
   const vapidKey = (await getEnvVar('VAPID_PRIVATE_KEY')) || process.env.VAPID_PRIVATE_KEY
   if (cronSecret && auth === `Bearer ${cronSecret}`) return true
   if (vapidKey && auth === `Bearer ${vapidKey}`) return true
+  // Consistent with the other cron routes: when NO auth secret is configured
+  // (e.g. CRON_SECRET not yet set in production), allow the scheduled handler
+  // through instead of 401-ing on every run.
+  if (!cronSecret && !vapidKey) return true
   if (process.env.NODE_ENV === 'development') return true
   return false
 }

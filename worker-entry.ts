@@ -47,7 +47,10 @@ export default {
     }
 
     const siteUrl = (env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id').replace(/\/+$/, '')
-    const cronSecret = env.CRON_SECRET || ''
+    // Send whichever auth secret exists — econ-calendar-notify accepts either
+    // CRON_SECRET or VAPID_PRIVATE_KEY as Bearer. If neither is bound, no
+    // header is sent and routes allow the request (no-secrets-configured path).
+    const cronSecret = env.CRON_SECRET || env.VAPID_PRIVATE_KEY || process.env.CRON_SECRET || ''
 
     console.log(`[cron] Triggered: ${event.cron} → ${routes.join(', ')}`)
 
