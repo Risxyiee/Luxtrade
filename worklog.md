@@ -833,3 +833,23 @@ Stage Summary:
 - All user-requested work (office-style AI Staff UI, /api/admin/ai-staff 500 fix, server-response speedup without touching images) is complete and deployed via git push
 - USER ACTIONS STILL REQUIRED (unchanged): (1) run in Supabase SQL Editor → GRANT ALL ON public.ai_pending_tasks TO service_role; GRANT SELECT ON public.ai_pending_tasks TO authenticated; (2) ensure migration 011 was executed; (3) after deploy, SW v6 purges stale API cache automatically
 - Production 500 root cause (if it persists after GRANT) will now appear in CF Workers logs as `[admin/ai-staff]` structured error — send that log line for exact diagnosis
+
+---
+Task ID: 9
+Agent: Z.ai Code (main)
+Task: Fix PWA manifest audit errors (wrong screenshot type/size declarations)
+
+Work Log:
+- User pasted Lighthouse/DevTools findings: manifest declares /screenshot-dashboard.webp as image/webp 256x500 but file is actually PNG 1080x1920
+- Investigated: ALL .webp "screenshots" in public/ are fake (byte-identical PNG renames — same file sizes); the audit errors were declaration mismatches
+- Found THREE competing manifest sources: public/manifest.webmanifest (stale static — won in prod, caused the audit errors), src/app/manifest.webmanifest/route.ts (rich, correct), src/app/manifest.ts (minimal metadata dup) — public+page conflict also triggers hard 500 in dev ("conflicting public file and page file")
+- Fixed: git rm public/manifest.webmanifest + src/app/manifest.ts → app route is the single source of truth (6 icons, 4 correct v2.png screenshots 1080x1920 image/png narrow/wide, 4 shortcuts, 3 widgets, valid full-origin scope_extensions)
+- Verified: curl /manifest.webmanifest returns HTTP 200 with correct entries; all declared files match actual type+size (python validator); lint clean; landing renders
+- Tabbed-display + widgets lines from user's paste are informational notes, not errors (widgets declared = Chrome describing capability)
+- Committed 32fb7077, pushed → CF Pages deploy
+
+Stage Summary:
+- Audit errors #1 (type mismatch) & #2 (size mismatch) fixed; invalid wildcard scope extension also removed
+- Zero image binaries touched (user rule respected) — only manifest metadata + deletion of 2 conflicting manifest sources
+- Optional future cleanup: public/*-fake .webp duplicates (~4.5MB unreferenced deploy weight) can be deleted someday; not done to respect "don't change images"
+- After deploy: SW install handler caches the fixed /manifest.webmanifest URL automatically on next SW update
