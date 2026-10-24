@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getCronAdmin, isMissingTableError } from '@/lib/cron-supabase'
 
 /**
  * GET /api/cron/daily-reminder/unsubscribe?uid=xxx
  * Unsubscribe page: marks user as unsubscribed from daily reminder emails.
+ * Uses Supabase REST (Prisma cannot run on CF Workers).
  */
 export const dynamic = 'force-dynamic'
 
@@ -17,26 +18,38 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing uid parameter' }, { status: 400 })
   }
 
-  if (!isDatabaseAvailable()) {
+  const admin = await getCronAdmin()
+  if (!admin) {
     return new Response(getUnsubHtml('not_found'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   }
 
   try {
+    const nowIso = new Date().toISOString()
+    const todayStr = nowIso.slice(0, 10)
+
     // Mark ALL existing daily_reminder_logs for this user as unsubscribed
-    await db.$executeRawUnsafe(`
-      UPDATE public.daily_reminder_logs
-      SET unsubscribed = true, unsubscribed_at = NOW()
-      WHERE user_id = $1;
-    `, uid)
+    const { error: updateErr } = await admin
+      .from('daily_reminder_logs')
+      .update({ unsubscribed: true, unsubscribed_at: nowIso })
+      .eq('user_id', uid)
+
+    if (updateErr && !isMissingTableError(updateErr)) {
+      console.warn('[daily-reminder/unsub] update failed:', updateErr.message)
+    }
 
     // Insert sentinel row so future queries skip this user
-    await db.$executeRawUnsafe(`
-      INSERT INTO public.daily_reminder_logs (user_id, email, sent_date, unsubscribed, unsubscribed_at)
-      VALUES ($1, 'unsubscribed', CURRENT_DATE, true, NOW())
-      ON CONFLICT (user_id, sent_date) DO NOTHING;
-    `, uid)
+    const { error: insertErr } = await admin
+      .from('daily_reminder_logs')
+      .upsert(
+        { user_id: uid, email: 'unsubscribed', sent_date: todayStr, unsubscribed: true, unsubscribed_at: nowIso },
+        { onConflict: 'user_id,sent_date', ignoreDuplicates: true }
+      )
+
+    if (insertErr && !isMissingTableError(insertErr)) {
+      console.warn('[daily-reminder/unsub] sentinel insert failed:', insertErr.message)
+    }
 
     return new Response(getUnsubHtml('success'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },

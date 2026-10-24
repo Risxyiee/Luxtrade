@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
-import { Prisma } from '@prisma/client'
 import { sendEmail, getDailyReminderHtml, type DailyReminderNewsItem } from '@/lib/email'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { getCronAdmin, fetchAllRows, isMissingTableError, chunk } from '@/lib/cron-supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * GET/POST /api/cron/daily-reminder
@@ -103,86 +103,130 @@ async function fetchDailyNews(): Promise<DailyReminderNewsItem[]> {
   }
 }
 
-async function getTargetUsers(targetUid?: string): Promise<TargetUser[]> {
-  const uidFilter = targetUid ? Prisma.sql`AND p.id = ${targetUid}` : Prisma.empty
+/**
+ * Users are targeted via Supabase REST (Prisma cannot run on CF Workers —
+ * its engine calls fs.readdir which unenv throws on):
+ *   - email present
+ *   - at least 1 trade
+ *   - recent trade in last 14 days OR login in last 14 days
+ *   - not already sent today + not unsubscribed (daily_reminder_logs)
+ */
+async function getTargetUsers(admin: SupabaseClient, targetUid?: string): Promise<TargetUser[]> {
+  const cutoff = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()
+  const todayStr = new Date().toISOString().slice(0, 10)
 
-  const rows: any[] = await db.$queryRaw`
-    SELECT
-      p.id AS user_id,
-      p.email,
-      p.full_name,
-      COALESCE(p.streak_count, 0)::int AS streak_count,
-      COALESCE(p.best_streak, 0)::int AS best_streak
-    FROM public.profiles p
-    WHERE p.email IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.trades t
-        WHERE t.user_id = p.id
-        LIMIT 1
-      )
-      -- Active in last 14 days
-      AND (
-        p.last_login_at >= NOW() - interval '14 days'
-        OR EXISTS (
-          SELECT 1 FROM public.trades t2
-          WHERE t2.user_id = p.id
-            AND t2.close_time >= NOW() - interval '14 days'
-          LIMIT 1
-        )
-      )
-      -- Not already sent today
-      AND NOT EXISTS (
-        SELECT 1 FROM public.daily_reminder_logs drl
-        WHERE drl.user_id = p.id
-          AND drl.sent_date = CURRENT_DATE
-      )
-      -- Not unsubscribed
-      AND NOT EXISTS (
-        SELECT 1 FROM public.daily_reminder_logs drl2
-        WHERE drl2.user_id = p.id
-          AND drl2.unsubscribed = true
-      )
-      ${uidFilter}
-    ORDER BY p.streak_count DESC;`
+  // 1. All profiles with an email
+  const profiles = await fetchAllRows<any>((from, to) =>
+    admin.from('profiles')
+      .select('id, email, full_name, streak_count, best_streak, last_login_at')
+      .not('email', 'is', null)
+      .order('streak_count', { ascending: false })
+      .range(from, to)
+  )
 
-  return rows.map((r: any) => ({
-    user_id: r.user_id,
-    email: r.email,
-    full_name: r.full_name || r.email?.split('@')[0] || 'Trader',
-    streak_count: r.streak_count,
-    best_streak: r.best_streak,
-  }))
+  // 2. Users with a trade closed in the last 14 days (implies active + has trade)
+  const recentTradeSet = new Set<string>()
+  const recentRows = await fetchAllRows<any>((from, to) =>
+    admin.from('trades').select('user_id').gte('close_time', cutoff).range(from, to)
+  )
+  recentRows.forEach((r: any) => recentTradeSet.add(r.user_id))
+
+  // 3. For login-active users (no recent trade), verify they have ANY trade
+  const loginActiveIds = profiles
+    .filter((p: any) => p.last_login_at && new Date(p.last_login_at).getTime() >= new Date(cutoff).getTime())
+    .map((p: any) => p.id)
+  const anyTradeSet = new Set<string>()
+  for (const c of chunk(loginActiveIds, 100)) {
+    const rows = await fetchAllRows<any>((from, to) =>
+      admin.from('trades').select('user_id').in('user_id', c).range(from, to)
+    )
+    rows.forEach((r: any) => anyTradeSet.add(r.user_id))
+  }
+
+  // 4. Already sent today / unsubscribed (log table may not exist yet — degrade gracefully)
+  const sentSet = new Set<string>()
+  const unsubSet = new Set<string>()
+  try {
+    const sentRows = await fetchAllRows<any>((from, to) =>
+      admin.from('daily_reminder_logs').select('user_id').eq('sent_date', todayStr).range(from, to)
+    )
+    sentRows.forEach((r: any) => sentSet.add(r.user_id))
+  } catch (err: any) {
+    if (!isMissingTableError(err)) console.warn('[daily-reminder] sent_date query failed:', err.message)
+  }
+  try {
+    const unsubRows = await fetchAllRows<any>((from, to) =>
+      admin.from('daily_reminder_logs').select('user_id').eq('unsubscribed', true).range(from, to)
+    )
+    unsubRows.forEach((r: any) => unsubSet.add(r.user_id))
+  } catch (err: any) {
+    if (!isMissingTableError(err)) console.warn('[daily-reminder] unsubscribed query failed:', err.message)
+  }
+
+  return profiles
+    .filter((p: any) => {
+      if (targetUid && p.id !== targetUid) return false
+      if (!p.email) return false
+      const hasTrade = recentTradeSet.has(p.id) || anyTradeSet.has(p.id)
+      if (!hasTrade) return false
+      const isActive = recentTradeSet.has(p.id) ||
+        (p.last_login_at && new Date(p.last_login_at).getTime() >= new Date(cutoff).getTime())
+      if (!isActive) return false
+      if (sentSet.has(p.id) || unsubSet.has(p.id)) return false
+      return true
+    })
+    .map((p: any) => ({
+      user_id: p.id,
+      email: p.email,
+      full_name: p.full_name || p.email?.split('@')[0] || 'Trader',
+      streak_count: p.streak_count || 0,
+      best_streak: p.best_streak || 0,
+    }))
 }
 
-async function getWeeklyStats(userId: string): Promise<{ trades: number; pnl: number }> {
-  const rows: any[] = await db.$queryRawUnsafe(`
-    SELECT
-      COUNT(*)::int AS trade_count,
-      COALESCE(SUM(profit_loss), 0)::numeric::float8 AS total_pnl
-    FROM public.trades
-    WHERE user_id = $1
-      AND close_time >= date_trunc('week', NOW())
-  `, userId)
+async function getWeeklyStats(admin: SupabaseClient, userId: string): Promise<{ trades: number; pnl: number }> {
+  // Monday 00:00 UTC — same as date_trunc('week', NOW())
+  const weekStart = new Date()
+  const day = weekStart.getUTCDay()
+  weekStart.setUTCDate(weekStart.getUTCDate() - (day === 0 ? 6 : day - 1))
+  weekStart.setUTCHours(0, 0, 0, 0)
 
-  if (!rows || rows.length === 0) return { trades: 0, pnl: 0 }
-  return { trades: Number(rows[0].trade_count), pnl: Number(rows[0].total_pnl) }
+  const rows = await fetchAllRows<any>((from, to) =>
+    admin.from('trades')
+      .select('profit_loss')
+      .eq('user_id', userId)
+      .gte('close_time', weekStart.toISOString())
+      .range(from, to)
+  )
+
+  return {
+    trades: rows.length,
+    pnl: rows.reduce((sum: number, r: any) => sum + Number(r.profit_loss || 0), 0),
+  }
 }
 
 async function logSentEmail(user: TargetUser, success: boolean): Promise<void> {
+  const admin = await getCronAdmin()
+  if (!admin) return
   try {
-    await db.$executeRawUnsafe(`
-      INSERT INTO public.daily_reminder_logs (user_id, email, sent_date)
-      VALUES ($1, $2, CURRENT_DATE)
-      ON CONFLICT (user_id, sent_date) DO NOTHING;
-    `, user.user_id, user.email)
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const { error } = await admin.from('daily_reminder_logs')
+      .upsert(
+        { user_id: user.user_id, email: user.email, sent_date: todayStr },
+        { onConflict: 'user_id,sent_date', ignoreDuplicates: true }
+      )
+    if (error && !isMissingTableError(error)) {
+      console.warn(`[daily-reminder] Failed to log for ${user.user_id}:`, error.message)
+    }
   } catch (err: any) {
-    if (!err.code || err.code !== '23505') {
+    if (!isMissingTableError(err)) {
       console.warn(`[daily-reminder] Failed to log for ${user.user_id}:`, err.message)
     }
   }
 }
 
 async function sendDailyReminder(
+  admin: SupabaseClient,
   user: TargetUser,
   news: DailyReminderNewsItem[]
 ): Promise<boolean> {
@@ -192,7 +236,7 @@ async function sendDailyReminder(
   const unsubUrl = `${SITE_URL}/api/cron/daily-reminder/unsubscribe?uid=${user.user_id}`
 
   // Get this week's stats
-  const weekStats = await getWeeklyStats(user.user_id)
+  const weekStats = await getWeeklyStats(admin, user.user_id)
 
   const html = getDailyReminderHtml({
     name,
@@ -243,12 +287,13 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isDatabaseAvailable()) {
+  const admin = await getCronAdmin()
+  if (!admin) {
     return NextResponse.json({ error: 'Database not available', sent: 0 })
   }
 
   try {
-    const users = await getTargetUsers(targetUid)
+    const users = await getTargetUsers(admin, targetUid)
 
     // Fetch market news ONCE for all users (Finnhub free tier: 60 calls/min)
     const news = users.length > 0 ? await fetchDailyNews() : []
@@ -289,7 +334,7 @@ async function handleRequest(request: NextRequest) {
     for (let i = 0; i < users.length; i++) {
       const user = users[i]
       try {
-        const success = await sendDailyReminder(user, news)
+        const success = await sendDailyReminder(admin, user, news)
         await logSentEmail(user, success)
 
         if (success) {

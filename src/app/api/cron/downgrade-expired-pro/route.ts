@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
 
 /**
  * GET|POST /api/cron/downgrade-expired-pro
@@ -7,8 +7,11 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * Cron job: checks all PRO users whose subscription has expired and downgrades them to FREE.
  * Runs daily at 03:00 WIB via Cloudflare Workers cron trigger (wrangler.toml).
  *
+ * Uses Supabase REST (Prisma cannot run on CF Workers — its engine calls
+ * fs.readdir which unenv throws on).
+ *
  * Smart downgrade logic:
- * - Finds PRO users with expired pro_expiry / subscription_until
+ * - Finds PRO users with expired pro_expiry
  * - Marks their user_subscriptions as 'expired'
  * - Only downgrades profile if NO other active subscription exists
  * - Syncs Supabase Auth metadata
@@ -26,24 +29,23 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isDatabaseAvailable()) {
+  const admin = await getCronAdmin()
+  if (!admin) {
     return NextResponse.json({ message: 'DB not available', downgraded: 0 })
   }
 
-  // Ensure tables exist
-  try {
-    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS user_subscriptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ, promo_code_id TEXT, discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
-  } catch {}
+  const nowIso = new Date().toISOString()
 
   // Find all PRO users whose expiry has passed
-  const expiredUsers: any[] = await db.$queryRawUnsafe(`
-    SELECT id, email, full_name, pro_expiry, subscription_until
-    FROM profiles
-    WHERE plan = 'PRO'
-      AND is_pro = true
-      AND pro_expiry IS NOT NULL
-      AND pro_expiry < NOW()
-  `)
+  const expiredUsers: any[] = await fetchAllRows<any>((from, to) =>
+    admin.from('profiles')
+      .select('id, email, full_name, pro_expiry')
+      .eq('plan', 'PRO')
+      .eq('is_pro', true)
+      .not('pro_expiry', 'is', null)
+      .lt('pro_expiry', nowIso)
+      .range(from, to)
+  )
 
   if (!expiredUsers || expiredUsers.length === 0) {
     return NextResponse.json({ message: 'No expired PRO users', downgraded: 0 })
@@ -52,33 +54,60 @@ async function handleRequest(request: NextRequest) {
   const userIds = expiredUsers.map((u: any) => u.id)
 
   // 1. Mark expired user_subscriptions as 'expired'
-  await db.$executeRawUnsafe(`
-    UPDATE user_subscriptions
-    SET status = 'expired', updated_at = NOW()
-    WHERE user_id = ANY($1)
-      AND status = 'active'
-      AND end_date < NOW();
-  `, userIds)
+  {
+    const { error } = await admin.from('user_subscriptions')
+      .update({ status: 'expired', updated_at: nowIso })
+      .in('user_id', userIds)
+      .eq('status', 'active')
+      .lt('end_date', nowIso)
+    if (error && !isMissingTableError(error)) {
+      console.warn('[cron/downgrade] subscriptions update failed:', error.message)
+    }
+  }
 
-  // 2. Downgrade profiles — but only if they have NO other active subscription
-  await db.$executeRawUnsafe(`
-    UPDATE profiles
-    SET
-      plan = 'FREE',
-      is_pro = false,
-      subscription_until = NULL,
-      pro_expiry = NULL,
-      updated_at = NOW()
-    WHERE id = ANY($1)
-      AND plan = 'PRO'
-      AND is_pro = true
-      AND pro_expiry IS NOT NULL
-      AND pro_expiry < NOW()
-      AND id NOT IN (
-        SELECT user_id FROM user_subscriptions
-        WHERE status = 'active' AND (promo_code_id IS NULL OR end_date >= NOW())
-      );
-  `, userIds)
+  // 2. Downgrade profiles — but only if they have NO other active subscription.
+  //    Fetch each user's active subscriptions, apply the promo/end_date condition in JS.
+  const protectedIds = new Set<string>()
+  try {
+    const activeSubs = await fetchAllRows<any>((from, to) =>
+      admin.from('user_subscriptions')
+        .select('user_id, promo_code_id, end_date')
+        .in('user_id', userIds)
+        .eq('status', 'active')
+        .range(from, to)
+    )
+    activeSubs.forEach((s: any) => {
+      // Mirror SQL: promo_code_id IS NULL OR end_date >= NOW()
+      if (s.promo_code_id == null || (s.end_date && new Date(s.end_date) >= new Date(nowIso))) {
+        protectedIds.add(s.user_id)
+      }
+    })
+  } catch (err: any) {
+    if (!isMissingTableError(err)) {
+      console.warn('[cron/downgrade] active subs query failed:', err.message)
+    }
+  }
+  const downgradableIds = userIds.filter((id: string) => !protectedIds.has(id))
+
+  if (downgradableIds.length > 0) {
+    const { error } = await admin.from('profiles')
+      .update({
+        plan: 'FREE',
+        is_pro: false,
+        subscription_until: null,
+        pro_expiry: null,
+        updated_at: nowIso,
+      })
+      .in('id', downgradableIds)
+      .eq('plan', 'PRO')
+      .eq('is_pro', true)
+      .not('pro_expiry', 'is', null)
+      .lt('pro_expiry', nowIso)
+    if (error) {
+      console.error('[cron/downgrade] profiles downgrade failed:', error.message)
+      return NextResponse.json({ error: 'Downgrade failed: ' + error.message }, { status: 500 })
+    }
+  }
 
   // 3. Sync Supabase Auth metadata (non-critical)
   try {

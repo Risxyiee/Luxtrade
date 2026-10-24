@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getCronAdmin, isMissingTableError } from '@/lib/cron-supabase'
 
 /**
  * GET /api/cron/re-engage/unsubscribe?uid=xxx
  * Unsubscribe page: marks user as unsubscribed from re-engagement emails.
- * Shows a simple HTML confirmation page.
+ * Uses Supabase REST (Prisma cannot run on CF Workers).
  */
 export const dynamic = 'force-dynamic'
 
@@ -18,32 +18,55 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing uid parameter' }, { status: 400 })
   }
 
-  if (!isDatabaseAvailable()) {
+  const admin = await getCronAdmin()
+  if (!admin) {
     return new Response(getUnsubHtml('not_found'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   }
 
   try {
-    // Check if user exists in re_engagement_emails
-    const existing: any[] = await db.$queryRawUnsafe(`
-      SELECT user_id, unsubscribed FROM public.re_engagement_emails
-      WHERE user_id = $1
-    `, uid)
+    const nowIso = new Date().toISOString()
 
-    if (!existing || existing.length === 0) {
-      // User hasn't received any re-engagement email — still mark them as unsubscribed
-      await db.$executeRawUnsafe(`
-        INSERT INTO public.re_engagement_emails (user_id, email, email_type, sent_at, unsubscribed, unsubscribed_at)
-        VALUES ($1, 'unsubscribed', 'none', NOW(), true, NOW())
-        ON CONFLICT (user_id) DO UPDATE SET unsubscribed = true, unsubscribed_at = NOW();
-      `, uid)
-    } else if (!existing[0].unsubscribed) {
-      await db.$executeRawUnsafe(`
-        UPDATE public.re_engagement_emails
-        SET unsubscribed = true, unsubscribed_at = NOW()
-        WHERE user_id = $1;
-      `, uid)
+    // Check if user exists in re_engagement_emails (table may be missing — degrade)
+    let rowExists = false
+    let alreadyUnsubscribed = false
+    try {
+      const { data } = await admin
+        .from('re_engagement_emails')
+        .select('user_id, unsubscribed')
+        .eq('user_id', uid)
+        .limit(1)
+      rowExists = !!data && data.length > 0
+      alreadyUnsubscribed = rowExists && !!(data![0] as any).unsubscribed
+    } catch (err: any) {
+      if (!isMissingTableError(err)) console.warn('[re-engage/unsub] check failed:', err.message)
+    }
+
+    if (rowExists && !alreadyUnsubscribed) {
+      const { error } = await admin
+        .from('re_engagement_emails')
+        .update({ unsubscribed: true, unsubscribed_at: nowIso })
+        .eq('user_id', uid)
+      if (error && !isMissingTableError(error)) {
+        console.warn('[re-engage/unsub] update failed:', error.message)
+      }
+    } else if (!rowExists) {
+      // User hasn't received any re-engagement email — insert sentinel row
+      const { error } = await admin.from('re_engagement_emails').upsert(
+        {
+          user_id: uid,
+          email: 'unsubscribed',
+          email_type: 'none',
+          sent_at: nowIso,
+          unsubscribed: true,
+          unsubscribed_at: nowIso,
+        },
+        { onConflict: 'user_id' }
+      )
+      if (error && !isMissingTableError(error)) {
+        console.warn('[re-engage/unsub] sentinel insert failed:', error.message)
+      }
     }
 
     return new Response(getUnsubHtml('success'), {

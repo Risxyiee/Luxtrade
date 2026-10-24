@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getCronAdmin, fetchAllRows } from '@/lib/cron-supabase'
 
 /**
  * GET /api/cron/econ-calendar-notify
@@ -73,8 +73,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, notified: 0, message: 'No upcoming high-impact USD events in the next 15 min' })
     }
 
-    // 3. Check database availability
-    if (!isDatabaseAvailable()) {
+    // 3. Check database availability (Supabase admin — Prisma cannot run on CF Workers)
+    const admin = await getCronAdmin()
+    if (!admin) {
       return NextResponse.json({ success: false, error: 'Database unavailable' })
     }
 
@@ -82,12 +83,12 @@ export async function GET(request: NextRequest) {
     // Note: We send to ALL Pro users with push subscriptions - the client-side
     // econ_cal_notify localStorage flag is a local preference, but for server-side
     // we send to all Pro users since this is a critical market event alert
-    const proUsers = await db.profile.findMany({
-      where: {
-        plan: { in: ['PRO', 'LIFETIME'] },
-      },
-      select: { id: true },
-    })
+    const proUsers = await fetchAllRows<any>((from, to) =>
+      admin.from('profiles')
+        .select('id')
+        .in('plan', ['PRO', 'LIFETIME'])
+        .range(from, to)
+    )
 
     const userIds = proUsers.map(u => u.id).filter(Boolean)
     if (userIds.length === 0) {

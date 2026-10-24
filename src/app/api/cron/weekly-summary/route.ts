@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getWeeklySummaryHtml } from '@/lib/email'
+import { getCronAdmin, fetchAllRows, isMissingTableError, chunk } from '@/lib/cron-supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * GET/POST /api/cron/weekly-summary
@@ -36,6 +37,7 @@ interface WeeklyStats {
   best_trade: number
   worst_trade: number
   streak_count: number
+  top_symbols: { symbol: string; count: number }[]
 }
 
 function getLastMonday(): Date {
@@ -54,108 +56,130 @@ function formatWeekLabel(weekStart: Date, weekEnd: Date): string {
   return `${fmt(weekStart)} – ${fmt(weekEnd)}`
 }
 
-async function getWeeklyStats(weekStart: Date, weekEnd: Date, targetUid?: string): Promise<WeeklyStats[]> {
-  const uidFilter = targetUid ? `AND p.id = '${targetUid}'` : ''
+/**
+ * Weekly stats via Supabase REST (Prisma cannot run on CF Workers —
+ * its engine calls fs.readdir which unenv throws on).
+ * Trades are aggregated in JS instead of SQL GROUP BY.
+ */
+async function getWeeklyStats(admin: SupabaseClient, weekStart: Date, weekEnd: Date, targetUid?: string): Promise<WeeklyStats[]> {
+  // 1. Fetch all trades closed within the week window (paginated)
+  const tradeRows = await fetchAllRows<any>((from, to) =>
+    admin.from('trades')
+      .select('user_id, profit_loss, symbol')
+      .gte('close_time', weekStart.toISOString())
+      .lt('close_time', weekEnd.toISOString())
+      .range(from, to)
+  )
+  if (tradeRows.length === 0) return []
 
-  const rows: any[] = await db.$queryRawUnsafe(`
-    WITH week_trades AS (
-      SELECT
-        t.user_id,
-        t.profit_loss,
-        t.symbol
-      FROM public.trades t
-      WHERE t.close_time >= $1::timestamptz
-        AND t.close_time < $2::timestamptz
+  // 2. Aggregate per user in JS (replaces SQL GROUP BY + FILTER)
+  const agg = new Map<string, {
+    trade_count: number; total_pnl: number; win_count: number; loss_count: number
+    best_trade: number; worst_trade: number; symbols: Map<string, number>
+  }>()
+  for (const t of tradeRows) {
+    const uid = t.user_id
+    if (!uid) continue
+    if (targetUid && uid !== targetUid) continue
+    let a = agg.get(uid)
+    if (!a) {
+      a = { trade_count: 0, total_pnl: 0, win_count: 0, loss_count: 0, best_trade: 0, worst_trade: 0, symbols: new Map() }
+      agg.set(uid, a)
+    }
+    const pnl = Number(t.profit_loss || 0)
+    a.trade_count++
+    a.total_pnl += pnl
+    if (pnl > 0) { a.win_count++; a.best_trade = Math.max(a.best_trade, pnl) }
+    else { a.loss_count++; a.worst_trade = Math.min(a.worst_trade, pnl) }
+    const sym = String(t.symbol || '').toUpperCase()
+    if (sym) a.symbols.set(sym, (a.symbols.get(sym) || 0) + 1)
+  }
+  if (agg.size === 0) return []
+
+  // 3. Fetch profiles for these users (chunked)
+  const profileRows: any[] = []
+  for (const c of chunk([...agg.keys()], 100)) {
+    const rows = await fetchAllRows<any>((from, to) =>
+      admin.from('profiles').select('id, email, full_name, streak_count').in('id', c).range(from, to)
     )
-    SELECT
-      p.id AS user_id,
-      p.email,
-      p.full_name,
-      COALESCE(wt_agg.trade_count, 0)::int AS trade_count,
-      COALESCE(wt_agg.total_pnl, 0)::numeric::float8 AS total_pnl,
-      COALESCE(wt_agg.win_count, 0)::int AS win_count,
-      COALESCE(wt_agg.loss_count, 0)::int AS loss_count,
-      COALESCE(wt_agg.best_trade, 0)::numeric::float8 AS best_trade,
-      COALESCE(wt_agg.worst_trade, 0)::numeric::float8 AS worst_trade,
-      COALESCE(p.streak_count, 0)::int AS streak_count
-    FROM public.profiles p
-    INNER JOIN (
-      SELECT
-        user_id,
-        COUNT(*) AS trade_count,
-        COALESCE(SUM(profit_loss), 0) AS total_pnl,
-        COUNT(*) FILTER (WHERE profit_loss > 0) AS win_count,
-        COUNT(*) FILTER (WHERE profit_loss <= 0) AS loss_count,
-        COALESCE(MAX(profit_loss) FILTER (WHERE profit_loss > 0), 0) AS best_trade,
-        COALESCE(MIN(profit_loss) FILTER (WHERE profit_loss < 0), 0) AS worst_trade
-      FROM week_trades
-      GROUP BY user_id
-    ) wt_agg ON wt_agg.user_id = p.id
-    WHERE p.email IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM public.weekly_summary_emails wse
-        WHERE wse.user_id = p.id
-          AND wse.week_start = ($1::timestamptz)::date
-          AND wse.unsubscribed = false
-      )
-      -- Exclude users who unsubscribed from ALL weekly emails
-      AND NOT EXISTS (
-        SELECT 1 FROM public.weekly_summary_emails wse2
-        WHERE wse2.user_id = p.id
-          AND wse2.unsubscribed = true
-      )
-      ${uidFilter}
-    ORDER BY wt_agg.trade_count DESC;
-  `, weekStart.toISOString(), weekEnd.toISOString())
+    profileRows.push(...rows)
+  }
+  const profileMap = new Map(profileRows.map((p: any) => [p.id, p]))
 
-  return rows.map((r: any) => ({
-    user_id: r.user_id,
-    email: r.email,
-    full_name: r.full_name || r.email?.split('@')[0] || 'Trader',
-    trade_count: r.trade_count,
-    total_pnl: Number(r.total_pnl),
-    win_count: r.win_count,
-    loss_count: r.loss_count,
-    best_trade: Number(r.best_trade),
-    worst_trade: Number(r.worst_trade),
-    streak_count: r.streak_count,
-  }))
-}
-
-async function getTopSymbols(userId: string, weekStart: Date, weekEnd: Date): Promise<{ symbol: string; count: number }[]> {
-  const rows: any[] = await db.$queryRawUnsafe(`
-    SELECT
-      UPPER(symbol) AS symbol,
-      COUNT(*) AS count
-    FROM public.trades
-    WHERE user_id = $1
-      AND close_time >= $2::timestamptz
-      AND close_time < $3::timestamptz
-    GROUP BY UPPER(symbol)
-    ORDER BY count DESC
-    LIMIT 5;
-  `, userId, weekStart.toISOString(), weekEnd.toISOString())
-
-  return rows.map((r: any) => ({
-    symbol: r.symbol,
-    count: Number(r.count),
-  }))
-}
-
-async function logSentEmail(stats: WeeklyStats, weekStart: Date, weekEnd: Date, success: boolean): Promise<void> {
+  // 4. Unsubscribe + dedup from weekly_summary_emails (log table may be missing — degrade gracefully)
+  const sentWeek = new Set<string>()
+  const unsubAll = new Set<string>()
   try {
-    await db.$executeRawUnsafe(`
-      INSERT INTO public.weekly_summary_emails (
-        user_id, email, week_start, week_end,
-        trade_count, total_pnl, win_count, loss_count,
-        best_trade, worst_trade, sent_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-      ON CONFLICT (user_id, week_start) DO NOTHING;
-    `, stats.user_id, stats.email, weekStart, weekEnd,
-       stats.trade_count, stats.total_pnl, stats.win_count, stats.loss_count,
-       stats.best_trade, stats.worst_trade)
+    const weekRows = await fetchAllRows<any>((from, to) =>
+      admin.from('weekly_summary_emails')
+        .select('user_id, status')
+        .gte('week_start', weekStart.toISOString())
+        .lt('week_start', weekEnd.toISOString())
+        .range(from, to)
+    )
+    weekRows.forEach((r: any) => {
+      if (r.status === 'unsubscribed') unsubAll.add(r.user_id)
+      else sentWeek.add(r.user_id)
+    })
   } catch (err: any) {
-    if (!err.code || err.code !== '23505') {
+    if (!isMissingTableError(err)) console.warn('[weekly-summary] dedup query failed:', err.message)
+  }
+  try {
+    const unsubRows = await fetchAllRows<any>((from, to) =>
+      admin.from('weekly_summary_emails').select('user_id').eq('status', 'unsubscribed').range(from, to)
+    )
+    unsubRows.forEach((r: any) => unsubAll.add(r.user_id))
+  } catch (err: any) {
+    if (!isMissingTableError(err)) console.warn('[weekly-summary] unsub query failed:', err.message)
+  }
+
+  // 5. Build result rows ordered by trade_count desc
+  const result: WeeklyStats[] = []
+  for (const [uid, a] of agg) {
+    const p = profileMap.get(uid)
+    if (!p?.email) continue
+    if (sentWeek.has(uid) || unsubAll.has(uid)) continue
+    result.push({
+      user_id: uid,
+      email: p.email,
+      full_name: p.full_name || p.email?.split('@')[0] || 'Trader',
+      trade_count: a.trade_count,
+      total_pnl: Number(a.total_pnl.toFixed(2)),
+      win_count: a.win_count,
+      loss_count: a.loss_count,
+      best_trade: a.best_trade,
+      worst_trade: a.worst_trade,
+      streak_count: p.streak_count || 0,
+      top_symbols: [...a.symbols.entries()]
+        .map(([symbol, count]) => ({ symbol, count }))
+        .sort((x, y) => y.count - x.count)
+        .slice(0, 5),
+    })
+  }
+  result.sort((a, b) => b.trade_count - a.trade_count)
+  return result
+}
+
+/**
+ * Log the sent email — only uses columns guaranteed by the Prisma schema
+ * (id, user_id, week_start, sent_at, status). Plain insert: dedup relies on
+ * the pre-check in getWeeklyStats; duplicate inserts are tolerated.
+ */
+async function logSentEmail(stats: WeeklyStats, weekStart: Date, weekEnd: Date, success: boolean): Promise<void> {
+  const admin = await getCronAdmin()
+  if (!admin) return
+  try {
+    const { error } = await admin.from('weekly_summary_emails').insert({
+      user_id: stats.user_id,
+      week_start: weekStart.toISOString(),
+      sent_at: new Date().toISOString(),
+      status: success ? 'sent' : 'failed',
+    })
+    if (error && !isMissingTableError(error)) {
+      console.warn(`[weekly-summary] Failed to log email for ${stats.user_id}:`, error.message)
+    }
+  } catch (err: any) {
+    if (!isMissingTableError(err)) {
       console.warn(`[weekly-summary] Failed to log email for ${stats.user_id}:`, err.message)
     }
   }
@@ -220,10 +244,6 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isDatabaseAvailable()) {
-    return NextResponse.json({ error: 'Database not available', sent: 0 })
-  }
-
   try {
     // Calculate week window
     let weekStart = getLastMonday()
@@ -239,8 +259,12 @@ async function handleRequest(request: NextRequest) {
 
     console.log(`📊 [weekly-summary] Week: ${weekStart.toISOString()} → ${weekEnd.toISOString()}`)
 
-    // Get users with weekly stats
-    const users = await getWeeklyStats(weekStart, weekEnd, targetUid)
+    // Get users with weekly stats (Supabase admin — Prisma cannot run on CF Workers)
+    const admin = await getCronAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Database not available', sent: 0 })
+    }
+    const users = await getWeeklyStats(admin, weekStart, weekEnd, targetUid)
 
     if (users.length === 0) {
       return NextResponse.json({
@@ -279,8 +303,7 @@ async function handleRequest(request: NextRequest) {
     for (let i = 0; i < users.length; i++) {
       const user = users[i]
       try {
-        const topSymbols = await getTopSymbols(user.user_id, weekStart, weekEnd)
-        const success = await sendWeeklyEmail(user, topSymbols, weekStart, weekEnd)
+        const success = await sendWeeklyEmail(user, user.top_symbols || [], weekStart, weekEnd)
         await logSentEmail(user, weekStart, weekEnd, success)
 
         if (success) {

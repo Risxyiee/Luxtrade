@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
 import {
   getReEngagementNoTradeHtml,
   getReEngagementHasTradeHtml,
 } from '@/lib/email'
+import { getCronAdmin, fetchAllRows, isMissingTableError, chunk } from '@/lib/cron-supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * GET/POST /api/cron/re-engage
@@ -34,45 +35,74 @@ interface TargetUser {
   email_type: 'no_trade' | 'has_trade'
 }
 
-async function getTargetUsers(): Promise<TargetUser[]> {
-  // Users who signed up 24-48 hours ago AND never came back after signup day
-  // AND haven't received a re-engagement email yet
-  const rows: any[] = await db.$queryRawUnsafe(`
-    SELECT
-      u.id AS user_id,
-      u.email,
-      u.raw_user_meta_data->>'full_name' AS full_name,
-      u.created_at,
-      u.last_sign_in_at,
-      COALESCE(t.trade_count, 0)::int AS trade_count
-    FROM auth.users u
-    LEFT JOIN (
-      SELECT user_id, COUNT(*) AS trade_count
-      FROM public.trades
-      GROUP BY user_id
-    ) t ON t.user_id = u.id::text
-    WHERE u.created_at BETWEEN NOW() - interval '48 hours' AND NOW() - interval '24 hours'
-      AND (
-        u.last_sign_in_at IS NULL
-        OR date(u.last_sign_in_at) = date(u.created_at)
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM public.re_engagement_emails re
-        WHERE re.user_id = u.id::text
-      )
-      AND u.email IS NOT NULL
-      AND u.confirmed_at IS NOT NULL
-    ORDER BY u.created_at ASC;
-  `)
+/**
+ * Target users via Supabase (Prisma cannot run on CF Workers — its engine
+ * calls fs.readdir which unenv throws on).
+ *
+ * auth.users is NOT exposed via PostgREST — use the admin Auth API listUsers()
+ * pagination instead, then filter in JS. Trade counts come from public.trades.
+ */
+async function getTargetUsers(admin: SupabaseClient, force: boolean): Promise<TargetUser[]> {
+  const now = Date.now()
+  const windowStart = new Date(now - 48 * 3600 * 1000)
+  const windowEnd = new Date(now - 24 * 3600 * 1000)
 
-  return rows.map((r: any) => ({
-    user_id: r.user_id,
-    email: r.email,
-    full_name: r.full_name || r.email?.split('@')[0] || 'Trader',
-    created_at: r.created_at,
-    last_sign_in_at: r.last_sign_in_at,
-    trade_count: r.trade_count,
-    email_type: r.trade_count > 0 ? 'has_trade' : 'no_trade',
+  // 1. List all auth users (paginated, 200/page)
+  const candidates: TargetUser[] = []
+  const perPage = 200
+  for (let page = 1; page <= 100; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+    if (error) throw error
+    const users = data?.users || []
+    for (const u of users) {
+      if (!u.email || !(u as any).email_confirmed_at) continue
+      const createdAt = new Date(u.created_at || 0)
+      if (!force) {
+        // Signed up 24-48h ago AND never came back after signup day
+        if (createdAt < windowStart || createdAt > windowEnd) continue
+        const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null
+        if (lastSignIn && lastSignIn.toISOString().slice(0, 10) !== createdAt.toISOString().slice(0, 10)) continue
+      }
+      candidates.push({
+        user_id: u.id,
+        email: u.email,
+        full_name: (u.user_metadata as any)?.full_name || u.email?.split('@')[0] || 'Trader',
+        created_at: u.created_at || '',
+        last_sign_in_at: u.last_sign_in_at || null,
+        trade_count: 0,
+        email_type: 'no_trade',
+      })
+    }
+    if (users.length < perPage) break
+  }
+  if (candidates.length === 0) return []
+
+  // 2. Skip users who already received a re-engagement email (log table may be missing — degrade)
+  const emailedSet = new Set<string>()
+  try {
+    const emailedRows = await fetchAllRows<any>((from, to) =>
+      admin.from('re_engagement_emails').select('user_id').range(from, to)
+    )
+    emailedRows.forEach((r: any) => emailedSet.add(r.user_id))
+  } catch (err: any) {
+    if (!isMissingTableError(err)) console.warn('[re-engage] log query failed:', err.message)
+  }
+  const filtered = candidates.filter(c => !emailedSet.has(c.user_id))
+  if (filtered.length === 0) return []
+
+  // 3. Count trades per candidate (chunked)
+  const tradeCounts = new Map<string, number>()
+  for (const c of chunk(filtered.map(f => f.user_id), 100)) {
+    const rows = await fetchAllRows<any>((from, to) =>
+      admin.from('trades').select('user_id').in('user_id', c).range(from, to)
+    )
+    rows.forEach((r: any) => tradeCounts.set(r.user_id, (tradeCounts.get(r.user_id) || 0) + 1))
+  }
+
+  return filtered.map(c => ({
+    ...c,
+    trade_count: tradeCounts.get(c.user_id) || 0,
+    email_type: (tradeCounts.get(c.user_id) || 0) > 0 ? ('has_trade' as const) : ('no_trade' as const),
   }))
 }
 
@@ -97,15 +127,23 @@ async function sendReEngagementEmail(user: TargetUser): Promise<boolean> {
 }
 
 async function logSentEmail(user: TargetUser, success: boolean): Promise<void> {
+  const admin = await getCronAdmin()
+  if (!admin) return
   try {
-    await db.$executeRawUnsafe(`
-      INSERT INTO public.re_engagement_emails (user_id, email, email_type, sent_at)
-      VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (user_id) DO NOTHING;
-    `, user.user_id, user.email, user.email_type)
+    const { error } = await admin.from('re_engagement_emails').upsert(
+      {
+        user_id: user.user_id,
+        email: user.email,
+        email_type: user.email_type,
+        sent_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id', ignoreDuplicates: false }
+    )
+    if (error && !isMissingTableError(error)) {
+      console.warn(`[re-engage] Failed to log email for ${user.user_id}:`, error.message)
+    }
   } catch (err: any) {
-    // Unique constraint violation is expected (race condition guard)
-    if (!err.code || err.code !== '23505') {
+    if (!isMissingTableError(err)) {
       console.warn(`[re-engage] Failed to log email for ${user.user_id}:`, err.message)
     }
   }
@@ -131,48 +169,12 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isDatabaseAvailable()) {
-    return NextResponse.json({ error: 'Database not available', sent: 0 })
-  }
-
   try {
-    let users = await getTargetUsers()
-
-    // ?force=true: ignore the 24-48h window, get ALL unengaged users
-    if (force) {
-      const allRows: any[] = await db.$queryRawUnsafe(`
-        SELECT
-          u.id AS user_id,
-          u.email,
-          u.raw_user_meta_data->>'full_name' AS full_name,
-          u.created_at,
-          u.last_sign_in_at,
-          COALESCE(t.trade_count, 0)::int AS trade_count
-        FROM auth.users u
-        LEFT JOIN (
-          SELECT user_id, COUNT(*) AS trade_count
-          FROM public.trades
-          GROUP BY user_id
-        ) t ON t.user_id = u.id::text
-        WHERE NOT EXISTS (
-          SELECT 1 FROM public.re_engagement_emails re
-          WHERE re.user_id = u.id::text
-        )
-          AND u.email IS NOT NULL
-          AND u.confirmed_at IS NOT NULL
-        ORDER BY u.created_at ASC;
-      `)
-
-      users = allRows.map((r: any) => ({
-        user_id: r.user_id,
-        email: r.email,
-        full_name: r.full_name || r.email?.split('@')[0] || 'Trader',
-        created_at: r.created_at,
-        last_sign_in_at: r.last_sign_in_at,
-        trade_count: r.trade_count,
-        email_type: r.trade_count > 0 ? 'has_trade' : 'no_trade',
-      }))
+    const admin = await getCronAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Database not available', sent: 0 })
     }
+    let users = await getTargetUsers(admin, force)
 
     if (users.length === 0) {
       return NextResponse.json({
