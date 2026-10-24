@@ -895,3 +895,24 @@ Stage Summary:
 - Calendar: TE source disabled (dead endpoint — nothing to fix client-side); Faireconomy reliability improved via 2h cache + burst retry; users on failures get last-good KV (up to 7d real data) then fallback schedule — API never 500s
 - Auto-journal: most fast-500s (Gemini quota bursts) now self-heal via retry+model fallback; remaining failures surface the real cause in the user toast (e.g. quota vs invalid key) — send me the toast text if it still fails
 - PnL share card: logo + clear layout + real PNG download shipped; 0 image assets modified (user rule respected)
+
+---
+Task ID: 12
+Agent: Z.ai Code (main)
+Task: Post-compaction verification of Task 10/11 + LCP regression fix
+
+Work Log:
+- Restored context after session compaction; summary was stale — verified via git that ALL work from the user's last message was already completed & pushed: 0b8a2f1d (AppInstallBanner + signed APK, Task 10) and 23134b67 (PnL share card redesign + PNG download, econ-calendar reliability, auto-journal AI retry, Task 11); origin/main == local main
+- Verified PNLShareCard.tsx on disk: /logo.png header + "Trading Journal" branding, session pill, BUY/SELL badge (case-safe via toUpperCase), hero P&L pill with toLocaleString, 3-col ENTRY/EXIT/LOT grid, luxtradee.web.id footer
+- Verified auto-journal route: callGeminiWithRetry (gemini-2.5-flash → gemini-2.0-flash fallback), structured 500s with detail/details/step, client key mismatch (detail→details) fixed
+- Verified AppInstallBanner mounted in LuxTradeDashboard.tsx (line ~1049) and DashboardModals has html-to-image toPng download + "Download PNG" button
+- Live API test: GET /api/economic-calendar?impact=high&tz=UTC+7 → HTTP 200, real Faireconomy events (e.g. CAD CPI m/m with forecast/previous) — no more empty/404 error path
+- Agent Browser fresh-load check on `/`: no page errors; found one regression — HeroSection glass-disc /logo.png (above fold) missing priority, flagged as LCP (Task 8 only fixed LandingNavbar's logo)
+- Fixed: added `priority` to HeroSection logo Image (1 line, no asset change); cleared console + fresh reload → LCP warning gone
+- Remaining console items are sandbox-only: Supabase anon-key errors (secrets only exist in CF production env), benign scroll-position warning, SW Periodic Sync unsupported log
+- bun run lint clean; committed 7303d4ab and pushed to origin/main (triggers CF Pages deploy)
+
+Stage Summary:
+- Everything requested in the user's last message (econ calendar errors, auto-journal 500, PnL share card logo/download/layout) was already shipped in 23134b67; this pass re-verified each fix end-to-end and caught+fixed one leftover LCP warning (hero logo priority)
+- After CF Pages deploy: calendar serves 2h-cached Faireconomy data with burst retry + last-good KV fallback (TE RapidAPI endpoint is dead upstream — removed); auto-journal 500s now retry across model quota pools and surface real causes in the user toast; PnL share card shows LuxTradee branding with true PNG download
+- No secrets touched; no image assets modified
