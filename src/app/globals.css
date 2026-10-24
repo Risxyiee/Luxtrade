@@ -943,3 +943,18 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   }
 }
 
+
+/* AI Staff admin — slim scrollbar untuk panel script ide konten */
+.ai-staff-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.ai-staff-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ai-staff-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+.ai-staff-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}

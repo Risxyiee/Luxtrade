@@ -735,3 +735,27 @@ Stage Summary:
 - After user deploys: econ-calendar-notify cron should stop 401-ing within 15 min (headerless curl may still 401 if VAPID_PRIVATE_KEY is set as a CF secret — that is correct behavior; cron sends the VAPID bearer)
 - CRON_SECRET still unset in production → cron endpoints remain open (skip path). Recommend user adds CRON_SECRET via dashboard Encrypt secret to lock all cron routes down
 - Daily reminder probe note: ?dry=true&force=true now requires auth once CRON_SECRET is set (previously full bypass)
+
+---
+Task ID: 5
+Agent: Z.ai Code (main)
+Task: Build "AI Staff Automation (Human-in-the-Loop)" — CS Agent + Marketing Agent with admin approval dashboard
+
+Work Log:
+- Explored existing patterns: requireAdmin (@/lib/admin-auth), authFetch (@/lib/api-fetch), sendEmail + getPromotionalEmailHtml (@/lib/email), sendTelegramNotification (@/lib/telegram), getCronAdmin/isMissingTableError (@/lib/cron-supabase), admin UI gate pattern from /admin-email
+- profiles has NO total_trades column → CS agent computes "0 trades" via distinct user_ids from trades table; candidates sorted newest-signup-first, max 5/run, daily dedup via ai_pending_tasks (created_at >= startOfToday UTC)
+- Created supabase-migrations/011_create_ai_pending_tasks.sql (id, agent_type CS|MARKETING, target_user_id FK auth.users, context_data jsonb, generated_content jsonb, status pending|approved|rejected, created_at, updated_at, executed_at, executed_result; 2 index; RLS enabled, no public policies — service role only)
+- Created src/lib/ai-llm.ts: Workers-safe raw-fetch LLM chain GROQ (llama-3.3-70b) → GEMINI (gemini-2.0-flash) → null (caller template fallback); keys via getEnvVar; extractJson() tolerates markdown fences
+- Created /api/cron/ai-cs-agent: zero-trade users → LLM casual SMC/ICT follow-up email (screenshot auto-journal CTA) → insert ai_pending_tasks pending → Telegram notify; ?dry=true supported; per-user try/catch + parallel LLM (fits 30s scheduled fetch timeout)
+- Created /api/cron/ai-marketing-agent: static TikTok audience snapshot (dummy per spec) → LLM analysis + 3 ideas {hook, script, caption, cta} → 1 pending row (daily idempotent) → Telegram notify; ?dry=true supported
+- Created /api/admin/ai-staff: GET pending list (admin-gated); POST {taskId, action} — approve CS sends REAL email via Resend (edited subject/body supported, wraps getPromotionalEmailHtml, task stays pending on send failure for retry) + Telegram confirmation; approve MARKETING marks done; reject marks rejected. Idempotent: non-pending tasks get 409
+- Created /admin/ai-staff page (client): dark premium UI, purple/emerald accents, 2 Tabs (CS/Marketing), editable subject+body per CS draft (edits preserved across 60s auto-refresh), audience analysis box + 3 idea cards for marketing, approve/reject with per-task acting state, sonner toasts, skeletons, empty states, sticky footer, .ai-staff-scroll slim scrollbar in globals.css
+- Middleware: added /admin/:path* to matcher + adminPaths (edge-level admin protection)
+- Wired schedules: worker-entry CRON_ROUTES + wrangler.jsonc triggers → ai-cs-agent daily 09:30 WIB (30 2 * * *), ai-marketing-agent Tue+Fri 16:00 WIB (0 9 * * 2,5)
+- Local verification: page 200, all 3 routes compiled; cron routes 503 gracefully (no Supabase creds in sandbox .env — expected), admin API 401 without session; lint clean
+- NOTE: ai-cs-agent/route.ts initially failed to persist on first write (empty dir) — rewritten and verified on disk + compiled
+
+Stage Summary:
+- Human-in-the-loop flow complete: cron creates drafts (never sends) → Telegram pings owner → owner reviews/edits at /admin/ai-staff → approve executes (Resend email / content done), reject archives
+- USER ACTIONS REQUIRED: (1) run 011 SQL in Supabase; (2) set GROQ_API_KEY or GEMINI_API_KEY as CF secret (else template fallback used); (3) bun run build && wrangler deploy; (4) test via /api/cron/ai-cs-agent?dry=true and /api/cron/ai-marketing-agent?dry=true
+- Marketing audience snapshot is static dummy data — swap AUDIENCE_SNAPSHOT in ai-marketing-agent route when real TikTok analytics source is available

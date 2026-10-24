@@ -12,6 +12,9 @@ const CRON_ROUTES = {
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary'],
   '*/15 * * * *': ['/api/cron/econ-calendar-notify'],
+  // AI Staff (human-in-the-loop — hasil masuk antrean approval /admin/ai-staff)
+  '30 2 * * *': ['/api/cron/ai-cs-agent'],           // 09:30 WIB harian
+  '0 9 * * 2,5': ['/api/cron/ai-marketing-agent'],   // Selasa & Jumat 16:00 WIB
 }
 
 export default {
