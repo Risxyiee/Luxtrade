@@ -119,8 +119,12 @@ let _envDiagnosticLogged = false
  * Resolution order (local dev):
  *  1. process.env[key]                 — set via .dev.vars or shell env
  *  2. getCloudflareContext().env[key]  — works if wrangler dev is proxying
+ *
+ * options.quiet: suppress the "NOT FOUND" warn — use for OPTIONAL keys whose
+ * absence is a normal, handled state (e.g. fallback API sources), so the
+ * logs don't spam on every request in stateless Workers isolates.
  */
-export async function getEnvVar(key: string): Promise<string> {
+export async function getEnvVar(key: string, options?: { quiet?: boolean }): Promise<string> {
   // 0. Try direct globalThis access FIRST (most reliable in CF Workers)
   //    In production, worker-entry.ts sets globalThis[Symbol.for('__cloudflare-context__')] = { env, cf, ctx }
   //    before delegating to OpenNext. This is the most direct path to secrets.
@@ -206,7 +210,9 @@ export async function getEnvVar(key: string): Promise<string> {
     }
   } catch {}
 
-  console.warn(`[getEnvVar] ${key} NOT FOUND in any source (CF ctx.env, process.env, globalThis)`);
+  if (!options?.quiet) {
+    console.warn(`[getEnvVar] ${key} NOT FOUND in any source (CF ctx.env, process.env, globalThis)`);
+  }
   return '';
 }
 
