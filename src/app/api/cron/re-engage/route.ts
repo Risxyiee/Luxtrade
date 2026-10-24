@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
 import {
   getReEngagementNoTradeHtml,
   getReEngagementHasTradeHtml,
@@ -163,9 +164,10 @@ async function handleRequest(request: NextRequest) {
   const dry = searchParams.get('dry') === 'true'
   const force = searchParams.get('force') === 'true'
 
-  // Simple auth check: require CRON_SECRET header (set in Cloudflare env)
+  // Auth check (getEnvVar reads CF bindings/secrets reliably on Workers)
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!force && process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  const expectedSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
+  if (!force && expectedSecret && cronSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

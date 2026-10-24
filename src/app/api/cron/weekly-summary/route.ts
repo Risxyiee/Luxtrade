@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail, getWeeklySummaryHtml } from '@/lib/email'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { getCronAdmin, fetchAllRows, isMissingTableError, chunk } from '@/lib/cron-supabase'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -238,9 +239,10 @@ async function handleRequest(request: NextRequest) {
   const targetUid = searchParams.get('uid') || undefined
   const weekOverride = searchParams.get('week')
 
-  // Auth check
+  // Auth check (getEnvVar reads CF bindings/secrets reliably on Workers)
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!force && process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  const expectedSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
+  if (!force && expectedSecret && cronSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

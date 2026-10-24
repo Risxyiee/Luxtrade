@@ -11,6 +11,7 @@ const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify'],
 }
 
 export default {
@@ -45,7 +46,7 @@ export default {
       return
     }
 
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+    const siteUrl = (env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id').replace(/\/+$/, '')
     const cronSecret = env.CRON_SECRET || ''
 
     console.log(`[cron] Triggered: ${event.cron} → ${routes.join(', ')}`)
