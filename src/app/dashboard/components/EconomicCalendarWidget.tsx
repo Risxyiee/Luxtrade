@@ -66,9 +66,24 @@ function useCountdown(targetDate: string): string {
       else { setCountdown(Math.floor(diff / 1000) + 's') }
     }
 
+    // PERF adaptif: tick 1s hanya saat <1 menit (detik tampil). Sisanya 15s/60s —
+    // hemat CPU & baterai (sebelumnya tiap countdown re-render tiap 1 detik).
+    // Pause saat tab tidak terlihat.
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const tick = () => {
+      update()
+      const diff = target - Date.now()
+      const delay = diff <= 60_000 ? 1000 : diff <= 3_600_000 ? 15_000 : 60_000
+      if (document.visibilityState === 'visible') {
+        timer = setTimeout(tick, delay)
+      } else {
+        timer = setTimeout(tick, 15_000) // hidden: cek jarang, biar tetap resync
+      }
+    }
+
     update()
-    const interval = setInterval(update, 1000)
-    return () => clearInterval(interval)
+    timer = setTimeout(tick, 1000)
+    return () => { if (timer) clearTimeout(timer) }
   }, [targetDate])
 
   return countdown

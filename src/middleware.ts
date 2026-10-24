@@ -4,6 +4,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/contact', '/faq', '/terms', '/privacy', '/disclaimer', '/refund-policy', '/not-found', '/upgrade']
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
+// PERF: log verbose per-request dikunci di balik flag — console.log di Workers
+// menambah CPU time & latency di SETIAP request protected. Set
+// MIDDLEWARE_DEBUG=true di wrangler vars untuk debugging.
+const DEBUG = process.env.MIDDLEWARE_DEBUG === 'true'
+const log = (...args: unknown[]) => { if (DEBUG) console.log(...args) }
+
 export const config = {
   matcher: [
     '/dashboard/:path*',
@@ -23,23 +29,23 @@ export const dynamic = 'force-dynamic'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  console.log('[Middleware] Processing request:', { pathname })
+  log('[Middleware] Processing request:', { pathname })
 
   // Allow auth pages
   if (pathname.startsWith('/auth/')) {
-    console.log('[Middleware] Auth path - allowing')
+    log('[Middleware] Auth path - allowing')
     return NextResponse.next()
   }
 
   // Allow API routes (they handle their own auth)
   if (pathname.startsWith('/api/')) {
-    console.log('[Middleware] API path - allowing')
+    log('[Middleware] API path - allowing')
     return NextResponse.next()
   }
 
   // Allow public static pages
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
-    console.log('[Middleware] Public path - allowing')
+    log('[Middleware] Public path - allowing')
     return NextResponse.next()
   }
 
@@ -51,10 +57,10 @@ export async function middleware(request: NextRequest) {
   const protectedPaths = ['/dashboard', '/settings']
   const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
-  console.log('[Middleware] Path classification:', { isAdminPath, isProtectedPath })
+  log('[Middleware] Path classification:', { isAdminPath, isProtectedPath })
 
   if (isAdminPath || isProtectedPath) {
-    console.log('[Middleware] Protected/Admin path - checking auth')
+    log('[Middleware] Protected/Admin path - checking auth')
 
     const response = NextResponse.next()
 
@@ -94,7 +100,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    console.log('[Middleware] Cookies:', allCookies.map(c => ({ name: c.name, hasValue: !!c.value, len: c.value?.length })))
+    log('[Middleware] Cookies:', allCookies.map(c => ({ name: c.name, hasValue: !!c.value, len: c.value?.length })))
 
     const supabase = createServerClient(
       supabaseUrl,
@@ -116,7 +122,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user }, error } = await supabase.auth.getUser()
 
-    console.log('[Middleware] User from session:', { userId: user?.id, email: user?.email, hasUser: !!user })
+    log('[Middleware] User from session:', { userId: user?.id, email: user?.email, hasUser: !!user })
 
     if (!user) {
       console.log('[Middleware] No user found, redirecting to login')
@@ -132,7 +138,7 @@ export async function middleware(request: NextRequest) {
       const isAuthorized = ADMIN_EMAILS.some(adminEmail =>
         adminEmail.toLowerCase().trim() === userEmail
       )
-      console.log('[Middleware] Admin check:', { userEmail, isAuthorized, adminEmails: ADMIN_EMAILS })
+      log('[Middleware] Admin check:', { userEmail, isAuthorized, adminEmails: ADMIN_EMAILS })
 
       if (!isAuthorized) {
         console.log('[Middleware] User is not admin, redirecting to dashboard')
@@ -141,12 +147,12 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url)
       }
 
-      console.log('[Middleware] User is admin, allowing access')
+      log('[Middleware] User is admin, allowing access')
     }
 
     return response
   }
 
-  console.log('[Middleware] Default - allowing')
+  log('[Middleware] Default - allowing')
   return NextResponse.next()
 }

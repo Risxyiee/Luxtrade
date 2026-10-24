@@ -793,3 +793,25 @@ Stage Summary:
 - USER ACTION REQUIRED: jalankan di Supabase SQL Editor → GRANT ALL ON public.ai_pending_tasks TO service_role; GRANT SELECT ON public.ai_pending_tasks TO authenticated;
 - Setelah GRANT dijalankan + deploy baru, /admin/ai-staff berfungsi penuh
 - Log error econ-calendar (Faireconomy rate-limited + TE 404) dari log user adalah transient — KV last-good rescue sudah menangani
+
+---
+Task ID: 7
+Agent: Z.ai Code (main)
+Task: AI Staff office-themed UI + website speed optimization (tanpa mengubah gambar)
+
+Work Log:
+- Diagnosis "respond lambat": SW (src/sw.ts) punya bug — komentar bilang NetworkOnly tapi kode CacheFirst → SEMUA response /api/* di-cache 5 menit (termasuk POST!) → data basi ter-replay, aksi admin kelihatan nge-lag.
+- Fix sw.ts: API whitelist GET publik (news/economic-calendar/forex, tanpa Authorization) → NetworkFirst 2.5s + TTL 10 menit; semua API lain → NetworkOnly (offline jatuh ke catch handler JSON). Bump cache v5→v6 untuk purge cache basi lama.
+- src/middleware.ts: 6 console.log verbose per-request dikunci di balik MIDDLEWARE_DEBUG=true (hemat CPU Workers; log error-path tetap).
+- Countdown hooks (EconomicCalendarWidget.tsx + EconomicCalendarTab.tsx): tick adaptif 1s (<1m) / 15s (<1h) / 60s, + guard setState hanya saat teks berubah, + jeda saat tab hidden. Sebelumnya tiap countdown re-render tiap 1 detik.
+- /admin/ai-staff: auto-refresh 60s di-pause saat tab tidak terlihat.
+- /admin/ai-staff UI BARU "Lantai Kantor AI Staff" — 100% CSS, 0 gambar, 0 lib: 2 workstation (Aily CS / Max Marketing) dengan monitor CSS menampilkan jumlah antrean, lampu meja nyala saat busy, mug, meja kayu + kaki, pelat nama + shift (harian 08.00 / Senin 10.00 WIB), badge status (menunggu/clear), jendela malam + bulan + skyline gedung berjendela menyala, papan kerja, jam dinding real-time (hydration-safe). Klik meja → pindah tab antrean (aria-pressed, keyboard accessible). StatChip lama dihapus (digantikan kantor).
+- API /api/admin/ai-staff GET: dibungkus try/catch + console.error code/message/details/hint → 500 produksi sekarang bisa didiagnosis dari Workers logs.
+- Verifikasi Agent Browser: desktop 1280px + mobile 375px screenshot, klik meja Max → tab Marketing pindah + ring hijau, konten TikTok ideas render, footer nempel bawah. Gerbang admin di-restore persis setelah verifikasi visual (patch temp tidak di-commit).
+
+Stage Summary:
+- Produksi perlu redeploy (git push) agar SW v6 aktif; SW lama akan purge cache API basi otomatis saat activate.
+- Percepatan terbesar: data API selalu fresh (tidak lagi di-cache SW 5 menit), CPU di HP turun drastis (countdown + polling di-pause saat hidden), log Workers lebih bersih.
+- UI kantor ringan: murni Tailwind/CSS, tidak menambah KB bundle berarti, aman untuk device low-end.
+- Set MIDDLEWARE_DEBUG=true di wrangler vars bila perlu log middleware verbose.
+- Catatan: 500 /api/admin/ai-staff sebelumnya belum tentu tabel missing — sekarang error asli akan muncul di logs; migrasi 011 tetap wajib sudah dijalankan.
