@@ -1,75 +1,91 @@
 {
-        "$schema": "node_modules/wrangler/config-schema.json",
-        // Custom entrypoint: wraps .open-next/worker.js + adds scheduled() cron handler
-        // (must run `opennextjs-cloudflare build` BEFORE `wrangler deploy`)
-        "main": "worker-entry.ts",
-        "name": "luxtrade-nextjs",
-        "compatibility_date": "2025-07-18",
-        "compatibility_flags": ["nodejs_compat"],
+	"$schema": "node_modules/wrangler/config-schema.json",
 
-        // Workers Observability: logs + traces persisted to CF dashboard
-        // (Workers & Pages -> luxtrade-nextjs -> Logs). issue_detection key
-        // intentionally omitted: not in wrangler 4.128.0 config schema.
-        "observability": {
-                "enabled": true,
-                "head_sampling_rate": 1,
-                "logs": {
-                        "enabled": true,
-                        "head_sampling_rate": 1,
-                        "invocation_logs": true,
-                        "persist": true
-                },
-                "traces": {
-                        "enabled": true,
-                        "head_sampling_rate": 1,
-                        "persist": true
-                }
-        },
-        "assets": {
-                "directory": ".open-next/assets",
-                "binding": "ASSETS"
-        },
+	// ══════════════════════════════════════════════════════════════════════════
+	// SINGLE SOURCE OF TRUTH
+	// wrangler.toml has been REMOVED. Having two config files caused a
+	// production incident: deploys used THIS file, which silently wiped
+	// dashboard plain-text vars (Supabase URL/service key) and dropped the
+	// KV/AI/Images/Browser/Queue bindings that only existed in the toml.
+	//
+	// Deploy order (manual):  bun run build && npx wrangler deploy
+	//   (build generates .open-next/worker.js which worker-entry.ts imports)
+	//
+	// SECRETS ARE NEVER DECLARED HERE. Set via:
+	//   npx wrangler secret put <NAME>     (or dashboard -> Variables -> Encrypt)
+	// keep_vars=true additionally preserves any dashboard-defined plain vars.
+	// ══════════════════════════════════════════════════════════════════════════
 
-        // Plain-text variables (dashboard plain vars get WIPED by wrangler deploy
-        // unless declared here). Secrets must NEVER go here - use
-        // `wrangler secret put` or dashboard -> Encrypt.
-        "vars": {
-                "MIDTRANS_IS_PRODUCTION": "true",
-                "NEXT_PUBLIC_APP_URL": "https://luxtradee.web.id/",
-                "NEXT_PUBLIC_SITE_URL": "https://luxtradee.web.id/"
-        },
+	"name": "luxtradee",
 
-        // Cron triggers -> worker-entry.ts scheduled() -> /api/cron/* routes
-        // 0 1 * * *  = 08:00 WIB harian  (daily-reminder + downgrade-expired-pro)
-        // 0 3 * * *  = 10:00 WIB harian  (re-engage + downgrade-expired-pro)
-        // 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary)
-        // */15 * * * = tiap 15 menit     (econ-calendar-notify)
-        "triggers": {
-                "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
-        },
+	// Custom entrypoint: wraps .open-next/worker.js + scheduled() cron handler
+	"main": "worker-entry.ts",
+	"compatibility_date": "2025-07-18",
+	"compatibility_flags": ["nodejs_compat", "streams_enable_constructors"],
 
-        // Uncomment to enable R2 incremental cache for ISR/SSG
-        // See https://opennext.js.org/cloudflare/caching
-        // "services": [
-        //      {
-        //              "binding": "WORKER_SELF_REFERENCE",
-        //              "service": "luxtrade-nextjs"
-        //      }
-        // ],
-        // "r2_buckets": [
-        //      {
-        //              "binding": "NEXT_INC_CACHE_R2_BUCKET",
-        //              "bucket_name": "luxtrade-nextjs-opennext-cache"
-        //      }
-        // ],
+	// Never delete dashboard-defined env vars that are not listed below
+	"keep_vars": true,
 
-        // Uncomment to enable Cloudflare Image Optimization
-        // "images": {
-        //      "binding": "IMAGES"
-        // }
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
 
-        // Secrets (set via Cloudflare dashboard or `wrangler secret put`):
-        // DATABASE_URL, DATABASE_POOLER_URL, SUPABASE_SERVICE_ROLE_KEY,
-        // NEXT_PUBLIC_SUPABASE_URL, MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY,
-        // GEMINI_API_KEY, RESEND_API_KEY, etc.
+	// ─── Cloudflare Bindings ────────────────────────────────────────────────
+	"kv_namespaces": [
+		{ "binding": "luxtradee_kv", "id": "4d16786ba51a4c22b42b1af7b97e3bd6" }
+	],
+	"images": { "binding": "IMAGES" },
+	"ai": { "binding": "ai_luxtrade" },
+	"browser": { "binding": "ai_run" },
+	"queues": {
+		"producers": [{ "binding": "queue", "queue": "luxtradee" }]
+	},
+	// R2 disabled (error 10042, not provisioned) — re-enable when provisioned:
+	// "r2_buckets": [{ "binding": "R2", "bucket_name": "luxtradee-uploads" }],
+
+	// ─── Plain-text vars (public / client-safe values ONLY) ─────────────────
+	// Supabase anon key is public by design (RLS-protected, ships to browsers).
+	"vars": {
+		"NEXT_PUBLIC_SUPABASE_URL": "https://klxkdrfsfcoankbaoejn.supabase.co",
+		"NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0",
+
+		"NEXT_PUBLIC_SITE_URL": "https://luxtradee.web.id",
+		"NEXT_PUBLIC_APP_URL": "https://luxtradee.web.id",
+		"NEXT_PUBLIC_BASE_URL": "https://luxtradee.web.id",
+
+		"NEXT_PUBLIC_VAPID_PUBLIC_KEY": "BNTL6FFlfUygscRgM-1grOaHx57xsGDB2Vad_rZ1oOdeW6rLtrCLqr8AOcZf5Cp0gC5cobm8NvfvCpIV5QUHCYI",
+		"VAPID_SUBJECT": "mailto:support@luxtradee.web.id",
+
+		"NEXT_PUBLIC_SKRILL_PRO_URL": "https://www.skrill.com/en/",
+		"NEXT_PUBLIC_SKRILL_LIFETIME_URL": "https://www.skrill.com/en/",
+
+		"MIDTRANS_IS_PRODUCTION": "true"
+	},
+
+	// ─── Workers Observability (logs + traces in CF dashboard) ───────────────
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"invocation_logs": true,
+			"persist": true
+		},
+		"traces": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"persist": true
+		}
+	},
+
+	// ─── Cron triggers → worker-entry.ts scheduled() → /api/cron/* ──────────
+	// 0 1 * * *  = 08:00 WIB harian  (daily-reminder + downgrade-expired-pro)
+	// 0 3 * * *  = 10:00 WIB harian  (re-engage + downgrade-expired-pro)
+	// 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary)
+	// */15 * * * = tiap 15 menit     (econ-calendar-notify)
+	"triggers": {
+		"crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
+	}
 }

@@ -16,10 +16,17 @@ export async function GET() {
   let anonKey = ''
 
   try {
-    url = (await getEnvVar('NEXT_PUBLIC_SUPABASE_URL')) || ''
+    // Alt key name as fallback (SUPABASE_URL) in case only that name is bound
+    url =
+      (await getEnvVar('NEXT_PUBLIC_SUPABASE_URL')) ||
+      (await getEnvVar('SUPABASE_URL')) ||
+      ''
   } catch {}
   try {
-    anonKey = (await getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY')) || ''
+    anonKey =
+      (await getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY')) ||
+      (await getEnvVar('SUPABASE_ANON_KEY')) ||
+      ''
   } catch {}
 
   // Extra fallback in case the CF chain failed but process.env works (local dev)
