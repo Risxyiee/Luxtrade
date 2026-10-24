@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { Prisma } from '@prisma/client'
-import { sendEmail, getDailyReminderHtml } from '@/lib/email'
+import { sendEmail, getDailyReminderHtml, type DailyReminderNewsItem } from '@/lib/email'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 /**
  * GET/POST /api/cron/daily-reminder
@@ -38,6 +39,68 @@ interface TargetUser {
 function getDayName(): string {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
   return days[new Date().getDay()]
+}
+
+/**
+ * Fetch today's top market news for the daily reminder email.
+ * Sources (in order):
+ *   1. Finnhub forex news (FREE, FINNHUB_API_KEY already set in Cloudflare)
+ *   2. Finnhub general news (fallback category)
+ *
+ * Returns max 3 items. On any failure returns [] — email still sends without news.
+ */
+async function fetchDailyNews(): Promise<DailyReminderNewsItem[]> {
+  try {
+    const apiKey = (await getEnvVar('FINNHUB_API_KEY')) || process.env.FINNHUB_API_KEY || ''
+    if (!apiKey) {
+      console.warn('[daily-reminder] FINNHUB_API_KEY not set — skipping news section')
+      return []
+    }
+
+    // Try forex category first, then general as fallback
+    for (const category of ['forex', 'general']) {
+      try {
+        const res = await fetch(
+          `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`,
+          { headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000) }
+        )
+        if (!res.ok) {
+          console.warn(`[daily-reminder] Finnhub ${category} returned ${res.status}`)
+          continue
+        }
+        const data = await res.json()
+        if (!Array.isArray(data) || data.length === 0) continue
+
+        // Dedupe by headline, filter out items without image-free titles, take top 3
+        const seen = new Set<string>()
+        const items: DailyReminderNewsItem[] = []
+        for (const item of data) {
+          const title = (item.headline || '').trim()
+          const url = (item.url || '').trim()
+          if (!title || !url || seen.has(title)) continue
+          // Skip extremely long titles (broken data)
+          if (title.length > 160) continue
+          seen.add(title)
+          items.push({
+            title,
+            source: item.source || 'Finnhub',
+            url,
+          })
+          if (items.length >= 3) break
+        }
+        if (items.length > 0) {
+          console.log(`[daily-reminder] Fetched ${items.length} news items from Finnhub/${category}`)
+          return items
+        }
+      } catch (err: any) {
+        console.warn(`[daily-reminder] Finnhub ${category} failed:`, err.message)
+      }
+    }
+    return []
+  } catch (err: any) {
+    console.warn('[daily-reminder] News fetch failed (email will send without news):', err.message)
+    return []
+  }
 }
 
 async function getTargetUsers(targetUid?: string): Promise<TargetUser[]> {
@@ -119,7 +182,10 @@ async function logSentEmail(user: TargetUser, success: boolean): Promise<void> {
   }
 }
 
-async function sendDailyReminder(user: TargetUser): Promise<boolean> {
+async function sendDailyReminder(
+  user: TargetUser,
+  news: DailyReminderNewsItem[]
+): Promise<boolean> {
   const name = user.full_name || 'Trader'
   const dayName = getDayName()
   const ctaUrl = `${SITE_URL}/dashboard`
@@ -137,6 +203,7 @@ async function sendDailyReminder(user: TargetUser): Promise<boolean> {
     dayName,
     ctaUrl,
     unsubUrl,
+    news,
   })
 
   // Dynamic subject based on streak
@@ -183,6 +250,9 @@ async function handleRequest(request: NextRequest) {
   try {
     const users = await getTargetUsers(targetUid)
 
+    // Fetch market news ONCE for all users (Finnhub free tier: 60 calls/min)
+    const news = users.length > 0 ? await fetchDailyNews() : []
+
     if (users.length === 0) {
       return NextResponse.json({
         message: 'No active users to remind',
@@ -198,6 +268,8 @@ async function handleRequest(request: NextRequest) {
         message: `DRY RUN — would send ${users.length} daily reminders`,
         sent: 0,
         day: getDayName(),
+        newsCount: news.length,
+        news: news.map(n => ({ title: n.title, source: n.source })),
         users: users.map(u => ({
           user_id: u.user_id,
           email: u.email,
@@ -217,7 +289,7 @@ async function handleRequest(request: NextRequest) {
     for (let i = 0; i < users.length; i++) {
       const user = users[i]
       try {
-        const success = await sendDailyReminder(user)
+        const success = await sendDailyReminder(user, news)
         await logSentEmail(user, success)
 
         if (success) {
@@ -247,6 +319,7 @@ async function handleRequest(request: NextRequest) {
       failed: failCount,
       total: users.length,
       day: getDayName(),
+      newsCount: news.length,
       results,
       elapsed_ms: Date.now() - startTime,
     })
