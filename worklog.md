@@ -815,3 +815,21 @@ Stage Summary:
 - UI kantor ringan: murni Tailwind/CSS, tidak menambah KB bundle berarti, aman untuk device low-end.
 - Set MIDDLEWARE_DEBUG=true di wrangler vars bila perlu log middleware verbose.
 - Catatan: 500 /api/admin/ai-staff sebelumnya belum tentu tabel missing — sekarang error asli akan muncul di logs; migrasi 011 tetap wajib sudah dijalankan.
+
+---
+Task ID: 8
+Agent: Z.ai Code (main)
+Task: Post-restore verification of AI Staff office UI + server-response work; final polish
+
+Work Log:
+- Restored context after session overflow; confirmed via git + worklog that Task 7 (office UI, SW cache fix, middleware/countdown CPU cuts, 42501 actionable error) was completed, verified, committed (e70ba8b8) and pushed previously
+- Re-verified current state: `bun run lint` clean; dev server healthy; landing `/` renders correctly via Agent Browser (desktop screenshot OK)
+- Reviewed remaining TTFB surface: middleware matcher already excludes `/`; landing page is a client shell with ssr:false lazy sections; `/api/landing-stats` & `/api/promo/active` already have 60s in-memory caches + parallel queries — no further server-side bottleneck found
+- Agent Browser flagged one real item: navbar logo.png is the LCP element without priority → added `priority` prop to LandingNavbar Image (no asset change)
+- Verified `/admin/ai-staff` admin gate still redirects non-admins to `/`
+- Committed 105d8d0c and pushed to origin/main (triggers Cloudflare Pages deploy)
+
+Stage Summary:
+- All user-requested work (office-style AI Staff UI, /api/admin/ai-staff 500 fix, server-response speedup without touching images) is complete and deployed via git push
+- USER ACTIONS STILL REQUIRED (unchanged): (1) run in Supabase SQL Editor → GRANT ALL ON public.ai_pending_tasks TO service_role; GRANT SELECT ON public.ai_pending_tasks TO authenticated; (2) ensure migration 011 was executed; (3) after deploy, SW v6 purges stale API cache automatically
+- Production 500 root cause (if it persists after GRANT) will now appear in CF Workers logs as `[admin/ai-staff]` structured error — send that log line for exact diagnosis
