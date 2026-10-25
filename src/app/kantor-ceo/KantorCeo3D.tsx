@@ -47,12 +47,22 @@ export default function KantorCeo3D() {
   const [acc, setAcc] = useState<any>(null)
   const [copied, setCopied] = useState(false)
   const [clock, setClock] = useState('')
+  /* ---- JEMBATAN data real → scene 3D ----
+     liveRef = mirror state `data` supaya loop 3D bisa baca hasil agen ASLI.
+     busyRef = agen yang SEDANG dikerjakan beneran (API call in-flight).
+     doneRef = timestamp agen terakhir selesai → karakter "rayakan" hasil nyata. */
+  const liveRef = useRef<any>(null)
+  const busyRef = useRef<Record<string, number>>({})
+  const doneRef = useRef<Record<string, number>>({})
 
   /* ---------- jam WIB (panel) ---------- */
   useEffect(() => {
     const f = () => setClock(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()))
     f(); const iv = setInterval(f, 1000); return () => clearInterval(iv)
   }, [])
+
+  /* mirror data → scene 3D (tiap kali hasil agen masuk) */
+  useEffect(() => { liveRef.current = data }, [data])
 
   /* ---------- email-gate: cuma owner (luxtradee@gmail.com) yang boleh masuk.
      Tidak perlu tempel secret apa pun — pakai sesi login situs yang sudah ada. */
@@ -82,7 +92,22 @@ export default function KantorCeo3D() {
   }, [])
 
   /* ---------- pemanggil API (hasil di-merge supaya tiap ruangan punya datanya) ---------- */
+  /* Map action → karakter mana yang "beneran kerja" di scene 3D */
+  const jobsOfAction = (action: string): string[] => {
+    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO', cfo: 'CFO' }
+    if (action.startsWith('agents&only=')) return (action.split('only=')[1] || '').split(',').map(s => M[s.trim()]).filter(Boolean)
+    if (action === 'agents') return ['CTO', 'CSO', 'CFO']
+    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'CEO']
+    if (action === 'quota') return ['CFO']
+    if (action === 'acc-email') return ['CSO']
+    if (action === 'diag') return ['CTO']
+    if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
+    return []
+  }
   const call = useCallback(async (action: string, method = 'GET') => {
+    /* tandai karakter sedang KERJA BENERAN (balon pikiran + animasi ikut nyambung) */
+    const jobs = jobsOfAction(action)
+    jobs.forEach(j => { busyRef.current[j] = Date.now() })
     setBusy(true); let r: any
     try {
       const res = await fetch(`/api/ceo-agent?action=${action}`, {
@@ -93,9 +118,17 @@ export default function KantorCeo3D() {
         },
       })
       r = await res.json()
-    } catch (e) { r = { error: String(e) } } finally { setBusy(false) }
-    if (action === 'acc-email') return r            // ditangani khusus di Ruang CSO
+    } catch (e) { r = { error: String(e) } } finally {
+      setBusy(false)
+      jobs.forEach(j => { delete busyRef.current[j]; doneRef.current[j] = Date.now() })
+    }
+    if (action === 'acc-email') { // ditangani khusus di Ruang CSO
+      window.__kceo?.toast?.(r?.dup ? '📧 ACC EMAIL sudah dicatat hari ini' : r?.ok ? '📧 ACC EMAIL dicatat — CSO tuntas!' : '⚠️ ACC EMAIL gagal — cek Ruang CSO')
+      return r
+    }
     if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
+    if (action === 'briefing' && r?.text)
+      window.__kceo?.toast?.(r.notifySent ? '🌅 Briefing terkirim ke Discord! ✅' : '⚠️ Briefing jalan — Discord gagal kirim')
     setData((d: any) => ({ ...(d || {}), ...r }))
     return r
   }, [token, sbKey])
@@ -176,7 +209,46 @@ export default function KantorCeo3D() {
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu ☕'}
       let tNow=0
+      /* ---- STATUS NYATA dari API (bukan panggung) ----
+         Kalau data live ada, karakter lapor hasil kerja ASLI, bukan kalimat tempelan. */
+      const realStatus=job=>{
+        const live=liveRef.current
+        if(!live)return null
+        try{
+          if(job==='CTO'&&live.cto&&!live.cto.error&&!live.cto.err)
+            return live.cto.siteOk
+              ? `📊 LIVE: web ${live.cto.status} OK (${live.cto.latencyMs} ms) · bug 24j: ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`
+              : '📊 LIVE: web lagi DOWN — aku pantau terus'
+          if(job==='CSO'&&live.cso&&!live.cso.error)
+            return `📊 LIVE: ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`
+          if(job==='CMO'&&live.cmo)
+            return live.cmo.draft?'📊 LIVE: draf TikTok hari ini sudah siap ✅':null
+          if(job==='CFO'&&live.cfo&&!live.cfo.error)
+            return `📊 LIVE: kuota ${live.cfo.usedToday}/${live.cfo.limit} hari ini · ${String(live.cfo.status||'').trim()}`
+          if(job==='CEO'&&live.text)
+            return live.notifySent?'📊 LIVE: briefing terakhir sudah terkirim ✅':'📊 LIVE: briefing siap — tinggal kirim'
+        }catch{ }
+        return null}
       const thought2=(c,S)=>{
+        /* PRIORITAS 1 — sedang KERJA BENERAN (API call in-flight)? */
+        if(busyRef.current[c.job]){
+          const W={CTO:'⏳ Lagi ping situs & hitung bug — kerja beneran, bukan main-main!',
+            CSO:'⏳ Lagi hitung user dari database Supabase — kerja beneran!',
+            CMO:'⏳ Lagi nulis draf TikTok di Gemini — kerja beneran!',
+            CFO:'⏳ Lagi audit kuota API — kerja beneran!',
+            CEO:'⏳ Lagi susun briefing & kirim ke Discord…'}
+          return W[c.job]||'⏳ Lagi kerja beneran…'}
+        /* PRIORITAS 2 — baru selesai (≤9 dtk): rayakan dgn HASIL ASLI */
+        const D=doneRef.current
+        if(D[c.job]&&Date.now()-D[c.job]<9000){
+          const live=liveRef.current
+          const R: any={
+            CTO:()=>live&&live.cto&&!live.cto.error&&!live.cto.err?`✅ Beres! Web ${live.cto.siteOk?live.cto.status+' OK · '+live.cto.latencyMs+' ms':'DOWN'} · bug ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`:'✅ Tugas selesai!',
+            CSO:()=>live&&live.cso&&!live.cso.error?`✅ Beres! ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`:'✅ Tugas selesai!',
+            CMO:()=>live&&live.cmo?(live.cmo.draft?'✅ Draf TikTok baru siap — cek panel kanan!':'⚠️ Gagal bikin draf — cek panel'):'✅ Tugas selesai!',
+            CFO:()=>live&&live.cfo&&!live.cfo.error?`✅ Kuota ${live.cfo.usedToday}/${live.cfo.limit} · ${String(live.cfo.status||'').trim()}`:'✅ Tugas selesai!',
+            CEO:()=>live&&live.text?(live.notifySent?'✅ Briefing terkirim ke Discord!':'⚠️ Briefing jalan — Discord gagal'):'✅ Tugas selesai!'}
+          return (R[c.job]||(()=>'✅ Tugas selesai!'))()}
         if(INC.active){if(c.job==='CEO')return 'Mendengar laporan insiden dari CTO…'
           if(c.job==='CTO')return S.stage==='report'?'Bug di live site! Lapor CEO dulu 🐞':'Cari akar masalah bug checkout'
           if(c.job==='CSO')return 'Semoga cepat beres, user komplain nih'
@@ -192,6 +264,10 @@ export default function KantorCeo3D() {
         if(S.stage==='sitting')return 'Duduk lagi…'
         if(S.stage==='seated'&&S.sub==='deep'){
           if(c.job===PHASE_JOB[PROJ.ph])return PHASE_TASK[c.job]+' · '+Math.round(PROJ.prog)+'%'
+          /* tampilkan status NYATA kalau ada (bukti agen kerja beneran),
+             selingi kalimat flavor biar hidup */
+          const real=realStatus(c.job)
+          if(real&&Math.floor(tNow/7+c.i)%3!==2)return real
           const a=T2[c.job].deep;return a[Math.floor(tNow/7+c.i)%a.length]}
         if(S.stage==='seated'&&C.min>=840&&S.sub!=='chat')return 'Briefing besok tinggal review 😌'
         const a=T2[c.job][S.sub]||GEN2[S.sub];return Array.isArray(a)?a[Math.floor(tNow/8+c.i)%a.length]:a}
@@ -218,7 +294,8 @@ export default function KantorCeo3D() {
       focusRef.current=focusRoom
       controls.addEventListener('start',()=>{FOCUS.on=false})
       // hook debug (dipakai QA otomatis; ringan, tak berpengaruh ke UI)
-      window.__kceo={focus:focusRoom,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on}
+      // + toast() → React side bisa kirim notifikasi ke scene (hasil kerja beneran)
+      window.__kceo={focus:focusRoom,toast:showToast,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on}
 
       const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.7,...o})
       const glow=(c,i=3)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:i})
