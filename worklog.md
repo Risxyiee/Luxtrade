@@ -1211,3 +1211,20 @@ Work Log:
 Stage Summary:
 - System now ~fully autonomous: user needs 2 extra cron-job.org entries (watchdog 15min, weekly Sun 20:00) + one click AUTO-ACC in Ruang CSO
 - Remaining manual by design: TikTok posting (platform limit), draft review
+---
+Task ID: 19
+Agent: main
+Task: Set cron myself — wire CEO staff automation into native Cloudflare cron triggers
+
+Work Log:
+- Confirmed Task 18 built watchdog/weekly/auto-acc but left cron setup to user (cron-job.org)
+- worker-entry.ts CRON_ROUTES: added '/api/ceo-agent?action=briefing' to 0 1 * * * (08:00 WIB daily), '?action=weekly' to 0 3 * * 1 (Mon 10:00 WIB), '?action=watchdog' to */15 * * * * — piggybacks existing 4 schedules, 0 new cron slots (Free plan max 5)
+- worker-entry scheduled(): ceo-agent routes get ?key=CRON_SECRET appended when secret bound + 120s AbortSignal timeout (briefing sends up to 50 Resend emails sequentially + 1 Gemini call; previous 30s would cut it)
+- ceo-agent route: isCron now also accepts 'Authorization: Bearer CRON_SECRET' (not just ?key=); added noSecrets fallback (CRON_SECRET+ADMIN_SECRET both unset → allow, same policy as /api/cron/*)
+- KantorCeo3D Ruang Rapat: cron-job.org instruction block replaced with 'Jadwal Kerja Karyawan — OTOMATIS ✅' (Cloudflare Cron bawaan)
+- wrangler.jsonc trigger comments updated; lint clean; committed e05782a6, pushed (CF auto-deploy ~2-3 min)
+
+Stage Summary:
+- Full autonomy now self-contained: NO external cron service, NO manual setup — user only flips AUTO-ACC ON once in Ruang CSO
+- Briefing 08:00 WIB daily (4 agents + auto passive-email), watchdog every 15 min (DOWN/bug/quota → instant Discord alarm), weekly report Monday 10:00 WIB
+- Honest team assessment delivered: roles (CTO/CSO/CMO/CFO) correct for a beginner site chasing money+users; gap was scheduling, now closed
