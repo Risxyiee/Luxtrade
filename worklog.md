@@ -1193,3 +1193,21 @@ Work Log:
 Stage Summary:
 - 3D characters now visibly "work for real": bubbles show real API results, working state while calls run, celebration after
 - Data was always real (real ping/Supabase/Gemini/Discord); now the visualization is connected too
+---
+Task ID: 18
+Agent: main
+Task: Full autonomy — watchdog 24/7, AUTO-ACC, weekly report
+
+Work Log:
+- Added watchdog action to route.ts: reuses ctoAgent (ping+retry+CF 5xx), records up:/down: counters per day in agent_kv, site DOWN → instant Discord alarm with 30-min dedup (wd:down:last), recovery notice once (wd:recovered:<day>), new bug → alarm on count increase (wd:bugs:last baseline on first run), Gemini quota >=80% → daily alarm (wd:quota:<day>)
+- Added weekly action: 7-day recap — profiles total/new/active7/passive, bugs 7d, uptime % from watchdog counters, quota usage sum/avg; sends to Discord, stores weekly:last
+- Added auto-acc action: GET status, POST ?on=1|0 toggles autoacc key in agent_kv + Discord confirmation
+- runMorningBriefing: when autoacc=on and acc_email:<day> not set → sendPassiveEmails automatically, result line added to briefing text
+- ctoAgent returns upToday/downToday; buildBriefing takes autoAcc/autoOn params
+- UI: Ruang CSO AUTO-ACC toggle block; Ruang CTO watchdog counters; Ruang Rapat Jalankan Watchdog + Laporan Mingguan buttons, watchdog result, cron-job.org setup block with all 3 URLs
+- jobsOfAction: watchdog→CTO, weekly→CEO, auto-acc→CSO
+- Committed fa31408d, pushed
+
+Stage Summary:
+- System now ~fully autonomous: user needs 2 extra cron-job.org entries (watchdog 15min, weekly Sun 20:00) + one click AUTO-ACC in Ruang CSO
+- Remaining manual by design: TikTok posting (platform limit), draft review
