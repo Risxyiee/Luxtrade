@@ -1272,3 +1272,22 @@ Stage Summary:
 - 6 karyawan naik level otomasi: CMO belajar dari TikTok asli Bos, CTO diagnosa bug otomatis, CSO tahu emailnya efektif/tidak, CFO jaga kuota email, COO dilaporkan konversinya, CEO laporan makin lengkap
 - PENDING USER ACTION: jalankan supabase-migrations/014_create_tiktok_posts.sql di Supabase SQL Editor, lalu isi bahan TikTok di Ruang CMO (5 konten terbaik minimal)
 - Cost tetap: 1 Gemini call/hari briefing + triage hanya saat bug masuk
+---
+Task ID: 22
+Agent: main
+Task: CMO Auto-Fallback (API Cadangan) — Gemini → OpenRouter → fallbackDraft
+
+Work Log:
+- User minta SQL 014 → diberikan langsung (copy-paste)
+- Tambah openRouterText() helper: POST https://openrouter.ai/api/v1/chat/completions, model zhipu/glm-4.7 flash, format OpenAI messages, parsing choices[0].message.content
+- Rewrite cmoAgent: 3-tier try/catch → Gemini (utama) → OpenRouter (cadangan) → fallbackDraft (fail-safe terakhir)
+- Return: provider 'gemini'|'openrouter'|'fallback' + fallbackError string
+- Briefing Discord: tampilkan provider + alasan kalau fallback
+- UI Ruang CMO: badge visual — "✅ Gemini (utama)" / "⚡ Cadangan OpenRouter" / "fallback — revisi manual"
+- ENV baru: OPENROUTER_API_KEY (opsional — cuma dipakai kalau Gemini gagal), OPENROUTER_MODEL (opsional)
+- Lint clean; dev server 200; committed ce07d2fa, pushed
+
+Stage Summary:
+- CMO sekarang punya 2 nyawa: Gemini mati → OpenRouter ambil alih otomatis, Bos nggak perlu campur tangan
+- Model default OpenRouter: zhipu/glm-4.7 flash (murah, cepat, bahasa ID oke)
+- PENDING USER: set OPENROUTER_API_KEY di Cloudflare Workers Secrets + jalankan SQL 014
