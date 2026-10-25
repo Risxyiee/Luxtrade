@@ -4,6 +4,10 @@
 // Auth: header "Authorization: Bearer ADMIN_SECRET" atau ?key=CRON_SECRET
 // Cron 08:00 WIB: Cloudflare cron trigger (worker-entry.ts) → /api/ceo-agent?action=briefing&key=CRON_SECRET
 // (cron-job.org TIDAK diperlukan lagi — semua otomatis lewat trigger Workers bawaan)
+// ARSITEKTUR MULTI-AGENT (SOP Bos): tiap karyawan pakai model OpenRouter
+// sendiri — Bagas COO (llama-3.1-8b, di /api/cron/ai-coo-agent), Raka CTO
+// (qwen-2.5-coder-7b), Maya CSO (gemma-2-9b), Sinta CMO (glm-4.7-flash),
+// Alexander CEO (llama-3.1-8b), Putri CFO TANPA LLM (murni matematika).
 // ============================================================
 // Tabel Supabase yang dipakai (skema produksi Luxtradee — lihat
 // prisma/schema.prisma):
@@ -310,38 +314,98 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
   return text
 }
 
-/* 1 panggilan OpenRouter (format OpenAI — cadangan Gemini CMO).
-   Butuh OPENROUTER_API_KEY. Model default: zhipu/glm-4.7 flash
-   (murah, cepat, bahasa Indonesia lumayan). */
-async function openRouterText(e: Env, systemPrompt: string, userPrompt: string, maxTokens = 2048): Promise<string> {
+/* ============================================================
+   ALOKASI MODEL MULTI-AGENT (SOP Bos) — tiap karyawan punya model
+   OpenRouter masing-masing sesuai keahliannya:
+   • Bagas  (COO)  → meta-llama/llama-3.1-8b-instruct:free (route ai-coo-agent)
+   • Raka   (CTO)  → qwen/qwen-2.5-coder-7b-instruct:free
+   • Maya   (CSO)  → google/gemma-2-9b-it:free
+   • Sinta  (CMO)  → zhipu/glm-4.7-flash (cadangan resmi: zhipu/glm-4-flash)
+   • Putri  (CFO)  → TANPA LLM — murni matematika hardcoded
+   • Alexander (CEO) → meta-llama/llama-3.1-8b-instruct:free
+   • Dewi   (DA)   → google/gemma-2-9b-it:free (mingguan, tidak bentrok Maya)
+   • Farhan (GH)   → meta-llama/llama-3.1-8b-instruct:free (mingguan)
+   Override per karyawan tanpa ubah kode: env OR_MODEL_CTO (contoh).
+   ============================================================ */
+const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
+type AgentKey = 'coo' | 'cto' | 'cso' | 'cmo' | 'ceo' | 'da' | 'gh'
+const AGENT_MODELS: Record<AgentKey, string> = {
+  coo: 'meta-llama/llama-3.1-8b-instruct:free',
+  cto: 'qwen/qwen-2.5-coder-7b-instruct:free',
+  cso: 'google/gemma-2-9b-it:free',
+  cmo: 'zhipu/glm-4.7-flash',
+  ceo: 'meta-llama/llama-3.1-8b-instruct:free',
+  da: 'google/gemma-2-9b-it:free',
+  gh: 'meta-llama/llama-3.1-8b-instruct:free',
+}
+/* Cadangan resmi seluruh tim kalau model utama karyawan error/429
+   (SOP Bos: fallback Sinta ke zhipu/glm-4-flash). */
+const OR_TEAM_FALLBACK = 'zhipu/glm-4-flash'
+
+function orChain(e: Env, agent: AgentKey): string[] {
+  const override = cleanEnv(e[`OR_MODEL_${agent.toUpperCase()}`])
+  /* Legacy env OPENROUTER_MODEL masih dihormati sebagai pilihan utama Sinta */
+  const primary = override || (agent === 'cmo' ? cleanEnv(e.OPENROUTER_MODEL) : '') || AGENT_MODELS[agent]
+  return [...new Set([primary, OR_TEAM_FALLBACK])]
+}
+
+/* 1 panggilan OpenRouter — native fetch, kompatibel Cloudflare Workers.
+   Coba model satu per satu sesuai chain; parsing standar OpenAI:
+   result.choices?.[0]?.message?.content?.trim() */
+async function openRouterChat(e: Env, chain: string[], systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature?: number): Promise<{ text: string; model: string }> {
   const orKey = cleanEnv(e.OPENROUTER_API_KEY)
   if (!orKey) throw new Error('OPENROUTER_API_KEY belum diset — tambah di Cloudflare Workers Secrets')
-  const model = e.OPENROUTER_MODEL || 'zhipu/glm-4.7 flash'
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${orKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: maxTokens,
-    }),
-    signal: timeoutSignal(30_000),
-  })
-  if (res.status === 429) {
-    const x: any = new Error('OpenRouter 429 (rate limit)'); x.status = 429
-    throw x
+  let lastErr = ''
+  for (const model of chain) {
+    try {
+      const res = await fetch(OR_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${orKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: maxTokens,
+          ...(temperature !== undefined ? { temperature } : {}),
+        }),
+        signal: timeoutSignal(45_000),
+      })
+      if (!res.ok) {
+        lastErr = `${model} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 120)}`
+        continue
+      }
+      const result: any = await res.json()
+      const text = result?.choices?.[0]?.message?.content?.trim()
+      if (!text) { lastErr = `${model} → respons kosong`; continue }
+      return { text, model }
+    } catch (x: any) {
+      lastErr = `${model} → ${String(x?.message || x).slice(0, 120)}`
+    }
   }
-  if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
-  const data: any = await res.json()
-  const text = (data?.choices?.[0]?.message?.content || '').trim()
-  if (!text) throw new Error('OpenRouter mengembalikan respons kosong')
-  return text
+  throw new Error(lastErr || 'OpenRouter: semua model gagal')
+}
+
+/* Otak Multi-Agent: model resmi karyawan (OpenRouter) dulu →
+   Gemini sebagai nyawa cadangan terakhir → kalau dua-duanya mati,
+   caller wajib pakai templat statis (sistem tidak pernah crash). */
+async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'openrouter' | 'gemini'; model: string }> {
+  let err = ''
+  try {
+    const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature)
+    return { ...r, provider: 'openrouter' }
+  } catch (x: any) { err = String(x?.message || x).slice(0, 140) }
+  if (cleanEnv(e.GEMINI_API_KEY)) {
+    try {
+      const text = await geminiText(e, systemPrompt, userPrompt, maxTokens, temperature)
+      return { text, provider: 'gemini', model: e.GEMINI_MODEL || 'gemini-2.5-flash' }
+    } catch (x: any) { err += ' | Gemini: ' + String(x?.message || x).slice(0, 80) }
+  }
+  throw new Error(err || 'semua LLM gagal')
 }
 
 /* Top 5 konten TikTok milik Bos, urut views (tabel tiktok_posts).
@@ -358,6 +422,15 @@ async function fetchTopTikToks(e: Env): Promise<{ url: string; caption: string; 
 
 async function cmoAgent(e: Env) {
   const angle = ANGLES[dayIndex() % ANGLES.length]
+
+  /* SOP Bos: 1 draf TikTok / HARI. Draf hari ini yang sudah dibuat
+     (dashboard dibuka / briefing pagi) dipakai ulang — hemat kuota model. */
+  const dayKey = `cmo:${utcDay()}`
+  try {
+    const cached = await kvGet(e, dayKey)
+    if (cached) return { ...JSON.parse(cached), dupToday: true }
+  } catch { /* ignore */ }
+
   let history: string[] = []
   try { history = JSON.parse((await kvGet(e, 'drafts:history')) || '[]') } catch { /* ignore */ }
 
@@ -367,6 +440,19 @@ async function cmoAgent(e: Env) {
     ? `KONTEN TIKTOK ASLI milik CEO (urut views — paling atas TERBUKTI paling perform):\n` +
       posts.map((p, i) => `${i + 1}. [${fmtN(p.views)} views · ${fmtN(p.likes)} likes] "${(p.caption || '').slice(0, 400)}"`).join('\n')
     : ''
+
+  /* SOP Sinta: draf hari ini juga WAJIB menjawab alasan churn dari rapat
+     Maya × Sinta terakhir (bukan sekadar ikut angle rotasi). */
+  let churnLine = ''
+  try {
+    const p = JSON.parse((await kvGet(e, 'cso-cmo:last')) || 'null')
+    if (p?.diagnosis)
+      churnLine =
+        `\nHASIL RAPAT MAYA (CSO) TERAKHIR — akar masalah user males pakai jurnal:\n` +
+        `"${String(p.diagnosis).slice(0, 200)}"` +
+        (Array.isArray(p.reasons) && p.reasons.length ? `\nAlasan utama: ${p.reasons.slice(0, 3).join('; ')}` : '') +
+        `\nSkrip hari ini WAJIB menjawab akar masalah tersebut.`
+  } catch { /* ignore */ }
 
   const systemPrompt =
     `Kamu adalah CMO Luxtrade. ` +
@@ -380,6 +466,7 @@ async function cmoAgent(e: Env) {
   const userPrompt =
     `Tanggal hari ini: ${wibNow()}.\n` +
     `ANGLE HARI INI (WAJIB dipakai): ${angle}\n` +
+    churnLine +
     (history.length
       ? `\nNaskah yang SUDAH dipakai hari sebelumnya (DILARANG mengulang / mirip):\n` +
         history.map((h, i) => `— draf ${i + 1} —\n${h.slice(0, 500)}`).join('\n') + '\n'
@@ -388,34 +475,34 @@ async function cmoAgent(e: Env) {
     (await memBlock(e)) +
     `\nOutput: HANYA naskah TikTok baru (hook 3 detik pertama → body → CTA, durasi 30–45 detik), tanpa penjelasan tambahan.`
 
-  /* ═══════ AUTO-FALLBACK: Gemini → OpenRouter → fallbackDraft ═══════
-     1) Gemini (API utama — gratis, kualitas bagus)
-     2) OpenRouter (cadangan — kalau Gemini 429/error, otomatis pindah)
-     3) fallbackDraft (fail-safe terakhir — teks statis) */
+  /* ═══════ Rantai model SINTA (SOP Multi-Agent) ═══════
+     1) OpenRouter zhipu/glm-4.7-flash (model resmi Sinta)
+     2) OpenRouter zhipu/glm-4-flash (cadangan resmi — SOP Bos)
+     3) Gemini (nyawa cadangan terakhir)
+     4) fallbackDraft (fail-safe — teks statis, sistem tidak pernah crash) */
   let draft: string
   let provider: 'gemini' | 'openrouter' | 'fallback' = 'fallback'
+  let model = ''
   let usedFallback = false
   let fallbackError = ''
 
   try {
-    draft = await geminiText(e, systemPrompt, userPrompt, 2048, 1.0)
-    provider = 'gemini'
-  } catch (geminiErr: any) {
-    fallbackError = String(geminiErr?.message || geminiErr).slice(0, 120)
-    try {
-      draft = await openRouterText(e, systemPrompt, userPrompt, 2048)
-      provider = 'openrouter'
-    } catch (orErr: any) {
-      fallbackError += ' | OR: ' + String(orErr?.message || orErr).slice(0, 80)
-      draft = fallbackDraft(angle)
-      usedFallback = true
-    }
+    const brain = await agentBrain(e, 'cmo', systemPrompt, userPrompt, 2048, 1.0)
+    draft = brain.text
+    provider = brain.provider
+    model = brain.model
+  } catch (brainErr: any) {
+    fallbackError = String(brainErr?.message || brainErr).slice(0, 160)
+    draft = fallbackDraft(angle)
+    usedFallback = true
   }
 
   history.unshift(draft)
   await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 5)))
-  await memAdd(e, 'CMO Sinta', `Draf TikTok (${angle}, provider ${provider}): ${draft.replace(/\s+/g, ' ').slice(0, 140)}`)
-  return { draft, angle, usedFallback, provider, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
+  await memAdd(e, 'CMO Sinta', `Draf TikTok (${angle}, ${model || provider}): ${draft.replace(/\s+/g, ' ').slice(0, 130)}`)
+  const out = { draft, angle, usedFallback, provider, model, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
+  await kvSet(e, dayKey, JSON.stringify(out)).catch(() => {})
+  return out
 }
 
 /* ============================================================
@@ -508,8 +595,8 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push('')
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
-  if (cmo?.usedFallback) L.push('_(Gemini + OpenRouter gagal — pakai draf cadangan, mohon revisi manual)_')
-  else if (cmo?.provider === 'openrouter') L.push('_(Gemini gagal — otomatis pakai OpenRouter sebagai cadangan ✅)_')
+  if (cmo?.usedFallback) L.push('_(semua model gagal — pakai draf cadangan, mohon revisi manual)_')
+  else if (cmo?.provider === 'openrouter') L.push(`_(via OpenRouter — model resmi Sinta${cmo?.model ? ': ' + cmo.model : ''} ✅)_`)
   if (cmo?.basedOn === 'tiktok') L.push(`📚 Dianalisis dari ${fmtN(cmo.analyzedPosts)} konten TikTok asli lo (urut views) — pola pemenang ditiru`)
   else if (cmo?.draft) L.push('📚 Analisis pakai referensi statis — isi "Bahan Analisis TikTok" di Ruang CMO biar makin akurat')
   L.push('')
@@ -530,6 +617,23 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   return L.join('\n')
 }
 
+/* ALEXANDER (CEO) merangkai Morning Briefing — SOP Multi-Agent: model
+   resminya (Llama 3.1 8B via OpenRouter) merapikan laporan mentah semua
+   agen jadi satu briefing. Validasi ketat (wajib memuat seksi CTO/CSO/CMO,
+   panjang masuk akal) — gagal → templat buildBriefing dipakai (fail-safe). */
+async function ceoComposeBriefing(e: Env, templateText: string): Promise<{ text: string; model: string }> {
+  const brain = await agentBrain(
+    e, 'ceo',
+    'Kamu Alexander, wakil CEO Luxtradee (jurnal trading XAUUSD). Tugas pagi ini: merangkai LAPORAN MENTAH dari karyawan AI jadi SATU Morning Briefing rapi untuk Discord Bos. ATURAN WAJIB: (1) pertahankan SEMUA angka & status penting (website, bug, user aktif/pasif, kuota, penawaran COO, email CSO); (2) format markdown Discord, mulai dengan baris "🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**" lalu baris tanggal; (3) seksi dipisah ━━━━ dengan judul 🖥️ CTO / 👥 CSO / 📣 CMO / 💰 CFO; (4) maksimal 1800 karakter; (5) bahasa Indonesia, profesional tapi santai. Output HANYA isi briefing-nya, tanpa komentar pembuka/penutup.',
+    `LAPORAN MENTAH KARYAWAN:\n${templateText}`,
+    900, 0.4,
+  )
+  const text = brain.text.trim()
+  if (text.length < 300 || ['CTO', 'CSO', 'CMO'].some((k) => !text.includes(k)))
+    throw new Error('hasil Alexander tidak lolos validasi')
+  return { text: text.slice(0, 1950), model: brain.model }
+}
+
 async function runMorningBriefing(e: Env) {
   const [cto, cso, cmo, cfo, qa, cooLine] = await Promise.all([
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
@@ -546,7 +650,7 @@ async function runMorningBriefing(e: Env) {
   if (autoOn && !(await kvGet(e, `acc_email:${utcDay()}`))) {
     await kvSet(e, `acc_email:${utcDay()}`, new Date().toISOString())
     if (e.RESEND_API_KEY) {
-      try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke user pasif (variasi "${r.variant}"; ${r.personalized} pakai data trading asli penerima)` }
+      try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke user pasif (variasi "${r.variant}"; ${r.personalized} pakai data trading asli penerima; draf Maya via ${r.emailProvider === 'template' ? 'templat statis' : r.emailModel || r.emailProvider})` }
       catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
     } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
     try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
@@ -563,7 +667,15 @@ async function runMorningBriefing(e: Env) {
     }
   } catch { /* ignore */ }
 
-  const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine, nbaLine)
+  /* ALEXANDER (CEO) yang merangkai — kalau modelnya gagal, templat
+     buildBriefing tetap dipakai (sistem tidak pernah tanpa laporan). */
+  const templateText = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine, nbaLine)
+  let text = templateText
+  try {
+    const composed = await ceoComposeBriefing(e, templateText)
+    text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
+    await memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`)
+  } catch { /* templat tetap dipakai */ }
   let notifySent = false, notifyErr = ''
   try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
 
@@ -627,6 +739,16 @@ const PASSIVE_VARIANTS = [
   },
 ]
 
+/* Footer statis — SELALU ditambahkan sistem (bukan LLM) supaya link &
+   tanda tangan tidak pernah hilang/halusinasi. */
+const CSO_EMAIL_FOOTER = 'Upload screenshot terakhir lo — evaluasi AI jalan dalam 2 menit: https://luxtradee.web.id\n\n— Tim Luxtrade'
+/* Rotasi 3 variasi nada email Maya (SOP: rotasi 3 variasi) */
+const CSO_EMAIL_TONES = [
+  'sapaan hangat yang kangen — seperti teman lama yang peduli',
+  'motivasi disiplin — trader hebat adalah yang balik lagi setelah vakum',
+  'nostalgia — ingatkan betapa cepat waktu berlalu & jurnalnya masih menunggu',
+]
+
 interface PerUserTrade { n: number; top: string; lastAt: number; wins: number }
 
 async function buildPerUserTradeMap(e: Env): Promise<Map<string, PerUserTrade>> {
@@ -664,10 +786,9 @@ function personalLine(name: string, t: PerUserTrade | undefined, createdAgeDays:
   return hai
 }
 
-async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string; personalized: number }> {
+async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string; personalized: number; emailProvider: string; emailModel: string }> {
   const since = isoAgo(24)
   const activeIds = await fetchActiveUserIds(e, since)
-  const variant = PASSIVE_VARIANTS[dayIndex() % PASSIVE_VARIANTS.length]
 
   // kandidat: profil dengan email, terbaru dulu — maks 200 kandidat
   /* Pakai service_role key — profiles butuh bypass RLS */
@@ -679,6 +800,34 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
   const targets = profiles
     .filter((p) => p.email && p.id && !activeIds.has(p.id))
     .slice(0, 50)
+
+  /* SOP Multi-Agent — MAYA (CSO) meracik draf email hari ini pakai model
+     resminya (google/gemma-2-9b-it:free via OpenRouter), rotasi 3 variasi
+     nada, maks 50 user pasif. 1 panggilan LLM/hari; sapaan personal per
+     user tetap dari data trading ASLI (personalLine) + CTA statis sistem.
+     Gagal → templat statis PASSIVE_VARIANTS (fail-safe). */
+  const variantIdx = dayIndex() % PASSIVE_VARIANTS.length
+  let variant = PASSIVE_VARIANTS[variantIdx]
+  let emailProvider = 'template'
+  let emailModel = ''
+  try {
+    const brain = await agentBrain(
+      e, 'cso',
+      'Kamu Maya, CSO Luxtradee — web app jurnal trading XAUUSD (upload screenshot → evaluasi AI). Tulis 1 email sapaan hangat untuk user pasif (tidak upload jurnal >24 jam). Gaya: bahasa Indonesia santai & hangat, maksimal 80 kata, TANPA link/URL apa pun (sistem menambahkan link & tanda tangan otomatis), TANPA markdown, TANPA sapaan nama (sistem menambahkan sapaan personal per penerima). ' +
+      `Nada variasi hari ini: ${CSO_EMAIL_TONES[variantIdx]}. ` +
+      'OUTPUT HANYA JSON valid: {"subject":"maks 60 karakter, boleh 1 emoji","body":"isi email tanpa sapaan nama"}',
+      `Konteks: ${targets.length} user pasif akan dikontak hari ini. Tanggal: ${wibNow()}.`,
+      400, 0.8,
+    )
+    const parsed = JSON.parse(extractJsonLoose(brain.text) || '{}') as { subject?: string; body?: string }
+    const subject = String(parsed.subject || '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 120)
+    const body = String(parsed.body || '').replace(/https?:\/\/\S+/g, '').replace(/```/g, '').trim().slice(0, 700)
+    if (subject && body && body.length > 40) {
+      variant = { subject, text: `${body}\n\n${CSO_EMAIL_FOOTER}` }
+      emailProvider = brain.provider
+      emailModel = brain.model
+    }
+  } catch { /* templat statis tetap dipakai */ }
 
   /* Data trading personal per penerima — 1 kueri untuk semua */
   const tradeMap = await buildPerUserTradeMap(e)
@@ -711,8 +860,8 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
   }
   /* simpan siapa saja yang di-email hari ini → besok dihitung "balik aktif" */
   if (emailedIds.length) await kvSet(e, `csmailed:${utcDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
-  if (sent) await memAdd(e, 'CSO Maya', `${sent} email personal ke user pasif (variasi "${variant.subject}"; ${personalized} pakai data trade asli penerima)`)
-  return { sent, ids: emailedIds, variant: variant.subject, personalized }
+  if (sent) await memAdd(e, 'CSO Maya', `${sent} email personal ke user pasif (variasi "${variant.subject}"; ${personalized} pakai data trade asli penerima; draf via ${emailProvider === 'template' ? 'templat statis' : emailModel})`)
+  return { sent, ids: emailedIds, variant: variant.subject, personalized, emailProvider, emailModel }
 }
 
 /* ============================================================
@@ -754,23 +903,25 @@ async function watchdog(e: Env) {
       await kvSet(e, 'wd:bugs:last', String(cto.bugs24h)) // baseline pertama, tanpa alarm
     } else if (cto.bugs24h > parseInt(bugsAlertedRaw || '0', 10)) {
       await kvSet(e, 'wd:bugs:last', String(cto.bugs24h))
-      /* TRIAGE otomatis: 3 bug terakhir → Gemini ringkas jadi diagnosa
-         + prioritas P1-P3 → Bos nggak perlu buka Supabase manual.
-         Gemini hanya dipanggil SAAT bug baru masuk (bukan tiap 15 mnt). */
+      /* TRIAGE otomatis (RAKA — CTO): 3 bug terakhir diringkas jadi diagnosa
+         + prioritas P1-P3 oleh model resmi Raka (qwen-2.5-coder-7b via
+         OpenRouter) → Bos nggak perlu buka Supabase manual.
+         LLM hanya dipanggil SAAT bug baru masuk (bukan tiap 15 mnt). */
       let triage = ''
       try {
         const bres = await fetch(`${sbUrl(e)}/rest/v1/bug_reports?select=description&order=created_at.desc&limit=3`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
         const bugs: { description?: string }[] = bres.ok ? await bres.json() : []
         const list = bugs.map((b, i) => `${i + 1}. ${String(b.description || '').replace(/\s+/g, ' ').slice(0, 300)}`).filter((s) => s.length > 3).join('\n')
         if (list) {
-          if (e.GEMINI_API_KEY) {
-            triage = await geminiText(
-              e,
-              'Kamu CTO Luxtradee (web app jurnal trading). Ringkas laporan bug user jadi diagnosa singkat & actionable. Format per baris: "- [P1/P2/P3] masalah → kemungkinan penyebab/lokasi". P1=kritis (situs/fitur utama mati), P2=gangguan, P3=minor. Satu baris per bug, tanpa pembuka/penutup.',
+          try {
+            const brain = await agentBrain(
+              e, 'cto',
+              'Kamu Raka, CTO Luxtradee (web app jurnal trading). Ringkas laporan bug user jadi diagnosa singkat & actionable. Format per baris: "- [P1/P2/P3] masalah → kemungkinan penyebab/lokasi". P1=kritis (situs/fitur utama mati), P2=gangguan, P3=minor. Satu baris per bug, tanpa pembuka/penutup.',
               `Laporan bug terbaru:\n${list}`,
               512, 0.3,
             )
-          } else triage = list
+            triage = brain.text
+          } catch { triage = list } // semua model gagal → alarm tetap kirim dgn daftar mentah
         }
       } catch { /* triage opsional — gagal → kirim alarm tanpa detail */ }
       const msg = `🐞 **CTO WATCHDOG — BUG BARU MASUK!**\n• Total 24 jam: ${cto.bugs24h} bug\n${triage ? triage.slice(0, 900) + '\n' : ''}Segera cek tabel bug_reports di Supabase.`
@@ -1038,14 +1189,12 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
   let parsed: Omit<CsoCmoTalk, 'at' | 'provider' | 'intel' | 'raw'> | null = null
   let raw = ''
   try {
-    raw = await geminiText(e, systemPrompt, userPrompt, 2048, 0.8)
-    provider = 'gemini'
-  } catch {
-    try {
-      raw = await openRouterText(e, systemPrompt, userPrompt, 2048)
-      provider = 'openrouter'
-    } catch { raw = '' }
-  }
+    /* SOP Multi-Agent — rapat dibawakan MAYA (CSO) dengan modelnya sendiri
+       (gemma-2-9b via OpenRouter) → Gemini nyawa cadangan → templat. */
+    const brain = await agentBrain(e, 'cso', systemPrompt, userPrompt, 2048, 0.8)
+    raw = brain.text
+    provider = brain.provider
+  } catch { raw = '' }
 
   if (raw) {
     try {
@@ -1212,11 +1361,11 @@ async function analystAgent(e: Env): Promise<DaInsight> {
   let insight = '', patterns: string[] = [], recommendations: string[] = []
   let raw = ''
   try {
-    raw = await geminiText(e, systemPrompt, dataText + prev + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.5)
-    provider = 'gemini'
-  } catch {
-    try { raw = await openRouterText(e, systemPrompt, dataText + prev + (await memBlock(e)), 1024); provider = 'openrouter' } catch { raw = '' }
-  }
+    /* SOP Multi-Agent — DEWI (DA) analisis pakai modelnya sendiri → Gemini cadangan */
+    const brain = await agentBrain(e, 'da', systemPrompt, dataText + prev + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.5)
+    raw = brain.text
+    provider = brain.provider
+  } catch { raw = '' }
   if (raw) {
     try {
       const j2 = JSON.parse(extractJsonLoose(raw) || raw)
@@ -1319,11 +1468,11 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   let insight = '', experiments: GhExperiment[] = []
   let raw = ''
   try {
-    raw = await geminiText(e, systemPrompt, funnelText + daLine + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
-    provider = 'gemini'
-  } catch {
-    try { raw = await openRouterText(e, systemPrompt, funnelText + daLine + (await memBlock(e)), 1024); provider = 'openrouter' } catch { raw = '' }
-  }
+    /* SOP Multi-Agent — FARHAN (GH) rancang eksperimen pakai modelnya sendiri → Gemini cadangan */
+    const brain = await agentBrain(e, 'gh', systemPrompt, funnelText + daLine + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
+    raw = brain.text
+    provider = brain.provider
+  } catch { raw = '' }
   if (raw) {
     try {
       const j2 = JSON.parse(extractJsonLoose(raw) || raw)
@@ -1369,15 +1518,17 @@ function ghToDiscord(g: GhInsight): string {
 /* ---------- NEXT BEST ACTION (CEO pintar): 1 prioritas/hari ----------
    Setelah briefing tersusun, Alexander pilih SATU aksi terpenting yang
    HANYA Bos yang bisa kerjakan hari ini → dikirim ke Discord sebagai
-   pesan terpisah + tampil di Ruang Rapat. 1 panggilan Gemini/hari. */
+   pesan terpisah + tampil di Ruang Rapat. 1 panggilan LLM/hari. */
 async function nextBestAction(e: Env, briefingText: string): Promise<string> {
-  if (!e.GEMINI_API_KEY) return ''
   try {
-    const nba = await geminiText(
-      e,
+    /* SOP Multi-Agent — Alexander (CEO, Llama 3.1 8B) pilih prioritas;
+       tidak lagi tergantung Gemini. */
+    const brain = await agentBrain(
+      e, 'ceo',
       'Kamu wakil CEO Luxtradee (jurnal trading XAUUSD). Dari briefing pagi di bawah, tentukan SATU aksi prioritas tertinggi yang Bos harus kerjakan HARI INI — yang paling berdampak ke pertumbuhan atau paling urgent, dan HANYA Bos yang bisa (bukan yang bisa dikerjakan karyawan AI). LIHAT MEMORI KANTOR: jangan pilih prioritas yang mirip dengan yang sudah dipilih hari-hari sebelumnya kecuali benar-benar masih paling penting. Format jawaban HANYA: "🎯 <aksi konkret> — <alasan 1 kalimat>". Maks 200 karakter, bahasa Indonesia.',
       briefingText.slice(0, 1600) + (await memBlock(e, 5)), 200, 0.4,
     )
+    const nba = brain.text
     const text = nba.split('\n').filter((s) => s.trim()).slice(0, 2).join(' ').trim().slice(0, 300)
     if (!text) return ''
     await kvSet(e, 'nba:last', JSON.stringify({ at: new Date().toISOString(), text })).catch(() => {})
@@ -1402,17 +1553,35 @@ async function tikTokList(e: Env) {
   return { posts: await res.json() }
 }
 
+/* URL TikTok valid: link panjang (www/m) ATAU link pendek share (vt/vm)
+   — contoh: https://vt.tiktok.com/ZSgQjsxYP/ */
+const TT_URL_RE = /^https:\/\/(www\.|m\.|vt\.|vm\.)?tiktok\.com\/[^\s]+$/i
+
 async function tikTokAdd(e: Env, body: { url?: string; views?: number; likes?: number; comments?: number; caption?: string }) {
   const postUrl = String(body.url || '').trim()
-  if (!/^https:\/\/(www\.)?tiktok\.com\//.test(postUrl)) throw new Error('URL TikTok tidak valid — contoh: https://www.tiktok.com/@username/video/123456789')
+  if (!TT_URL_RE.test(postUrl)) throw new Error('URL TikTok tidak valid — contoh: https://www.tiktok.com/@username/video/123456789 atau link pendek https://vt.tiktok.com/ZSgQjsxYP')
   if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) throw new Error('set SUPABASE_SERVICE_ROLE_KEY dulu di Cloudflare (butuh bypass RLS)')
+
+  /* Link pendek vt/vm → resolve redirect ke URL video asli dulu supaya
+     oEmbed bisa baca caption (vt.tiktok.com sering ditolak oEmbed).
+     Canonical hanya dipakai kalau hasil redirect benar-benar URL video
+     (bukan halaman about/login yang kadang jadi tujuan redirect). */
+  let canonical = postUrl
+  if (/^https:\/\/(vt|vm)\.tiktok\.com\//i.test(postUrl)) {
+    try {
+      const r0 = await fetch(postUrl, { redirect: 'follow', signal: timeoutSignal(10_000) })
+      if (r0.ok && /^https:\/\/(www\.|m\.)?tiktok\.com\//i.test(r0.url) && /\/(video|photo)\//i.test(r0.url)) canonical = r0.url
+    } catch { /* gagal resolve → coba oEmbed dengan URL asli */ }
+  }
 
   /* oEmbed TikTok: gratis, tanpa API key → caption + thumbnail otomatis */
   let caption = String(body.caption || '').trim()
   let thumbnail = ''
   let autoCaption = false
   try {
-    const oe = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(postUrl)}`, { signal: timeoutSignal(10_000) })
+    let oe = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(canonical)}`, { signal: timeoutSignal(10_000) })
+    if (!oe.ok && canonical !== postUrl)
+      oe = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(postUrl)}`, { signal: timeoutSignal(10_000) })
     if (oe.ok) {
       const d: any = await oe.json()
       const t = String(d?.title || '').trim()
@@ -1502,8 +1671,8 @@ async function handle(req: Request): Promise<Response> {
       return raw ? j(JSON.parse(raw)) : j({ error: 'belum ada briefing' }, 404)
     }
     case 'agents': {
-      // ?only=cto,cso,cfo,coo — jalankan subset agen (hemat kuota Gemini saat
-      // dashboard dibuka; draf TikTok CMO hanya dibuat kalau diminta)
+      // ?only=cto,cso,cfo,coo — jalankan subset agen (draf TikTok CMO
+      // di-cache 1×/hari sesuai SOP "1 draf/hari" — hemat kuota model)
       const only = (url.searchParams.get('only') || '').split(',').map((s) => s.trim()).filter(Boolean)
       const want = (w: string) => !only.length || only.includes(w)
       const [cto, cso, cmo, cfo, coo] = await Promise.all([
@@ -1525,6 +1694,8 @@ async function handle(req: Request): Promise<Response> {
           SUPABASE_ANON_KEY: has('SUPABASE_ANON_KEY') || has('NEXT_PUBLIC_SUPABASE_ANON_KEY') || !!INLINED_SB_KEY,
         SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
           GEMINI_API_KEY: has('GEMINI_API_KEY'),
+          OPENROUTER_API_KEY: has('OPENROUTER_API_KEY'),
+          OPENROUTER_MODEL: has('OPENROUTER_MODEL'),
           RESEND_API_KEY: has('RESEND_API_KEY'),
           DISCORD_WEBHOOK_URL: has('DISCORD_WEBHOOK_URL'),
           CRON_SECRET: has('CRON_SECRET'),
@@ -1687,7 +1858,15 @@ async function handle(req: Request): Promise<Response> {
     }
     default:
       return j({
-        app: 'Luxtrade Super AI Agent',
+        app: 'Luxtrade Super AI Agent — Multi-Agent (SOP: tiap karyawan model OpenRouter sendiri)',
+        models: {
+          COO_Bagas: AGENT_MODELS.coo,
+          CTO_Raka: AGENT_MODELS.cto,
+          CSO_Maya: AGENT_MODELS.cso,
+          CMO_Sinta: AGENT_MODELS.cmo,
+          CFO_Putri: 'TANPA LLM — murni matematika hardcoded',
+          CEO_Alexander: AGENT_MODELS.ceo,
+        },
         notify: 'Discord webhook (DISCORD_WEBHOOK_URL)',
         owner: ownerEmail(e),
         actions: [

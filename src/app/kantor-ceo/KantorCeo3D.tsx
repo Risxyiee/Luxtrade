@@ -44,7 +44,7 @@ const TEAM_DETAIL = [
     baca: 'profiles (free user + email) · trades 7 hari per user · ai_pending_tasks (riwayat kontak)',
     tugas: [
       'Pilih maks 3 free user paling aktif 7 hari = hot lead (sudah ketagihan produk, paling siap upgrade)',
-      'Racik email penawaran PRO personal via LLM (Groq → Gemini → templat cadangan)',
+      'Racik email penawaran PRO personal via model resminya: Llama 3.1 8B (OpenRouter) → Groq/Gemini cadangan → templat',
       'Simpan draf sebagai task PENDING → tunggu ACC Bos di Ruang COO (human-in-the-loop)',
       'Setelah ACC: email terkirim via Resend, status dicatat untuk pengukuran konversi',
     ],
@@ -62,7 +62,7 @@ const TEAM_DETAIL = [
     baca: 'Ping https://luxtradee.web.id · bug_reports · riwayat uptime (agent_kv) · env diagnostik',
     tugas: [
       'Ping situs tiap 15 menit — DOWN → alarm Discord instan (dedup 30 mnt), pulih → kabari sekali',
-      'Bug baru masuk → triage Gemini: 3 bug terakhir diringkas jadi diagnosa + prioritas P1/P2/P3',
+      'Bug baru masuk → triage pakai model resminya (Qwen 2.5 Coder via OpenRouter): 3 bug terakhir diringkas jadi diagnosa + prioritas P1/P2/P3',
       'QA otomatis 12 route utama (landing, dashboard, upgrade, kantor-ceo, API) tiap briefing pagi — 5xx/timeout dilaporkan',
       'Diagnostik env & tes query Supabase (tombol 🩺 Diagnostik di Ruang CTO)',
     ],
@@ -80,7 +80,7 @@ const TEAM_DETAIL = [
     baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
     tugas: [
       'Hitung pendaftar / aktif 24 jam / pasif tiap pagi — tampil di briefing & panel Ruang CSO',
-      'Kirim EMAIL PERSONAL ke maks 50 user pasif: pembuka sesuai data masing-masing (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload) + 3 variasi rotasi harian',
+      'Kirim EMAIL PERSONAL ke maks 50 user pasif: nada email diracik model resminya (Gemma 2 9B via OpenRouter, rotasi 3 variasi), pembuka per user dari data trading asli (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload)',
       'Ukur feedback: besoknya hitung berapa dari yang di-email yang balik upload (dilaporkan di briefing)',
       'Bawa data nyata ke meja rapat sama Sinta (CMO): kenapa user daftar tapi males upload jurnal → jadi skrip konten',
     ],
@@ -95,11 +95,12 @@ const TEAM_DETAIL = [
   {
     id: 'CMO', emoji: '📣', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed', bg: 'rgba(124,58,237,.05)', border: 'rgba(124,58,237,.25)',
     shift: 'Draf TikTok di briefing 08:00 atau kapan pun tombol "Buat Draf Baru" ditekan',
-    baca: 'tiktok_posts (top 5 konten Bos urut views) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
+    baca: 'tiktok_posts (top 5 konten Bos urut views) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
     tugas: [
       'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
-      'Bikin 1 draf TikTok/hari — rotasi 3 angle: pain point SMC/ICT · capek ngetik jurnal · max daily loss prop firm',
-      'Fallback 3 tingkat: Gemini → OpenRouter → templat statis (draf tidak pernah kosong)',
+      'Bikin 1 draf TikTok/hari via model resminya GLM-4.7-Flash (OpenRouter) — rotasi 3 angle: pain point SMC/ICT · capek ngetik jurnal · max daily loss prop firm',
+      'Draf wajib menjawab alasan churn dari rapat Maya (bukan sekadar ikut angle rotasi)',
+      'Rantai model: GLM-4.7-Flash → GLM-4-Flash → Gemini → templat statis (draf tidak pernah kosong)',
       'Ikut rapat harian sama Maya: ubah akar masalah churn jadi skrip konten anti-churn',
     ],
     lapor: 'Draf di panel Ruang CMO (tinggal salin) + draf & sumber analisis di briefing 08:00 · skrip rapat di Ruang CSO',
@@ -115,6 +116,7 @@ const TEAM_DETAIL = [
     shift: 'Cek kuota di briefing 08:00 + watchdog 15 menit (alarm di 80%)',
     baca: 'agent_kv quota: (Gemini Vision) · email: (Resend) · quota429: (event rate-limit)',
     tugas: [
+      'Satu-satunya karyawan TANPA LLM — 100% matematika hardcoded (SOP Bos): tidak bisa halusinasi angka',
       'Pantau kuota Gemini Vision harian (limit ±1.400) & kuota email Resend (100/hari)',
       'Gerbang quota-track: setiap evaluasi upload user dicek dulu — kuota habis → ditunda (anti-429)',
       'Alarm Discord 1×/hari kalau pemakaian ≥80%',
@@ -168,8 +170,8 @@ const TEAM_DETAIL = [
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
     baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + 🧠 Memori Kantor',
     tugas: [
-      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → kirim ke Discord 08:00',
-      'Pilih 1 NEXT BEST ACTION tiap pagi — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
+      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Llama 3.1 8B via OpenRouter) → kirim ke Discord 08:00',
+      'Pilih 1 NEXT BEST ACTION tiap pagi pakai modelnya sendiri — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
       'Ingatkan PRIORITAS KEMARIN di briefing — akuntabilitas: dilakukan, atau ganti dengan alasan jelas',
       'Catat keputusan & kesimpulan penting ke 🧠 Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
       'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya · laporan mingguan tiap Senin',
@@ -475,7 +477,7 @@ export default function KantorCeo3D() {
         {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155'}]
       const PHASES=['Cek Sistem & Bug','Hitung User','Analisis Data','Draf TikTok','Cek Kuota','Eksperimen Growth','Follow-up Jualan','Kirim Briefing']
       const PHASE_JOB=['CTO','CSO','DA','CMO','CFO','GH','COO','CEO']
-      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','DA':'Olah trades 30 hari: win rate, pair & sesi teraktif','CMO':'Generate draf TikTok di Gemini','CFO':'Pantau kuota Gemini anti-429','GH':'Ukur funnel & rancang eksperimen minggu ini','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Review & kirim Morning Briefing'}
+      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','DA':'Olah trades 30 hari: win rate, pair & sesi teraktif','CMO':'Generate draf TikTok via OpenRouter','CFO':'Pantau kuota Gemini anti-429','GH':'Ukur funnel & rancang eksperimen minggu ini','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Susun Morning Briefing via Llama 3.1 8B'}
       const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Insight data baru siap','Draf TikTok baru siap','Kuota aman — 0 event 429','Eksperimen growth dirancang','Lead difollow-up, draf siap ACC','Briefing terkirim ke Discord']
       const SITE={ver:1.0,vis:41,day:1247}
       const PROJ={ph:0,prog:35,sprint:1,done:0}
@@ -498,7 +500,7 @@ export default function KantorCeo3D() {
       const T2={
         CTO:{deep:['Ping luxtradee.web.id — harap 200 OK','Hitung bug 24 jam dari bug_reports','Cek latency situs & uptime'],phone:['Baca changelog dependency'],chat:['Review bug_reports sama QA']},
         CSO:{deep:['Hitung total pendaftar dari Supabase','Segmentasi user aktif vs pasif','Susun daftar user pasif buat email'],phone:['Scroll daftar user baru'],chat:['Diskusi email sapaan bareng CEO']},
-        CMO:{deep:['Generate draf TikTok via Gemini','Analisis gaya naskah CEO yang fyp','Rotasi angle: SMC/ICT hari ini'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
+        CMO:{deep:['Generate draf TikTok via GLM-4.7-Flash','Analisis gaya naskah CEO yang fyp','Jawab alasan churn dari rapat Maya'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
         CFO:{deep:['Pantau kuota Gemini Vision harian','Cek frekuensi upload — hindari 429','Hitung sisa request hari ini'],phone:['Lihat grafik pemakaian API'],chat:['Set quota-track ke backend']},
         COO:{deep:['Susun draf penawaran PRO buat hot lead','Cek trades 7 hari — siapa paling rajin','Follow-up lead minggu lalu, ada yang balik?'],phone:['Scroll profil user aktif cari calon PRO'],chat:['Lapor konversi jualan ke CEO']},
         DA:{deep:['Hitung win rate 30 hari dari trades','Klaster pair & sesi paling produktif','Susun insight mingguan buat Bos'],phone:['Cek spreadsheet angka mingguan'],chat:['Bahas pola data sama Sinta']},
@@ -537,7 +539,7 @@ export default function KantorCeo3D() {
         if(busyRef.current[c.job]){
           const W={CTO:'⏳ Lagi ping situs & hitung bug — kerja beneran, bukan main-main!',
             CSO:'⏳ Lagi hitung user dari database Supabase — kerja beneran!',
-            CMO:'⏳ Lagi nulis draf TikTok di Gemini — kerja beneran!',
+            CMO:'⏳ Lagi nulis draf TikTok via OpenRouter — kerja beneran!',
             CFO:'⏳ Lagi audit kuota API — kerja beneran!',
             COO:'⏳ Lagi buru hot lead & susun draf penawaran — kerja beneran!',
             DA:'⏳ Lagi olah data trades di Supabase — kerja beneran!',
@@ -1170,11 +1172,11 @@ export default function KantorCeo3D() {
                 <b style={{color:'#059669'}}>💼 Bagas — COO Jualan</b> · monetisasi<br/>
                 <span style={{opacity:.75}}>Tiap 08:00: pilih free user paling aktif 7 hari → racik email tawaran PRO personal → minta ACC Bos di sini → kirim via Resend. Anti-spam 1 lead/7 hari. Konversi dilaporkan tiap Senin.</span><br/>
                 <b style={{color:'#0d9488'}}>🖥️ Raka — CTO · IT & QA</b><br/>
-                <span style={{opacity:.75}}>Jaga situs 24/7 (watchdog 15 mnt: ping + alarm Discord kalau DOWN), hitung bug 24 jam + triage Gemini [P1-P3], QA otomatis semua fitur tiap briefing pagi.</span><br/>
+                <span style={{opacity:.75}}>Jaga situs 24/7 (watchdog 15 mnt: ping + alarm Discord kalau DOWN), hitung bug 24 jam + triage Qwen 2.5 Coder [P1-P3], QA otomatis semua fitur tiap briefing pagi.</span><br/>
                 <b style={{color:'#db2777'}}>👥 Maya — CSO · Customer Success</b><br/>
                 <span style={{opacity:.75}}>Hitung pendaftar/aktif/pasif tiap pagi, kirim email sapaan ke user pasif (3 variasi rotasi), ukur feedback siapa yang balik upload, ngobrol sama CMO cari akar masalah user males jurnal.</span><br/>
                 <b style={{color:'#7c3aed'}}>📣 Sinta — CMO · Marketing</b><br/>
-                <span style={{opacity:.75}}>Bikin 1 draf TikTok/hari meniru pola konten terbaik lo (bahan analisis di Ruang CMO), fallback Gemini→OpenRouter→templat, bikin skrip anti-churn dari hasil diskusi CSO.</span><br/>
+                <span style={{opacity:.75}}>Bikin 1 draf TikTok/hari via GLM-4.7-Flash (OpenRouter) meniru pola konten terbaik lo (bahan analisis di Ruang CMO), draf wajib menjawab alasan churn dari rapat CSO, fallback GLM-4-Flash→Gemini→templat.</span><br/>
                 <b style={{color:'#d97706'}}>💰 Putri — CFO · Kuota</b><br/>
                 <span style={{opacity:.75}}>Pantau kuota Gemini Vision (gerbang anti-429 sebelum upload user) + kuota email Resend, alarm di 80%, laporan pemakaian 7 hari.</span><br/>
                 <b style={{color:'#0891b2'}}>📊 Dewi — Data Analyst</b><br/>
@@ -1332,7 +1334,7 @@ export default function KantorCeo3D() {
                         {talkCopied?<span style={{color:'#059669',fontSize:10}}>tersalin ✅</span>:null}
                       </div>
                     </div>)}
-                  {talk.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (Gemini lagi error)</div>:talk.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 templat cadangan (Gemini & OpenRouter gagal)</div>:null}
+                  {talk.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (model resmi Maya)</div>:talk.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 templat cadangan (semua model gagal)</div>:talk.provider==='gemini'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>✅ via Gemini (cadangan)</div>:null}
                 </div>
               ):(<div style={{opacity:.55,fontSize:10.5,marginTop:6}}>Belum ada diskusi — klik tombol di atas. Hasil juga otomatis dibuat tiap briefing 08:00 & dikirim ke Discord.</div>)}
             </div>
@@ -1346,9 +1348,9 @@ export default function KantorCeo3D() {
             {cmo?(
               <div>
                 <div style={{background:'rgba(124,58,237,.06)',borderRadius:10,padding:10,whiteSpace:'pre-wrap',opacity:.92,fontSize:12,maxHeight:280,overflowY:'auto',lineHeight:1.6,border:'1px solid rgba(124,58,237,.12)'}}>{cmo.draft||cmo.error||'—'}</div>
-                {cmo.usedFallback?<div style={{opacity:.5,marginTop:4,fontSize:11}}>(fallback — Gemini &amp; OpenRouter gagal, revisi manual)</div>:null}
-                {cmo.provider==='openrouter'?<div style={{color:'#d97706',marginTop:4,fontSize:11}}>⚡ Cadangan OpenRouter — Gemini lagi 429/error, otomatis pindah</div>:null}
-                {cmo.provider==='gemini'?<div style={{opacity:.4,marginTop:2,fontSize:10.5}}>✅ Gemini (utama)</div>:null}
+                {cmo.usedFallback?<div style={{opacity:.5,marginTop:4,fontSize:11}}>(fallback — semua model gagal, revisi manual)</div>:null}
+                {cmo.provider==='openrouter'?<div style={{color:'#d97706',marginTop:4,fontSize:11}}>⚡ OpenRouter — model resmi Sinta{cmo.model?`: ${cmo.model}`:' (GLM-4.7-Flash)'}</div>:null}
+                {cmo.provider==='gemini'?<div style={{opacity:.4,marginTop:2,fontSize:10.5}}>✅ Gemini (cadangan terakhir)</div>:null}
                 {cmo.basedOn==='tiktok'?<div style={{color:'#7c3aed',fontSize:10.5,marginTop:2}}>📚 Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div>:null}
                 {cmo.angle?<div style={{opacity:.5,fontSize:10.5,marginTop:2}}>Angle: {cmo.angle.slice(0,60)}…</div>:null}
               </div>
@@ -1362,7 +1364,7 @@ export default function KantorCeo3D() {
               <b style={{color:'#7c3aed',fontSize:12}}>📚 Bahan Analisis TikTok ({tt.length})</b>
               <div style={{opacity:.6,fontSize:10.5,marginTop:2,lineHeight:1.5}}>Paste link TikTok lo + views/likes — caption diambil OTOMATIS. CMO pelajari 5 konten terbaik tiap bikin draf: makin banyak bahan, makin pintar.</div>
               <div style={{display:'flex',gap:4,marginTop:6,flexWrap:'wrap'}}>
-                <input value={ttUrl} onChange={e=>setTtUrl(e.target.value)} placeholder="https://www.tiktok.com/@lo/video/..." style={{flex:'1 1 150px',minWidth:0,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
+                <input value={ttUrl} onChange={e=>setTtUrl(e.target.value)} placeholder="Link TikTok (boleh vt.tiktok.com/ZSxxx atau www.tiktok.com/@lo/video/...)" style={{flex:'1 1 150px',minWidth:0,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
                 <input value={ttViews} onChange={e=>setTtViews(e.target.value)} placeholder="views" inputMode="numeric" style={{width:62,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
                 <input value={ttLikes} onChange={e=>setTtLikes(e.target.value)} placeholder="likes" inputMode="numeric" style={{width:62,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
                 <button style={{...BTNP,opacity:ttBusy?.5:1,fontSize:11.5}} disabled={ttBusy||!ttUrl.trim()} onClick={ttAdd}>{ttBusy?'⏳':'➕ Tambah'}</button>
@@ -1383,7 +1385,7 @@ export default function KantorCeo3D() {
               ):<div style={{fontSize:10.5,opacity:.5,marginTop:4}}>Belum ada bahan — CMO masih pakai referensi statis TIKTOK_REFERENCE.</div>}
             </div>
             <div style={{opacity:.5,fontSize:10.5,marginTop:8,lineHeight:1.5}}>
-              Draf dibuat Gemini 2.5 Flash · Rotasi angle harian<br/>
+              Draf dibuat GLM-4.7-Flash via OpenRouter · Rotasi angle harian · 1 draf/hari<br/>
               Histori 5 draf terakhir disimpan (anti repetisi)<br/>
               📚 Bahan TikTok lo = acuan utama — isi terus biar draf makin mirin konten yang FYP
             </div>
@@ -1523,7 +1525,7 @@ export default function KantorCeo3D() {
                     <ol style={{margin:'2px 0 0',paddingLeft:15}}>{da.recommendations.map((r:string,i:number)=><li key={i} style={{marginBottom:2}}>{r}</li>)}</ol>
                   </div>)}
                 {da.dupToday?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>sudah dianalisis hari ini — ini hasil terakhir (Senin 10:00 jalan otomatis)</div>:null}
-                {da.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (Gemini lagi error)</div>:da.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 rangkuman dari angka nyata (LLM gagal)</div>:null}
+                {da.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (model resmi Dewi)</div>:da.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 rangkuman dari angka nyata (LLM gagal)</div>:da.provider==='gemini'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>✅ via Gemini (cadangan)</div>:null}
               </div>
             ):(<div style={{opacity:.6,marginTop:6,fontSize:11}}>Belum ada analisis — klik tombol di bawah. Jalan otomatis tiap Senin 10:00 WIB.</div>)}
             {daError?<div style={ERR}>⚠️ {String(daError).slice(0,140)}</div>:null}
@@ -1576,7 +1578,7 @@ export default function KantorCeo3D() {
                       </div>))}
                   </div>)}
                 {gh.dupToday?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>sudah dirancang hari ini — ini hasil terakhir (Senin 10:00 jalan otomatis)</div>:null}
-                {gh.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (Gemini lagi error)</div>:gh.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 templat dari funnel nyata (LLM gagal)</div>:null}
+                {gh.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (model resmi Farhan)</div>:gh.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 templat dari funnel nyata (LLM gagal)</div>:gh.provider==='gemini'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>✅ via Gemini (cadangan)</div>:null}
               </div>
             ):(<div style={{opacity:.6,marginTop:6,fontSize:11}}>Belum ada eksperimen — klik tombol di bawah. Jalan otomatis tiap Senin 10:00 WIB.</div>)}
             {ghError?<div style={ERR}>⚠️ {String(ghError).slice(0,140)}</div>:null}
