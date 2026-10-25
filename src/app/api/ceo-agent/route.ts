@@ -260,7 +260,19 @@ async function csoAgent(e: Env) {
     emailed = ids.length
     returned = ids.filter((id) => activeSet.has(id)).length
   } catch { /* ignore */ }
-  return { title: 'CSO — Customer Success', total, active: activeSet.size, passive, emailedYesterday: emailed, returnedYesterday: returned }
+  /* ⭐ KEMAMPUAN BARU (SOP Bos) — SKOR RISIKO CHURN:
+     user yang PERNAH upload dalam 30 hari terakhir tapi 3 hari terakhir
+     diam = sedang meninggalkan produk → kandidat email win-back Maya.
+     2 query agregat (bukan data pribadi) — gagal → 0, tidak pernah crash. */
+  let churnRisk = 0
+  try {
+    const [everActive, nowActive] = await Promise.all([
+      fetchActiveUserIds(e, isoAgo(24 * 30)),
+      fetchActiveUserIds(e, isoAgo(24 * 3)),
+    ])
+    for (const id of everActive) if (!nowActive.has(id)) churnRisk++
+  } catch { /* opsional */ }
+  return { title: 'CSO — Customer Success', total, active: activeSet.size, passive, churnRisk, emailedYesterday: emailed, returnedYesterday: returned }
 }
 
 /* ============================================================
@@ -459,7 +471,7 @@ async function cmoAgent(e: Env) {
     (posts.length
       ? `Analisis pola dari konten berikut: hook seperti apa yang bikin FYP, topik apa yang paling banyak ditonton, struktur & gaya bahasa khasnya. TIRU pola pemenang tersebut dalam draf baru.\n\n${tiktokBlock}`
       : `Analisis gaya bahasa, hook, dan struktur dari naskah TikTok milik CEO berikut ini: ${e.TIKTOK_REFERENCE || '(belum ada referensi — pakai gaya trader Indonesia kasual, bahasa gaul)'}`) +
-    `\nTugasmu hari ini: Buat 1 draf naskah video TikTok baru yang meniru pola/gaya tersebut 100%. ` +
+    `\nTugasmu hari ini: Buat 3 draf naskah video TikTok baru yang meniru pola/gaya tersebut 100% — SAME angle, TIGA pendekatan berbeda (beda hook, beda struktur, beda gaya buka) supaya Bos bisa PILIH yang paling pas. ` +
     `DILARANG mengulang naskah yang sama dari hari-hari sebelumnya. ` +
     `Rotasi angle harian: pain point trader XAUUSD (SMC/ICT), kelelahan ngetik jurnal manual, atau cara menjaga max daily loss prop firm dengan evaluasi visual.`
 
@@ -473,34 +485,44 @@ async function cmoAgent(e: Env) {
       : '') +
     (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
     (await memBlock(e)) +
-    `\nOutput: HANYA naskah TikTok baru (hook 3 detik pertama → body → CTA, durasi 30–45 detik), tanpa penjelasan tambahan.`
+    `\nOutput: TEPAT 3 naskah TikTok (hook 3 detik pertama → body → CTA, durasi 30–45 detik per naskah), dipisah baris persis "===DRAF-2===" dan "===DRAF-3===" antar naskah, tanpa penjelasan tambahan.`
 
   /* ═══════ Rantai model SINTA (SOP Multi-Agent) ═══════
      1) OpenRouter zhipu/glm-4.7-flash (model resmi Sinta)
      2) OpenRouter zhipu/glm-4-flash (cadangan resmi — SOP Bos)
      3) Gemini (nyawa cadangan terakhir)
-     4) fallbackDraft (fail-safe — teks statis, sistem tidak pernah crash) */
-  let draft: string
+     4) fallbackDraft (fail-safe — teks statis, sistem tidak pernah crash)
+     ⭐ Kemampuan baru: 1 panggilan model → 3 draf pilihan (Bos pilih).
+        Kalau model cuma kasih 1–2, draf utama diduplikasi agar pilihan tetap ada. */
+  let drafts: string[] = []
   let provider: 'gemini' | 'openrouter' | 'fallback' = 'fallback'
   let model = ''
   let usedFallback = false
   let fallbackError = ''
 
   try {
-    const brain = await agentBrain(e, 'cmo', systemPrompt, userPrompt, 2048, 1.0)
-    draft = brain.text
+    const brain = await agentBrain(e, 'cmo', systemPrompt, userPrompt, 3000, 1.0)
+    drafts = brain.text
+      .split(/\n*===DRAF-\d+===\n*/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 40)
     provider = brain.provider
     model = brain.model
   } catch (brainErr: any) {
     fallbackError = String(brainErr?.message || brainErr).slice(0, 160)
-    draft = fallbackDraft(angle)
+  }
+  if (!drafts.length) {
+    drafts = [fallbackDraft(angle)]
     usedFallback = true
   }
+  while (drafts.length < 3) drafts.push(drafts[drafts.length - 1])
+  drafts = drafts.slice(0, 3)
+  const draft = drafts[0]
 
   history.unshift(draft)
   await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 5)))
   await memAdd(e, 'CMO Sinta', `Draf TikTok (${angle}, ${model || provider}): ${draft.replace(/\s+/g, ' ').slice(0, 130)}`)
-  const out = { draft, angle, usedFallback, provider, model, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
+  const out = { draft, drafts, angle, usedFallback, provider, model, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
   await kvSet(e, dayKey, JSON.stringify(out)).catch(() => {})
   return out
 }
@@ -519,9 +541,19 @@ async function cfoAgent(e: Env) {
   const emailYesterday = await read(`email:${utcDay(-1)}`)
   const pct = limit > 0 ? Math.round((usedToday / limit) * 100) : 0
   const emailPct = emailLimit > 0 ? Math.round((emailToday / emailLimit) * 100) : 0
+  /* ⭐ KEMAMPUAN BARU (SOP Bos) — LAPORAN PENDAPATAN:
+     hitung user PRO (is_pro di Supabase) × harga paket bulanan
+     (env PRO_PRICE_IDR, default 49.000) → estimasi MRR + progres
+     target (env MRR_TARGET_IDR, default 10 juta). Tetap TANPA LLM —
+     murni matematika hardcoded, tidak bisa halusinasi angka. */
+  let proCount = -1
+  try { proCount = await supaCount(e, 'profiles', 'is_pro=eq.true') } catch { proCount = -1 }
+  const proPrice = parseInt(e.PRO_PRICE_IDR || '49000', 10)
+  const mrrTarget = parseInt(e.MRR_TARGET_IDR || '10000000', 10)
   return {
     title: 'CFO — API Quota Manager', limit, usedToday, usedYesterday, quota429,
     emailLimit, emailToday, emailYesterday, emailPct,
+    proCount, proPrice, mrrTarget, estMRR: proCount > 0 ? proCount * proPrice : 0,
     status: pct >= 95 ? 'KRITIS — hentikan upload sisa hari ini'
       : pct >= 80 ? 'WASPADA — kurangi frekuensi upload'
       : 'AMAN ✅',
@@ -599,6 +631,8 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• User pasif (>24 jam tanpa aktivitas): ${fmtN(cso?.passive)}`)
   if (cso?.emailedYesterday > 0)
     L.push(`• Feedback email kemarin: ${fmtN(cso.returnedYesterday)}/${fmtN(cso.emailedYesterday)} user balik upload ${cso.returnedYesterday > 0 ? '✅' : '⏳'}`)
+  if (cso?.churnRisk > 0)
+    L.push(`• ⚠️ Risiko churn: ${fmtN(cso.churnRisk)} user pernah aktif 30 hari tapi 3 hari terakhir diam — kandidat email win-back Maya`)
   if (cso?.err) L.push(`⚠️ CSO gagal: ${String(cso.err).slice(0, 130)}`)
   L.push('')
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
@@ -614,6 +648,8 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• Event 429 kemarin: ${fmtN(cfo?.quota429)}`)
   L.push(`• Email terkirim hari ini: ${fmtN(cfo?.emailToday)}/${fmtN(cfo?.emailLimit)} (Resend — ${cfo?.emailStatus || '-'})`)
   L.push(`• Status: ${cfo?.status || '-'}`)
+  if (cfo?.proCount !== undefined && cfo.proCount >= 0)
+    L.push(`• 💵 Pendapatan (estimasi): ${fmtN(cfo.proCount)} user PRO × Rp${fmtN(cfo.proPrice)} ≈ **Rp${fmtN(cfo.estMRR)}/bulan MRR**${cfo.mrrTarget > 0 ? ` (${Math.round(((cfo.estMRR || 0) / cfo.mrrTarget) * 100)}% dari target Rp${fmtN(cfo.mrrTarget)})` : ''}`)
   if (cfo?.err) L.push(`⚠️ CFO gagal: ${String(cfo.err).slice(0, 130)}`)
   if (cooLine) L.push(cooLine)
   L.push('━━━━━━━━━━━━━━━━━━')
@@ -1062,6 +1098,12 @@ const QA_ROUTES: { path: string; label: string; expect: number[] }[] = [
   { path: '/kantor-ceo', label: 'Kantor CEO', expect: [200] },
   { path: '/api/health', label: 'API health', expect: [200] },
   { path: '/api/landing-stats', label: 'API landing stats', expect: [200] },
+  /* ⭐ Kemampuan baru (SOP Bos): ping ENDPOINT KRITIS per fitur inti.
+     401 = route hidup & auth guard bekerja · 405 = hidup (method salah) —
+     yang dilaporkan hanya 5xx/timeout (fitur inti mati). */
+  { path: '/api/trades', label: 'API jurnal trades (auth guard)', expect: [200, 401, 405] },
+  { path: '/api/analyze-screenshot', label: 'API evaluasi AI screenshot', expect: [200, 401, 405] },
+  { path: '/api/chat', label: 'API CS chat bot', expect: [200, 400, 401, 405] },
 ]
 
 async function qaAgent(e: Env) {
@@ -1464,24 +1506,28 @@ interface DaInsight {
   insight: string
   patterns: string[]
   recommendations: string[]
-  stats: { uploads30: number; uploads7: number; traders30: number; winRate: number; topSymbol: string; topSession: string; bestHour: string }
+  stats: { uploads30: number; uploads7: number; traders30: number; winRate: number; topSymbol: string; topSession: string; bestHour: string; emotion?: { counted: number; best: string; bestWr: number; worst: string; worstWr: number } | null }
   dupToday?: boolean
 }
 
 async function fetchTrades30(e: Env) {
   const res = await fetch(
-    `${sbUrl(e)}/rest/v1/trades?select=symbol,profit_loss,session,user_id,created_at&created_at=gte.${encodeURIComponent(isoAgo(24 * 30))}&order=created_at.desc&limit=1000`,
+    `${sbUrl(e)}/rest/v1/trades?select=symbol,profit_loss,session,user_id,created_at,emotion&created_at=gte.${encodeURIComponent(isoAgo(24 * 30))}&order=created_at.desc&limit=1000`,
     { headers: sbHPriv(e), signal: timeoutSignal(10_000) },
   )
   if (!res.ok) throw new Error(`Supabase trades HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
-  return (await res.json()) as { symbol?: string; profit_loss?: number; session?: string | null; user_id?: string; created_at?: string }[]
+  return (await res.json()) as { symbol?: string; profit_loss?: number; session?: string | null; user_id?: string; created_at?: string; emotion?: string | null }[]
 }
 
-function computeTradeStats(rows: { symbol?: string; profit_loss?: number; session?: string | null; user_id?: string; created_at?: string }[]) {
+function computeTradeStats(rows: { symbol?: string; profit_loss?: number; session?: string | null; user_id?: string; created_at?: string; emotion?: string | null }[]) {
   const traders = new Set<string>()
   const sym: Record<string, number> = {}
   const ses: Record<string, number> = {}
   const hour: Record<number, number> = {}
+  /* ⭐ Kemampuan baru (SOP Bos): korelasi EMOSI (self-report saat upload)
+     vs hasil trade — win rate per emosi, sampel minimal 5 trade/emosi
+     supaya tidak menyesatkan. Tanpa data pribadi — hanya agregat. */
+  const emo: Record<string, { n: number; w: number }> = {}
   let wins = 0, up7 = 0
   const since7 = Date.now() - 24 * 7 * 3600_000
   for (const r of rows) {
@@ -1493,10 +1539,26 @@ function computeTradeStats(rows: { symbol?: string; profit_loss?: number; sessio
       const h = (new Date(r.created_at).getUTCHours() + 7) % 24 // konversi ke WIB
       hour[h] = (hour[h] || 0) + 1
     }
-    if ((r.profit_loss || 0) > 0) wins++
+    const pl = r.profit_loss || 0
+    if (pl > 0) wins++
+    const ek = (r.emotion || '').trim().toLowerCase()
+    if (ek) {
+      const e0 = emo[ek] || { n: 0, w: 0 }
+      e0.n++
+      if (pl > 0) e0.w++
+      emo[ek] = e0
+    }
   }
   const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
   const bh = Object.entries(hour).sort((a, b) => b[1] - a[1])[0]?.[0]
+  const emoRanked = Object.entries(emo).filter(([, v]) => v.n >= 5).sort((a, b) => b[1].w / b[1].n - a[1].w / a[1].n)
+  const emotion = emoRanked.length
+    ? {
+        counted: emoRanked.reduce((a, [, v]) => a + v.n, 0),
+        best: emoRanked[0][0], bestWr: Math.round((emoRanked[0][1].w / emoRanked[0][1].n) * 100),
+        worst: emoRanked[emoRanked.length - 1][0], worstWr: Math.round((emoRanked[emoRanked.length - 1][1].w / emoRanked[emoRanked.length - 1][1].n) * 100),
+      }
+    : null
   return {
     uploads30: rows.length,
     uploads7: up7,
@@ -1505,6 +1567,7 @@ function computeTradeStats(rows: { symbol?: string; profit_loss?: number; sessio
     topSymbol: top(sym),
     topSession: top(ses),
     bestHour: bh !== undefined ? `${bh}:00 WIB` : '—',
+    emotion,
   }
 }
 
@@ -1534,7 +1597,10 @@ async function analystAgent(e: Env): Promise<DaInsight> {
     `- Total upload jurnal: ${stats.uploads30} (${stats.uploads7} dalam 7 hari terakhir)\n` +
     `- Trader aktif unik: ${stats.traders30} (rata-rata ${stats.traders30 ? (stats.uploads30 / stats.traders30).toFixed(1) : 0} trade/trader)\n` +
     `- Win rate agregat: ${stats.winRate}%\n` +
-    `- Pair paling sering: ${stats.topSymbol} · Sesi tersibuk: ${stats.topSession} · Jam paling ramai: ${stats.bestHour}`
+    `- Pair paling sering: ${stats.topSymbol} · Sesi tersibuk: ${stats.topSession} · Jam paling ramai: ${stats.bestHour}` +
+    (stats.emotion
+      ? `\n- EMOSI saat trading (self-report user, agregat): paling profit "${stats.emotion.best}" (win rate ${stats.emotion.bestWr}%) · paling rugi "${stats.emotion.worst}" (win rate ${stats.emotion.worstWr}%) — dari ${stats.emotion.counted} trade berlabel emosi`
+      : '')
 
   const systemPrompt =
     `Kamu Dewi, Data Analyst Luxtradee (web app jurnal trading XAUUSD — user upload screenshot/record trade, AI evaluasi visual). ` +
@@ -1565,7 +1631,9 @@ async function analystAgent(e: Env): Promise<DaInsight> {
     patterns = [
       `Pair teraktif: ${stats.topSymbol}`,
       `Sesi tersibuk: ${stats.topSession}, puncak jam ${stats.bestHour}`,
-      `Rata-rata ${stats.traders30 ? (stats.uploads30 / stats.traders30).toFixed(1) : 0} trade per trader · 7 hari terakhir ${stats.uploads7} upload`,
+      stats.emotion
+        ? `Emosi "${stats.emotion.best}" paling untung (WR ${stats.emotion.bestWr}%) vs "${stats.emotion.worst}" paling rugi (WR ${stats.emotion.worstWr}%) — edukasi psikologi trading sangat relevan`
+        : `Rata-rata ${stats.traders30 ? (stats.uploads30 / stats.traders30).toFixed(1) : 0} trade per trader · 7 hari terakhir ${stats.uploads7} upload`,
     ]
     recommendations = [
       stats.winRate < 45 ? 'Win rate di bawah 45% — konten edukasi "evaluasi sebelum entry" sangat relevan buat mayoritas user' : 'Win rate sehat — dorong user membagikan hasilnya ke komunitas (social proof)',
@@ -1582,6 +1650,7 @@ async function analystAgent(e: Env): Promise<DaInsight> {
 
 function daToDiscord(d: DaInsight): string {
   const L = ['📊 **DATA ANALYST — INSIGHT MINGGUAN (Dewi)**', `🔍 ${d.insight}`]
+  if (d.stats?.emotion) L.push(`😤 Emosi & hasil: "${d.stats.emotion.best}" WR ${d.stats.emotion.bestWr}% paling profit · "${d.stats.emotion.worst}" WR ${d.stats.emotion.worstWr}% paling rugi (self-report user)`)
   if (d.patterns?.length) { L.push('📈 Pola 30 hari:'); d.patterns.slice(0, 3).forEach((p) => L.push(`• ${p}`)) }
   if (d.recommendations?.length) { L.push('💡 Rekomendasi minggu ini:'); d.recommendations.slice(0, 3).forEach((r, i) => L.push(`${i + 1}. ${r}`)) }
   L.push('_(analisis otomatis tiap Senin 10:00 WIB — detail di Ruang Data Analyst /kantor-ceo)_')
@@ -2072,7 +2141,7 @@ async function handle(req: Request): Promise<Response> {
           'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
           'action=auto-acc [POST &on=1|0] — toggle kirim email pasif OTOMATIS tiap briefing pagi',
           'action=watchdog — CTO jaga situs 24/7: DOWN/bug/kuota 80% → alarm Discord instan + triage bug otomatis (cron 15 mnt)',
-          'action=qa — CTO tes semua fitur dashboard (12 route) → hasil ikut laporan 08:00',
+          'action=qa — CTO tes semua fitur dashboard (15 route: halaman + endpoint kritis API) → hasil ikut laporan 08:00',
           'action=weekly — laporan mingguan 7 hari ke Discord (cron Minggu 20:00)',
           'action=tiktok-list — daftar bahan analisis TikTok (Ruang CMO)',
           'action=tiktok-add (POST JSON {url,views,likes}) — tambah post: caption auto via oEmbed',
