@@ -24,6 +24,16 @@ interface Env { [k: string]: string | undefined }
 const cleanEnv = (v: string | undefined) =>
   (v || '').trim().replace(/^["']+|["']+$/g, '')
 
+/* PENTING (fix briefing cron "—"/gagal diambil): NEXT_PUBLIC_* direferensikan
+   LANGSUNG di sini supaya Next.js meng-inline nilainya saat BUILD. Akses
+   dinamis process.env[...] di Cloudflare Workers hanya membaca runtime
+   binding — kalau key cuma diset di Build settings (bukan Variables &
+   Secrets), cron kehilangan kunci Supabase padahal situs normal-normal saja
+   (bundle browser ter-inline saat build). Urutan fallback: runtime secret →
+   NEXT_PUBLIC runtime → nilai inline build. */
+const INLINED_SB_URL: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL
+const INLINED_SB_KEY: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 const SITE_URL = 'https://luxtradee.web.id'
 const EMAIL_FROM = 'LuxTradee <noreply@luxtradee.web.id>'
 const ANGLES = [
@@ -50,10 +60,10 @@ const env = () => process.env as Env
 function sbUrl(e: Env) {
   // URL project DIPATOK (env atau fallback yang sama dgn src/lib/api-auth.ts)
   // — tidak boleh bisa diganti dari luar, kalau tidak email-gate bisa dipalsukan
-  return cleanEnv(e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL).replace(/\/$/, '') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
+  return (cleanEnv(e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL || INLINED_SB_URL) || 'https://klxkdrfsfcoankbaoejn.supabase.co').replace(/\/$/, '')
 }
 function sbAnonKey(e: Env) {
-  return cleanEnv(e.SUPABASE_ANON_KEY || e.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  return cleanEnv(e.SUPABASE_ANON_KEY || e.NEXT_PUBLIC_SUPABASE_ANON_KEY || INLINED_SB_KEY)
 }
 function ownerEmail(e: Env) {
   return (cleanEnv(e.OWNER_EMAIL) || 'luxtradee@gmail.com').toLowerCase()
@@ -316,14 +326,15 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any): string {
   L.push(cto?.siteOk
     ? `• Website: ✅ ${cto.status} OK (${cto.latencyMs} ms)`
     : `• Website: ❌ DOWN (${cto?.status || 'timeout'})${cto?.err ? ' — ' + String(cto.err).slice(0, 80) : ''}`)
-  L.push(cto?.bugs24h > 0 ? `• Bug 24 jam terakhir: ${cto.bugs24h} ⚠️ segera cek error_logs`
+  L.push(cto?.bugs24h > 0 ? `• Bug 24 jam terakhir: ${cto.bugs24h} ⚠️ segera cek bug_reports`
     : cto?.bugs24h === 0 ? '• Bug 24 jam terakhir: 0 ✅'
-    : '• Bug 24 jam: data gagal diambil ⚠️')
+    : `• Bug 24 jam: gagal diambil ⚠️ ${String(cto?.err || '').slice(0, 110)}`)
   L.push('')
   L.push('👥 **CSO AGENT — CUSTOMER SUCCESS**')
   L.push(`• Total pendaftar: ${fmtN(cso?.total)}`)
   L.push(`• User aktif (upload 24 jam): ${fmtN(cso?.active)}`)
   L.push(`• User pasif (>24 jam tanpa aktivitas): ${fmtN(cso?.passive)}`)
+  if (cso?.err) L.push(`⚠️ CSO gagal: ${String(cso.err).slice(0, 130)}`)
   L.push('')
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
@@ -334,6 +345,7 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any): string {
   L.push(`• Terpakai hari ini: ${fmtN(cfo?.usedToday)}/${fmtN(cfo?.limit)}`)
   L.push(`• Event 429 kemarin: ${fmtN(cfo?.quota429)}`)
   L.push(`• Status: ${cfo?.status || '-'}`)
+  if (cfo?.err) L.push(`⚠️ CFO gagal: ${String(cfo.err).slice(0, 130)}`)
   L.push('━━━━━━━━━━━━━━━━━━')
   L.push("Bos, klik tombol 'ACC EMAIL' di Ruang CEO (/kantor-ceo) jika ingin CSO mengirim email sapaan ke user pasif hari ini.")
   return L.join('\n')
@@ -344,7 +356,7 @@ async function runMorningBriefing(e: Env) {
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
     csoAgent(e).catch((x: any) => ({ total: -1, active: -1, passive: -1, err: String(x?.message || x) })),
     cmoAgent(e).catch((x: any) => ({ draft: '', angle: '', usedFallback: false, error: String(x?.message || x) })),
-    cfoAgent(e).catch(() => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error' })),
+    cfoAgent(e).catch((x: any) => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error', err: String(x?.message || x) })),
   ])
   const text = buildBriefing(cto, cso, cmo, cfo)
   let notifySent = false, notifyErr = ''
@@ -435,13 +447,43 @@ async function handle(req: Request): Promise<Response> {
       return raw ? j(JSON.parse(raw)) : j({ error: 'belum ada briefing' }, 404)
     }
     case 'agents': {
+      // ?only=cto,cso,cfo — jalankan subset agen (hemat kuota Gemini saat
+      // dashboard dibuka; draf TikTok CMO hanya dibuat kalau diminta)
+      const only = (url.searchParams.get('only') || '').split(',').map((s) => s.trim()).filter(Boolean)
+      const want = (w: string) => !only.length || only.includes(w)
       const [cto, cso, cmo, cfo] = await Promise.all([
-        ctoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })),
-        csoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })),
-        cmoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })),
-        cfoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })),
+        want('cto') ? ctoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
+        want('cso') ? csoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
+        want('cmo') ? cmoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
+        want('cfo') ? cfoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
       ])
       return j({ cto, cso, cmo, cfo })
+    }
+    case 'diag': {
+      // Diagnostik sistem untuk Ruang CTO — periksa env + tes tiap query
+      const has = (k: string) => !!cleanEnv(e[k])
+      const out: Record<string, unknown> = {
+        at: new Date().toISOString(),
+        sbUrl: sbUrl(e),
+        env: {
+          SUPABASE_ANON_KEY: has('SUPABASE_ANON_KEY') || has('NEXT_PUBLIC_SUPABASE_ANON_KEY') || !!INLINED_SB_KEY,
+          GEMINI_API_KEY: has('GEMINI_API_KEY'),
+          RESEND_API_KEY: has('RESEND_API_KEY'),
+          DISCORD_WEBHOOK_URL: has('DISCORD_WEBHOOK_URL'),
+          CRON_SECRET: has('CRON_SECRET'),
+          ADMIN_SECRET: has('ADMIN_SECRET'),
+          OWNER_EMAIL: has('OWNER_EMAIL'),
+        },
+      }
+      const t = async (name: string, fn: () => Promise<unknown>) => {
+        try { out[name] = { ok: true, data: await fn() } }
+        catch (x: any) { out[name] = { ok: false, error: String(x?.message || x).slice(0, 200) } }
+      }
+      await t('profiles', async () => ({ total: await supaCount(e, 'profiles') }))
+      await t('trades', async () => ({ active24h: (await fetchActiveUserIds(e, isoAgo(24))).size }))
+      await t('bug_reports', async () => ({ total24h: await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24)) }))
+      await t('agent_kv', async () => ({ briefingLastTersimpan: !!(await kvGet(e, 'briefing:last')) }))
+      return j(out)
     }
     case 'quota':
       return j(await cfoAgent(e))
@@ -482,7 +524,8 @@ async function handle(req: Request): Promise<Response> {
         owner: ownerEmail(e),
         actions: [
           'action=briefing (POST/GET) — jalankan 4 agen + kirim laporan ke Discord',
-          'action=agents — data 4 agen tanpa kirim',
+          'action=agents[&only=cto,cso,cfo] — data agen (subset via only)',
+          'action=diag — diagnostik env & tes query Supabase (Ruang CTO)',
           'action=quota — laporan kuota (CFO)',
           'action=quota-track (POST) — gerbang anti-429 sebelum Gemini Vision',
           'action=briefing-last — briefing terakhir',

@@ -1125,3 +1125,26 @@ Stage Summary:
   (mis. HTTP 404 = webhook deleted, 401 = URL salah) — bukan lagi teks ambigu
 - Screenshot user masih menampilkan dashboard 2D lama = deploy 3D belum selesai
   saat itu; setelah deploy ini: 3D + email-gate aktif bersamaan
+
+---
+Task ID: 18
+Agent: main (Z.ai Code)
+Task: Ruangan 3D terlalu gelap → terangkan + tiap tugas punya RUANGAN SENDIRI (CTO/CSO/CMO/CFO/Rapat) + fix data briefing cron gagal
+
+Work Log:
+- Diagnosis briefing Discord: CSO "—", bug "gagal diambil" → cron-job.org TIDAK punya header X-SB-Key (fix sebelumnya hanya menolong dashboard browser); env SUPABASE_ANON_KEY di runtime CF kosong/salah padahal bundle browser jalan
+- Fix root cause: INLINED_SB_URL/INLINED_SB_KEY = referensi LANGSUNG process.env.NEXT_PUBLIC_* di route.ts → Next.js inline nilai saat build (sama seperti yang dipakai browser), fallback: runtime secret → NEXT_PUBLIC runtime → inline build
+- Briefing sekarang menampilkan error mentah per agen (⚠️ CSO gagal: … / ⚠️ CFO gagal: …) — tidak lagi "—" diam-diam
+- API baru: action=diag (cek env + tes query profiles/trades/bug_reports/agent_kv) & action=agents&only=cto,cso,cfo (subset — hemat kuota Gemini, draf TikTok hanya saat diminta)
+- KantorCeo3D total revamp BRIGHT: dinding #edeaf3, lantai #d9dde6, plafon #f3f4f8, meja kayu, sofa tan, tone mapping Neutral 1.15, ambient .85/sun 1.05 siang & malam tetap nyaman (tidak gelap pekat)
+- 4 KAMAR KACA dibangun (partisi kaca + kusen pintu + orb neon): RUANG CTO (teal), RUANG CMO (ungu), RUANG CSO (pink), RUANG CFO (amber) + CEO SUITE; karpet + point light warna per ruangan; papan KPI pindah ke dinding atas pantry, jam dinding geser, neon KANTOR LUXTRADE dinaikkan
+- Kamera FOKUS per ruangan (lerp + cancel saat user drag): klik chip/karyawan → kamera terbang ke ruangan; path jalan kaki character dirutekan lewat koridor & pintu (OBST dinding)
+- Panel React jadi TAB RUANGAN: chip 🏢/🖥️/👥/📣/💰/🌅; ACC EMAIL pindah ke RUANG CSO (dgn status dup harian), Salin & Buat Draf Baru di RUANG CMO, Diagnostik di RUANG CTO, Briefing/Terakhir/Tes Discord di RUANG RAPAT; auto-load agents&only=cto,cso,cfo saat login
+- Hook debug window.__kceo (focus/cam/tgt) untuk QA browser otomatis
+- Mode dev (NODE_ENV!=production): scene terbuka tanpa login utk QA lokal; produksi tetap email-gate luxtradee@gmail.com
+- Verifikasi agent-browser: lint bersih, /kantor-ceo compile OK, kamera fokus CTO & CSO terverifikasi visual (papan ruangan, monitor hidup, kursi/karpet warna), API info 200 & diag/agents 401 tanpa auth
+
+Stage Summary:
+- Penyebab data briefing gagal = env runtime; fix = inline NEXT_PUBLIC saat build — cron besok pagi seharusnya sudah dapat angka; kalau masih gagal, buka RUANG CTO → 🩺 Diagnostik menunjukkan persis apa yang mati
+- ACC EMAIL sekarang di RUANG CSO (ruangannya sendiri) sesuai permintaan user
+- UI 3D terang; malam pun tetap terbaca; tiap agen punya ruangan + panel + tombolnya sendiri

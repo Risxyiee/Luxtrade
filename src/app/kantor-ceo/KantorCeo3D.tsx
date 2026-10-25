@@ -13,25 +13,29 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 const CSS = `
-.kg{background:rgba(18,12,34,.55);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);border:1px solid rgba(255,255,255,.14);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-#kclock{position:absolute;top:16px;left:16px;padding:12px 16px;min-width:190px;color:#e8fff6;font-family:system-ui,sans-serif}
-#ktime{font-size:34px;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums}
-#kphase{font-size:13px;color:#10f5a0;margin-bottom:8px}
-#kbar{height:4px;border-radius:4px;background:rgba(255,255,255,.1);margin-bottom:10px}
-#kbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#10f5a0)}
-.kbtn{font:inherit;font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#e8fff6;cursor:pointer;margin:0 4px 4px 0}
-.kbtn.on{background:rgba(16,245,160,.2)}
-#khint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);padding:8px 16px;font-size:12px;color:#e8fff6;opacity:.8;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
-#ktip{position:absolute;left:0;top:0;width:220px;padding:11px 14px;font-size:13px;line-height:1.4;color:#e8fff6;pointer-events:none;opacity:0;transition:opacity .25s;will-change:transform}
-#ktip b{display:flex;justify-content:space-between;margin-bottom:5px}#ktip b span{color:#10f5a0;font-weight:500}
-.kbb{position:absolute;left:0;top:0;pointer-events:none;padding:5px 9px;font-size:11px;line-height:1.3;border-radius:12px;max-width:190px;background:rgba(14,10,28,.78);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 14px rgba(0,0,0,.4);transform-origin:50% 100%;will-change:transform;color:#e8fff6;font-family:system-ui,sans-serif}.kbb b{display:block;color:#10f5a0}.kbb i{font-style:normal;opacity:.85;display:block}
-#ktoast{position:absolute;left:50%;bottom:70px;transform:translateX(-50%) translateY(10px);padding:10px 20px;font-size:13px;color:#e8fff6;opacity:0;transition:.4s;pointer-events:none;white-space:nowrap}
+.kg{background:rgba(255,255,255,.88);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border:1px solid rgba(15,23,42,.09);border-radius:16px;box-shadow:0 10px 34px rgba(30,41,59,.16)}
+#kclock{position:absolute;top:16px;left:16px;padding:12px 16px;min-width:190px;color:#1f2437;font-family:system-ui,sans-serif}
+#ktime{font-size:34px;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums;color:#0f172a}
+#kphase{font-size:13px;color:#0d9488;margin-bottom:8px}
+#kbar{height:4px;border-radius:4px;background:rgba(15,23,42,.1);margin-bottom:10px}
+#kbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#8b5cf6,#10b981)}
+.kbtn{font:inherit;font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid rgba(15,23,42,.14);background:#fff;color:#1f2437;cursor:pointer;margin:0 4px 4px 0}
+.kbtn.on{background:#d9f5ea;border-color:#10b981;color:#065f46}
+.kchip{font:inherit;font-size:11.5px;padding:5px 9px;border-radius:999px;border:1px solid rgba(15,23,42,.13);background:#fff;color:#334155;cursor:pointer}
+.kchip.on{background:#0f766e;border-color:#0f766e;color:#fff}
+#khint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);padding:8px 16px;font-size:12px;color:#1f2437;opacity:.9;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#ktip{position:absolute;left:0;top:0;width:220px;padding:11px 14px;font-size:13px;line-height:1.4;color:#1f2437;pointer-events:none;opacity:0;transition:opacity .25s;will-change:transform}
+#ktip b{display:flex;justify-content:space-between;margin-bottom:5px}#ktip b span{color:#0d9488;font-weight:500}
+.kbb{position:absolute;left:0;top:0;pointer-events:none;padding:5px 9px;font-size:11px;line-height:1.3;border-radius:12px;max-width:190px;background:rgba(255,255,255,.9);border:1px solid rgba(15,23,42,.12);box-shadow:0 4px 14px rgba(30,41,59,.18);transform-origin:50% 100%;will-change:transform;color:#1f2437;font-family:system-ui,sans-serif}.kbb b{display:block;color:#0d9488}.kbb i{font-style:normal;opacity:.8;display:block}
+#ktoast{position:absolute;left:50%;bottom:70px;transform:translateX(-50%) translateY(10px);padding:10px 20px;font-size:13px;color:#0f172a;opacity:0;transition:.4s;pointer-events:none;white-space:nowrap}
 #ktoast.show{opacity:1;transform:translateX(-50%)}
 `
 
 export default function KantorCeo3D() {
   const mountRef = useRef(null)
   const runBriefingRef = useRef(null)
+  const focusRef = useRef(null)
+  const pickRef = useRef(null)
   const [loaded, setLoaded] = useState(false)
   const [sceneErr, setSceneErr] = useState('')
   const [gate, setGate] = useState<'checking' | 'ok' | 'denied'>('checking')
@@ -39,6 +43,9 @@ export default function KantorCeo3D() {
   const [sbKey, setSbKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [data, setData] = useState(null)
+  const [room, setRoom] = useState('overview')
+  const [acc, setAcc] = useState<any>(null)
+  const [copied, setCopied] = useState(false)
   const [clock, setClock] = useState('')
 
   /* ---------- jam WIB (panel) ---------- */
@@ -74,9 +81,9 @@ export default function KantorCeo3D() {
     return () => { cancelled = true }
   }, [])
 
-  /* ---------- pemanggil API ---------- */
-  const call = useCallback(async (action, method = 'GET') => {
-    setBusy(true)
+  /* ---------- pemanggil API (hasil di-merge supaya tiap ruangan punya datanya) ---------- */
+  const call = useCallback(async (action: string, method = 'GET') => {
+    setBusy(true); let r: any
     try {
       const res = await fetch(`/api/ceo-agent?action=${action}`, {
         method,
@@ -85,11 +92,20 @@ export default function KantorCeo3D() {
           ...(sbKey ? { 'X-SB-Key': sbKey } : {}),
         },
       })
-      setData(await res.json())
-    } catch (e) { setData({ error: String(e) }) } finally { setBusy(false) }
+      r = await res.json()
+    } catch (e) { r = { error: String(e) } } finally { setBusy(false) }
+    if (action === 'acc-email') return r            // ditangani khusus di Ruang CSO
+    if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
+    setData((d: any) => ({ ...(d || {}), ...r }))
+    return r
   }, [token, sbKey])
 
   useEffect(() => { runBriefingRef.current = () => call('briefing', 'POST') }, [call])
+  useEffect(() => { pickRef.current = (r: string) => setRoom(r) }, [])
+  // Kantor dibuka: muat CTO/CSO/CFO dulu — draf TikTok CMO hanya saat diminta (hemat kuota Gemini)
+  useEffect(() => { if (gate === 'ok') call('agents&only=cto,cso,cfo') // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gate])
+  useEffect(() => { focusRef.current && focusRef.current(room) }, [room])
 
   /* ============================================================
      SCENE 3D — dimuat penuh di client (tanpa SSR)
@@ -117,7 +133,7 @@ export default function KantorCeo3D() {
       const hud=document.createElement('div')
       hud.innerHTML=`<div id="kclock" class="kg"><div id="ktime">09:00</div><div id="kphase">Jam kerja</div><div id="kbar"><i id="kfill"></i></div>
         <button id="klive" class="kbtn on">WIB Langsung</button><button data-s="6" class="kbtn">Cepat 1×</button><button data-s="18" class="kbtn">Cepat 3×</button><button id="kskip" class="kbtn">Lompat 10:55</button></div>
-        <div id="khint" class="kg">Geser = putar · scroll = zoom · klik karyawan · klik laptop CEO = jalankan briefing beneran</div>
+        <div id="khint" class="kg">Geser = putar · scroll = zoom · klik karyawan = buka ruangannya · klik laptop CEO = briefing beneran</div>
         <div id="ktoast" class="kg"></div>
         <div id="ktip" class="kg"><b>—<span></span></b><div></div></div>`
       mount.appendChild(hud)
@@ -127,11 +143,11 @@ export default function KantorCeo3D() {
 
       /* ---------- tim = 4 agen + CEO ---------- */
       const CAST=[
-        {name:'Raka',job:'CTO',title:'CTO Agent · IT & QA',lazy:.25,shirt:'#334155',skin:'#c68642',hair:'#111',desk:[-5,-2]},
-        {name:'Sinta',job:'CMO',title:'CMO Agent · Copywriter',lazy:.6,shirt:'#7c3aed',skin:'#e0ac69',hair:'#2b1b12',desk:[-1,-2]},
-        {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-5,3]},
-        {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#475569',skin:'#f1c27d',hair:'#3b2314',desk:[-1,3]},
-        {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5]}]
+        {name:'Raka',job:'CTO',title:'CTO Agent · IT & QA',lazy:.25,shirt:'#0e7490',skin:'#c68642',hair:'#111',desk:[-11,-6.5],room:'back',accent:'#14b8a6'},
+        {name:'Sinta',job:'CMO',title:'CMO Agent · Copywriter',lazy:.6,shirt:'#7c3aed',skin:'#e0ac69',hair:'#2b1b12',desk:[-2.75,-6.5],room:'back',accent:'#8b5cf6'},
+        {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-11,3],room:'front',accent:'#ec4899'},
+        {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#b45309',skin:'#f1c27d',hair:'#3b2314',desk:[-2.75,3],room:'front',accent:'#f59e0b'},
+        {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155'}]
       const PHASES=['Cek Sistem & Bug','Hitung User','Draf TikTok','Cek Kuota','Kirim Briefing']
       const PHASE_JOB=['CTO','CSO','CMO','CFO','CEO']
       const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','CMO':'Generate draf TikTok di Gemini','CFO':'Pantau kuota Gemini anti-429','CEO':'Review & kirim Morning Briefing'}
@@ -144,6 +160,11 @@ export default function KantorCeo3D() {
       const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0}]
       const OBST=[];CAST.forEach(c=>OBST.push({x:c.desk[0],z:c.desk[1],hw:c.ceo?1.3:.9,hd:.45}))
       OBST.push({x:10,z:2.6,hw:1.2,hd:.5},{x:10,z:5.4,hw:1.2,hd:.5},{x:10,z:4,hw:.6,hd:.3},{x:13.7,z:4,hw:.4,hd:1.7},{x:15.2,z:1,hw:.2,hd:.2},{x:-13.5,z:-4.5,hw:.6,hd:.3},{x:-9,z:6,hw:1.5,hd:.7},{x:7.6,z:-4,hw:.3,hd:.3},{x:-7.6,z:-6,hw:.3,hd:.3},{x:7.6,z:9,hw:.3,hd:.3},{x:-3,z:10,hw:.3,hd:.3})
+      // dinding kamar (segmen dengan celah pintu di depan tiap meja) — jalan kaki otomatis lewat pintu
+      const wseg=(x1,x2,z)=>OBST.push({x:(x1+x2)/2,z,hw:(x2-x1)/2,hd:.14})
+      const wsegV=(x,z1,z2)=>OBST.push({x,z:(z1+z2)/2,hw:.14,hd:(z2-z1)/2})
+      ;[[-15.5,-11.8],[-10.2,-3.55],[-1.95,1]].forEach(s=>{wseg(s[0],s[1],-2.5);wseg(s[0],s[1],-.5);wseg(s[0],s[1],6.5)})
+      wsegV(-6.5,-10,-2.5);wsegV(-6.5,-.5,6.5);wsegV(1,-10,-2.5);wsegV(1,-.5,6.5)
       const POSE={deep:{tp:.08,hp:.2,ra:[-.6,.08,-1],la:[-.6,.08,-1]},phone:{tp:-.28,hp:.62,ra:[-.7,.05,-1.5],la:[-.7,.05,-1.5]},
         stretch:{tp:-.2,hp:-.25,ra:[-2.9,.3,-.2],la:[-2.9,.3,-.2]},scratch:{tp:0,hp:-.05,ra:[-.7,.05,-1.5],la:[-2.3,.45,-1.9]},
         chat:{tp:0,hp:0,ra:[-.3,.1,-.7],la:[-.2,.1,-.4]},drink:{tp:-.05,hp:-.1,ra:[-1.8,.1,-1.9],la:[-.2,.1,-.4]},think:{tp:.05,hp:.08,ra:[-.7,.05,-1.5],la:[-1.1,.25,-2.2]},stand:{tp:0,hp:0,ra:[0,.08,-.08],la:[0,.08,-.08]}}
@@ -181,12 +202,23 @@ export default function KantorCeo3D() {
       renderer.setSize(mount.clientWidth||innerWidth,mount.clientHeight||innerHeight)
       renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap
       renderer.outputColorSpace=THREE.SRGBColorSpace
+      renderer.toneMapping=THREE.NeutralToneMapping;renderer.toneMappingExposure=1.15
       mount.appendChild(renderer.domElement)
-      const scene=new THREE.Scene();scene.background=new THREE.Color('#05050a');scene.fog=new THREE.Fog('#05050a',45,110)
+      const scene=new THREE.Scene();scene.background=new THREE.Color('#dfe7f2');scene.fog=new THREE.Fog('#dfe7f2',45,110)
       const camera=new THREE.PerspectiveCamera(42,(mount.clientWidth||innerWidth)/(mount.clientHeight||innerHeight),.1,100)
       camera.position.set(2,9,17)
       const controls=new OrbitControls(camera,renderer.domElement)
       Object.assign(controls,{enableDamping:true,dampingFactor:.06,maxPolarAngle:PI/2.1,minDistance:4,maxDistance:32});controls.target.set(2,.8,0)
+
+      /* ---------- fokus kamera per ruangan ---------- */
+      const FOCUS={on:false,pos:new THREE.Vector3(),tgt:new THREE.Vector3()}
+      const ROOMV={overview:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
+      const focusRoom=r=>{const P=ROOMV[r];if(!P){FOCUS.on=false;return}
+        FOCUS.pos.set(...P[0]);FOCUS.tgt.set(...P[1]);FOCUS.on=true}
+      focusRef.current=focusRoom
+      controls.addEventListener('start',()=>{FOCUS.on=false})
+      // hook debug (dipakai QA otomatis; ringan, tak berpengaruh ke UI)
+      window.__kceo={focus:focusRoom,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on}
 
       const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.7,...o})
       const glow=(c,i=3)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:i})
@@ -194,29 +226,29 @@ export default function KantorCeo3D() {
       const cyl=(r,h,m,x,y,z,p,seg=12)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg),m);o.position.set(x,y,z);o.castShadow=true;p.add(o);return o}
       const sph=(r,m,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,14),m);o.position.set(x,y,z);o.castShadow=true;p.add(o);return o}
 
-      /* ---------- pencahayaan ikut waktu ---------- */
-      const amb=new THREE.AmbientLight(0x8878c0,.45);scene.add(amb)
-      const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(6,14,9);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048)
+      /* ---------- pencahayaan ikut waktu (TERANG — siang putih terang, malam tetap nyaman) ---------- */
+      const amb=new THREE.AmbientLight(0xffffff,.85);scene.add(amb)
+      const sun=new THREE.DirectionalLight(0xffffff,1.05);sun.position.set(6,14,9);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048)
       Object.assign(sun.shadow.camera,{left:-20,right:20,top:14,bottom:-14,far:50});scene.add(sun)
       const spot=(c,i,p,t)=>{const s=new THREE.SpotLight(c,i,0,.75,1);s.position.set(...p);s.target.position.set(...t);s.castShadow=true;s.shadow.mapSize.set(1024,1024);scene.add(s,s.target);return s}
-      const sp1=spot(PU,1.6,[-5,10,0],[-2,0,0]),sp2=spot(EM,1.3,[10,9,4],[10,0,4])
+      const sp1=spot(PU,1.9,[-5,10,0],[-2,0,0]),sp2=spot(EM,1.6,[10,9,4],[10,0,4])
       const accL=new THREE.PointLight(EM,1.2,18);accL.position.set(1.5,3,-8.4);scene.add(accL)
       const pl2=new THREE.PointLight(PU,.9,18);pl2.position.set(6,2.5,-5);scene.add(pl2)
       const ceilGlows=[]
-      const cSunD=new THREE.Color('#fff1dc'),cSunN=new THREE.Color('#6f68b8'),cAmbD=new THREE.Color('#aeb4d6'),cAmbN=new THREE.Color('#8878c0'),cBgD=new THREE.Color('#080a12'),cBgN=new THREE.Color('#030309'),cT=new THREE.Color()
+      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#8f88c8'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#8d84c9'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#141830'),cT=new THREE.Color()
       const dayFactor=m=>m<300?0:m<420?(m-300)/120:m<870?1:m<1020?1-(m-870)/150:0
       let dayF=null
       const lightTick=dt=>{
         const d=dayFactor(C.min);if(dayF===null)dayF=d;dayF=dm(dayF,d,.6,dt)
-        sun.intensity=.06+.64*dayF;cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
-        amb.intensity=.12+.33*dayF;cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
-        sp1.intensity=1.6*(.2+.8*dayF);sp2.intensity=1.3*(.2+.8*dayF)
-        ceilGlows.forEach(m=>m.emissiveIntensity=.1+.85*dayF)
+        sun.intensity=.12+1.05*dayF;cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
+        amb.intensity=.4+.55*dayF;cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
+        sp1.intensity=1.9*(.25+.75*dayF);sp2.intensity=1.6*(.25+.75*dayF)
+        ceilGlows.forEach(m=>m.emissiveIntensity=.18+.95*dayF)
         cT.copy(cBgD).lerp(cBgN,1-dayF);scene.background.copy(cT);scene.fog.color.copy(cT)}
 
       /* ---------- lantai, dinding, neon ---------- */
-      const floor=new THREE.Mesh(new THREE.PlaneGeometry(34,24),M('#0c0c14',{roughness:.35,metalness:.2}));floor.rotation.x=-PI/2;floor.position.x=1.5;floor.receiveShadow=true;scene.add(floor)
-      box(24,5,.1,new THREE.MeshStandardMaterial({color:'#1a1033',transparent:true,opacity:.3,roughness:.05}),1.5,2.5,-10,scene,false)
+      const floor=new THREE.Mesh(new THREE.PlaneGeometry(34,24),M('#d9dde6',{roughness:.5,metalness:.04}));floor.rotation.x=-PI/2;floor.position.x=1.5;floor.receiveShadow=true;scene.add(floor)
+      box(24,5,.1,new THREE.MeshStandardMaterial({color:'#f1f5fb',transparent:true,opacity:.5,roughness:.25}),1.5,2.5,-10,scene,false)
       for(const y of[0,5])box(24,.08,.12,glow(PU),1.5,y,-9.95,scene,false)
       const neon=(txt,w,h,font,x,y,z,ry=0,col=EM)=>{
         const c=document.createElement('canvas');c.width=1024;c.height=Math.round(1024*h/w);const g=c.getContext('2d')
@@ -225,48 +257,69 @@ export default function KantorCeo3D() {
         g.shadowBlur=0;g.lineWidth=8;g.strokeStyle='#03140d';g.strokeText(txt,512,c.height/2);g.fillStyle=col;g.fillText(txt,512,c.height/2)
         const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace
         const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true,fog:false}));m.position.set(x,y,z);m.rotation.y=ry;scene.add(m);return m}
-      box(14.6,4.4,.04,M('#04050a',{roughness:.4}),1.5,2.75,-9.94,scene,false);neon('KANTOR LUXTRADE',14,3.5,104,1.5,2.3,-9.9);neon('PANTRY',4,1,110,10.8,3.2,7.1,PI)
+      box(12.6,3.5,.04,M('#04050a',{roughness:.4}),1.5,3.75,-9.94,scene,false);neon('KANTOR LUXTRADE',12,3,92,1.5,3.75,-9.9);neon('PANTRY',4,1,110,10.8,3.2,7.1,PI)
 
       /* ---------- pantry ---------- */
-      const rug=new THREE.Mesh(new THREE.PlaneGeometry(6.5,6.5),M('#1a0f33',{roughness:.9}));rug.rotation.x=-PI/2;rug.position.set(10.8,.01,4);rug.receiveShadow=true;scene.add(rug)
+      const rug=new THREE.Mesh(new THREE.PlaneGeometry(6.5,6.5),M('#f0e6d8',{roughness:.9}));rug.rotation.x=-PI/2;rug.position.set(10.8,.01,4);rug.receiveShadow=true;scene.add(rug)
       for(const[z,r]of[[2.6,0],[5.4,PI]]){const s=new THREE.Group();s.position.set(10,0,z);s.rotation.y=r;scene.add(s)
-        box(2.4,.44,1,M('#2a1a52'),0,.22,0,s);box(2.4,.5,.2,M('#331f66'),0,.65,-.4,s);for(const x of[-1.1,1.1])box(.2,.5,1,M('#331f66'),x,.4,0,s)}
-      box(1.2,.44,.6,M('#111',{metalness:.7,roughness:.2}),10,.22,4);box(.8,1,3.4,M('#15121f',{roughness:.3}),13.7,.5,4);box(.4,.3,.4,glow(EM,2.2),13.7,1.15,4)
+        box(2.4,.44,1,M('#e3b27a'),0,.22,0,s);box(2.4,.5,.2,M('#cf9c60'),0,.65,-.4,s);for(const x of[-1.1,1.1])box(.2,.5,1,M('#cf9c60'),x,.4,0,s)}
+      box(1.2,.44,.6,M('#e8eaf0',{metalness:.4,roughness:.35}),10,.22,4);box(.8,1,3.4,M('#c9b08e',{roughness:.5}),13.7,.5,4);box(.4,.3,.4,glow(EM,2.2),13.7,1.15,4)
 
       /* ---------- arsitektur ---------- */
       const tileTex=(w,h,fn,rx,ry)=>{const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'));const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t}
       const flat=(x,z,w,d,y,m)=>{const o=new THREE.Mesh(new THREE.PlaneGeometry(w,d),m);o.rotation.x=-PI/2;o.position.set(x,y,z);o.receiveShadow=true;scene.add(o)}
-      flat(-3.55,1,23.9,22,.003,M('#fff',{roughness:.95,map:tileTex(128,128,g=>{g.fillStyle='#16141f';g.fillRect(0,0,128,128);for(let i=0;i<500;i++){g.fillStyle=`rgba(255,255,255,${rnd(.02,.05)})`;g.fillRect(rnd(0,128),rnd(0,128),2,2)}},12,11)}))
-      flat(13.45,1,10.1,22,.004,M('#fff',{roughness:.25,metalness:.2,map:tileTex(128,128,g=>{g.fillStyle='#1c1c27';g.fillRect(0,0,128,128);g.strokeStyle='#0b0b12';g.lineWidth=3;g.strokeRect(0,0,128,128)},10,22)}))
-      flat(13.45,3.9,10.1,8.2,.006,M('#fff',{roughness:.5,map:tileTex(128,128,g=>{for(let y=0;y<128;y+=16){g.fillStyle=`hsl(22,${rnd(25,35)}%,${rnd(14,20)}%)`;g.fillRect(0,y,128,15);g.fillStyle='#0a0604';g.fillRect(0,y+15,128,1)}},5,4)}))
-      const wallM=M('#14121f',{roughness:.9}),glassW=new THREE.MeshStandardMaterial({color:'#8ab4ff',transparent:true,opacity:.14,roughness:.05,metalness:.3})
+      flat(-3.55,1,23.9,22,.003,M('#fff',{roughness:.95,map:tileTex(128,128,g=>{g.fillStyle='#d7dbe4';g.fillRect(0,0,128,128);for(let i=0;i<500;i++){g.fillStyle=`rgba(148,158,178,${rnd(.06,.12)})`;g.fillRect(rnd(0,128),rnd(0,128),2,2)}},12,11)}))
+      flat(13.45,1,10.1,22,.004,M('#fff',{roughness:.25,metalness:.2,map:tileTex(128,128,g=>{g.fillStyle='#cfc6ba';g.fillRect(0,0,128,128);g.strokeStyle='#b3a894';g.lineWidth=3;g.strokeRect(0,0,128,128)},10,22)}))
+      flat(13.45,3.9,10.1,8.2,.006,M('#fff',{roughness:.5,map:tileTex(128,128,g=>{for(let y=0;y<128;y+=16){g.fillStyle=`hsl(26,${rnd(40,50)}%,${rnd(58,66)}%)`;g.fillRect(0,y,128,15);g.fillStyle='#a17c50';g.fillRect(0,y+15,128,1)}},5,4)}))
+      const wallM=M('#edeaf3',{roughness:.9}),glassW=new THREE.MeshStandardMaterial({color:'#8ab4ff',transparent:true,opacity:.2,roughness:.05,metalness:.3})
       const wallL=new THREE.Group(),wallR=new THREE.Group(),wallF=new THREE.Group(),ceil=new THREE.Group();scene.add(wallL,wallR,wallF,ceil)
       for(const[g,x]of[[wallL,-15.55],[wallR,18.55]]){box(.2,.9,24,wallM,x,.45,0,g);box(.2,.5,24,wallM,x,4.75,0,g);box(.05,3.6,24,glassW,x,2.7,0,g,false)
-        for(let z=-12;z<=12;z+=4)box(.14,3.6,.14,M('#0b0b10',{metalness:.6}),x,2.7,z,g)}
+        for(let z=-12;z<=12;z+=4)box(.14,3.6,.14,M('#c9ccd8',{metalness:.6}),x,2.7,z,g)}
       box(34,5,.2,wallM,1.5,2.5,12.1,wallF);box(34,.12,.05,glow(PU,1.5),1.5,.1,11.95,wallF,false)
       box(5,5,.2,wallM,-13,2.5,-10);box(5,5,.2,wallM,16,2.5,-10)
-      ;[[7.6,-4],[-7.6,-6],[7.6,9],[-3,10]].forEach(([x,z])=>box(.5,4.8,.5,M('#1d1b2b',{roughness:.7}),x,2.4,z))
+      ;[[7.6,-4],[-7.6,-6],[7.6,9],[-3,10]].forEach(([x,z])=>box(.5,4.8,.5,M('#e4e2ec',{roughness:.7}),x,2.4,z))
       box(.04,2.2,1.5,glassW,18.4,1.1,.8,scene,false);box(.5,.18,.04,glow('#22c55e',1.6),18.3,2.5,.8,scene,false)
-      const cp=new THREE.Mesh(new THREE.PlaneGeometry(34,24),M('#fff',{roughness:.9,map:tileTex(64,64,g=>{g.fillStyle='#1c1a28';g.fillRect(0,0,64,64);g.strokeStyle='#0d0c14';g.lineWidth=3;g.strokeRect(0,0,64,64)},17,12)}));cp.rotation.x=PI/2;cp.position.set(1.5,4.8,0);ceil.add(cp)
-      for(const z of[-6,0,6])for(const x of[-9,-3,3,9,15]){const m=glow('#dfe9ff',.9);ceilGlows.push(m);box(2.4,.06,.5,m,x,4.74,z,ceil,false)}
-      for(const x of[-9,3,15])box(.5,.3,24,M('#222230'),x,4.62,0,ceil,false)
+      const cp=new THREE.Mesh(new THREE.PlaneGeometry(34,24),M('#fff',{roughness:.9,map:tileTex(64,64,g=>{g.fillStyle='#f3f4f8';g.fillRect(0,0,64,64);g.strokeStyle='#dcdee8';g.lineWidth=3;g.strokeRect(0,0,64,64)},17,12)}));cp.rotation.x=PI/2;cp.position.set(1.5,4.8,0);ceil.add(cp)
+      for(const z of[-6,0,6])for(const x of[-9,-3,3,9,15]){const m=glow('#eaf2ff',.9);ceilGlows.push(m);box(2.4,.06,.5,m,x,4.74,z,ceil,false)}
+      for(const x of[-9,3,15])box(.5,.3,24,M('#d5d8e2'),x,4.62,0,ceil,false)
       const plant=(x,z)=>{cyl(.3,.5,M('#1a1030'),x,.25,z,scene);for(let i=0;i<5;i++)sph(rnd(.22,.34),M('#0f6b3d'),x+rnd(-.2,.2),rnd(.7,1.2),z+rnd(-.2,.2),scene)}
       ;[[-12,-8],[12,-8],[-12,9],[15,8],[3,-6],[-12,1]].forEach(p=>plant(...p))
       box(34,.03,.1,glow(PU,2),1.5,.02,11.9,scene,false);box(.1,.03,24,glow(PU,2),-15.5,.02,0,scene,false);box(.1,.03,24,glow(EM,2),18.5,.02,0,scene,false)
+
+      /* ---------- 4 KAMAR KACA — tiap tugas punya ruangan sendiri ---------- */
+      const partH=(x1,x2,z)=>{const w=x2-x1,cx=(x1+x2)/2,g=new THREE.Group();scene.add(g)
+        box(w,.95,.12,M('#dcd9e6'),cx,.475,z,g,false);box(w,1.6,.05,glassW,cx,1.75,z,g,false)
+        box(w,.07,.14,M('#c8c5d4'),cx,2.58,z,g,false);return g}
+      const partV=(x,z1,z2)=>{const dd=z2-z1,cz=(z1+z2)/2,g=new THREE.Group();scene.add(g)
+        box(.12,.95,dd,M('#dcd9e6'),x,.475,cz,g,false);box(.05,1.6,dd,glassW,x,1.75,cz,g,false)
+        box(.14,.07,dd,M('#c8c5d4'),x,2.58,cz,g,false);return g}
+      const jamb=(x,z)=>{box(.14,2.6,.18,M('#aab2c0'),x,1.3,z,scene,false);sph(.07,glow('#10b981',2),x,2.72,z,scene,false)}
+      ;[[-15.5,-11.8],[-10.2,-3.55],[-1.95,1]].forEach(s=>{partH(s[0],s[1],-2.5);partH(s[0],s[1],-.5);partH(s[0],s[1],6.5)})
+      ;[[-11.8,-10.2],[-3.55,-1.95]].forEach(gp=>{jamb(gp[0],-2.5);jamb(gp[1],-2.5);jamb(gp[0],6.5);jamb(gp[1],6.5)})
+      partV(-6.5,-10,-2.5);partV(-6.5,-.5,6.5);partV(1,-10,-2.5);partV(1,-.5,6.5)
+      const roomAcc=(x,z,col,rugC)=>{const r=new THREE.Mesh(new THREE.PlaneGeometry(4.8,4.6),M(rugC,{roughness:.9}));r.rotation.x=-PI/2;r.position.set(x,.008,z);r.receiveShadow=true;scene.add(r)
+        const l=new THREE.PointLight(col,.65,9);l.position.set(x,2.3,z);scene.add(l)}
+      roomAcc(-11,-6.2,'#14b8a6','#d8f2ea');roomAcc(-2.75,-6.2,'#8b5cf6','#ebe3fa')
+      roomAcc(-11,3,'#ec4899','#fae1ee');roomAcc(-2.75,3,'#f59e0b','#fbf0d9')
+      neon('RUANG CTO',3.3,.8,46,-11,1.95,-9.86,0,'#0d9488')
+      neon('RUANG CMO',3.3,.8,46,-2.75,1.95,-9.86,0,'#7c3aed')
+      neon('RUANG CSO',3.3,.8,46,-11,1.95,-.42,0,'#db2777')
+      neon('RUANG CFO',3.3,.8,46,-2.75,1.95,-.42,0,'#d97706')
+      neon('CEO SUITE',2.5,.6,40,6,1.5,-9.9,0,'#7c3aed')
 
       /* ---------- infrastruktur ---------- */
       const rackLeds=[]
       for(let r=0;r<3;r++){const x=14.2+r*1.1;box(.9,2.1,.9,M('#0b0b12',{metalness:.5,roughness:.4}),x,1.05,-9.2)
         for(let k=0;k<7;k++){box(.8,.05,.02,M('#15151f'),x,.35+k*.27,-8.74,scene,false);for(let j=0;j<3;j++){const m=glow(j?EM:'#38bdf8',2);rackLeds.push(m);box(.04,.04,.02,m,x-.3+j*.1+(k%2)*.3,.37+k*.27,-8.73,scene,false)}}}
-      box(1.2,.7,.6,M('#15121f'),-13.5,.35,-4.5);box(.7,.35,.5,M('#e5e7eb',{roughness:.5}),-13.5,.88,-4.5)
-      box(.4,1,.4,M('#1e293b'),15.2,.5,1);cyl(.17,.45,glow('#38bdf8',1.2),15.2,1.25,1,scene)
+      box(1.2,.7,.6,M('#d6d3de'),-13.5,.35,-4.5);box(.7,.35,.5,M('#e5e7eb',{roughness:.5}),-13.5,.88,-4.5)
+      box(.4,1,.4,M('#94a3b8'),15.2,.5,1);cyl(.17,.45,glow('#38bdf8',1.2),15.2,1.25,1,scene)
       box(.08,2.4,1.6,glow(PU,1.2),18.45,1.2,.8,scene,false)
       for(const x of[17.5,-14]){sph(.12,M('#111'),x,4.5,-9.8,scene);sph(.03,glow('#ef4444',3),x,4.42,-9.68,scene)}
 
       /* ---------- papan KPI + jam dinding + layar LIVE + laptop CEO ---------- */
       const bc=document.createElement('canvas');bc.width=1024;bc.height=512;const bg=bc.getContext('2d'),bt=new THREE.CanvasTexture(bc);bt.colorSpace=THREE.SRGBColorSpace
-      const board=new THREE.Mesh(new THREE.PlaneGeometry(4,2),new THREE.MeshStandardMaterial({color:0,map:bt,emissiveMap:bt,emissive:0xffffff,emissiveIntensity:1.3}));board.position.set(-10.44,2,-4);board.rotation.y=PI/2;scene.add(board)
-      box(.1,2.2,4.2,M('#0a0a0f'),-10.56,2,-4);for(const z of[-5.8,-2.2])box(.1,1,.1,M('#222'),-10.5,.5,z)
+      const board=new THREE.Mesh(new THREE.PlaneGeometry(4,2),new THREE.MeshStandardMaterial({color:0,map:bt,emissiveMap:bt,emissive:0xffffff,emissiveIntensity:1.3}));board.position.set(14.9,3.35,-9.88);scene.add(board)
+      box(4.2,2.2,.1,M('#0a0a0f'),14.9,3.35,-9.94,scene,false)
       let gold=2342.5,gh=Array(40).fill(2342.5),bT=0
       let lapC,lapG,lapTex
       const drawLap=()=>{if(!lapG)return;const g=lapG;g.fillStyle='#03130d';g.fillRect(0,0,256,160)
@@ -317,7 +370,7 @@ export default function KantorCeo3D() {
         g.strokeStyle='#10f5a0';g.lineWidth=4;g.beginPath();gh.forEach((v,i)=>{const x=32+i*24,y=500-(v-2300)/100*70;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();bt.needsUpdate=true
         drawLap();drawSite()}
       const wc=document.createElement('canvas');wc.width=256;wc.height=128;const wg=wc.getContext('2d'),wt=new THREE.CanvasTexture(wc);wt.colorSpace=THREE.SRGBColorSpace
-      const wallClk=new THREE.Mesh(new THREE.PlaneGeometry(1.8,.9),new THREE.MeshBasicMaterial({map:wt,color:0xcccccc}));wallClk.position.set(11,3.6,-9.88);scene.add(wallClk)
+      const wallClk=new THREE.Mesh(new THREE.PlaneGeometry(1.8,.9),new THREE.MeshBasicMaterial({map:wt,color:0xcccccc}));wallClk.position.set(7.9,1.42,-9.88);scene.add(wallClk)
       const drawWall=()=>{const g=wg,s=Math.floor((C.min%1)*60);g.fillStyle='#07100c';g.fillRect(0,0,256,128);g.fillStyle='#e8fff6';g.font='bold 54px monospace';g.textAlign='center';g.fillText(fmt(C.min)+':'+String(s).padStart(2,'0'),128,68);g.fillStyle='#10f5a0';g.font='20px monospace';g.fillText('WIB (UTC+7)',128,104);wt.needsUpdate=true}
 
       /* ---------- monitor hidup ---------- */
@@ -346,8 +399,8 @@ export default function KantorCeo3D() {
       CAST.forEach((cfg,i)=>{
         cfg.i=i
         const d=cfg.desk,seatZ=d[1]+.66,w=cfg.ceo?2.6:1.8
-        box(w,.05,.9,M('#15121f',{roughness:.3,metalness:.3}),d[0],.76,d[1])
-        for(const k of[-1,1])box(.05,.74,.8,M('#0d0b14'),d[0]+k*(w/2-.05),.38,d[1])
+        box(w,.05,.9,M('#b98a5e',{roughness:.55}),d[0],.76,d[1])
+        for(const k of[-1,1])box(.05,.74,.8,M('#8a6f56'),d[0]+k*(w/2-.05),.38,d[1])
         box(w,.02,.02,glow(PU),d[0],.755,d[1]+.45,scene,false);box(.45,.02,.15,M('#0a0a0f'),d[0],.79,d[1]+.22)
         cyl(.04,.1,M(Math.random()<.5?'#e5e7eb':'#7c3aed'),d[0]+rnd(.55,.8)*(Math.random()<.5?1:-1),.84,d[1]+rnd(-.1,.2),scene)
         box(.2,.015,.28,M('#d1d5db'),d[0]+rnd(-.8,-.5),.79,d[1]+rnd(-.05,.2),scene)
@@ -360,7 +413,7 @@ export default function KantorCeo3D() {
           const h=at(laptop,G(),0,.01,-.19);h.rotation.x=-.28;box(.55,.36,.015,M('#08080c'),0,.18,0,h)
           const m=new THREE.MeshStandardMaterial({color:0,map:lapTex,emissiveMap:lapTex,emissive:0xffffff,emissiveIntensity:1.7}),s=new THREE.Mesh(new THREE.PlaneGeometry(.5,.31),m);s.position.set(0,.18,.009);h.add(s);mats.push(m)
           laptop.userData.laptop=true;pick.push(laptop)}
-        const chair=at(scene,G(),d[0],0,seatZ);const dk=M('#1b1530',{roughness:.6})
+        const chair=at(scene,G(),d[0],0,seatZ);const dk=M(cfg.ceo?'#1f2937':cfg.accent,{roughness:.55})
         box(.5,.07,.5,dk,0,.46,0,chair);box(.48,.6,.06,dk,0,.8,.24,chair);cyl(.035,.44,M('#222'),0,.24,0,chair);cyl(.28,.04,M('#222'),0,.03,0,chair,5)
         const R={root:G(),hips:G(),torso:G(),chest:G(),sh:G(),head:G()};scene.add(R.root);R.root.userData.emp=i;R.root.scale.setScalar(.94+((i*37)%11)*.012);pick.push(R.root);R.root.add(R.hips)
         for(const[x,k]of[[-.1,'l'],[.1,'r']]){const l=limb(.44,.44,.075,'#14141c','#14141c',true);l.a.position.x=x;R.hips.add(l.a);R[k+'T']=l.a;R[k+'S']=l.b}
@@ -405,7 +458,7 @@ export default function KantorCeo3D() {
 
       /* ---------- update per-orang ---------- */
       function update(S,i,dt,t){
-        const{R,cfg,d,seatZ}=S,ph=S.ph
+        const{R,cfg,d,seatZ}=S,ph=S.ph,zC=cfg.room==='front'?7.5:cfg.room==='back'?-1.5:.8
         if(S.chatWith!=null){const O=E[S.chatWith]
           const bad=!O||O.chatWith!==i||(S.stage!=='seated'&&S.stage!=='report')||S.sub!=='chat'
           if(bad){if(O&&O.chatWith===i){O.chatWith=null;if(O.sub==='chat')O.until=Math.min(O.until,t+.6)}S.chatWith=null}}
@@ -413,7 +466,7 @@ export default function KantorCeo3D() {
         let best=99,bx=0,bz=1
         E.forEach((o,k)=>{if(k===i||o.stage==='away')return;const dx=o.x-S.x,dz=o.z-S.z,dd=Math.hypot(dx,dz);if(dd<best){best=dd;bx=dx;bz=dz}if(S.stage==='walking'&&dd<.95&&dd>.01){S.x-=dx/dd*(.95-dd)*dt*6;S.z-=dz/dd*(.95-dd)*dt*6}})
         if(!S.init){S.init=1;if(C.min<S.arr||C.min>S.dep){S.stage='away';R.root.visible=false;S.chair.position.z=seatZ+.85;S.ch=1}}
-        if(S.stage==='away'){if(C.min>=S.arr&&C.min<S.dep){Object.assign(S,{stage:'walking',arriving:true,leaving:false,x:18,z:.8,sit:0,goal:false,wp:[[8,.8],[d[0]+2,.8],[d[0]+2,seatZ]]});R.root.visible=true;if(Math.random()<.6&&cfg.job!=='CEO'){const pp=S.spot.p;S.goal=true;S.coffee=t+rnd(25,70);S.wp=[[8,.8],S.spot.sit?[8,pp[1]]:[12.3,.8],pp]}}else return}
+        if(S.stage==='away'){if(C.min>=S.arr&&C.min<S.dep){Object.assign(S,{stage:'walking',arriving:true,leaving:false,x:18,z:.8,sit:0,goal:false,wp:[[8,.8],[3,.8],[3,zC],[d[0],zC],[d[0],seatZ]]});R.root.visible=true;if(Math.random()<.6&&cfg.job!=='CEO'){const pp=S.spot.p;S.goal=true;S.coffee=t+rnd(25,70);S.wp=[[8,.8],S.spot.sit?[8,pp[1]]:[12.3,.8],pp]}}else return}
         if(S.stage==='seated'&&C.min>S.dep&&C.min<S.dep+240&&!S.leaving){S.leaving=true;S.stage='rising'}
         if(S.stage==='seated'&&C.min>=840&&!S.leaving&&!S.coffee&&!C.brk&&cfg.job!=='CEO'&&!INC.active&&Math.random()<dt*.012){S.goal=true;S.coffee=t+rnd(40,90);S.stage='rising'}
         if(!S.leaving&&!S.coffee&&!S.report&&!S.ret&&cfg.job!=='CEO'&&C.brk!==S.goal&&(S.stage==='seated'||S.stage==='lounge')&&performance.now()-C.at>S.delay*(C.live?150:1)){S.goal=C.brk;S.delay=rnd(0,2000);S.stage='rising'}
@@ -438,7 +491,12 @@ export default function KantorCeo3D() {
         const sx=d[0]+2,p=S.spot.p;let sitT=1,yawT=S.yaw,pose='stand',sp=0
         if(inSeat){pose=S.sub;yawT=PI}
         else if(S.stage==='rising'){sitT=0;if(S.sit<.1){S.stage='walking';S.hold=t+rnd(.5,2);const m=S.spot.sit?[8,p[1]]:[12.3,.8]
-          S.wp=S.leaving?[[sx,seatZ],[sx,.8],[18,.8]]:S.report?[[sx,seatZ],[sx,-5.4],[7.5,-5.4]]:S.ret?[[sx,-5.4],[sx,seatZ]]:S.goal?[[sx,seatZ],[sx,.8],[8,.8],m,p]:[[8,.8],[sx,.8],[sx,seatZ]]}}
+          const side=cfg.room==='back'||cfg.room==='front'
+          S.wp=S.leaving?(side?[[sx,seatZ],[sx,zC],[3,zC],[3,.8],[18,.8]]:[[sx,seatZ],[sx,.8],[18,.8]])
+            :S.report?[[sx,seatZ],[sx,zC],[7.5,zC],[7.5,-5.4]]
+            :S.ret?[[7.5,-5.4],[7.5,zC],[sx,zC],[sx,seatZ]]
+            :S.goal?(side?[[sx,seatZ],[sx,zC],[3,zC],[3,.8],[8,.8],m,p]:[[sx,seatZ],[sx,.8],[8,.8],m,p])
+            :(side?[[8,.8],[3,.8],[3,zC],[sx,zC],[sx,seatZ]]:[[8,.8],[d[0]+2,.8],[d[0]+2,seatZ]])}}
         else if(S.stage==='walking'){sitT=0;const g=S.wp[0]
           if(!g){if(S.leaving){S.stage='away';S.leaving=false;R.root.visible=false}else if(S.report){S.stage='report';S.until=0}else{S.stage=S.goal?'lounge':'sitting';S.ret=false;S.arriving=false;S.until=0}}
           else if(t>=(S.hold||0)){const dx=g[0]-S.x,dz=g[1]-S.z,dd=Math.hypot(dx,dz);if(dd<.15)S.wp.shift();else{sp=Math.min(1.35*S.pace,dd*2+.3);yawT=Math.atan2(dx,dz);S.x+=dx/dd*S.speed*dt;S.z+=dz/dd*S.speed*dt}}}
@@ -508,7 +566,8 @@ export default function KantorCeo3D() {
         if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return
         const o=hitAt(e.clientX,e.clientY)
         if(o&&o.userData.laptop){runBriefingRef.current&&runBriefingRef.current()}
-        else if(o){sel=o.userData.emp;const c=CAST[sel];tip.querySelector('b').firstChild.textContent=c.name;tip.querySelector('span').textContent=c.title}
+        else if(o){sel=o.userData.emp;const c=CAST[sel];tip.querySelector('b').firstChild.textContent=c.name;tip.querySelector('span').textContent=c.title
+          pickRef.current&&pickRef.current(c.job==='CEO'?'rapat':c.job)}
         else sel=null}
       renderer.domElement.addEventListener('pointermove',onMove)
       renderer.domElement.addEventListener('pointerleave',onLeave)
@@ -576,6 +635,8 @@ export default function KantorCeo3D() {
         if(sel!==null){const S=E[sel];v.set(S.x,2,S.z).project(camera);tip.style.opacity=1
           tip.style.transform=`translate(${(v.x*.5+.5)*innerWidth-110}px,${(-v.y*.5+.5)*innerHeight-135}px)`
           if(t>S.tt2||!S.tt2){S.tt2=t+.4;tip.lastChild.textContent=thought2(S.cfg,S)}}else tip.style.opacity=0
+        if(FOCUS.on){const k=1-Math.exp(-2.8*dt);camera.position.lerp(FOCUS.pos,k);controls.target.lerp(FOCUS.tgt,k)
+          if(camera.position.distanceTo(FOCUS.pos)<.25)FOCUS.on=false}
         wallL.visible=camera.position.x>-15.4;wallR.visible=camera.position.x<18.4;wallF.visible=camera.position.z<11.9;ceil.visible=camera.position.y<4.7
         controls.update();renderer.render(scene,camera)
         frame++})
@@ -591,6 +652,7 @@ export default function KantorCeo3D() {
         renderer.domElement.removeEventListener('pointerleave',onLeave)
         renderer.domElement.removeEventListener('pointerdown',onDown)
         renderer.domElement.removeEventListener('pointerup',onUp)
+        focusRef.current=null;pickRef.current=null
         controls.dispose();renderer.dispose()
         ;[renderer.domElement,hud,bubEl,styleEl].forEach(el=>{if(el&&el.parentNode===mount)mount.removeChild(el)})}
     })().catch(err=>{console.error(err);setSceneErr(String(err))})
@@ -598,34 +660,42 @@ export default function KantorCeo3D() {
     return ()=>{disposed=true;cleanup()}
   },[])
 
-  /* ---------- panel kontrol API ---------- */
-  const CARD={background:'rgba(18,12,34,.6)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',border:'1px solid rgba(255,255,255,.14)',borderRadius:14,padding:'12px 14px',color:'#e8fff6',fontSize:12.5,lineHeight:1.55,minWidth:230}
-  const BTN={font:'inherit',fontSize:12,padding:'7px 12px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(16,245,160,.4)',background:'rgba(16,245,160,.12)',color:'#10f5a0'}
+  /* ---------- panel kontrol per RUANGAN ---------- */
+  const CARD={background:'rgba(255,255,255,.88)',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',border:'1px solid rgba(15,23,42,.09)',borderRadius:14,padding:'12px 14px',color:'#1f2437',fontSize:12.5,lineHeight:1.55,minWidth:248,maxWidth:274}
+  const BTN={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(13,148,136,.45)',background:'rgba(16,185,129,.13)',color:'#0f766e'}
+  const ERR={marginTop:8,fontSize:11.5,color:'#dc2626'}
+  const OKS={marginTop:8,fontSize:11.5,color:'#059669'}
   const cto=data&&data.cto,cso=data&&data.cso,cmo=data&&data.cmo,cfo=data&&data.cfo
+  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['rapat','🌅 Rapat']]
+  const devOpen=process.env.NODE_ENV!=='production'
 
   return (
-    <main style={{position:'fixed',inset:0,background:'#05050a',overflow:'hidden',fontFamily:'system-ui,sans-serif'}}>
+    <main style={{position:'fixed',inset:0,background:'linear-gradient(160deg,#dfe7f2,#eef1f7)',overflow:'hidden',fontFamily:'system-ui,sans-serif'}}>
       {gate==='checking'&&(
-        <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#10f5a0',fontFamily:'monospace',letterSpacing:'.2em',fontSize:12,zIndex:50}}>
+        <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#0f766e',fontFamily:'monospace',letterSpacing:'.2em',fontSize:12,zIndex:50,background:'rgba(238,242,247,.72)'}}>
           MEMERIKSA AKSES…
         </div>)}
-      {gate==='denied'&&(
+      {gate==='denied'&&!devOpen&&(
         <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',zIndex:50,padding:16}}>
           <div style={{...CARD,maxWidth:340,textAlign:'center'}}>
             <div style={{fontSize:40,marginBottom:8}}>🔒</div>
-            <b style={{color:'#10f5a0',fontSize:15}}>Ruang CEO Terkunci</b>
+            <b style={{color:'#0f766e',fontSize:15}}>Ruang CEO Terkunci</b>
             <div style={{marginTop:10,opacity:.85,lineHeight:1.6}}>
-              Ruangan ini khusus untuk<br/><b style={{color:'#10f5a0'}}>luxtradee@gmail.com</b><br/>
+              Ruangan ini khusus untuk<br/><b style={{color:'#0f766e'}}>luxtradee@gmail.com</b><br/>
               Login dulu di situs dengan email tersebut, lalu buka halaman ini lagi.
             </div>
             <a href="/auth/login" style={{display:'inline-block',marginTop:14,...BTN,textDecoration:'none'}}>🔑 Ke Halaman Login</a>
           </div>
         </div>)}
+      {gate==='denied'&&devOpen&&(
+        <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',zIndex:40,...CARD,fontSize:11.5,color:'#b45309',borderColor:'rgba(217,119,6,.4)'}}>
+          ⚠️ Mode dev — scene terbuka tanpa login. Data API tetap butuh login owner.
+        </div>)}
 
       <div ref={mountRef} style={{position:'absolute',inset:0,overflow:'hidden'}}/>
 
       {(!loaded&&!sceneErr)&&(
-        <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',background:'#05050a',color:'#10f5a0',fontFamily:'monospace',letterSpacing:'.2em',fontSize:12}}>
+        <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',background:'#eef2f7',color:'#0f766e',fontFamily:'monospace',letterSpacing:'.2em',fontSize:12}}>
           MEMUAT KANTOR 3D…
         </div>)}
       {sceneErr&&(
@@ -633,64 +703,150 @@ export default function KantorCeo3D() {
           ⚠️ Gagal memuat scene 3D: {sceneErr.slice(0,160)}
         </div>)}
 
-      <div style={{position:'absolute',top:16,right:16,zIndex:20,display:'flex',flexDirection:'column',gap:10,maxWidth:262,maxHeight:'calc(100vh - 32px)',overflowY:'auto'}}>
+      <div style={{position:'absolute',top:16,right:16,zIndex:20,display:'flex',flexDirection:'column',gap:10,maxWidth:274,maxHeight:'calc(100vh - 32px)',overflowY:'auto',paddingBottom:4}}>
         <div style={CARD}>
-          <div style={{fontSize:22,fontWeight:700,color:'#10f5a0'}}>{clock} <span style={{fontSize:11,opacity:.6}}>WIB</span></div>
-          <div style={{opacity:.6,fontSize:11,marginBottom:10}}>SUPER AI AGENT · CEO DASHBOARD<br/><span style={{color:'#10f5a0',opacity:.9}}>👤 luxtradee@gmail.com</span></div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-            <button style={{...BTN,opacity:busy?.5:1}} disabled={busy} onClick={()=>call('briefing','POST')}>
-              {busy?'⏳ Jalan…':'🌅 Jalankan Briefing + Discord'}
-            </button>
-            <button style={BTN} onClick={()=>call('agents')}>🤖 Data 4 Agen</button>
-            <button style={BTN} onClick={()=>call('quota')}>💰 Kuota</button>
-            <button style={BTN} onClick={()=>call('briefing-last')}>📜 Terakhir</button>
-            <button style={{...BTN,borderColor:'rgba(251,191,36,.5)',background:'rgba(251,191,36,.1)',color:'#fbbf24'}} onClick={()=>call('discord-test')}>🧪 Tes Discord</button>
-          </div>
-          {(data&&data.ok!==undefined&&!data.cto&&!data.cso)&&(
-            <div style={{marginTop:8,fontSize:11.5,color:data.ok?'#10f5a0':'#ef4444'}}>
-              🧪 Tes Discord: {data.ok?'berhasil — cek channel Discord ✅':String(data.error||'gagal').slice(0,140)}
-            </div>)}
-          <div style={{opacity:.45,fontSize:10.5,marginTop:10,lineHeight:1.5}}>
-            Akses otomatis via login <b>luxtradee@gmail.com</b> — tanpa secret.<br/>
-            Cron 08:00 WIB: cron-job.org → URL <b>/api/ceo-agent?action=briefing&amp;key=CRON_SECRET</b>
+          <div style={{fontSize:22,fontWeight:700,color:'#0f172a'}}>{clock} <span style={{fontSize:11,opacity:.6}}>WIB</span></div>
+          <div style={{opacity:.7,fontSize:11,marginBottom:2,color:'#334155'}}>SUPER AI AGENT · KANTOR CEO<br/><span style={{color:'#0f766e'}}>👤 luxtradee@gmail.com</span>{busy?<span style={{color:'#0d9488'}}> · ⏳ memproses…</span>:null}</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:9}}>
+            {ROOMS.map(([id,label])=>(
+              <button key={id} className={'kchip'+(room===id?' on':'')} onClick={()=>setRoom(id)}>{label}</button>))}
           </div>
         </div>
 
-        {cto&&(
-          <div style={CARD}>
-            <b style={{color:'#38bdf8'}}>🖥️ CTO — IT &amp; QA</b><br/>
-            Website: {cto.siteOk?`✅ ${cto.status} OK (${cto.latencyMs} ms)`:`❌ DOWN (${cto.status||'timeout'})`}<br/>
-            Bug 24 jam: {cto.bugs24h>=0?`${cto.bugs24h} ${cto.bugs24h>0?'⚠️':'✅'}`:'gagal diambil ⚠️'}
-            {cto.err?<span style={{opacity:.5}}> — {String(cto.err).slice(0,60)}</span>:null}
-          </div>)}
-        {cso&&(
-          <div style={CARD}>
-            <b style={{color:'#a78bfa'}}>👥 CSO — Customer Success</b><br/>
-            Total pendaftar: {cso.total??'—'}<br/>
-            Aktif (24 jam): {cso.active??'—'} · Pasif: {cso.passive??'—'}
-          </div>)}
-        {cmo&&(
-          <div style={CARD}>
-            <b style={{color:'#10f5a0'}}>📣 CMO — Draf TikTok</b>
-            <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.9,fontSize:12}}>
-              {cmo.draft||cmo.error||'—'}
+        {room==='overview'&&(
+          <>
+            <div style={CARD}>
+              <b style={{color:'#0d9488'}}>🏢 Denah Kantor</b>
+              <div style={{marginTop:6,opacity:.85,fontSize:11.5,lineHeight:1.6}}>
+                Empat ruangan kaca di kiri = ruang kerja tiap agen.<br/>
+                Klik karyawan di scene 3D atau chip di atas untuk masuk ruangannya.<br/>
+                Klik laptop CEO = jalankan briefing beneran.
+              </div>
             </div>
-            {cmo.usedFallback?<div style={{opacity:.5,marginTop:4}}>(fallback — Gemini limit)</div>:null}
-          </div>)}
-        {cfo&&(
+            {cto&&(
+              <div style={CARD}><b style={{color:'#0d9488'}}>🖥️ CTO — IT &amp; QA</b><br/>
+                Web {cto.siteOk?'✅':'❌'} · Bug 24 jam {cto.bugs24h>=0?cto.bugs24h:'?'}
+                {cto.err?<div style={{opacity:.55,fontSize:11}}>{String(cto.err).slice(0,70)}</div>:null}
+              </div>)}
+            {cso&&(
+              <div style={CARD}><b style={{color:'#db2777'}}>👥 CSO — Customer Success</b><br/>
+                Total {cso.total??'—'} · Aktif {cso.active??'—'} · Pasif {cso.passive??'—'}
+                <div style={{opacity:.55,fontSize:11}}>tombol ACC EMAIL ada di Ruang CSO</div>
+              </div>)}
+            {cmo&&(
+              <div style={CARD}><b style={{color:'#7c3aed'}}>📣 CMO — Draf TikTok</b><br/>
+                {cmo.draft?'draf hari ini siap ✅':'belum ada draf'}
+                <div style={{opacity:.55,fontSize:11}}>baca & salin di Ruang CMO</div>
+              </div>)}
+            {cfo&&(
+              <div style={CARD}><b style={{color:'#d97706'}}>💰 CFO — Kuota</b><br/>
+                {cfo.usedToday??'—'}/{cfo.limit} hari ini · {cfo.status}
+              </div>)}
+          </>)}
+
+        {room==='CTO'&&(
           <div style={CARD}>
-            <b style={{color:'#fbbf24'}}>💰 CFO — Kuota Gemini</b><br/>
-            Kemarin: {cfo.usedYesterday??'—'}/{cfo.limit} · Hari ini: {cfo.usedToday??'—'}/{cfo.limit}<br/>
-            429 kemarin: {cfo.quota429??'—'} · {cfo.status??''}
+            <b style={{color:'#0d9488'}}>🖥️ RUANG CTO — IT &amp; QA</b>
+            {cto?(
+              <div style={{marginTop:6}}>
+                Website: {cto.siteOk?`✅ ${cto.status} OK (${cto.latencyMs} ms)`:`❌ DOWN (${cto.status||'timeout'})`}<br/>
+                Bug 24 jam: {cto.bugs24h>=0?`${cto.bugs24h} ${cto.bugs24h>0?'⚠️':'✅'}`:'gagal diambil ⚠️'}
+                {cto.err?<div style={{opacity:.55,fontSize:11}}>— {String(cto.err).slice(0,110)}</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6}}>klik 🔄 Cek Ulang untuk scan sistem</div>)}
+            <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
+              <button style={BTN} onClick={()=>call('agents&only=cto')}>🔄 Cek Ulang</button>
+              <button style={{...BTN,borderColor:'rgba(124,58,237,.45)',background:'rgba(124,58,237,.1)',color:'#6d28d9'}} onClick={()=>call('diag')}>🩺 Diagnostik</button>
+            </div>
+            {data&&data.env&&data.profiles&&(
+              <div style={{marginTop:8,fontSize:11,lineHeight:1.65,borderTop:'1px dashed rgba(15,23,42,.18)',paddingTop:6}}>
+                <b style={{color:'#6d28d9'}}>🩺 Diagnostik Sistem</b><br/>
+                {['profiles','trades','bug_reports','agent_kv'].map(k=>{const r=data[k]||{};return(
+                  <div key={k}>{r.ok?'✅':'❌'} <b>{k}</b>{r.ok?'':<span style={{color:'#dc2626'}}> — {String(r.error||'').slice(0,90)}</span>}</div>)})}
+                <div style={{opacity:.6,marginTop:3}}>{Object.entries(data.env).map(([k,v]:any)=>`${k} ${v?'✅':'❌'}`).join(' · ')}</div>
+              </div>)}
           </div>)}
-        {data&&data.text&&(
+
+        {room==='CSO'&&(
           <div style={CARD}>
-            <b>Discord</b>{' '}
-            {data.notifySent?'✅ terkirim ke channel Discord':`❌ ${data.notifyErr||'gagal — klik 🧪 Tes Discord untuk diagnosa'}`}
-            <div style={{whiteSpace:'pre-wrap',marginTop:8,opacity:.75,fontSize:11.5,maxHeight:260,overflowY:'auto'}}>{data.text}</div>
+            <b style={{color:'#db2777'}}>👥 RUANG CSO — Customer Success</b>
+            {cso?(
+              <div style={{marginTop:6}}>
+                Total pendaftar: <b>{cso.total??'—'}</b><br/>
+                Aktif (upload 24 jam): <b>{cso.active??'—'}</b><br/>
+                Pasif (&gt;24 jam): <b>{cso.passive??'—'}</b>
+                {cso.error?<div style={ERR}>⚠️ {String(cso.error).slice(0,130)}</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6}}>klik 🔄 untuk hitung ulang</div>)}
+            <button style={{...BTN,width:'100%',marginTop:10,borderColor:'rgba(219,39,119,.45)',background:'rgba(219,39,119,.1)',color:'#be185d',opacity:acc==='busy'?.5:1}} disabled={acc==='busy'}
+              onClick={async()=>{setAcc('busy');const r=await call('acc-email','POST');setAcc(r)}}>
+              📧 ACC EMAIL ke User Pasif
+            </button>
+            {acc&&acc!=='busy'&&(acc.dup
+              ?<div style={OKS}>ℹ️ ACC EMAIL sudah dicatat hari ini — user jangan dispam, besok lagi.</div>
+              :acc.ok?<div style={OKS}>✅ ACC tercatat{typeof acc.emailsSent==='number'&&acc.emailsSent>=0?` — ${acc.emailsSent} email sapaan terkirim (Resend)`:' — set RESEND_API_KEY supaya email terkirim otomatis'}.</div>
+              :<div style={ERR}>❌ {String(acc.error||'gagal').slice(0,140)}</div>)}
+            <div style={{marginTop:8}}>
+              <button style={BTN} onClick={()=>call('agents&only=cso')}>🔄 Hitung Ulang</button>
+            </div>
           </div>)}
-        {data&&data.error&&(
-          <div style={CARD}>⚠️ {String(data.error).slice(0,200)}</div>)}
+
+        {room==='CMO'&&(
+          <div style={CARD}>
+            <b style={{color:'#7c3aed'}}>📣 RUANG CMO — Draf TikTok</b>
+            {cmo?(
+              <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.92,fontSize:12,maxHeight:300,overflowY:'auto'}}>{cmo.draft||cmo.error||'—'}</div>
+            ):(<div style={{opacity:.6,marginTop:6}}>klik ✍️ untuk generate draf hari ini</div>)}
+            {cmo&&cmo.usedFallback?<div style={{opacity:.5,marginTop:4}}>(fallback — Gemini limit)</div>:null}
+            <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
+              <button style={{...BTN,borderColor:'rgba(124,58,237,.45)',background:'rgba(124,58,237,.1)',color:'#6d28d9'}} onClick={()=>call('agents&only=cmo')}>✍️ Buat Draf Baru</button>
+              <button style={BTN} disabled={!cmo||!cmo.draft} onClick={async()=>{try{await navigator.clipboard.writeText(cmo.draft);setCopied(true);setTimeout(()=>setCopied(false),1800)}catch{}}}>📋 Salin</button>
+              {copied?<span style={{color:'#059669',fontSize:11}}>tersalin ✅</span>:null}
+            </div>
+          </div>)}
+
+        {room==='CFO'&&(
+          <div style={CARD}>
+            <b style={{color:'#d97706'}}>💰 RUANG CFO — Kuota Gemini</b>
+            {cfo?(
+              <div style={{marginTop:6}}>
+                Kemarin: {cfo.usedYesterday??'—'} / {cfo.limit}<br/>
+                Hari ini: <b>{cfo.usedToday??'—'}</b> / {cfo.limit}<br/>
+                Event 429 kemarin: {cfo.quota429??'—'}<br/>
+                Status: <b style={{color:cfo.status&&String(cfo.status).indexOf('KRITIS')===0?'#dc2626':cfo.status&&String(cfo.status).indexOf('WASPADA')===0?'#d97706':'#059669'}}>{cfo.status??''}</b>
+                {cfo.error?<div style={ERR}>⚠️ {String(cfo.error).slice(0,120)}</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6}}>klik 🔄 untuk muat kuota</div>)}
+            <div style={{marginTop:8}}>
+              <button style={BTN} onClick={()=>call('quota')}>🔄 Refresh Kuota</button>
+            </div>
+          </div>)}
+
+        {room==='rapat'&&(
+          <div style={CARD}>
+            <b style={{color:'#0f766e'}}>🌅 RUANG RAPAT — CEO Suite</b>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
+              <button style={{...BTN,opacity:busy?.5:1}} disabled={busy} onClick={()=>call('briefing','POST')}>
+                {busy?'⏳ Jalan…':'🌅 Briefing + Discord'}
+              </button>
+              <button style={BTN} onClick={()=>call('briefing-last')}>📜 Terakhir</button>
+              <button style={{...BTN,borderColor:'rgba(217,119,6,.5)',background:'rgba(217,119,6,.1)',color:'#b45309'}} onClick={()=>call('discord-test')}>🧪 Tes Discord</button>
+            </div>
+            {(data&&data.ok!==undefined&&!data.cto&&!data.cso)&&(
+              <div style={data.ok?OKS:ERR}>
+                🧪 Tes Discord: {data.ok?'berhasil — cek channel Discord ✅':String(data.error||'gagal').slice(0,140)}
+              </div>)}
+            {data&&data.text&&(
+              <div style={{marginTop:8}}>
+                <b>Discord:</b> {data.notifySent?'✅ terkirim':`❌ ${data.notifyErr||'gagal — klik 🧪 Tes Discord'}`}
+                <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.8,fontSize:11.5,maxHeight:260,overflowY:'auto'}}>{data.text}</div>
+              </div>)}
+            {data&&data.error&&data.text===undefined&&data.ok===undefined&&(<div style={ERR}>⚠️ {String(data.error).slice(0,200)}</div>)}
+            <div style={{opacity:.55,fontSize:10.5,marginTop:10,lineHeight:1.5}}>
+              Cron 08:00 WIB: cron-job.org → <b>/api/ceo-agent?action=briefing&amp;key=CRON_SECRET</b><br/>
+              Akses dashboard otomatis via login luxtradee@gmail.com.
+            </div>
+          </div>)}
       </div>
     </main>
   )
