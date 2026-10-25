@@ -10,6 +10,39 @@ interface FinalCTAProps {
   language?: 'id' | 'en'
 }
 
+/* ─── 🧪 MESIN A/B TEST CTA (eksperimen otomatis Farhan — Growth Hacker) ───
+   Pengunjung dibagi 50/50 ke varian teks tombol CTA. Bucket disimpan di
+   localStorage biar pengunjung yang sama selalu lihat varian yang sama
+   (tidak ada yang ganti-ganti). View & click dikirim ke /api/ab-track →
+   dipakai Farhan buat laporan mingguan "varian mana yang menang".
+   Varian (copy ID):
+     A = "Daftar Gratis Sekarang"  (kontrol — teks lama)
+     B = "Mulai Gratis — Bangun Edge Tradingmu"  (ujian) */
+const AB_CTA_COPY: Record<'A' | 'B', { id: string; en: string }> = {
+  A: { id: 'Daftar Gratis Sekarang', en: 'Sign Up Free Now' },
+  B: { id: 'Mulai Gratis — Bangun Edge Tradingmu', en: 'Start Free — Build Your Trading Edge' },
+}
+
+function useAbVariant(): 'A' | 'B' {
+  const [variant, setVariant] = useState<'A' | 'B'>('A')
+  useEffect(() => {
+    try {
+      let v = (localStorage.getItem('ab_cta_bucket') as 'A' | 'B') || ''
+      if (v !== 'A' && v !== 'B') {
+        v = Math.random() < 0.5 ? 'A' : 'B'
+        localStorage.setItem('ab_cta_bucket', v)
+      }
+      setVariant(v)
+      // view dicatat 1× per sesi biar angka tidak bengkak
+      if (!sessionStorage.getItem('ab_cta_viewed')) {
+        sessionStorage.setItem('ab_cta_viewed', '1')
+        fetch('/api/ab-track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variant: v, event: 'view' }), keepalive: true }).catch(() => {})
+      }
+    } catch { /* storage diblok — pakai varian A diam-diam */ }
+  }, [])
+  return variant
+}
+
 function LuxTradeLogo3D() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
@@ -144,6 +177,7 @@ function LuxTradeLogo3D() {
 export default function FinalCTA({ language = 'id' }: FinalCTAProps) {
   // Calculate urgency countdown (ends at midnight)
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 })
+  const abVariant = useAbVariant()
 
   useEffect(() => {
     const now = new Date()
@@ -213,9 +247,9 @@ export default function FinalCTA({ language = 'id' }: FinalCTAProps) {
             : 'Bergabung bersama trader Indonesia yang sudah mengontrol risiko, mendisiplinkan psikologi, dan menemukan setup terbaik mereka lewat LuxTradee.'}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
-          <Link prefetch={false} href="/auth/signup">
+          <Link prefetch={false} href="/auth/signup" onClick={() => { try { fetch('/api/ab-track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variant: abVariant, event: 'click' }), keepalive: true }).catch(() => {}) } catch { /* ignore */ } }}>
             <span className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury text-lg group">
-              {language === 'en' ? 'Sign Up Free Now' : 'Daftar Gratis Sekarang'} 
+              {language === 'en' ? AB_CTA_COPY[abVariant].en : AB_CTA_COPY[abVariant].id}
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </span>
           </Link>
