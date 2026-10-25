@@ -1030,3 +1030,22 @@ Stage Summary:
 - Env Ruang CEO: SUPABASE_URL, SUPABASE_ANON_KEY, GEMINI_API_KEY, CRON_SECRET, ADMIN_SECRET, DISCORD_WEBHOOK_URL (opsional: GEMINI_MODEL, TIKTOK_REFERENCE, DAILY_VISION_LIMIT, RESEND_API_KEY)
 - Cron 08:00 WIB: /api/ceo-agent?action=briefing&key=CRON_SECRET
 - Deploy masih manual dari lokal (sandbox tanpa CLOUDFLARE_API_TOKEN)
+
+---
+Task ID: 14
+Agent: main (Z.ai Code)
+Task: Diagnosis 404 /kantor-ceo dari log build Cloudflare yang di-upload user
+
+Work Log:
+- User paste log build Cloudflare Workers Builds (Pasted Content_1792914538004.txt)
+- Root cause: build GAGAL — "app/api/ceo-agent/route cannot use the edge runtime.
+  OpenNext requires edge runtime function to be defined in a separate function."
+- Konsekuensi: deployment lama tetap live → /kantor-ceo 404
+- Fix: hapus export runtime='edge' dari ceo-agent (konsisten dgn delete-account &
+  missions/claim yang sudah punya catatan "OpenNext limitation"), keep force-dynamic
+- Commit 23a3304e → push origin/main → Cloudflare CI auto-rebuild
+
+Stage Summary:
+- Penting utk project ini: JANGAN pakai runtime='edge' di API route mana pun (OpenNext CF)
+- Semua app route berjalan di Workers via OpenNext — perilaku route tidak berubah
+- Setelah build sukses: /kantor-ceo live, login pakai CRON_SECRET / ADMIN_SECRET
