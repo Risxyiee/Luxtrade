@@ -1248,3 +1248,27 @@ Stage Summary:
 - Kantor CEO tetap 4 karyawan operasional (CTO/CSO/CMO/CFO) — tidak ada lagi duplikasi email/konten
 - PENDING USER ACTION: jalankan 013_add_coo_agent_type.sql di Supabase SQL Editor (1 paste) sebelum cron COO pertama besok 08.00 WIB
 - AI CS live chat user bilang udah ada — terkonfirmasi: /api/chat Gemini CS bot sudah eksis, tidak dibangun ulang
+---
+Task ID: 21
+Agent: main
+Task: Upgrade otomasi semua karyawan AI (pertanyaan user: "bisa diimprove biar maksimal automate? CMO gimana analisis TikTok-ku?")
+
+Work Log:
+- User konfirmasi sudah jalankan migrasi 013 (COO) → COO live
+- Migration 014_create_tiktok_posts.sql: tabel bahan analisis CMO (url unique, caption, thumbnail, views, likes, comments) — RLS terkunci, akses via service_role
+- ceo-agent/route.ts:
+  • Helper geminiText() (thinkingBudget 0) + fetchTopTikToks()
+  • CMO v2: baca top 5 tiktok_posts urut views → prompt analisis pola pemenang (hook FYP, topik, gaya) → return basedOn:'tiktok'|'reference' + analyzedPosts; fallback TIKTOK_REFERENCE
+  • Actions tiktok-list/tiktok-add/tiktok-del; tiktok-add auto-fetch oEmbed TikTok (caption+thumbnail gratis tanpa API key), upsert on_conflict=url
+  • CTO watchdog: bug naik → fetch 3 bug terakhir → Gemini triage "- [P1/P2/P3] masalah → penyebab" di Discord (Gemini hanya saat bug baru, bukan tiap 15 mnt)
+  • CSO: PASSIVE_VARIANTS 3 template rotasi harian (anti email fatigue); ID penerima disimpan csmailed:<day> → besok briefing laporkan "returned/emailed user balik upload"; sendPassiveEmails return {sent,ids,variant}
+  • CFO: kvIncr email:<day> per Resend send → emailToday/Yesterday/Limit(RESEND_DAILY_LIMIT=100)/emailStatus
+  • Weekly: COO konversi (ai_pending_tasks COO approved 7d → profiles is_pro %) + total email 7 hari
+  • buildBriefing: + feedback CSO, + sumber analisis CMO, + kuota email
+- KantorCeo3D.tsx: states tt*, ttLoad/ttAdd/ttDel (ttH header auth), load saat room CMO dibuka; Ruang CMO panel "📚 Bahan Analisis TikTok" (input link+views+likes, list scroll, hapus); badge "Dianalisis dari N konten TikTok asli"; jobsOfAction tiktok-*→CMO; Ruang CFO + line email Resend
+- Lint clean; browser verify /kantor-ceo 200 + panel CMO render (input/views/likes/Tambah, tombol disabled benar, 0 page error); committed 4b65b2e6, pushed
+
+Stage Summary:
+- 6 karyawan naik level otomasi: CMO belajar dari TikTok asli Bos, CTO diagnosa bug otomatis, CSO tahu emailnya efektif/tidak, CFO jaga kuota email, COO dilaporkan konversinya, CEO laporan makin lengkap
+- PENDING USER ACTION: jalankan supabase-migrations/014_create_tiktok_posts.sql di Supabase SQL Editor, lalu isi bahan TikTok di Ruang CMO (5 konten terbaik minimal)
+- Cost tetap: 1 Gemini call/hari briefing + triage hanya saat bug masuk
