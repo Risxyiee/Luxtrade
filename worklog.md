@@ -1400,3 +1400,30 @@ Stage Summary:
 - PENTING produksi: OPENROUTER_API_KEY WAJIB diset di Cloudflare Workers Secrets (sebelumnya opsional — sekarang otak utama semua agen; tanpa itu semua agen jatuh ke Gemini lalu templat)
 - Link pendek TikTok diterima di Ruang CMO
 - Dewi (DA) & Farhan (GH) ikut dialokasikan (gemma-2-9b & llama-3.1-8b, mingguan — tak bentrok kuota Maya/Bagas); bisa diganti via OR_MODEL_DA/OR_MODEL_GH
+
+---
+Task ID: 26
+Agent: Z.ai (main)
+Task: E2E Auto-Tester — agent login dashboard sungguhan + tes fitur satu-satu (permintaan Bos)
+
+Work Log:
+- Audit qaAgent lama: hanya GET + cek status, TIDAK pernah login → buat logika baru
+- Tambah e2eAgent() di src/app/api/ceo-agent/route.ts: 9 langkah simulasi user asli
+  (provision akun tes otomatis via admin API → LOGIN password grant → sesi → halaman
+  dashboard → RLS read profil → RLS insert trade tes → RLS select verifikasi → tes
+  privasi RLS (trade user lain tak terbaca) → RLS delete cleanup via try/finally)
+- Trade tes ditandai notes "E2E auto-test" + SELALU dihapus (tidak menodai data asli)
+- Akun tes self-provisioning: env E2E_TEST_EMAIL/E2E_TEST_PASSWORD (default
+  e2e-tester@luxtradee.app / Lxtd-E2e!2025), dibuat otomatis kalau belum ada
+- Action baru: e2e (jalankan) + e2e-last (baca hasil) di ceo-agent route
+- Briefing 08:00: E2E otomatis 1×/hari (dedup e2e:auto:<tgl>) + baris hasil di briefing
+- Frontend Ruang CTO (KantorCeo3D.tsx): tombol "🤖 Tes Login + E2E", toast feedback,
+  panel hasil per langkah (✅/❌ + durasi + detail)
+- Lint bersih, /api/ceo-agent ter-compile, action routing terverifikasi
+
+Stage Summary:
+- Raka (CTO) sekarang punya 3 tingkatan: watchdog (15 mnt) → QA sweep (status) →
+  E2E (login + fitur end-to-end)
+- Tes privasi RLS otomatis mendeteksi kebocoran data antar-user
+- Aman untuk produksi: butuh SUPABASE_SERVICE_ROLE_KEY (sudah ada), tanpa kuota LLM
+- Catatan deploy: hasil penuh terverifikasi setelah deploy (kunci Supabase hanya di Cloudflare)

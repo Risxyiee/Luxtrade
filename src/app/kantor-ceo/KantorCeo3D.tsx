@@ -275,7 +275,7 @@ export default function KantorCeo3D() {
     if (action.startsWith('coo-')) return ['COO']
     if (action.startsWith('analyst')) return ['DA']
     if (action.startsWith('growth')) return ['GH']
-    if (action === 'diag' || action === 'watchdog' || action === 'qa') return ['CTO']
+    if (action === 'diag' || action === 'watchdog' || action === 'qa' || action === 'e2e' || action === 'e2e-last') return ['CTO']
     if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
     return []
@@ -316,6 +316,12 @@ export default function KantorCeo3D() {
       window.__kceo?.toast?.(o?.dupToday ? (action === 'analyst' ? '📊 Sudah dianalisis hari ini — hasil terakhir ditampilkan' : '🚀 Sudah dirancang hari ini — hasil terakhir ditampilkan') : o && !rr?.daError && !rr?.ghError ? (action === 'analyst' ? '📊 Dewi beres — insight baru siap!' : '🚀 Farhan beres — eksperimen baru dirancang!') : '⚠️ Gagal — cek panel ruangannya')
       setData((d: any) => ({ ...(d || {}), ...rr }))
       return rr
+    }
+    if (action === 'e2e') { // Raka E2E — login beneran + tes fitur satu-satu, hasilnya tampil di Ruang CTO
+      window.__kceo?.toast?.(r?.e2eSkip ? '🤖 E2E dilewati — ' + String(r.e2eSkip).slice(0, 60)
+        : r?.e2eFailed ? `🤖 E2E: ${r.e2ePassed}/${r.e2eTotal} lolos — ${r.e2eFailed} masalah ⚠️`
+        : r?.e2eTotal ? `🤖 E2E lolos semua — login + ${r.e2eTotal} langkah fitur jalan mulus ✅`
+        : '⚠️ E2E gagal — cek panel Ruang CTO')
     }
     if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
     if (action === 'briefing' && r?.text)
@@ -1220,6 +1226,7 @@ export default function KantorCeo3D() {
               <button style={BTN} onClick={()=>call('agents&only=cto')}>🔄 Cek Ulang</button>
               <button style={BTNP} onClick={()=>call('diag')}>🩺 Diagnostik</button>
               <button style={BTNP} onClick={()=>call('qa')}>🧪 Tes Semua Fitur (QA)</button>
+              <button style={BTNP} onClick={()=>call('e2e')}>🤖 Tes Login + E2E</button>
             </div>
             {data&&data.total!==undefined&&data.results&&(
               <div style={{marginTop:8,fontSize:11,lineHeight:1.7,...SEP}}>
@@ -1230,6 +1237,16 @@ export default function KantorCeo3D() {
                   ))}
                 </div>
                 <div style={{opacity:.6,marginTop:3}}>QA jalan otomatis tiap briefing 08:00 WIB — hasilnya ikut laporan Discord.</div>
+              </div>)}
+            {data&&data.e2eSteps&&data.e2eSteps.length>0&&(
+              <div style={{marginTop:8,fontSize:11,lineHeight:1.7,...SEP}}>
+                <b style={{color:'#0d9488'}}>🤖 E2E AUTO-TEST (LOGIN SUNGGUHAN) — {data.e2eFailed?`${data.e2ePassed}/${data.e2eTotal} LOLOS ⚠️`:`LOGIN + ${data.e2eTotal} LANGKAH OK ✅`} · {((data.e2eDurMs||0)/1000).toFixed(1)}s</b>
+                <div style={{maxHeight:170,overflowY:'auto',marginTop:3}}>
+                  {(data.e2eSteps||[]).map((s:any)=>(
+                    <div key={s.id}>{s.ok?'✅':'❌'} <b>{s.label}</b> · {s.ms} ms{s.detail?<span style={{opacity:.75}}> — {s.detail}</span>:null}</div>
+                  ))}
+                </div>
+                <div style={{opacity:.6,marginTop:3}}>Akun tes: {data.e2eAccount||'—'} · trade tes dihapus otomatis · jalan otomatis tiap briefing 08:00 WIB.</div>
               </div>)}
             {data&&data.env&&data.profiles&&(
               <div style={{marginTop:8,fontSize:11,lineHeight:1.65,...SEP}}>

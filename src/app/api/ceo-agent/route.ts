@@ -564,7 +564,7 @@ async function sendDiscord(e: Env, message: string): Promise<boolean> {
 }
 
 /* ---------- Morning Briefing (gabungan 4 agen) ---------- */
-function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false, qa: any = null, cooLine = '', nbaLine = ''): string {
+function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false, qa: any = null, cooLine = '', nbaLine = '', e2e: any = null): string {
   const L: string[] = []
   L.push('🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**')
   L.push(`📅 ${wibNow()} · 08:00 WIB — laporan harian semua karyawan`)
@@ -583,6 +583,14 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
       : `• QA otomatis ${qa.total} fitur dashboard: SEMUA OK ✅ (rata-rata ${qa.avgMs} ms)`)
     for (const f of (qa.fails || []).slice(0, 5))
       L.push(`   ↳ ${f.path} → ${f.status || 'timeout'}${f.err ? ' — ' + f.err : ''}`)
+  }
+  if (e2e?.e2eSkip) L.push(`• E2E login+fitur: dilewati — ${String(e2e.e2eSkip).slice(0, 90)}`)
+  else if (e2e && e2e.e2eTotal > 0) {
+    L.push(e2e.e2eFailed
+      ? `• E2E LOGIN + tes fitur satu-satu: ${e2e.e2ePassed}/${e2e.e2eTotal} lolos ⚠️`
+      : `• E2E LOGIN + tes fitur satu-satu (${e2e.e2eTotal} langkah): SEMUA OK ✅ (${(e2e.e2eDurMs / 1000).toFixed(1)}s)`)
+    for (const f of (e2e.e2eSteps || []).filter((s: any) => !s.ok).slice(0, 4))
+      L.push(`   ↳ ${f.label}: ${String(f.detail || 'gagal').slice(0, 90)}`)
   }
   L.push('')
   L.push('👥 **CSO AGENT — CUSTOMER SUCCESS**')
@@ -635,13 +643,26 @@ async function ceoComposeBriefing(e: Env, templateText: string): Promise<{ text:
 }
 
 async function runMorningBriefing(e: Env) {
-  const [cto, cso, cmo, cfo, qa, cooLine] = await Promise.all([
+  const [cto, cso, cmo, cfo, qa, cooLine, e2e] = await Promise.all([
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
     csoAgent(e).catch((x: any) => ({ total: -1, active: -1, passive: -1, err: String(x?.message || x) })),
     cmoAgent(e).catch((x: any) => ({ draft: '', angle: '', usedFallback: false, error: String(x?.message || x) })),
     cfoAgent(e).catch((x: any) => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error', err: String(x?.message || x) })),
     qaAgent(e).catch((x: any) => ({ total: 0, ok: 0, fails: [], avgMs: 0, err: String(x?.message || x) })),
     cooYesterdayLine(e).catch(() => ''),
+    /* E2E AUTO-TEST — Raka login beneran + tes fitur satu-satu.
+       1×/hari di briefing (dedup e2e:auto:<tgl>) — jalan manual bebas. */
+    (async (): Promise<any> => {
+      try {
+        const dup = `e2e:auto:${utcDay()}`
+        if (await kvGet(e, dup)) {
+          const raw = await kvGet(e, 'e2e:last')
+          return raw ? JSON.parse(raw) : null
+        }
+        await kvSet(e, dup, new Date().toISOString()).catch(() => {})
+      } catch { /* ignore */ }
+      return await e2eAgent(e).catch((x: any) => ({ e2eTotal: 0, e2eFailed: 1, e2eSteps: [], e2eVerdict: String(x?.message || x) }))
+    })(),
   ])
   /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
      (1×/hari, dedup via agent_kv acc_email:<tanggal>). Bos tidur, karyawan kerja. */
@@ -669,7 +690,7 @@ async function runMorningBriefing(e: Env) {
 
   /* ALEXANDER (CEO) yang merangkai — kalau modelnya gagal, templat
      buildBriefing tetap dipakai (sistem tidak pernah tanpa laporan). */
-  const templateText = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine, nbaLine)
+  const templateText = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine, nbaLine, e2e)
   let text = templateText
   try {
     const composed = await ceoComposeBriefing(e, templateText)
@@ -1059,6 +1080,169 @@ async function qaAgent(e: Env) {
   const avgMs = Math.round(results.reduce((a, r) => a + r.ms, 0) / (results.length || 1))
   const out = { at: new Date().toISOString(), total: results.length, ok: results.length - fails.length, fails, avgMs, results }
   await kvSet(e, 'qa:last', JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+/* ============================================================
+   E2E AUTO-TESTER — Raka masuk dashboard PAKAI LOGIN SUNGGUHAN.
+   Bedanya dengan qaAgent: QA cuma "ketuk pintu" (GET + cek status),
+   E2E ini simulasi USER ASLI dari pintu masuk sampai keluar:
+     1. Akun tes siap (dibuat otomatis 1× via admin API service_role)
+     2. LOGIN Supabase (password grant — sama persis dgn /auth/login)
+     3. Sesi valid (GET /auth/v1/user)
+     4. Halaman dashboard terbuka
+     5. Baca profil sendiri (RLS read)
+     6. Buat trade tes (RLS insert)
+     7. Trade tes terbaca (RLS select)
+     8. 🔒 RLS privasi: trade user LAIN tidak terbaca
+     9. Hapus trade tes (RLS delete + bersih-bersih)
+   Trade tes ditandai notes E2E + SELALU dihapus (try/finally) —
+   tidak pernah menodai data asli. Akun tes = env E2E_TEST_EMAIL /
+   E2E_TEST_PASSWORD (default e2e-tester@luxtradee.app). Hasil disimpan
+   agent_kv 'e2e:last' → tampil di Ruang CTO + briefing pagi 08:00.
+   ============================================================ */
+interface E2eStep { id: string; label: string; ok: boolean; ms: number; status?: number; detail?: string }
+
+const E2E_EMAIL_DEFAULT = 'e2e-tester@luxtradee.app'
+const E2E_PASS_DEFAULT = 'Lxtd-E2e!2025'
+
+async function e2eAgent(e: Env) {
+  const t0 = Date.now()
+  const steps: E2eStep[] = []
+  const push = (id: string, label: string, ok: boolean, ms: number, detail?: string, status?: number) =>
+    steps.push({ id, label, ok, ms, ...(detail ? { detail: String(detail).slice(0, 140) } : {}), ...(status ? { status } : {}) })
+  /* Pelari langkah: catat durasi + tangkap error → 1 langkah gagal TIDAK menghentikan rangkaian */
+  const run = async (id: string, label: string, fn: () => Promise<string | undefined>): Promise<boolean> => {
+    const s = Date.now()
+    try { push(id, label, true, Date.now() - s, await fn()); return true }
+    catch (x: any) { push(id, label, false, Date.now() - s, x?.message || x, x?.status); return false }
+  }
+
+  if (!sbUrl(e) || !sbAnonKey(e))
+    return { at: new Date().toISOString(), e2eSkip: 'SUPABASE_URL / SUPABASE_ANON_KEY belum diset', e2eTotal: 0, e2ePassed: 0, e2eFailed: 0, e2eDurMs: 0, e2eSteps: [] }
+
+  const EMAIL = cleanEnv(e.E2E_TEST_EMAIL) || E2E_EMAIL_DEFAULT
+  const PASS = cleanEnv(e.E2E_TEST_PASSWORD) || E2E_PASS_DEFAULT
+
+  /* --- 1. Pastikan akun tes ada (422 = email sudah terdaftar → langsung dipakai) --- */
+  await run('provision', 'Akun tes siap', async () => {
+    const res = await fetch(`${sbUrl(e)}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: { apikey: sbServiceKey(e), Authorization: `Bearer ${sbServiceKey(e)}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, password: PASS, email_confirm: true }),
+      signal: timeoutSignal(12_000),
+    })
+    if (res.ok) return 'akun tes baru dibuat'
+    if (res.status === 422) return 'akun tes sudah ada — langsung dipakai'
+    throw Object.assign(new Error(`admin API HTTP ${res.status} — butuh SUPABASE_SERVICE_ROLE_KEY`), { status: res.status })
+  })
+
+  /* --- 2. LOGIN (password grant — jalur yang sama dengan halaman login user) --- */
+  let token = '', uid = ''
+  await run('login', 'Login dashboard (akun tes)', async () => {
+    const res = await fetch(`${sbUrl(e)}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { apikey: sbAnonKey(e), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, password: PASS, gotrue_meta_security: { captcha_token: null } }),
+      signal: timeoutSignal(12_000),
+    })
+    if (!res.ok) throw Object.assign(new Error(`login gagal HTTP ${res.status} — cek email/password akun tes`), { status: res.status })
+    const j = await res.json() as { access_token?: string; user?: { id?: string } }
+    if (!j.access_token) throw new Error('respons login tanpa access_token')
+    token = j.access_token
+    uid = j.user?.id || ''
+    return 'sesi diterima ✅'
+  })
+
+  if (token && uid) {
+    const uH = { apikey: sbAnonKey(e), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+
+    /* --- 3. Sesi valid --- */
+    await run('session', 'Sesi valid (GET /auth/v1/user)', async () => {
+      const res = await fetch(`${sbUrl(e)}/auth/v1/user`, { headers: uH, signal: timeoutSignal(10_000) })
+      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+      return `token dikenali (${EMAIL})`
+    })
+
+    /* --- 4. Halaman dashboard terbuka --- */
+    await run('dashboard', 'Halaman dashboard terbuka', async () => {
+      const res = await fetch(`${SITE_URL}/dashboard`, { redirect: 'follow', signal: timeoutSignal(15_000) })
+      if ([521, 522, 523, 524].includes(res.status)) return `HTTP ${res.status} (self-ping CF diabaikan — Worker aktif)`
+      if (!res.ok) throw Object.assign(new Error(`dashboard HTTP ${res.status}`), { status: res.status })
+      return 'HTTP 200 OK'
+    })
+
+    /* --- 5. Baca profil sendiri (RLS read) --- */
+    await run('profile', 'Baca profil sendiri (RLS read)', async () => {
+      const res = await fetch(`${sbUrl(e)}/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id`, { headers: uH, signal: timeoutSignal(10_000) })
+      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+      const rows = await res.json() as unknown[]
+      return rows.length ? 'profil ditemukan ✅' : 'query OK — baris profil belum ada (normal, onboarding belum dijalankan)'
+    })
+
+    let tradeId = ''
+    try {
+      /* --- 6. Buat trade tes (RLS insert) --- */
+      await run('trade-create', 'Buat trade tes (RLS insert)', async () => {
+        tradeId = crypto.randomUUID()
+        const res = await fetch(`${sbUrl(e)}/rest/v1/trades`, {
+          method: 'POST',
+          headers: { ...uH, Prefer: 'return=representation' },
+          body: JSON.stringify({
+            id: tradeId, user_id: uid, symbol: 'XAUUSD', type: 'BUY',
+            open_price: 2400.5, close_price: 2402.5, lot_size: 0.01, profit_loss: 2,
+            open_time: new Date().toISOString(), close_time: new Date().toISOString(),
+            notes: '🤖 E2E auto-test Raka — dihapus otomatis',
+          }),
+          signal: timeoutSignal(12_000),
+        })
+        if (!res.ok) throw Object.assign(new Error(`insert HTTP ${res.status}`), { status: res.status })
+        return 'trade tes tersimpan ✅'
+      })
+
+      /* --- 7. Trade tes terbaca kembali (RLS select) --- */
+      await run('trade-verify', 'Trade tes terbaca (RLS select)', async () => {
+        if (!tradeId) throw new Error('dilewati — langkah sebelumnya gagal')
+        const res = await fetch(`${sbUrl(e)}/rest/v1/trades?id=eq.${tradeId}&select=id`, { headers: uH, signal: timeoutSignal(10_000) })
+        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+        const rows = await res.json() as unknown[]
+        if (!rows.length) throw new Error('trade tes tidak terbaca — RLS select bermasalah?')
+        return 'trade tes terbaca kembali ✅'
+      })
+
+      /* --- 8. TES PRIVASI: trade milik user LAIN tidak boleh bocor --- */
+      await run('rls-privacy', '🔒 RLS privasi: data user lain terkunci', async () => {
+        const res = await fetch(`${sbUrl(e)}/rest/v1/trades?user_id=neq.${uid}&select=id&limit=1`, { headers: uH, signal: timeoutSignal(10_000) })
+        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+        const rows = await res.json() as unknown[]
+        if (rows.length) throw new Error('KEBOCORAN: akun tes bisa membaca trade user lain!')
+        return 'tidak ada kebocoran ✅'
+      })
+    } finally {
+      /* --- 9. Bersih-bersih WAJIB (jalan meski langkah tengah gagal) --- */
+      await run('trade-delete', 'Hapus trade tes (RLS delete)', async () => {
+        if (!tradeId) return 'tidak ada trade tes — bersih'
+        const res = await fetch(`${sbUrl(e)}/rest/v1/trades?id=eq.${tradeId}`, { method: 'DELETE', headers: uH, signal: timeoutSignal(10_000) })
+        if (!res.ok) throw Object.assign(new Error(`hapus HTTP ${res.status} — sisa trade tes mungkin tertinggal`), { status: res.status })
+        return 'bersih — data asli tidak terganggu ✅'
+      })
+    }
+  } else {
+    /* Login gagal → langkah lanjutan ditandai dilewati (biar laporannya jujur) */
+    for (const [id, label] of [['session', 'Sesi valid'], ['dashboard', 'Halaman dashboard terbuka'], ['profile', 'Baca profil sendiri'], ['trade-create', 'Buat trade tes'], ['trade-verify', 'Trade tes terbaca'], ['rls-privacy', '🔒 RLS privasi'], ['trade-delete', 'Hapus trade tes']] as const)
+      push(id, label, false, 0, 'dilewati — login gagal')
+  }
+
+  const passed = steps.filter((s) => s.ok).length
+  const failed = steps.length - passed
+  const out = {
+    at: new Date().toISOString(), e2eTotal: steps.length, e2ePassed: passed, e2eFailed: failed,
+    e2eDurMs: Date.now() - t0, e2eAccount: EMAIL, e2eSteps: steps,
+    e2eVerdict: failed ? `${failed} langkah gagal ⚠️` : 'login + semua fitur OK ✅',
+  }
+  await kvSet(e, 'e2e:last', JSON.stringify(out)).catch(() => {})
+  if (failed)
+    await memAdd(e, 'CTO Raka', `E2E auto-test: ${passed}/${steps.length} lolos — gagal: ${steps.filter((s) => !s.ok).map((s) => s.id).join(', ')}`)
   return out
 }
 
@@ -1752,6 +1936,15 @@ async function handle(req: Request): Promise<Response> {
     case 'qa':
       // CTO QA sweep — tes semua fitur/route utama (juga jalan otomatis di briefing 08:00)
       return j(await qaAgent(e))
+    case 'e2e':
+      // CTO E2E — LOGIN beneran (akun tes) + tes fitur satu-satu:
+      // profil, buat/verifikasi/hapus trade, tes privasi RLS (juga otomatis di briefing 08:00)
+      return j(await e2eAgent(e))
+    case 'e2e-last': {
+      // Hasil E2E terakhir (tanpa menjalankan tes lagi)
+      const raw = await kvGet(e, 'e2e:last')
+      return raw ? j(JSON.parse(raw)) : j({ error: 'belum ada hasil E2E' }, 404)
+    }
     case 'weekly':
       // Laporan mingguan — Cloudflare cron Senin 10:00 WIB (worker-entry.ts):
       // /api/ceo-agent?action=weekly&key=CRON_SECRET
