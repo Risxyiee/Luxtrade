@@ -1,5 +1,5 @@
 // app/api/ceo-agent/route.ts — LUXTRADE SUPER AI AGENT (Ruang CEO)
-// Next.js API Route · Edge Runtime · target deploy: Cloudflare Workers (OpenNext)
+// Next.js API Route · target deploy: Cloudflare Workers (OpenNext)
 // Fetch native. TANPA Vercel AI SDK. TANPA Hono. TANPA node-fetch.
 // Auth: header "Authorization: Bearer ADMIN_SECRET" atau ?key=CRON_SECRET
 // Cron 08:00 WIB: cron-job.org → /api/ceo-agent?action=briefing&key=CRON_SECRET
@@ -10,7 +10,10 @@
 //  - Notifikasi pakai DISCORD WEBHOOK (bukan WhatsApp Fonnte/Wablas) —
 //    konsisten dgn seluruh notifikasi admin Luxtradee yang sudah migrasi ke Discord
 // ============================================================
-export const runtime = 'edge'
+// NOTE: No runtime = 'edge' — OpenNext limitation for API routes.
+// Seluruh app sudah berjalan di Cloudflare Workers (edge) via OpenNext,
+// route ini pun otomatis jalan di Worker yang sama. Semua API yang dipakai
+// (fetch, AbortController, Intl) Workers-compatible.
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
