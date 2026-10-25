@@ -4,7 +4,8 @@
 // untuk kantor 3D CEO (LUXTRADE SUPER AI AGENT).
 //
 // Filosofi: kanvas 3D adalah panggung utama — UI hanya FLOATING GLASS:
-//   Wujud 1 (standby)  : satu floating pill di tengah bawah + kapsul jam WIB kecil di kanan atas.
+//   Wujud 1 (standby)  : SATU floating pill di tengah bawah (jam WIB ikut di dalam pill)
+//                        — bagian atas layar 100% bersih, kanvas 3D penuh tanpa panel.
 //   Wujud 2 (aktif)    : glass bottom sheet (maks 50% layar) berisi
 //                        Horizontal Agent Dock (scroll menyamping, snap)
 //                        + panel ruangan yang dipilih (dark glass).
@@ -187,9 +188,9 @@ function ClockWib() {
     return () => clearInterval(iv)
   }, [])
   return (
-    <div className="flex items-baseline gap-1 tabular-nums">
-      <span className="text-[15px] font-semibold text-white tracking-wide">{t}</span>
-      <span className="text-[9px] font-medium text-white/50">WIB</span>
+    <div className="flex items-baseline gap-1 tabular-nums shrink-0">
+      <span className="text-[13px] font-semibold text-white/90 tracking-wide">{t}</span>
+      <span className="text-[8.5px] font-medium text-white/45">WIB</span>
     </div>
   )
 }
@@ -288,12 +289,6 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
       {/* scrollbar halus untuk panel gelap */}
       <style>{`.kscroll::-webkit-scrollbar{width:4px;height:4px}.kscroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:99px}.kscroll{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}.kdock{scrollbar-width:none}.kdock::-webkit-scrollbar{display:none}`}</style>
 
-      {/* ===== kapsul status atas (jam WIB nyata + denyut kerja) — selalu tampak ===== */}
-      <div className="fixed top-4 right-4 z-30 flex items-center gap-2.5 px-4 py-2 rounded-full bg-black/20 backdrop-blur-2xl border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-        <Dot tone={busy ? 'busy' : 'ok'} />
-        <ClockWib />
-      </div>
-
       {/* ===== WUJUD 1 — FLOATING PILL (standby): semua kartu tersembunyi ===== */}
       {!isSheetOpen && (
         <button
@@ -303,6 +298,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         >
           <Sparkles size={16} className="text-white/90" />
           <span>CEO Command Center</span>
+          <span className="w-px h-4 bg-white/15" aria-hidden="true" />
+          <ClockWib />
           {busy && <Dot tone="busy" />}
         </button>
       )}
@@ -332,13 +329,17 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               SUPER AI AGENT · 👤 luxtradee@gmail.com{busy ? <span className="text-amber-200/90"> · ⏳ memproses…</span> : null}
             </div>
           </div>
-          <button
-            onClick={() => setIsSheetOpen(false)}
-            aria-label="Tutup"
-            className="ml-auto w-8 h-8 shrink-0 rounded-full bg-white/10 border border-white/15 text-white/80 hover:bg-white/20 hover:text-white grid place-items-center transition-colors cursor-pointer"
-          >
-            <X size={14} />
-          </button>
+          <div className="ml-auto flex items-center gap-2.5 shrink-0">
+            <Dot tone={busy ? 'busy' : 'ok'} />
+            <ClockWib />
+            <button
+              onClick={() => setIsSheetOpen(false)}
+              aria-label="Tutup"
+              className="w-8 h-8 rounded-full bg-white/10 border border-white/15 text-white/80 hover:bg-white/20 hover:text-white grid place-items-center transition-colors cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
 
         {/* ===== konten tengah: ringkasan (overview) atau panel ruangan ===== */}
