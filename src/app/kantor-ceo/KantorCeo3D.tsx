@@ -128,9 +128,45 @@ const TEAM_DETAIL = [
     ide: 'Laporan pendapatan (hitung is_pro × harga) · banding biaya API vs revenue · target MRR bulanan',
   },
   {
+    id: 'DA', emoji: '📊', name: 'Dewi', jabatan: 'Data Analyst · Analis Pola Trading', divisi: 'Data & Insight', color: '#0891b2', bg: 'rgba(6,182,212,.05)', border: 'rgba(6,182,212,.25)',
+    shift: 'Analisis mendalam tiap Senin 10:00 WIB (cron mingguan) · kapan pun lewat tombol di Ruang Data Analyst',
+    baca: 'trades 30 hari terakhir (maks 1.000 terbaru): symbol, profit_loss, session, user_id, created_at',
+    tugas: [
+      'Hitung statistik NYATA: total upload, trader unik, win rate agregat, pair favorit, sesi & jam tersibuk',
+      'Ubah angka mentah jadi insight 2 kalimat + 3 pola yang tidak terlihat kasat mata',
+      'Beri 3 rekomendasi konkret yang bisa dieksekusi Bos minggu ini (produk/konten/retensi)',
+      'Evaluasi rekomendasi minggu lalu dengan data terbaru — learning loop, bukan analisis amnesia',
+    ],
+    lapor: 'Pesan Discord terpisah tiap Senin 10:00 WIB + panel Ruang Data Analyst (insight dipakai CMO & Growth Hacker)',
+    batas: [
+      'Data cuma 30 hari terakhir, maks 1.000 trade terbaru — bukan seluruh sejarah',
+      'Tidak menyentuh data pribadi sensitif — hanya pola agregat',
+      'Rekomendasi tetap usulan — eksekusi di tangan Bos & karyawan lain',
+    ],
+    ide: 'Korelasi emosi user vs profit (kolom emotion) · prediksi trader yang mau churn · skor kualitas setup',
+  },
+  {
+    id: 'GH', emoji: '🚀', name: 'Farhan', jabatan: 'Growth Hacker · Eksperimen Pertumbuhan', divisi: 'Growth & Eksperimen', color: '#ea580c', bg: 'rgba(234,88,12,.05)', border: 'rgba(234,88,12,.25)',
+    shift: 'Rancang eksperimen tiap Senin 10:00 WIB (cron mingguan) · kapan pun lewat tombol di Ruang Growth',
+    baca: 'Funnel profiles: pendaftar, PRO, pendaftar 7 hari, user dari referral (referred_by_code), onboarding selesai, aktivasi (upload trade) + insight Dewi (DA)',
+    tugas: [
+      'Ukur funnel nyata: pendaftar → aktivasi (upload trade pertama) → PRO → referral',
+      'Temukan titik bocor terbesar (mis. aktivasi rendah, referral sepi)',
+      'Usulkan 3 eksperimen minggu ini: nama, langkah konkret, metrik keberhasilan, estimasi effort',
+      'Selipkan angle promosi program affiliate/referral ke eksperimennya',
+    ],
+    lapor: 'Pesan Discord terpisah tiap Senin 10:00 WIB + panel Ruang Growth',
+    batas: [
+      'Belum bisa menjalankan A/B test otomatis — eksperimen masih usulan yang Bos eksekusi',
+      'Metrik terbatas data yang ada (belum ada open-rate email / analitik landing detail)',
+      'Tidak mengubah landing/harga sendiri — semua lewat ACC Bos',
+    ],
+    ide: 'A/B test CTA landing otomatis · program reward referral 2 arah · notifikasi win-back',
+  },
+  {
     id: 'CEO', emoji: '👔', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#334155', bg: 'rgba(51,65,85,.04)', border: 'rgba(51,65,85,.22)',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
-    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO) + status AUTO-ACC',
+    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC',
     tugas: [
       'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → kirim ke Discord 08:00',
       'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya',
@@ -224,15 +260,17 @@ export default function KantorCeo3D() {
   /* ---------- pemanggil API (hasil di-merge supaya tiap ruangan punya datanya) ---------- */
   /* Map action → karakter mana yang "beneran kerja" di scene 3D */
   const jobsOfAction = (action: string): string[] => {
-    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO', cfo: 'CFO', coo: 'COO' }
+    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO', cfo: 'CFO', coo: 'COO', da: 'DA', gh: 'GH' }
     if (action.startsWith('agents&only=')) return (action.split('only=')[1] || '').split(',').map(s => M[s.trim()]).filter(Boolean)
     if (action === 'agents') return ['CTO', 'CSO', 'CFO', 'COO']
-    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'COO', 'CEO']
+    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'COO', 'DA', 'GH', 'CEO']
     if (action === 'quota') return ['CFO']
     if (action === 'acc-email' || action === 'auto-acc') return ['CSO']
     if (action.startsWith('tiktok-')) return ['CMO']
     if (action === 'talk') return ['CSO', 'CMO']
     if (action.startsWith('coo-')) return ['COO']
+    if (action.startsWith('analyst')) return ['DA']
+    if (action.startsWith('growth')) return ['GH']
     if (action === 'diag' || action === 'watchdog' || action === 'qa') return ['CTO']
     if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
@@ -262,7 +300,18 @@ export default function KantorCeo3D() {
     }
     if (action === 'talk') { // diskusi CSO × CMO — hasilnya tampil di Ruang CSO
       window.__kceo?.toast?.(r?.talk?.diagnosis ? '💬 Diskusi selesai — Maya & Sinta nemu akar masalah + skrip konten!' : r?.talkError ? '⚠️ Diskusi gagal — ' + String(r.talkError).slice(0, 60) : '⚠️ Diskusi gagal — cek koneksi/kuota AI')
+      setData((d: any) => ({ ...(d || {}), ...r })) // langsung tampil di panel — tanpa perlu pindah ruangan
       return r
+    }
+    if (action === 'analyst' || action === 'growth') { // Dewi/Farhan — hasilnya tampil di ruangannya
+      /* Error umum (mis. ENV belum diset) dipetakan ke daError/ghError supaya panel ruangan menampilkan alasannya */
+      const rr = (r?.error && !r?.da && !r?.gh)
+        ? (action === 'analyst' ? { daError: String(r.error).slice(0, 160) } : { ghError: String(r.error).slice(0, 160) })
+        : r
+      const o = action === 'analyst' ? rr?.da : rr?.gh
+      window.__kceo?.toast?.(o?.dupToday ? (action === 'analyst' ? '📊 Sudah dianalisis hari ini — hasil terakhir ditampilkan' : '🚀 Sudah dirancang hari ini — hasil terakhir ditampilkan') : o && !rr?.daError && !rr?.ghError ? (action === 'analyst' ? '📊 Dewi beres — insight baru siap!' : '🚀 Farhan beres — eksperimen baru dirancang!') : '⚠️ Gagal — cek panel ruangannya')
+      setData((d: any) => ({ ...(d || {}), ...rr }))
+      return rr
     }
     if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
     if (action === 'briefing' && r?.text)
@@ -367,11 +416,13 @@ export default function KantorCeo3D() {
     finally { setCooActing(null) }
   }
 
-  // Ruangan dibuka → muat datanya (CMO: bahan TikTok · COO: antrean ACC · CSO: hasil diskusi)
+  // Ruangan dibuka → muat datanya (CMO: bahan TikTok · COO: antrean ACC · CSO: hasil diskusi · DA/GH: insight terakhir)
   useEffect(() => {
     if (room === 'CMO') ttLoad()
     if (room === 'COO') cooLoad()
     if (room === 'CSO') call('talk-last')
+    if (room === 'DA') call('analyst-last')
+    if (room === 'GH') call('growth-last')
   /* eslint-disable react-hooks/exhaustive-deps */
   }, [room])
 
@@ -416,17 +467,19 @@ export default function KantorCeo3D() {
         {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-11,3],room:'front',accent:'#ec4899'},
         {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#b45309',skin:'#f1c27d',hair:'#3b2314',desk:[-2.75,3],room:'front',accent:'#f59e0b'},
         {name:'Bagas',job:'COO',title:'COO Agent · Jualan',lazy:.7,shirt:'#059669',skin:'#e0ac69',hair:'#241c12',desk:[9.5,-6.5],room:'back',accent:'#10b981'},
+        {name:'Dewi',job:'DA',title:'Data Analyst · Pola Trading',lazy:.45,shirt:'#0891b2',skin:'#f1c27d',hair:'#241c12',desk:[3,3],room:'front',accent:'#06b6d4'},
+        {name:'Farhan',job:'GH',title:'Growth Hacker · Eksperimen',lazy:.65,shirt:'#ea580c',skin:'#c68642',hair:'#111',desk:[6.5,3],room:'front',accent:'#f97316'},
         {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155'}]
-      const PHASES=['Cek Sistem & Bug','Hitung User','Draf TikTok','Cek Kuota','Follow-up Jualan','Kirim Briefing']
-      const PHASE_JOB=['CTO','CSO','CMO','CFO','COO','CEO']
-      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','CMO':'Generate draf TikTok di Gemini','CFO':'Pantau kuota Gemini anti-429','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Review & kirim Morning Briefing'}
-      const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Draf TikTok baru siap','Kuota aman — 0 event 429','Lead difollow-up, draf siap ACC','Briefing terkirim ke Discord']
+      const PHASES=['Cek Sistem & Bug','Hitung User','Analisis Data','Draf TikTok','Cek Kuota','Eksperimen Growth','Follow-up Jualan','Kirim Briefing']
+      const PHASE_JOB=['CTO','CSO','DA','CMO','CFO','GH','COO','CEO']
+      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','DA':'Olah trades 30 hari: win rate, pair & sesi teraktif','CMO':'Generate draf TikTok di Gemini','CFO':'Pantau kuota Gemini anti-429','GH':'Ukur funnel & rancang eksperimen minggu ini','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Review & kirim Morning Briefing'}
+      const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Insight data baru siap','Draf TikTok baru siap','Kuota aman — 0 event 429','Eksperimen growth dirancang','Lead difollow-up, draf siap ACC','Briefing terkirim ke Discord']
       const SITE={ver:1.0,vis:41,day:1247}
       const PROJ={ph:0,prog:35,sprint:1,done:0}
-      const projTot=()=>(PROJ.ph+PROJ.prog/100)/6*100
+      const projTot=()=>(PROJ.ph+PROJ.prog/100)/7*100
       const INC={active:false,next:60+rnd(0,60),endT:0,boostT:0}
 
-      const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0},{p:[12.5,4.8],y:PI/2,sit:0}]
+      const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0},{p:[12.5,4.8],y:PI/2,sit:0},{p:[15.4,2.9],y:PI/2,sit:0},{p:[15.4,4.7],y:PI/2,sit:0}]
       const OBST=[];CAST.forEach(c=>OBST.push({x:c.desk[0],z:c.desk[1],hw:c.ceo?1.3:.9,hd:.45}))
       OBST.push({x:10,z:2.6,hw:1.2,hd:.5},{x:10,z:5.4,hw:1.2,hd:.5},{x:10,z:4,hw:.6,hd:.3},{x:13.7,z:4,hw:.4,hd:1.7},{x:15.2,z:1,hw:.2,hd:.2},{x:-13.5,z:-4.5,hw:.6,hd:.3},{x:-9,z:6,hw:1.5,hd:.7},{x:7.6,z:-4,hw:.3,hd:.3},{x:-7.6,z:-6,hw:.3,hd:.3},{x:7.6,z:9,hw:.3,hd:.3},{x:-3,z:10,hw:.3,hd:.3})
       // dinding kamar (segmen dengan celah pintu di depan tiap meja) — jalan kaki otomatis lewat pintu
@@ -445,6 +498,8 @@ export default function KantorCeo3D() {
         CMO:{deep:['Generate draf TikTok via Gemini','Analisis gaya naskah CEO yang fyp','Rotasi angle: SMC/ICT hari ini'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
         CFO:{deep:['Pantau kuota Gemini Vision harian','Cek frekuensi upload — hindari 429','Hitung sisa request hari ini'],phone:['Lihat grafik pemakaian API'],chat:['Set quota-track ke backend']},
         COO:{deep:['Susun draf penawaran PRO buat hot lead','Cek trades 7 hari — siapa paling rajin','Follow-up lead minggu lalu, ada yang balik?'],phone:['Scroll profil user aktif cari calon PRO'],chat:['Lapor konversi jualan ke CEO']},
+        DA:{deep:['Hitung win rate 30 hari dari trades','Klaster pair & sesi paling produktif','Susun insight mingguan buat Bos'],phone:['Cek spreadsheet angka mingguan'],chat:['Bahas pola data sama Sinta']},
+        GH:{deep:['Rancang eksperimen growth minggu ini','Ukur funnel pendaftar → aktif → PRO','Cari angle promo referral/affiliate'],phone:['Pantau metrik aktivasi'],chat:['Pilih eksperimen prioritas bareng CEO']},
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu ☕'}
       let tNow=0
@@ -466,6 +521,10 @@ export default function KantorCeo3D() {
             return `📊 LIVE: kuota ${live.cfo.usedToday}/${live.cfo.limit} hari ini · ${String(live.cfo.status||'').trim()}`
           if(job==='COO'&&live.coo&&!live.coo.error)
             return live.coo.pending>0?`📊 LIVE: ${live.coo.pending} draf penawaran nunggu ACC Bos`:'📊 LIVE: antrean jualan bersih ✅'
+          if(job==='DA'&&live.da)
+            return `📊 LIVE: ${live.da.stats?.uploads30??'—'} upload 30 hr · win rate ${live.da.stats?.winRate??'—'}% · ${live.da.stats?.traders30??'—'} trader`
+          if(job==='GH'&&live.gh)
+            return `📊 LIVE: aktivasi baru ${live.gh.funnel?.baru7?Math.round((live.gh.funnel.activated7/live.gh.funnel.baru7)*100):'—'}% · ${live.gh.experiments?.length??0} eksperimen siap`
           if(job==='CEO'&&live.text)
             return live.notifySent?'📊 LIVE: briefing terakhir sudah terkirim ✅':'📊 LIVE: briefing siap — tinggal kirim'
         }catch{ }
@@ -478,6 +537,8 @@ export default function KantorCeo3D() {
             CMO:'⏳ Lagi nulis draf TikTok di Gemini — kerja beneran!',
             CFO:'⏳ Lagi audit kuota API — kerja beneran!',
             COO:'⏳ Lagi buru hot lead & susun draf penawaran — kerja beneran!',
+            DA:'⏳ Lagi olah data trades di Supabase — kerja beneran!',
+            GH:'⏳ Lagi ngukur funnel & rancang eksperimen — kerja beneran!',
             CEO:'⏳ Lagi susun briefing & kirim ke Discord…'}
           return W[c.job]||'⏳ Lagi kerja beneran…'}
         /* PRIORITAS 2 — baru selesai (≤9 dtk): rayakan dgn HASIL ASLI */
@@ -490,6 +551,8 @@ export default function KantorCeo3D() {
             CMO:()=>live&&live.cmo?(live.cmo.draft?'✅ Draf TikTok baru siap — cek panel kanan!':'⚠️ Gagal bikin draf — cek panel'):'✅ Tugas selesai!',
             CFO:()=>live&&live.cfo&&!live.cfo.error?`✅ Kuota ${live.cfo.usedToday}/${live.cfo.limit} · ${String(live.cfo.status||'').trim()}`:'✅ Tugas selesai!',
             COO:()=>live&&live.coo&&!live.coo.error?(live.coo.pending>0?`✅ Beres! ${live.coo.pending} draf nunggu ACC Bos di Ruang COO`:'✅ Beres! Antrean jualan bersih — lead besok lagi'):'✅ Tugas selesai!',
+            DA:()=>live&&live.da?`✅ Insight baru: ${String(live.da.insight||'').slice(0,80)}…`:'✅ Tugas selesai!',
+            GH:()=>live&&live.gh?`✅ ${live.gh.experiments?.length||3} eksperimen siap di Ruang Growth`:'✅ Tugas selesai!',
             CEO:()=>live&&live.text?(live.notifySent?'✅ Briefing terkirim ke Discord!':'⚠️ Briefing jalan — Discord gagal'):'✅ Tugas selesai!'}
           return (R[c.job]||(()=>'✅ Tugas selesai!'))()}
         if(INC.active){if(c.job==='CEO')return 'Mendengar laporan insiden dari CTO…'
@@ -531,7 +594,7 @@ export default function KantorCeo3D() {
 
       /* ---------- fokus kamera per ruangan ---------- */
       const FOCUS={on:false,pos:new THREE.Vector3(),tgt:new THREE.Vector3()}
-      const ROOMV={overview:[[2,9,17],[2,.8,0]],struktur:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],COO:[[10.75,4.6,-.8],[10.75,.9,-7]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
+      const ROOMV={overview:[[2,9,17],[2,.8,0]],struktur:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],COO:[[10.75,4.6,-.8],[10.75,.9,-7]],DA:[[3,4.6,8],[3,.9,2.6]],GH:[[6.5,4.6,8],[6.5,.9,2.6]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
       const focusRoom=r=>{const P=ROOMV[r];if(!P){FOCUS.on=false;return}
         FOCUS.pos.set(...P[0]);FOCUS.tgt.set(...P[1]);FOCUS.on=true}
       focusRef.current=focusRoom
@@ -624,12 +687,17 @@ export default function KantorCeo3D() {
       roomAcc(-11,-6.2,'#14b8a6','#d8f2ea');roomAcc(-2.75,-6.2,'#8b5cf6','#ebe3fa')
       roomAcc(-11,3,'#ec4899','#fae1ee');roomAcc(-2.75,3,'#f59e0b','#fbf0d9')
       roomAcc(10.75,-6.2,'#10b981','#e0f5ea')
+      /* workstation open-space Dewi (DA) & Farhan (GH) — tanpa dinding kaca, di tengah kantor */
+      roomAcc(3,3,'#06b6d4','#dff3fa');roomAcc(6.5,3,'#f97316','#feeee3')
       neon('RUANG CTO',3.3,.8,46,-11,1.95,-9.86,0,'#0d9488')
       neon('RUANG CMO',3.3,.8,46,-2.75,1.95,-9.86,0,'#7c3aed')
       neon('RUANG CSO',3.3,.8,46,-11,1.95,-.42,0,'#db2777')
       neon('RUANG CFO',3.3,.8,46,-2.75,1.95,-.42,0,'#d97706')
       /* papan nama Ruang COO menempel di partisi kaca (dinding belakang dipakai layar LIVE raksasa) */
       neon('RUANG COO',2.6,.62,44,8.42,1.95,-6.25,-PI/2,'#059669')
+      /* papan nama menggantung di atas workstation DA & GH (open space) */
+      neon('DATA LAB',2.3,.56,44,3,2.5,2.15,0,'#0891b2')
+      neon('GROWTH LAB',2.3,.56,44,6.5,2.5,2.15,0,'#ea580c')
       neon('CEO SUITE',2.5,.6,40,6,1.5,-9.9,0,'#7c3aed')
 
       /* ---------- infrastruktur ---------- */
@@ -655,7 +723,7 @@ export default function KantorCeo3D() {
       const pc=document.createElement('canvas');pc.width=512;pc.height=340;const pg=pc.getContext('2d'),pt2=new THREE.CanvasTexture(pc);pt2.colorSpace=THREE.SRGBColorSpace
       box(3.7,2.5,.06,M('#0a0a0f'),10.8,2.2,-9.92,scene,false)
       const projScr=new THREE.Mesh(new THREE.PlaneGeometry(3.5,2.34),new THREE.MeshBasicMaterial({map:pt2}));projScr.position.set(10.8,2.2,-9.88);scene.add(projScr)
-      const drawSite=()=>{const g=pg,tot=(PROJ.ph+PROJ.prog/100)/5
+      const drawSite=()=>{const g=pg,tot=(PROJ.ph+PROJ.prog/100)/7
         g.fillStyle='#0b0f16';g.fillRect(0,0,512,340)
         g.fillStyle='#161d29';g.fillRect(0,0,512,32)
         ;['#ef4444','#f59e0b','#22c55e'].forEach((c,i)=>{g.fillStyle=c;g.beginPath();g.arc(16+i*20,16,5,0,7);g.fill()})
@@ -758,7 +826,7 @@ export default function KantorCeo3D() {
         R.brows=[-.045,.045].map(x=>box(.05,.009,.008,M(cfg.hair),x,.222,.122,R.head,false))
         R.mouth=box(.05,.014,.01,M('#7a4438'),0,.132,.126,R.head,false)
         sph(.02,M(cfg.skin),0,.165,.13,R.head)
-        if(['Sinta','Maya','Putri'].includes(cfg.name))box(.27,.36,.1,M(cfg.hair,{roughness:.9}),0,.1,-.12,R.head)
+        if(['Sinta','Maya','Putri','Dewi'].includes(cfg.name))box(.27,.36,.1,M(cfg.hair,{roughness:.9}),0,.1,-.12,R.head)
         if(i%3===0)[-.045,.045].forEach(x=>{const gl=new THREE.Mesh(new THREE.TorusGeometry(.03,.004,6,14),M('#111'));gl.position.set(x,.18,.126);R.head.add(gl)})
         R.phone=at(R.rE,G(),0,-.27,.03);R.phone.rotation.x=-1.25
         box(.08,.15,.012,M('#0a0a12',{metalness:.6,roughness:.3}),0,0,0,R.phone,false)
@@ -967,7 +1035,7 @@ export default function KantorCeo3D() {
         frame++})
 
       setLoaded(true)
-      setTimeout(()=>showToast('🌐 luxtradee.web.id LIVE — 5 AI Agent + CEO siap kerja'),1500)
+      setTimeout(()=>showToast('🌐 luxtradee.web.id LIVE — 7 AI Karyawan + CEO siap kerja'),1500)
 
       /* ---------- cleanup ---------- */
       cleanup=()=>{
@@ -997,8 +1065,10 @@ export default function KantorCeo3D() {
   const cto=data&&data.cto,cso=data&&data.cso,cmo=data&&data.cmo,cfo=data&&data.cfo
   const coo=data&&data.coo
   const talk=data&&data.talk
+  const da=data&&data.da,gh=data&&data.gh
+  const daError=data&&data.daError,ghError=data&&data.ghError
   const autoacc=(data as any)?.autoacc
-  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['COO','💼 COO'],['struktur','📋 Struktur'],['rapat','🌅 Rapat']]
+  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['COO','💼 COO'],['DA','📊 Data'],['GH','🚀 Growth'],['struktur','📋 Struktur'],['rapat','🌅 Rapat']]
   const devOpen=process.env.NODE_ENV!=='production'
 
   return (
@@ -1081,6 +1151,16 @@ export default function KantorCeo3D() {
               <div style={CARD}><b style={{color:'#d97706'}}>💰 CFO — Kuota</b><br/>
                 {cfo.usedToday??'—'}/{cfo.limit} hari ini · {cfo.status}
               </div>)}
+            {da&&(
+              <div style={CARD}><b style={{color:'#0891b2'}}>📊 DA — Data Analyst</b><br/>
+                {da.insight?String(da.insight).slice(0,88)+(String(da.insight).length>88?'…':''):'belum ada insight'}
+                <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang Data untuk detail & rekomendasi</div>
+              </div>)}
+            {gh&&(
+              <div style={CARD}><b style={{color:'#ea580c'}}>🚀 GH — Growth Hacker</b><br/>
+                {gh.experiments?.length?`${gh.experiments.length} eksperimen siap dieksekusi`:'belum ada eksperimen'}
+                <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang Growth untuk rincian</div>
+              </div>)}
             <div style={CARD}>
               <b style={{color:'#0d9488',fontSize:13}}>📋 Struktur & Tugas Tim</b>
               <div style={{marginTop:6,fontSize:10.8,lineHeight:1.7,maxHeight:270,overflowY:'auto',paddingRight:4}}>
@@ -1094,8 +1174,12 @@ export default function KantorCeo3D() {
                 <span style={{opacity:.75}}>Bikin 1 draf TikTok/hari meniru pola konten terbaik lo (bahan analisis di Ruang CMO), fallback Gemini→OpenRouter→templat, bikin skrip anti-churn dari hasil diskusi CSO.</span><br/>
                 <b style={{color:'#d97706'}}>💰 Putri — CFO · Kuota</b><br/>
                 <span style={{opacity:.75}}>Pantau kuota Gemini Vision (gerbang anti-429 sebelum upload user) + kuota email Resend, alarm di 80%, laporan pemakaian 7 hari.</span><br/>
+                <b style={{color:'#0891b2'}}>📊 Dewi — Data Analyst</b><br/>
+                <span style={{opacity:.75}}>Olah trades 30 hari (win rate, pair favorit, sesi & jam tersibuk) jadi insight + 3 rekomendasi mingguan — dipakai CMO & Growth Hacker. Senin 10:00 otomatis.</span><br/>
+                <b style={{color:'#ea580c'}}>🚀 Farhan — Growth Hacker</b><br/>
+                <span style={{opacity:.75}}>Ukur funnel nyata (pendaftar → aktivasi → PRO → referral), cari titik bocor, rancang 3 eksperimen/minggu + angle promo referral. Senin 10:00 otomatis.</span><br/>
                 <b style={{color:'#334155'}}>👔 Alexander — CEO</b><br/>
-                <span style={{opacity:.75}}>Kumpulin semua laporan jadi Morning Briefing 08:00 + laporan mingguan Senin 10:00 → Discord. Klik laptopnya untuk briefing manual.</span>
+                <span style={{opacity:.75}}>Kumpulin semua laporan jadi Morning Briefing 08:00 + pilih 1 Next Best Action buat lo tiap pagi + laporan mingguan Senin 10:00 → Discord. Klik laptopnya untuk briefing manual.</span>
               </div>
               <button style={{...BTN,fontSize:11,marginTop:8,width:'100%'}} onClick={()=>setRoom('struktur')}>🔍 Buka Struktur & Jabatan Lengkap</button>
             </div>
@@ -1400,6 +1484,108 @@ export default function KantorCeo3D() {
             </div>
           </div>)}
 
+        {/* ============ RUANG DATA ANALYST — Dewi ============ */}
+        {room==='DA'&&(
+          <div style={CARD}>
+            <div style={{fontSize:15,fontWeight:700,color:'#0891b2',marginBottom:4}}>📊 RUANG DATA ANALYST</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Dewi · Pola trading user → insight &amp; rekomendasi mingguan</div>
+            {da?(
+              <div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  <div style={{background:'rgba(6,182,212,.07)',borderRadius:8,padding:8,textAlign:'center'}}>
+                    <div style={{fontSize:10,opacity:.7}}>Upload 30 hari</div>
+                    <div style={{fontSize:18,fontWeight:700,color:'#0e7490'}}>{da.stats?.uploads30??'—'}</div>
+                    <div style={{fontSize:9.5,opacity:.55}}>{da.stats?.uploads7??'—'} dalam 7 hari terakhir</div>
+                  </div>
+                  <div style={{background:'rgba(6,182,212,.07)',borderRadius:8,padding:8,textAlign:'center'}}>
+                    <div style={{fontSize:10,opacity:.7}}>Win rate agregat</div>
+                    <div style={{fontSize:18,fontWeight:700,color:'#0e7490'}}>{da.stats?.winRate??'—'}%</div>
+                    <div style={{fontSize:9.5,opacity:.55}}>{da.stats?.traders30??'—'} trader unik</div>
+                  </div>
+                </div>
+                <div style={{opacity:.75,fontSize:10.5,marginTop:6,lineHeight:1.6}}>
+                  🥇 Pair favorit: <b>{da.stats?.topSymbol||'—'}</b> · Sesi: <b>{da.stats?.topSession||'—'}</b> · Puncak jam: <b>{da.stats?.bestHour||'—'}</b>
+                </div>
+                <div style={{marginTop:8,background:'rgba(6,182,212,.06)',borderRadius:8,padding:'7px 9px',fontSize:11,lineHeight:1.55,border:'1px solid rgba(6,182,212,.15)'}}>
+                  🔍 {da.insight}
+                </div>
+                {Array.isArray(da.patterns)&&da.patterns.length>0&&(
+                  <div style={{marginTop:6,fontSize:10.5,lineHeight:1.6,opacity:.85}}>
+                    <b>Pola yang Dewi temukan:</b>
+                    <ul style={{margin:'2px 0 0',paddingLeft:15}}>{da.patterns.map((p:string,i:number)=><li key={i}>{p}</li>)}</ul>
+                  </div>)}
+                {Array.isArray(da.recommendations)&&da.recommendations.length>0&&(
+                  <div style={{marginTop:6,border:'1px dashed rgba(6,182,212,.4)',borderRadius:9,padding:'7px 8px',fontSize:10.8,lineHeight:1.55}}>
+                    <b style={{color:'#0e7490'}}>💡 Rekomendasi minggu ini:</b>
+                    <ol style={{margin:'2px 0 0',paddingLeft:15}}>{da.recommendations.map((r:string,i:number)=><li key={i} style={{marginBottom:2}}>{r}</li>)}</ol>
+                  </div>)}
+                {da.dupToday?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>sudah dianalisis hari ini — ini hasil terakhir (Senin 10:00 jalan otomatis)</div>:null}
+                {da.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (Gemini lagi error)</div>:da.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 rangkuman dari angka nyata (LLM gagal)</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6,fontSize:11}}>Belum ada analisis — klik tombol di bawah. Jalan otomatis tiap Senin 10:00 WIB.</div>)}
+            {daError?<div style={ERR}>⚠️ {String(daError).slice(0,140)}</div>:null}
+            <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
+              <button style={{...BTN,opacity:busy?.5:1}} disabled={busy} onClick={()=>call('analyst','POST')}>🔍 Analisis Data Sekarang</button>
+            </div>
+            <div style={{opacity:.5,fontSize:10,marginTop:8,lineHeight:1.6}}>
+              Sumber: tabel trades 30 hari terakhir (maks 1.000 trade terbaru) — win rate, pair, sesi, jam ramai.<br/>
+              Insight ini dipakai CMO (konten relevan) &amp; Growth Hacker (eksperimen) — data jadi makanan seluruh tim.
+            </div>
+          </div>)}
+
+        {/* ============ RUANG GROWTH — Farhan ============ */}
+        {room==='GH'&&(
+          <div style={CARD}>
+            <div style={{fontSize:15,fontWeight:700,color:'#ea580c',marginBottom:4}}>🚀 RUANG GROWTH</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Farhan · Funnel nyata → 3 eksperimen pertumbuhan / minggu</div>
+            {gh?(
+              <div>
+                {gh.funnel&&(
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,textAlign:'center'}}>
+                    <div style={{background:'rgba(234,88,12,.07)',borderRadius:8,padding:'6px 4px'}}>
+                      <div style={{fontSize:16,fontWeight:700,color:'#c2410c'}}>{gh.funnel.total??'—'}</div>
+                      <div style={{fontSize:9.5,opacity:.7}}>Pendaftar</div>
+                    </div>
+                    <div style={{background:'rgba(234,88,12,.07)',borderRadius:8,padding:'6px 4px'}}>
+                      <div style={{fontSize:16,fontWeight:700,color:'#c2410c'}}>{gh.funnel.pro??'—'}</div>
+                      <div style={{fontSize:9.5,opacity:.7}}>PRO</div>
+                    </div>
+                    <div style={{background:'rgba(234,88,12,.07)',borderRadius:8,padding:'6px 4px'}}>
+                      <div style={{fontSize:16,fontWeight:700,color:'#c2410c'}}>{gh.funnel.baru7?Math.round((gh.funnel.activated7/gh.funnel.baru7)*100)+'%':'—'}</div>
+                      <div style={{fontSize:9.5,opacity:.7}}>Aktivasi baru</div>
+                    </div>
+                  </div>)}
+                {gh.funnel&&(
+                  <div style={{opacity:.7,fontSize:10,marginTop:5,lineHeight:1.6}}>
+                    {gh.funnel.activated7??0}/{gh.funnel.baru7??0} pendaftar baru aktif upload · {gh.funnel.referred??0} user dari referral · {gh.funnel.onboarded??0} selesai onboarding
+                  </div>)}
+                <div style={{marginTop:8,background:'rgba(234,88,12,.06)',borderRadius:8,padding:'7px 9px',fontSize:11,lineHeight:1.55,border:'1px solid rgba(234,88,12,.15)'}}>
+                  🔍 {gh.insight}
+                </div>
+                {Array.isArray(gh.experiments)&&gh.experiments.length>0&&(
+                  <div style={{marginTop:6,display:'flex',flexDirection:'column',gap:6}}>
+                    {gh.experiments.map((x:any,i:number)=>(
+                      <div key={i} style={{border:'1px dashed rgba(234,88,12,.35)',borderRadius:9,padding:'7px 8px',fontSize:10.8,lineHeight:1.55}}>
+                        <b style={{color:'#c2410c'}}>🧪 {i+1}. {x.name}</b>
+                        <span style={{fontSize:9,background:'rgba(234,88,12,.12)',color:'#c2410c',borderRadius:99,padding:'1px 6px',marginLeft:5,whiteSpace:'nowrap'}}>effort {x.effort||'sedang'}</span><br/>
+                        {x.how}<br/>
+                        <span style={{opacity:.65}}>📏 Ukur: {x.metric}</span>
+                      </div>))}
+                  </div>)}
+                {gh.dupToday?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>sudah dirancang hari ini — ini hasil terakhir (Senin 10:00 jalan otomatis)</div>:null}
+                {gh.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (Gemini lagi error)</div>:gh.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 templat dari funnel nyata (LLM gagal)</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6,fontSize:11}}>Belum ada eksperimen — klik tombol di bawah. Jalan otomatis tiap Senin 10:00 WIB.</div>)}
+            {ghError?<div style={ERR}>⚠️ {String(ghError).slice(0,140)}</div>:null}
+            <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
+              <button style={{...BTN,opacity:busy?.5:1}} disabled={busy} onClick={()=>call('growth','POST')}>🚀 Rancang Eksperimen Sekarang</button>
+            </div>
+            <div style={{opacity:.5,fontSize:10,marginTop:8,lineHeight:1.6}}>
+              Sumber: funnel profiles (pendaftar, PRO, referral, onboarding, aktivasi) + insight Dewi.<br/>
+              Eksperimen = usulan — Bos yang pilih mana yang dieksekusi minggu ini.
+            </div>
+          </div>)}
+
         {/* ============ RUANG STRUKTUR — Jabatan & Pekerjaan Tiap Karyawan ============ */}
         {room==='struktur'&&(
           <div style={CARD}>
@@ -1431,13 +1617,12 @@ export default function KantorCeo3D() {
                 </div>
               ))}
               <div style={{border:'1px dashed rgba(217,119,6,.4)',background:'rgba(217,119,6,.06)',borderRadius:10,padding:'9px 10px',fontSize:10.5,lineHeight:1.6,marginBottom:4}}>
-                <b style={{color:'#b45309'}}>🧩 Kursi yang masih kosong (opini jujur):</b>
+                <b style={{color:'#b45309'}}>🧩 Sisa kursi kosong (opini jujur):</b>
                 <ul style={{margin:'3px 0 0',paddingLeft:15}}>
-                  <li><b>Data Analyst</b> — belum ada yang mengolah pola trading user (pair favorit, win rate, jam ramai) → bisa jadi insight premium + materi konten CMO</li>
                   <li><b>Support Closer</b> — CS bot chat (/api/chat) sudah jawab pertanyaan user, tapi belum ada yang follow-up penyelesaian bug ke user pelapor sampai tuntas</li>
-                  <li><b>Growth Hacker</b> — belum ada eksperimen otomatis (uji 2 versi CTA/landing, ukur konversi, pilih pemenang)</li>
-                  <li>Halaman affiliate sudah ada, tapi belum ada agen yang aktif mempromosikan programnya</li>
+                  <li><b>Eksekusi A/B test otomatis</b> — Farhan sudah merancang eksperimen tiap Senin, tapi pelaksanaannya masih tangan Bos (belum ada mesin A/B otomatis)</li>
                 </ul>
+                <div style={{marginTop:5,opacity:.8}}>✅ Kursi <b>Data Analyst</b> (Dewi) &amp; <b>Growth Hacker</b> (Farhan) yang dulu kosong — kini SUDAH DIISI. Promosi affiliate masuk ke eksperimen mingguan Farhan.</div>
               </div>
               <div style={{opacity:.5,fontSize:10,lineHeight:1.5}}>
                 Semua jadwal jalan otomatis via Cloudflare Cron bawaan — tanpa cron-job.org.<br/>
@@ -1468,6 +1653,10 @@ export default function KantorCeo3D() {
               <div style={OKS}>
                 🕵️ Watchdog: situs {data.siteOk?'✅ OK':'❌ DOWN'}{data.quota?` · kuota ${data.quota}`:''} · {data.alerts&&data.alerts.length?`🔔 ${data.alerts.length} alert dikirim ke Discord`:'semua aman — tanpa alarm'}
               </div>)}
+            {data&&data.nba&&data.nba.text&&(
+              <div style={{marginTop:8,background:'rgba(124,58,237,.07)',border:'1px solid rgba(124,58,237,.22)',borderRadius:9,padding:'8px 10px',fontSize:11.5,lineHeight:1.55}}>
+                <b style={{color:'#6d28d9'}}>🎯 Next Best Action hari ini — pilihan Alexander:</b><br/>{data.nba.text}
+              </div>)}
             {data&&data.text&&(
               <div style={{marginTop:8}}>
                 <b>Discord:</b> {data.notifySent?'✅ terkirim':`❌ ${data.notifyErr||'gagal — klik 🧪 Tes Discord'}`}
@@ -1477,9 +1666,9 @@ export default function KantorCeo3D() {
             <div style={SEP}>
               <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
               <div style={{opacity:.75,fontSize:10.5,marginTop:4,lineHeight:1.8}}>
-                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO (akar masalah user pasif + skrip konten)<br/>
+                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO + 🎯 Next Best Action buat Bos<br/>
                 🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br/>
-                📊 <b>Laporan mingguan</b> Senin 10:00 WIB — termasuk konversi jualan COO<br/>
+                📊 <b>Laporan mingguan Senin 10:00 WIB</b> — laporan CEO + 📊 Dewi analisis trades (insight & rekomendasi) + 🚀 Farhan eksperimen growth — 3 pesan Discord terpisah<br/>
                 ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br/>
                 🏢 Semua karyawan sekarang di kantor ini — halaman /admin/ai-staff sudah pensiun.
               </div>
