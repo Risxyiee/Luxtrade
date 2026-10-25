@@ -1148,3 +1148,31 @@ Stage Summary:
 - Penyebab data briefing gagal = env runtime; fix = inline NEXT_PUBLIC saat build — cron besok pagi seharusnya sudah dapat angka; kalau masih gagal, buka RUANG CTO → 🩺 Diagnostik menunjukkan persis apa yang mati
 - ACC EMAIL sekarang di RUANG CSO (ruangannya sendiri) sesuai permintaan user
 - UI 3D terang; malam pun tetap terbaca; tiap agen punya ruangan + panel + tombolnya sendiri
+---
+Task ID: 16
+Agent: main
+Task: Fix Supabase 401 + brighten UI + enhanced per-agent room panels
+
+Work Log:
+- Diagnosed Supabase 401: agent_kv works (anon key valid), but profiles/trades/bug_reports blocked by RLS
+- Added sbServiceKey() and sbHPriv() to route.ts — uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS
+- Updated supaCount to auto-select sbHPriv for private tables (profiles, trades, bug_reports)
+- Updated fetchActiveUserIds + sendPassiveEmails to use sbHPriv
+- Enhanced 401 error hint to mention service_role key when missing
+- Added SUPABASE_SERVICE_ROLE_KEY to diag action output
+- Brightened 3D scene: night bg #141830→#2d3250, night sun/ambient brighter, base ambient .85→1.0, sun 1.05→1.15, exposure 1.15→1.25
+- Increased min lighting at night: sun .12→.22, ambient .4→.55, spots .25→.4 min
+- Brightened card CSS: bg .88→.92, blur 14→16, softer shadow
+- Enhanced CTO room: large status display, bug count with color, Cek Ulang + Diagnostik
+- Enhanced CSO room: 3-column stat grid (Total/Aktif/Pasif), dedicated ACC EMAIL section with full-width button
+- Enhanced CMO room: styled draft box with purple border, angle info, anti-repetition note
+- Enhanced CFO room: 2-column quota grid, progress bar with color coding, Cek Ulang button
+- Enhanced Rapat room: cleaner layout, styled briefing text box
+- Added BTNP/BTNR/BTNO/SEP style constants for colored buttons
+- Lint clean, committed ced7f4cb, pushed to GitHub
+
+Stage Summary:
+- API route now supports SUPABASE_SERVICE_ROLE_KEY for bypassing RLS
+- 3D scene significantly brighter (especially at night)
+- Each agent room has dedicated, styled controls with clear CTAs
+- User needs to set SUPABASE_SERVICE_ROLE_KEY in Cloudflare Secrets to fix CSO/CTO data
