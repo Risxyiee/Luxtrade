@@ -1008,16 +1008,16 @@ export default function KantorCeo3D() {
               </div>)}
             {data&&data.error&&data.text===undefined&&data.ok===undefined&&(<div style={ERR}>⚠️ {String(data.error).slice(0,200)}</div>)}
             <div style={SEP}>
-              <b>⚙️ Biar Karyawan Kerja Sendiri (cron-job.org)</b>
+              <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
               <div style={{opacity:.75,fontSize:10.5,marginTop:4,lineHeight:1.8}}>
-                ✅ <b>Briefing pagi</b> 08:00 WIB — <code style={{background:'rgba(15,23,42,.06)',padding:'1px 4px',borderRadius:4}}>/api/ceo-agent?action=briefing&amp;key=CRON_SECRET</code><br/>
-                🕵️ <b>Watchdog</b> tiap 15 mnt — <code style={{background:'rgba(15,23,42,.06)',padding:'1px 4px',borderRadius:4}}>/api/ceo-agent?action=watchdog&amp;key=CRON_SECRET</code><br/>
-                📊 <b>Laporan mingguan</b> Min 20:00 — <code style={{background:'rgba(15,23,42,.06)',padding:'1px 4px',borderRadius:4}}>/api/ceo-agent?action=weekly&amp;key=CRON_SECRET</code>
+                🌅 <b>Briefing pagi</b> 08:00 WIB tiap hari (4 agen + AUTO-ACC)<br/>
+                🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br/>
+                📊 <b>Laporan mingguan</b> Senin 10:00 WIB<br/>
+                ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.
               </div>
-              <div style={{opacity:.55,fontSize:10,marginTop:4,lineHeight:1.5}}>Watchdog = CTO jaga 24/7: situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN, nggak nunggu besok pagi. AUTO-ACC nyala dari Ruang CSO.</div>
             </div>
             <div style={{...SEP,opacity:.55,fontSize:10.5,lineHeight:1.5}}>
-              <b>Cron 08:00 WIB:</b> cron-job.org → /api/ceo-agent?action=briefing&amp;key=CRON_SECRET<br/>
+              <b>Cron 08:00 WIB:</b> Cloudflare trigger → /api/ceo-agent?action=briefing&amp;key=CRON_SECRET<br/>
               <b>Akses:</b> login luxtradee@gmail.com · token JWT otomatis
             </div>
           </div>)}

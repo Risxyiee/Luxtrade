@@ -2,7 +2,8 @@
 // Next.js API Route · target deploy: Cloudflare Workers (OpenNext)
 // Fetch native. TANPA Vercel AI SDK. TANPA Hono. TANPA node-fetch.
 // Auth: header "Authorization: Bearer ADMIN_SECRET" atau ?key=CRON_SECRET
-// Cron 08:00 WIB: cron-job.org → /api/ceo-agent?action=briefing&key=CRON_SECRET
+// Cron 08:00 WIB: Cloudflare cron trigger (worker-entry.ts) → /api/ceo-agent?action=briefing&key=CRON_SECRET
+// (cron-job.org TIDAK diperlukan lagi — semua otomatis lewat trigger Workers bawaan)
 // ============================================================
 // Tabel Supabase yang dipakai (skema produksi Luxtradee — lihat
 // prisma/schema.prisma):
@@ -570,8 +571,12 @@ async function handle(req: Request): Promise<Response> {
   const action = url.searchParams.get('action') || 'info'
   const key = url.searchParams.get('key') || ''
   const auth = req.headers.get('authorization') || ''
-  const isCron = !!e.CRON_SECRET && key === e.CRON_SECRET
+  const isCron = !!e.CRON_SECRET && (key === e.CRON_SECRET || auth === `Bearer ${e.CRON_SECRET}`)
   const isAdmin = !!e.ADMIN_SECRET && (auth === `Bearer ${e.ADMIN_SECRET}` || key === e.ADMIN_SECRET)
+  /* Fallback konsisten dengan route /api/cron/*: kalau CRON_SECRET dan
+     ADMIN_SECRET dua-duanya belum diset di Worker, izinkan cron internal
+     berjalan (mode tanpa secret). Begitu salah satu diset, auth wajib. */
+  const noSecrets = !cleanEnv(e.CRON_SECRET) && !cleanEnv(e.ADMIN_SECRET)
 
   /* Browser mengirim anon key PUBLIK miliknya (yang terbukti jalan — dipakai
      seluruh situs). Env SUPABASE_ANON_KEY yang salah di Cloudflare tertimpa
@@ -589,7 +594,7 @@ async function handle(req: Request): Promise<Response> {
       isOwner = await verifyOwnerToken(e, tok)
   }
 
-  if (action !== 'info' && !(isCron || isAdmin || isOwner))
+  if (action !== 'info' && !(isCron || isAdmin || isOwner || noSecrets))
     return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
   if (action !== 'info' && action !== 'quota' && action !== 'briefing-last') {
@@ -677,11 +682,11 @@ async function handle(req: Request): Promise<Response> {
         return j({ ok: false, error: String(x?.message || x) })
       }
     case 'watchdog':
-      // CTO jaga situs 24/7 — cron-job.org tiap 15 menit:
+      // CTO jaga situs 24/7 — Cloudflare cron tiap 15 menit (worker-entry.ts):
       // /api/ceo-agent?action=watchdog&key=CRON_SECRET
       return j(await watchdog(e))
     case 'weekly':
-      // Laporan mingguan — cron-job.org Minggu 20:00 WIB:
+      // Laporan mingguan — Cloudflare cron Senin 10:00 WIB (worker-entry.ts):
       // /api/ceo-agent?action=weekly&key=CRON_SECRET
       return j(await weeklyReport(e))
     case 'auto-acc': {
