@@ -1334,3 +1334,26 @@ Stage Summary:
 - Semua 3 permintaan user tuntas: COO tinggal di kantor (bukan admin panel), Maya (CSO) rutin rapat bareng Sinta (CMO) bawa data nyata → akar masalah user males jurnal → skrip TikTok (jalan otomatis 08:00 + tombol manual, hasil ke Discord), dan jabatan/pekerjaan semua karyawan terdokumentasi detail di Ruang Struktur
 - Gap analysis disampaikan jujur ke Bos: kursi kosong = Data Analyst, Support Closer, Growth Hacker, affiliate promoter
 - Tidak ada migrasi SQL baru; tidak ada perubahan cron (tetap 3 trigger)
+---
+Task ID: 24
+Agent: main
+Task: Isi 2 kursi kosong yang di-ACC Bos (Data Analyst & Growth Hacker) + bikin semua agen makin pintar (learning loop + Next Best Action) — jawaban atas "boleh, pokoknya AI pinter, ada saran tambahan lagi?"
+
+Work Log:
+- Backend ceo-agent/route.ts: analystAgent (Dewi) — kueri trades 30 hari (symbol, profit_loss, session, user_id) → win rate, pair favorit, sesi & jam tersibuk → Gemini JSON {insight, patterns, recommendations}; fallback templat dari angka nyata; kv da:last
+- growthAgent (Farhan) — funnel profiles (total, is_pro, baru 7hr, referred_by_code, onboarding, aktivasi = baru∩aktif-7hr) → 3 eksperimen {name, how, metric, effort}; baca insight Dewi sebagai bahan; kv gh:last
+- nextBestAction — setelah briefing, 1 panggilan Gemini pilih 1 aksi prioritas Bos hari ini → Discord terpisah + kv nba:last + summary.nba
+- Learning loop: analystAgent & csoCmoTalk sekarang membaca hasil sebelumnya (da:last / cso-cmo:last) dan diperintah JANGAN mengulang verbatim — verifikasi/perdalam
+- Action baru: analyst, analyst-last, growth, growth-last (analyst/growth dedup harian + kirim Discord; -last di-exempt dari env guard)
+- worker-entry.ts: cron '0 3 * * 1' += analyst + growth (tetap 4/5 slot cron)
+- KantorCeo3D.tsx: CAST +2 (Dewi desk [3,3] & Farhan desk [6.5,3], room:'front' — approach dari koridor utara, nol risiko pathing); workstation open-space + rug + neon "DATA LAB"/"GROWTH LAB" menggantung; SPOTS +2; ROOMV +DA/GH; PHASES 6→8 (projTot & drawSite /7); T2, realStatus, W, R +DA/GH; ROOMS 10 chip; TEAM_DETAIL +2 kartu (jabatan/tugas/batas jujur/ide); gap analysis diperbarui (DA & GH SUDAH DIISI; sisa: Support Closer & eksekusi A/B otomatis)
+- Panel baru Ruang DA (grid stats, pola, rekomendasi) & Ruang GH (funnel 3-kolom, eksperimen + effort badge); overview +2 kartu; Ruang Rapat + blok 🎯 Next Best Action + jadwal Senin 3 pesan
+- FIX BUG: cabang call() talk/analyst/growth tadinya early-return TANPA merge ke state → panel tidak refresh setelah klik; sekarang merge sebelum return + error env-guard dipetakan ke daError/ghError
+- Lint bersih; Agent Browser: 10 chip, scene 8 karakter (bubbles Raka/Sinta/Maya/Putri/Bagas/Dewi/Farhan/Alexander), Ruang DA & GH render + kamera fokus benar, tombol analisis → toast + pesan "ENV belum diset" tampil di panel (sandbox tanpa env), Struktur: kartu Dewi/Farhan + "SUDAH DIISI", Rapat: jadwal baru; 0 page error baru
+- Commit e1cd7dbd, push (CF auto-deploy ±2-3 mnt)
+
+Stage Summary:
+- Tim AI kini 7 karyawan + CEO: Bagas, Raka, Maya, Sinta, Putri, + Dewi (Data Analyst), Farhan (Growth Hacker) — semua di kantor 3D, tanpa admin panel
+- AI makin pintar secara nyata: (1) learning loop — Dewi & pasangan Maya×Sinta mengingat kesimpulan sebelumnya; (2) sintesis lintas-agen — Farhan makan hasil Dewi; (3) Next Best Action — CEO kasih 1 prioritas/hari, bukan banjir laporan
+- Senin 10:00 WIB: 3 pesan Discord (laporan mingguan + insight Dewi + eksperimen Farhan); 08:00 harian tetap briefing + diskusi CSO×CMO + NBA
+- Tidak ada migrasi SQL baru; tidak ada slot cron baru; OPENROUTER_API_KEY tetap opsional sebagai cadangan
