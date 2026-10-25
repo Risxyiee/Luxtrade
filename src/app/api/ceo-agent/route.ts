@@ -150,6 +150,35 @@ async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
 }
 
 /* ============================================================
+   MEMORI KANTOR — memori bersama antar semua agen (agent_kv).
+   Setiap karyawan yang baru menarik kesimpulan MENULISnya di sini;
+   prompt karyawan lain memuat catatan terbaru → tim belajar
+   bersama (CMO tahu temuan Dewi, COO tahu hasil email CSO, dst).
+   ============================================================ */
+interface MemEntry { at: string; who: string; text: string }
+
+async function memAdd(e: Env, who: string, text: string): Promise<void> {
+  try {
+    let list: MemEntry[] = []
+    try { list = JSON.parse((await kvGet(e, 'mem:list')) || '[]') } catch { /* reset kalau korup */ }
+    list.unshift({ at: new Date().toISOString(), who, text: String(text).replace(/\s+/g, ' ').trim().slice(0, 190) })
+    await kvSet(e, 'mem:list', JSON.stringify(list.slice(0, 24))).catch(() => {})
+  } catch { /* memori opsional — jangan ganggu alur utama */ }
+}
+
+async function memList(e: Env): Promise<MemEntry[]> {
+  try { return JSON.parse((await kvGet(e, 'mem:list')) || '[]') as MemEntry[] } catch { return [] }
+}
+
+/* Blok teks buat prompt LLM — karyawan jadi tahu temuan rekan kerja */
+async function memBlock(e: Env, max = 8): Promise<string> {
+  const list = await memList(e)
+  if (!list.length) return ''
+  return '\nMEMORI KANTOR (catatan terbaru dari rekan kerja — pertimbangkan ini, JANGAN ulangi kesimpulan yang sama persis):\n' +
+    list.slice(0, max).map((m) => `- [${(m.at || '').slice(5, 10)} ${m.who}] ${m.text}`).join('\n')
+}
+
+/* ============================================================
    AGEN 1 — CTO (IT & QA): ping situs + bug report 24 jam
    ============================================================ */
 function siteStatusNote(status: number): string {
@@ -356,6 +385,7 @@ async function cmoAgent(e: Env) {
         history.map((h, i) => `— draf ${i + 1} —\n${h.slice(0, 500)}`).join('\n') + '\n'
       : '') +
     (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
+    (await memBlock(e)) +
     `\nOutput: HANYA naskah TikTok baru (hook 3 detik pertama → body → CTA, durasi 30–45 detik), tanpa penjelasan tambahan.`
 
   /* ═══════ AUTO-FALLBACK: Gemini → OpenRouter → fallbackDraft ═══════
@@ -384,6 +414,7 @@ async function cmoAgent(e: Env) {
 
   history.unshift(draft)
   await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 5)))
+  await memAdd(e, 'CMO Sinta', `Draf TikTok (${angle}, provider ${provider}): ${draft.replace(/\s+/g, ' ').slice(0, 140)}`)
   return { draft, angle, usedFallback, provider, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
 }
 
@@ -446,11 +477,12 @@ async function sendDiscord(e: Env, message: string): Promise<boolean> {
 }
 
 /* ---------- Morning Briefing (gabungan 4 agen) ---------- */
-function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false, qa: any = null, cooLine = ''): string {
+function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false, qa: any = null, cooLine = '', nbaLine = ''): string {
   const L: string[] = []
   L.push('🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**')
   L.push(`📅 ${wibNow()} · 08:00 WIB — laporan harian semua karyawan`)
   L.push('━━━━━━━━━━━━━━━━━━')
+  if (nbaLine) { L.push(nbaLine); L.push('━━━━━━━━━━━━━━━━━━') }
   L.push('🖥️ **CTO AGENT — IT & QA**')
   L.push(cto?.siteOk
     ? `• Website: ✅ ${cto.status} OK (${cto.latencyMs} ms)`
@@ -514,12 +546,24 @@ async function runMorningBriefing(e: Env) {
   if (autoOn && !(await kvGet(e, `acc_email:${utcDay()}`))) {
     await kvSet(e, `acc_email:${utcDay()}`, new Date().toISOString())
     if (e.RESEND_API_KEY) {
-      try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email sapaan terkirim ke user pasif (otomatis, variasi "${r.variant}")` }
+      try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke user pasif (variasi "${r.variant}"; ${r.personalized} pakai data trading asli penerima)` }
       catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
     } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
     try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
   }
-  const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine)
+  /* AKUNTABILITAS NBA — Alexander ingatkan prioritas KEMARIN dulu.
+     Bos jadi punya jejak: dilakukan atau harus ada alasan ganti. */
+  let nbaLine = ''
+  try {
+    const raw = await kvGet(e, 'nba:last')
+    if (raw) {
+      const p = JSON.parse(raw) as { at?: string; text?: string }
+      if (p?.text && String(p.at || '').slice(0, 10) && String(p.at).slice(0, 10) < utcDay())
+        nbaLine = `🎯 **PRIORITAS KEMARIN**: ${p.text}\n→ Bos, dilakukan? Kalau belum: jadikan prioritas utama hari ini, atau bilang Alexander kenapa diganti.`
+    }
+  } catch { /* ignore */ }
+
+  const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine, nbaLine)
   let notifySent = false, notifyErr = ''
   try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
 
@@ -561,13 +605,17 @@ async function runMorningBriefing(e: Env) {
 }
 
 /* ---------- flow "ACC EMAIL": email ke user pasif ----------
-   v2: 3 variasi pesan (rotasi harian — anti email fatigue) +
-   ID penerima dicatat di agent_kv → besok CSO hitung berapa
-   yang BALIK upload setelah di-email (feedback loop nyata). */
+   v3: EMAIL PERSONAL per user — Maya baca data trading ASLI tiap
+   penerima (jumlah trade, pair favorit, berapa hari lalu terakhir
+   upload, onboarding) → tiap user dapat email yang relevan dengan
+   DIRINYA, bukan template generik. Variasi pesan tetap dirotasi
+   harian (anti email fatigue) + ID penerima dicatat → besok dihitung
+   berapa yang BALIK upload (feedback loop nyata). */
+
 const PASSIVE_VARIANTS = [
   {
     subject: 'Lama gak ketemu 👋',
-    text: 'Hai! Kamu belum upload screenshot jurnal trading kamu dalam 24 jam terakhir.\n\nYuk evaluasi visual hari ini di https://luxtradee.web.id — cuma 2 menit.\n\n— Tim Luxtrade',
+    text: 'Yuk evaluasi visual hari ini di https://luxtradee.web.id — cuma 2 menit.\n\n— Tim Luxtrade',
   },
   {
     subject: 'Jurnal lo masih nunggu 📈',
@@ -579,25 +627,71 @@ const PASSIVE_VARIANTS = [
   },
 ]
 
-async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string }> {
+interface PerUserTrade { n: number; top: string; lastAt: number; wins: number }
+
+async function buildPerUserTradeMap(e: Env): Promise<Map<string, PerUserTrade>> {
+  const map = new Map<string, PerUserTrade>()
+  try {
+    const rows = await fetchTrades30(e)
+    for (const r of rows) {
+      if (!r.user_id) continue
+      const cur = map.get(r.user_id) || { n: 0, top: '', lastAt: 0, wins: 0 }
+      cur.n++
+      if ((r.profit_loss || 0) > 0) cur.wins++
+      if (r.symbol) (cur as any)._sym = { ...((cur as any)._sym || {}), [r.symbol]: (((cur as any)._sym || {})[r.symbol] || 0) + 1 }
+      if (r.created_at) cur.lastAt = Math.max(cur.lastAt, new Date(r.created_at).getTime())
+      map.set(r.user_id, cur)
+    }
+    /* pair favorit per user */
+    for (const [, v] of map) {
+      const syms = (v as any)._sym as Record<string, number> | undefined
+      if (syms) v.top = Object.entries(syms).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
+      delete (v as any)._sym
+    }
+  } catch { /* tanpa data trade → email tetap terkirim (mode generik) */ }
+  return map
+}
+
+function personalLine(name: string, t: PerUserTrade | undefined, createdAgeDays: number): string {
+  const hai = name ? `Hai ${name}!` : 'Hai!'
+  if (t && t.n > 0) {
+    const days = Math.max(1, Math.round((Date.now() - t.lastAt) / 86400_000))
+    const wr = Math.round((t.wins / t.n) * 100)
+    return `${hai} Kamu sudah nyatet ${t.n} trade di Luxtrade${t.top ? ` — ${t.top} jadi pair andalanmu` : ''} (win rate catatanmu ${wr}%). Terakhir upload ${days} hari lalu — momen bagus gak boleh putus di sini.`
+  }
+  if (createdAgeDays >= 3)
+    return `${hai} Akunmu sudah ${createdAgeDays} hari bergabung, tapi belum ada 1 screenshot pun yang diupload — padahal evaluasi AI-nya cuma butuh 2 menit per trade.`
+  return hai
+}
+
+async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string; personalized: number }> {
   const since = isoAgo(24)
   const activeIds = await fetchActiveUserIds(e, since)
   const variant = PASSIVE_VARIANTS[dayIndex() % PASSIVE_VARIANTS.length]
 
   // kandidat: profil dengan email, terbaru dulu — maks 200 kandidat
   /* Pakai service_role key — profiles butuh bypass RLS */
-  const url = `${sbUrl(e)}/rest/v1/profiles?select=id,email&email=not.is.null&order=created_at.desc&limit=200`
+  const url = `${sbUrl(e)}/rest/v1/profiles?select=id,email,full_name,created_at&email=not.is.null&order=created_at.desc&limit=200`
   const res = await fetch(url, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
   if (!res.ok) throw new Error(`Supabase profiles HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
-  const profiles = (await res.json()) as { id?: string; email?: string }[]
+  const profiles = (await res.json()) as { id?: string; email?: string; full_name?: string | null; created_at?: string }[]
 
   const targets = profiles
     .filter((p) => p.email && p.id && !activeIds.has(p.id))
     .slice(0, 50)
 
-  let sent = 0
+  /* Data trading personal per penerima — 1 kueri untuk semua */
+  const tradeMap = await buildPerUserTradeMap(e)
+
+  let sent = 0, personalized = 0
   const emailedIds: string[] = []
   for (const p of targets) {
+    const t = tradeMap.get(p.id as string)
+    const createdAgeDays = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400_000) : 0
+    const name = (p.full_name || '').trim().split(/\s+/)[0] || ''
+    const line = personalLine(name, t, createdAgeDays)
+    if (t || createdAgeDays >= 3) personalized++
+    const body = `${line}\n\n${variant.text}`
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${e.RESEND_API_KEY}` },
@@ -605,7 +699,7 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
         from: EMAIL_FROM,
         to: p.email as string,
         subject: variant.subject,
-        text: variant.text,
+        text: body,
       }),
       signal: timeoutSignal(10_000),
     }).catch(() => null)
@@ -617,7 +711,8 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
   }
   /* simpan siapa saja yang di-email hari ini → besok dihitung "balik aktif" */
   if (emailedIds.length) await kvSet(e, `csmailed:${utcDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
-  return { sent, ids: emailedIds, variant: variant.subject }
+  if (sent) await memAdd(e, 'CSO Maya', `${sent} email personal ke user pasif (variasi "${variant.subject}"; ${personalized} pakai data trade asli penerima)`)
+  return { sent, ids: emailedIds, variant: variant.subject, personalized }
 }
 
 /* ============================================================
@@ -937,7 +1032,7 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
       prevTalk = `\nHASIL DISKUSI KALIAN SEBELUMNYA (${String(p.at || '').slice(0, 10)}): diagnosis "${String(p.diagnosis).slice(0, 200)}"${Array.isArray(p.reasons) && p.reasons.length ? ' — alasan: ' + p.reasons.slice(0, 3).join('; ') : ''}`
   } catch { /* ignore */ }
 
-  const userPrompt = `${intelText}${prevTalk}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
+  const userPrompt = `${intelText}${prevTalk}${await memBlock(e)}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
 
   let provider: CsoCmoTalk['provider'] = 'fallback'
   let parsed: Omit<CsoCmoTalk, 'at' | 'provider' | 'intel' | 'raw'> | null = null
@@ -1004,6 +1099,7 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
 
   const out: CsoCmoTalk = { at: new Date().toISOString(), provider, intel, ...parsed }
   await kvSet(e, 'cso-cmo:last', JSON.stringify(out)).catch(() => {})
+  if (out.diagnosis) await memAdd(e, 'Maya × Sinta', `Rapat CSO×CMO — ${String(out.diagnosis).slice(0, 150)}${out.script?.hook ? ' → skrip: "' + String(out.script.hook).slice(0, 60) + '"' : ''}`)
   return out
 }
 
@@ -1116,10 +1212,10 @@ async function analystAgent(e: Env): Promise<DaInsight> {
   let insight = '', patterns: string[] = [], recommendations: string[] = []
   let raw = ''
   try {
-    raw = await geminiText(e, systemPrompt, dataText + prev + `\nTanggal: ${wibNow()}`, 1024, 0.5)
+    raw = await geminiText(e, systemPrompt, dataText + prev + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.5)
     provider = 'gemini'
   } catch {
-    try { raw = await openRouterText(e, systemPrompt, dataText + prev, 1024); provider = 'openrouter' } catch { raw = '' }
+    try { raw = await openRouterText(e, systemPrompt, dataText + prev + (await memBlock(e)), 1024); provider = 'openrouter' } catch { raw = '' }
   }
   if (raw) {
     try {
@@ -1147,6 +1243,7 @@ async function analystAgent(e: Env): Promise<DaInsight> {
 
   const out: DaInsight = { ...base, provider, insight, patterns, recommendations }
   await kvSet(e, 'da:last', JSON.stringify(out)).catch(() => {})
+  if (insight) await memAdd(e, 'DA Dewi', `Analisis 30 hari (${stats.traders30} trader, WR ${stats.winRate}%, favorit ${stats.topSymbol}): ${insight}`)
   return out
 }
 
@@ -1222,10 +1319,10 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   let insight = '', experiments: GhExperiment[] = []
   let raw = ''
   try {
-    raw = await geminiText(e, systemPrompt, funnelText + daLine + `\nTanggal: ${wibNow()}`, 1024, 0.6)
+    raw = await geminiText(e, systemPrompt, funnelText + daLine + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
     provider = 'gemini'
   } catch {
-    try { raw = await openRouterText(e, systemPrompt, funnelText + daLine, 1024); provider = 'openrouter' } catch { raw = '' }
+    try { raw = await openRouterText(e, systemPrompt, funnelText + daLine + (await memBlock(e)), 1024); provider = 'openrouter' } catch { raw = '' }
   }
   if (raw) {
     try {
@@ -1254,6 +1351,7 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   }
   const out: GhInsight = { ...base, provider, insight, experiments }
   await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
+  if (insight) await memAdd(e, 'GH Farhan', `Funnel (${funnel.total} pendaftar, PRO ${funnel.pro}): ${insight}`)
   return out
 }
 
@@ -1277,12 +1375,13 @@ async function nextBestAction(e: Env, briefingText: string): Promise<string> {
   try {
     const nba = await geminiText(
       e,
-      'Kamu wakil CEO Luxtradee (jurnal trading XAUUSD). Dari briefing pagi di bawah, tentukan SATU aksi prioritas tertinggi yang Bos harus kerjakan HARI INI — yang paling berdampak ke pertumbuhan atau paling urgent, dan HANYA Bos yang bisa (bukan yang bisa dikerjakan karyawan AI). Format jawaban HANYA: "🎯 <aksi konkret> — <alasan 1 kalimat>". Maks 200 karakter, bahasa Indonesia.',
-      briefingText.slice(0, 1600), 200, 0.4,
+      'Kamu wakil CEO Luxtradee (jurnal trading XAUUSD). Dari briefing pagi di bawah, tentukan SATU aksi prioritas tertinggi yang Bos harus kerjakan HARI INI — yang paling berdampak ke pertumbuhan atau paling urgent, dan HANYA Bos yang bisa (bukan yang bisa dikerjakan karyawan AI). LIHAT MEMORI KANTOR: jangan pilih prioritas yang mirip dengan yang sudah dipilih hari-hari sebelumnya kecuali benar-benar masih paling penting. Format jawaban HANYA: "🎯 <aksi konkret> — <alasan 1 kalimat>". Maks 200 karakter, bahasa Indonesia.',
+      briefingText.slice(0, 1600) + (await memBlock(e, 5)), 200, 0.4,
     )
     const text = nba.split('\n').filter((s) => s.trim()).slice(0, 2).join(' ').trim().slice(0, 300)
     if (!text) return ''
     await kvSet(e, 'nba:last', JSON.stringify({ at: new Date().toISOString(), text })).catch(() => {})
+    await memAdd(e, 'CEO Alexander', `Prioritas Bos hari ini: ${text.replace(/^🎯\s*/, '')}`)
     try { await sendDiscord(e, `${text}\n_(dipilih otomatis dari briefing pagi — 1 prioritas saja, biar fokus)_`) } catch { /* ignore */ }
     return text
   } catch { return '' }
@@ -1390,7 +1489,7 @@ async function handle(req: Request): Promise<Response> {
   if (action !== 'info' && !(isCron || isAdmin || isOwner || noSecrets))
     return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
-  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'analyst-last' && action !== 'growth-last') {
+  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'mem-last' && action !== 'analyst-last' && action !== 'growth-last') {
     const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(k => (k === 'SUPABASE_URL' && !sbUrl(e)) || (k === 'SUPABASE_ANON_KEY' && !sbAnonKey(e)))
     if (missing.length) return j({ error: 'ENV belum diset: ' + missing.join(', ') }, 500)
   }
@@ -1537,6 +1636,11 @@ async function handle(req: Request): Promise<Response> {
         return last ? j({ talk: JSON.parse(last) }) : j({ talk: null })
       } catch { return j({ talk: null }) }
     }
+    case 'mem-last': {
+      // 🧠 Memori Kantor — catatan kesimpulan bersama semua karyawan AI
+      // (Ruang Rapat). Tanpa ENV check — memori opsional, selalu aman.
+      try { return j({ mem: await memList(e) }) } catch { return j({ mem: [] }) }
+    }
     case 'analyst': {
       // Dewi (Data Analyst) — analisis trades 30 hari → insight + rekomendasi.
       // Dedup per hari; kirim Discord (pesan terpisah) tiap hasil baru.
@@ -1603,6 +1707,7 @@ async function handle(req: Request): Promise<Response> {
           'action=tiktok-del (?id=) — hapus post bahan analisis',
           'action=talk — diskusi harian CSO × CMO: akar masalah user pasif + skrip konten (Ruang CSO)',
           'action=talk-last — hasil diskusi CSO × CMO terakhir',
+          'action=mem-last — 🧠 Memori Kantor: kesimpulan bersama semua karyawan AI (Ruang Rapat)',
           'action=analyst — Dewi (Data Analyst): trades 30 hari → insight + 3 rekomendasi (Ruang DA, cron Senin)',
           'action=analyst-last — hasil analisis Dewi terakhir',
           'action=growth — Farhan (Growth Hacker): funnel + 3 eksperimen growth (Ruang GH, cron Senin)',
