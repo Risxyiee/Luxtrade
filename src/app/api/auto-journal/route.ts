@@ -124,7 +124,13 @@ async function callGeminiWithRetry(
         return await geminiVision(prompt, base64Image, mimeType, {
           model,
           temperature: 0.1,
-          maxTokens: 2048,
+          maxTokens: 4096,
+          // FORCE valid JSON output + disable thinking:
+          // gemini-2.5-flash has thinking ON by default; thinking tokens count
+          // against maxOutputTokens and were truncating/emptying the JSON text
+          // (root cause of "auto-journal tidak mengembalikan JSON").
+          responseMimeType: 'application/json',
+          thinkingBudget: 0,
           timeoutMs: attempt === 1 ? 40000 : 30000,
         })
       } catch (err: any) {
@@ -137,6 +143,60 @@ async function callGeminiWithRetry(
     }
   }
   throw lastErr
+}
+
+/**
+ * Close truncated JSON by appending missing quotes/brackets (depth-based scan).
+ * Last-resort rescue when the model output got cut mid-JSON.
+ */
+function closeTruncatedJson(s: string): string {
+  let inString = false
+  let escape = false
+  const stack: string[] = []
+  for (const ch of s) {
+    if (escape) { escape = false; continue }
+    if (ch === '\\') { escape = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === '{' || ch === '[') stack.push(ch)
+    else if (ch === '}' || ch === ']') stack.pop()
+  }
+  let out = s
+  if (out.endsWith(',') || out.endsWith(':')) out = out.slice(0, -1)
+  if (inString) out += '"'
+  while (stack.length) {
+    out += stack.pop() === '{' ? '}' : ']'
+  }
+  return out
+}
+
+/**
+ * Robust AI JSON extraction — handles markdown fences, leading/trailing prose,
+ * trailing commas, and truncated JSON. Returns null only if nothing parses.
+ */
+export function extractAndRepairJson<T = Record<string, unknown>>(raw: string): T | null {
+  if (!raw || !raw.trim()) return null
+  const text = raw.trim()
+
+  const candidates: string[] = [text]
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence?.[1]?.trim()) candidates.push(fence[1].trim())
+  const greedy = text.match(/\{[\s\S]*\}/)
+  if (greedy) candidates.push(greedy[0])
+
+  for (const cand of candidates) {
+    try { return JSON.parse(cand) as T } catch { /* try next */ }
+  }
+
+  const base = (greedy?.[0] || fence?.[1] || text).trim()
+  const repaired: string[] = [
+    base.replace(/,\s*([}\]])/g, '$1'),            // trailing commas
+    closeTruncatedJson(base.replace(/,\s*([}\]])/g, '$1')), // + truncation closure
+  ]
+  for (const cand of repaired) {
+    try { return JSON.parse(cand) as T } catch { /* try next */ }
+  }
+  return null
 }
 
 // ==================== MAIN API ====================
@@ -319,24 +379,13 @@ export async function POST(request: NextRequest) {
     }
     log('✅', `AI responded in ${(performance.now() - t2).toFixed(0)}ms via gemini, ${aiResultText.length} chars`)
 
-    // ── STEP 8: Parse AI JSON response ──
+    // ── STEP 8: Parse AI JSON response (with repair for fences/truncation) ──
     log('📋', 'Parsing AI JSON response...')
-    const jsonMatch = aiResultText.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      log('⛔', `AI did not return valid JSON. Raw (first 200): ${aiResultText.slice(0, 200)}`)
+    const ai = extractAndRepairJson<CombinedAIResponse>(aiResultText)
+    if (!ai) {
+      log('⛔', `AI did not return parseable JSON. Raw (first 200): ${aiResultText.slice(0, 200)}`)
       return NextResponse.json(
         { error: 'AI gagal mengembalikan JSON yang valid dari screenshot.', step: 'json_parse', rawPreview: aiResultText.slice(0, 300) },
-        { status: 400 }
-      )
-    }
-
-    let ai: CombinedAIResponse
-    try {
-      ai = JSON.parse(jsonMatch[0])
-    } catch (err: any) {
-      log('⛔', `JSON.parse failed: ${err.message}. Raw: ${jsonMatch[0].slice(0, 200)}`)
-      return NextResponse.json(
-        { error: 'AI mengembalikan JSON rusak.', detail: err.message, step: 'json_parse', rawPreview: jsonMatch[0].slice(0, 300) },
         { status: 400 }
       )
     }

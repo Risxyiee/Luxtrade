@@ -1,70 +1,21 @@
-// Admin notification helper — sends backend alerts to admin
-// Telegram credentials now read from env vars (lazy, safe for CF Workers)
+/**
+ * Admin notification helper — sends backend alerts to admin via Discord webhook.
+ * Previously used Telegram Bot API with ADMIN_BOT_TOKEN/ADMIN_CHAT_ID env vars
+ * (returned "Unauthorized" after the bot token was revoked). Discord webhook only
+ * needs ONE secret: DISCORD_WEBHOOK_URL. See ./discord.ts for setup instructions.
+ */
 
-function getTelegramConfig() {
-  const botToken = process.env.ADMIN_BOT_TOKEN
-  const chatId = process.env.ADMIN_CHAT_ID
-  const username = process.env.ADMIN_USERNAME || '@Risxyiee'
-  if (!botToken || !chatId) {
-    console.warn('⚠️ ADMIN_BOT_TOKEN or ADMIN_CHAT_ID not set in env vars. Telegram notifications disabled.')
-    return null
-  }
-  return { botToken, chatId, username }
-}
+import { sendDiscordNotification } from '@/lib/discord'
 
 export async function sendAdminNotification(message: string) {
-  const config = getTelegramConfig()
-  if (!config) return { ok: false, error: 'Telegram not configured' }
-
-  try {
-    const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: config.chatId,
-        text: message,
-        parse_mode: 'HTML',
-      }),
-    })
-    const data = await res.json()
-    if (!data.ok) {
-      console.error('Admin notification failed:', data.description)
-    }
-    return data
-  } catch (error) {
-    console.error('Admin notification error:', error)
-    return { ok: false }
-  }
+  return sendDiscordNotification(message)
 }
 
 /**
  * Kirim pesan langsung ke admin
  */
 export async function sendToAdmin(message: string) {
-  const config = getTelegramConfig()
-  if (!config) return { ok: false, error: 'Telegram not configured' }
-
-  try {
-    const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: config.username,
-        text: message,
-        parse_mode: 'HTML',
-      }),
-    })
-    const data = await res.json()
-    if (!data.ok) {
-      console.error('Admin direct message failed:', data.description)
-    }
-    return data
-  } catch (error) {
-    console.error('Admin direct message error:', error)
-    return { ok: false }
-  }
+  return sendDiscordNotification(message)
 }
 
 // Backward-compatible alias (renamed from sendTelegramNotification)

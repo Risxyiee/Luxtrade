@@ -700,127 +700,93 @@ async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
   return sortEvents(events);
 }
 
-// ─── 0. z-ai-web-dev-sdk Provider (MOST RELIABLE from CF Workers) ─────────
-// Uses web_search to find economic calendar pages, then page_reader to read them.
-// This bypasses CF Worker IP blocking that affects direct API calls.
 
-let _zaiInstance: any = null;
-let _zaiInitAttempted = false;
-let _zaiInitTime = 0;
-async function getZAI(): Promise<any | null> {
-  if (_zaiInstance) return _zaiInstance;
-  // Allow retry after 60s if init previously failed (env may become available)
-  if (_zaiInitAttempted && Date.now() - _zaiInitTime < 60000) return null;
-  _zaiInitAttempted = true;
-  _zaiInitTime = Date.now();
-  try {
-    const ZAIMod = await import('z-ai-web-dev-sdk');
-    // Set a timeout for ZAI creation — if it takes too long, skip it
-    _zaiInstance = await Promise.race([
-      ZAIMod.default.create(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-    ]);
-    if (!_zaiInstance) {
-      console.warn('[EconCalendar] z-ai-web-dev-sdk init timed out (8s) — will retry in 60s');
-      _zaiInitAttempted = true; // Mark as attempted but allow retry
-      _zaiInstance = null;
-    } else {
-      console.log('[EconCalendar] z-ai-web-dev-sdk initialized successfully');
-      _zaiInitAttempted = true; // Permanently mark as attempted on success
-    }
-    return _zaiInstance;
-  } catch (err: any) {
-    console.warn('[EconCalendar] z-ai-web-dev-sdk init failed:', err?.message || err);
-    return null;
-  }
-}
-
-async function fetchZaiCalendar(): Promise<CalendarEvent[]> {
-  const zai = await getZAI();
-  if (!zai) throw new Error('z-ai-web-dev-sdk not available');
+// ─── Gemini + Google Search grounding (LIVE fallback, CF Workers-safe) ────
+// Pure REST call to generativelanguage.googleapis.com — no SDK, no fs, no readFile.
+// Replaces the old z-ai-web-dev-sdk provider whose create() crashed on Workers.
+async function fetchGeminiCalendar(): Promise<CalendarEvent[]> {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const weekStart = fmt(new Date(today.getTime() - 1 * 86400000));
+  const weekEnd = fmt(new Date(today.getTime() + 6 * 86400000));
+
+  const prompt =
+    `Search the web for the forex economic calendar for ${weekStart} to ${weekEnd} (this week).\n` +
+    `Return ONLY a valid JSON array (no markdown fences, no explanation) of HIGH and MEDIUM impact events for currencies: USD, EUR, GBP, JPY, AUD, CAD, CHF, NZD, CNY.\n` +
+    `Each element must be exactly: {"date":"YYYY-MM-DD","time":"HH:mm","currency":"USD","impact":"high","event":"Event Name","forecast":"", "previous":""}\n` +
+    `impact is one of: high, medium, low.\n` +
+    `Include key events only: interest rate decisions (FOMC, ECB, BOE, BOJ, RBA, BOC, SNB, RBNZ), CPI, NFP/nonfarm payrolls, GDP, PMI, retail sales, unemployment rate, jobless claims, PPI, trade balance.\n` +
+    `Use "" (empty string) for unknown fields. Maximum 40 events, sorted by date.\n` +
+    `Return the JSON array only.`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        tools: [{ googleSearch: {} }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      }),
+      signal: AbortSignal.timeout(25000),
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 120)}`);
+  }
+
+  const data = await res.json();
+  const text: string = (data?.candidates?.[0]?.content?.parts || [])
+    .map((p: { text?: string }) => p.text || '')
+    .join('');
+  if (!text.trim()) throw new Error('Gemini returned empty response');
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error('No JSON array in Gemini response');
+  const rawEvents = JSON.parse(jsonMatch[0]) as Array<{
+    date?: string; time?: string; currency?: string;
+    impact?: string; event?: string; forecast?: string; previous?: string;
+  }>;
+  if (!Array.isArray(rawEvents) || rawEvents.length === 0) throw new Error('Gemini returned empty event list');
+
+  const VALID_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'CNY']);
+  const todayStr = fmt(today);
   const events: CalendarEvent[] = [];
 
-  // Strategy 1: Use web_search to find current economic calendar data
-  // Then use page_reader to read the most relevant pages
-  const searchQueries = [
-    `forex economic calendar this week ${todayStr} USD EUR GBP high impact`,
-    `investing.com economic calendar this week major events`,
-  ];
-
-  const allSearchResults: { name: string; snippet: string; url: string }[] = [];
-
-  for (const query of searchQueries) {
-    try {
-      const searchPromise = zai.functions.invoke('web_search', { query, num: 8 });
-      const results = await Promise.race([
-        searchPromise,
-        new Promise<null>((resolve) => setTimeout(() => { console.warn('[EconCalendar] web_search timeout for:', query); resolve(null); }, 8000)),
-      ]);
-
-      if (Array.isArray(results)) {
-        for (const r of results) {
-          if (r.url && r.name) {
-            allSearchResults.push({
-              name: r.name,
-              snippet: r.snippet || '',
-              url: r.url,
-            });
-          }
-        }
-      }
-    } catch (err: any) {
-      console.warn('[EconCalendar] ZAI web_search failed for query:', query, err?.message);
-    }
+  for (const raw of rawEvents) {
+    const date = (raw.date || '').slice(0, 10);
+    const currency = (raw.currency || '').toUpperCase();
+    const eventName = (raw.event || '').trim().slice(0, 80);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (!VALID_CURRENCIES.has(currency)) continue;
+    if (!eventName) continue;
+    const impact = ['high', 'medium', 'low'].includes((raw.impact || '').toLowerCase())
+      ? (raw.impact!.toLowerCase() as 'high' | 'medium' | 'low')
+      : 'medium';
+    events.push({
+      id: `gm-${events.length}-${currency}-${date}`,
+      date,
+      time: raw.time || '',
+      dateTime: buildDateTime(date, raw.time || ''),
+      currency,
+      impact,
+      event: eventName,
+      forecast: raw.forecast || '',
+      previous: raw.previous || '',
+    });
   }
 
-  // Strategy 2: Use page_reader to read the top economic calendar pages
-  const calendarUrls = [
-    'https://www.investing.com/economic-calendar/',
-    'https://www.forexfactory.com/calendar',
-  ];
+  if (events.length === 0) throw new Error('Gemini events failed validation');
 
-  // Also add any URLs from search results that look like calendar pages
-  const calendarPagePatterns = /economic.?calendar|forexfactory|investing\.com\/calendar|myfxbook\.com\/calendar/i;
-  for (const r of allSearchResults) {
-    if (calendarPagePatterns.test(r.url) || calendarPagePatterns.test(r.name)) {
-      if (!calendarUrls.includes(r.url)) {
-        calendarUrls.push(r.url);
-      }
-    }
-  }
-
-  // Read calendar pages via page_reader
-  for (const url of calendarUrls.slice(0, 2)) { // Limit to 2 pages to avoid timeout
-    try {
-      const readerPromise = zai.functions.invoke('page_reader', { url });
-      const pageResult = await Promise.race([
-        readerPromise,
-        new Promise<null>((resolve) => setTimeout(() => { console.warn('[EconCalendar] page_reader timeout for:', url); resolve(null); }, 10000)),
-      ]);
-      if (pageResult?.data?.html) {
-        const parsed = parseCalendarHtml(pageResult.data.html, url);
-        if (parsed.length > 0) {
-          events.push(...parsed);
-          console.log(`[EconCalendar] ZAI page_reader: ${parsed.length} events from ${url}`);
-        }
-      }
-    } catch (err: any) {
-      console.warn(`[EconCalendar] ZAI page_reader failed for ${url}:`, err?.message);
-    }
-  }
-
-  // Strategy 3: Parse search result snippets into events if page_reader didn't yield enough
-  if (events.length < 5 && allSearchResults.length > 0) {
-    const searchEvents = parseSearchSnippetsToEvents(allSearchResults, todayStr);
-    events.push(...searchEvents);
-  }
-
-  if (events.length === 0) throw new Error('No events from z-ai-web-dev-sdk');
-
-  // Deduplicate
   const seen = new Set<string>();
   const deduped = events.filter(e => {
     const key = e.currency + '-' + e.date + '-' + e.event.substring(0, 30);
@@ -829,352 +795,8 @@ async function fetchZaiCalendar(): Promise<CalendarEvent[]> {
     return true;
   });
 
-  console.log(`[EconCalendar] ZAI: ${deduped.length} events (from ${events.length} before dedup)`);
+  console.log(`[EconCalendar] Gemini grounding: ${deduped.length} events (today=${todayStr}, from ${events.length} before dedup)`);
   return sortEvents(deduped);
-}
-
-// Parse HTML from calendar pages (investing.com, forexfactory, etc.)
-function parseCalendarHtml(html: string, sourceUrl: string): CalendarEvent[] {
-  const events: CalendarEvent[] = [];
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  // Remove scripts and styles for cleaner parsing
-  const cleanHtml = html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<!--/g, '')
-    .replace(/-->/g, '');
-
-  // Extract text content for table/list parsing
-  const textContent = cleanHtml
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/tr>/gi, '\n')
-    .replace(/<\/td>/gi, ' | ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // Known economic event patterns
-  const eventPatterns = [
-    // High impact events
-    { pattern: /(?:Non[- ]?Farm|Nonfarm|NFP)\s+Payrolls?/i, event: 'Nonfarm Payrolls', currency: 'USD', impact: 'high' as const },
-    { pattern: /Unemployment\s+Rate/i, event: 'Unemployment Rate', currency: 'USD', impact: 'high' as const },
-    { pattern: /(?:CPI|Consumer\s+Price(?:\s+Index)?)\s+(?:MoM|YoY|m\/m|y\/y)/i, event: 'CPI', currency: 'USD', impact: 'high' as const },
-    { pattern: /Core\s+CPI\s+(?:MoM|YoY)/i, event: 'Core CPI', currency: 'USD', impact: 'high' as const },
-    { pattern: /FOMC\s+(?:Interest\s+Rate|Rate\s+Decision|Monetary\s+Policy)/i, event: 'FOMC Rate Decision', currency: 'USD', impact: 'high' as const },
-    { pattern: /Fed\s+Interest\s+Rate/i, event: 'FOMC Rate Decision', currency: 'USD', impact: 'high' as const },
-    { pattern: /(?:GDP|Gross\s+Domestic\s+Product)\s+(?:MoM|YoY|QoQ)/i, event: 'GDP', currency: 'USD', impact: 'high' as const },
-    { pattern: /Retail\s+Sales\s+(?:MoM|YoY)/i, event: 'Retail Sales', currency: 'USD', impact: 'high' as const },
-    { pattern: /ISM\s+Manufacturing\s+PMI/i, event: 'ISM Manufacturing PMI', currency: 'USD', impact: 'high' as const },
-    { pattern: /ISM\s+Non[- ]?Manufacturing/i, event: 'ISM Services PMI', currency: 'USD', impact: 'high' as const },
-    { pattern: /ISM\s+Services/i, event: 'ISM Services PMI', currency: 'USD', impact: 'high' as const },
-    { pattern: /Durable\s+Goods\s+Orders/i, event: 'Durable Goods Orders', currency: 'USD', impact: 'high' as const },
-    { pattern: /Initial\s+Jobless\s+Claims/i, event: 'Initial Jobless Claims', currency: 'USD', impact: 'high' as const },
-    { pattern: /Jobless\s+Claims/i, event: 'Jobless Claims', currency: 'USD', impact: 'high' as const },
-    { pattern: /Building\s+Permits/i, event: 'Building Permits', currency: 'USD', impact: 'high' as const },
-    { pattern: /Housing\s+Starts/i, event: 'Housing Starts', currency: 'USD', impact: 'high' as const },
-    // Medium impact
-    { pattern: /PPI\s+(?:MoM|YoY)/i, event: 'PPI', currency: 'USD', impact: 'medium' as const },
-    { pattern: /Industrial\s+Production/i, event: 'Industrial Production', currency: 'USD', impact: 'medium' as const },
-    { pattern: /Consumer\s+Confidence/i, event: 'Consumer Confidence', currency: 'USD', impact: 'medium' as const },
-    { pattern: /(?:U\s+of\s+Michigan|University\s+of\s+Michigan)\s+Consumer\s+Sentiment/i, event: 'U of Michigan Consumer Sentiment', currency: 'USD', impact: 'medium' as const },
-    { pattern: /Existing\s+Home\s+Sales/i, event: 'Existing Home Sales', currency: 'USD', impact: 'medium' as const },
-    { pattern: /New\s+Home\s+Sales/i, event: 'New Home Sales', currency: 'USD', impact: 'medium' as const },
-    { pattern: / Philly\s+Fed|Philadelphia\s+Fed/i, event: 'Philadelphia Fed Index', currency: 'USD', impact: 'medium' as const },
-    { pattern: /Empire\s+State\s+Manufacturing/i, event: 'Empire State Mfg Index', currency: 'USD', impact: 'medium' as const },
-    // EUR events
-    { pattern: /ECB\s+(?:Interest\s+Rate|Rate\s+Decision|Monetary\s+Policy)/i, event: 'ECB Rate Decision', currency: 'EUR', impact: 'high' as const },
-    { pattern: /German\s+(?:CPI|PPI|ZEW|Ifo|GDP)/i, event: 'German Economic Data', currency: 'EUR', impact: 'medium' as const },
-    { pattern: /Euro(?:zone|\s+Zone)?\s+(?:CPI|GDP|PMI|HICP)/i, event: 'Eurozone Economic Data', currency: 'EUR', impact: 'high' as const },
-    { pattern: /(?:Euro|EUR)\s+Zone\s+CP/i, event: 'Eurozone CPI', currency: 'EUR', impact: 'high' as const },
-    // GBP events
-    { pattern: /BoE\s+(?:Interest\s+Rate|Rate\s+Decision)/i, event: 'BoE Rate Decision', currency: 'GBP', impact: 'high' as const },
-    { pattern: /UK\s+(?:CPI|GDP|PMI|Retail)/i, event: 'UK Economic Data', currency: 'GBP', impact: 'medium' as const },
-    // JPY events
-    { pattern: /BoJ\s+(?:Interest\s+Rate|Rate\s+Decision|Monetary\s+Policy)/i, event: 'BoJ Rate Decision', currency: 'JPY', impact: 'high' as const },
-    { pattern: /Japan\s+(?:CPI|GDP|PMI|Trade\s+Balance)/i, event: 'Japan Economic Data', currency: 'JPY', impact: 'medium' as const },
-    // AUD events
-    { pattern: /RBA\s+(?:Interest\s+Rate|Rate\s+Decision)/i, event: 'RBA Rate Decision', currency: 'AUD', impact: 'high' as const },
-    // CAD events
-    { pattern: /BoC\s+(?:Interest\s+Rate|Rate\s+Decision)/i, event: 'BoC Rate Decision', currency: 'CAD', impact: 'high' as const },
-    // CHF events
-    { pattern: /SNB\s+(?:Interest\s+Rate|Rate\s+Decision)/i, event: 'SNB Rate Decision', currency: 'CHF', impact: 'high' as const },
-    // NZD events
-    { pattern: /RBNZ\s+(?:Interest\s+Rate|Rate\s+Decision)/i, event: 'RBNZ Rate Decision', currency: 'NZD', impact: 'high' as const },
-    // General PMI
-    { pattern: /(?:Manufacturing|Services)\s+PMI/i, event: 'PMI Data', currency: 'USD', impact: 'medium' as const },
-    { pattern: /Flash\s+PMI/i, event: 'Flash PMI', currency: 'USD', impact: 'medium' as const },
-    // FOMC Minutes
-    { pattern: /FOMC\s+Meeting\s+Minutes/i, event: 'FOMC Meeting Minutes', currency: 'USD', impact: 'high' as const },
-    // Crude Oil
-    { pattern: /(?:Crude\s+Oil|EIA)\s+Inventories/i, event: 'Crude Oil Inventories', currency: 'USD', impact: 'medium' as const },
-    // ADP Employment
-    { pattern: /ADP\s+Employment\s+Change/i, event: 'ADP Employment Change', currency: 'USD', impact: 'high' as const },
-    // JOLTS
-    { pattern: /JOLTS\s+Job\s+Openings/i, event: 'JOLTS Job Openings', currency: 'USD', impact: 'medium' as const },
-  ];
-
-  // Try to find date patterns in the HTML
-  const datePatterns = [
-    // ISO dates: 2024-01-15
-    /(?<year>\d{4})[-\/](?<month>\d{1,2})[-\/](?<day>\d{1,2})/g,
-    // US dates: Jan 15, 2024 or January 15, 2024
-    /(?<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(?<day>\d{1,2}),?\s*(?<year>\d{4})/gi,
-  ];
-
-  // Find all dates mentioned in the content
-  const foundDates: string[] = [];
-  const monthMap: Record<string, string> = {
-    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
-  };
-
-  for (const pattern of datePatterns) {
-    let match;
-    const regex = new RegExp(pattern.source, pattern.flags);
-    while ((match = regex.exec(textContent)) !== null) {
-      try {
-        let year: string, month: string, day: string;
-        if (match.groups?.year && match.groups?.month && match.groups?.day) {
-          if (/^\d{4}$/.test(match.groups.month)) {
-            year = match.groups.year;
-            month = match.groups.month.padStart(2, '0');
-            day = match.groups.day.padStart(2, '0');
-          } else {
-            year = match.groups.year;
-            month = monthMap[match.groups.month.substring(0, 3).toLowerCase()] || '01';
-            day = match.groups.day.padStart(2, '0');
-          }
-          const dateStr = `${year}-${month}-${day}`;
-          // Only include dates within the next 7 days
-          const dateObj = new Date(dateStr);
-          const diffDays = (dateObj.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-          if (diffDays >= -1 && diffDays <= 7 && !foundDates.includes(dateStr)) {
-            foundDates.push(dateStr);
-          }
-        }
-      } catch {}
-    }
-  }
-
-  // If no dates found, use today through next 5 days
-  if (foundDates.length === 0) {
-    for (let i = 0; i <= 5; i++) {
-      const d = new Date(todayStr);
-      d.setDate(d.getDate() + i);
-      foundDates.push(d.toISOString().split('T')[0]);
-    }
-  }
-
-  // For each event pattern, search the text and create events
-  const seen = new Set<string>();
-  for (const ep of eventPatterns) {
-    const regex = new RegExp(ep.pattern.source, ep.pattern.flags);
-    let match;
-    while ((match = regex.exec(textContent)) !== null && events.length < 60) {
-      const dedupeKey = ep.currency + '-' + ep.event;
-      if (seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-
-      // Look for a date near this event (within 200 chars before/after)
-      const startPos = Math.max(0, match.index - 200);
-      const endPos = Math.min(textContent.length, match.index + match[0].length + 200);
-      const surroundingText = textContent.substring(startPos, endPos);
-
-      let eventDate = foundDates[0] || todayStr;
-      let eventTime = '08:30'; // Default time for most US economic releases
-
-      // Try to find date near the event
-      for (const fd of foundDates) {
-        if (surroundingText.includes(fd)) {
-          eventDate = fd;
-          break;
-        }
-      }
-
-      // Try to find time near the event
-      const timeMatch = surroundingText.match(/(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)?/);
-      if (timeMatch) {
-        let h = parseInt(timeMatch[1]);
-        const m = timeMatch[2];
-        const ampm = timeMatch[3]?.toLowerCase();
-        if (ampm === 'pm' && h < 12) h += 12;
-        if (ampm === 'am' && h === 12) h = 0;
-        eventTime = `${h.toString().padStart(2, '0')}:${m}`;
-      } else {
-        // Default times by currency
-        const defaultTimes: Record<string, string> = {
-          USD: '08:30', EUR: '07:00', GBP: '07:00', JPY: '00:50',
-          AUD: '01:30', CAD: '08:30', CHF: '08:00', NZD: '22:45',
-        };
-        eventTime = defaultTimes[ep.currency] || '08:30';
-      }
-
-      // Try to extract actual/forecast/previous values near the event
-      let actual: string | undefined;
-      let forecast = '';
-      let previous = '';
-
-      // Look for numeric values like "0.3%", "-0.1%", "1.46M", "220K"
-      const valuePattern = /(?<![\d.])(-?\d+\.?\d*%?M?K?)(?![\d.])/g;
-      const valuesNearEvent: string[] = [];
-      let valMatch;
-      const valueText = surroundingText.substring(surroundingText.indexOf(match[0]));
-      while ((valMatch = valuePattern.exec(valueText)) !== null && valuesNearEvent.length < 3) {
-        const v = valMatch[1];
-        if (v && v.length >= 2 && v.length <= 8) valuesNearEvent.push(v);
-      }
-      if (valuesNearEvent.length >= 1) actual = valuesNearEvent[0];
-      if (valuesNearEvent.length >= 2) forecast = valuesNearEvent[1];
-      if (valuesNearEvent.length >= 3) previous = valuesNearEvent[2];
-
-      // Detect currency override from surrounding text (e.g., "EUR CPI" not "USD CPI")
-      let currency = ep.currency;
-      const currOverride = surroundingText.match(/\b(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY)\b/);
-      if (currOverride) currency = currOverride[1];
-
-      events.push({
-        id: `zai-${events.length}-${currency}-${eventDate}`,
-        date: eventDate,
-        time: eventTime,
-        dateTime: buildDateTime(eventDate, eventTime),
-        currency,
-        impact: ep.impact,
-        event: ep.event,
-        actual,
-        forecast,
-        previous,
-      });
-    }
-  }
-
-  // Also try to parse table-like structures from the HTML
-  // Many calendar sites use tables with rows containing: Time | Currency | Impact | Event | Actual | Forecast | Previous
-  const tableRowPattern = /(?:\|\s*)?(\d{1,2}:\d{2})\s*(?:AM|PM|am|pm)?\s*\|\s*(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY)\s*\|/gi;
-  let trMatch;
-  while ((trMatch = tableRowPattern.exec(textContent)) !== null && events.length < 60) {
-    const time = trMatch[1];
-    const currency = trMatch[2];
-    // Get text after the currency to find event name
-    const afterCurrency = textContent.substring(trMatch.index + trMatch[0].length, trMatch.index + trMatch[0].length + 100);
-    const eventMatch = afterCurrency.match(/\|\s*(High|Medium|Low)\s*\|\s*([^|]+)/i);
-    if (eventMatch) {
-      const impactStr = eventMatch[1].toLowerCase();
-      const impact: 'high' | 'medium' | 'low' = impactStr === 'high' ? 'high' : impactStr === 'medium' ? 'medium' : 'low';
-      const eventTitle = eventMatch[2].trim().substring(0, 60);
-      if (eventTitle.length > 3) {
-        const dedupeKey = currency + '-' + eventTitle.substring(0, 30);
-        if (!seen.has(dedupeKey)) {
-          seen.add(dedupeKey);
-          events.push({
-            id: `zai-t-${events.length}-${currency}-${todayStr}`,
-            date: todayStr,
-            time: time,
-            dateTime: buildDateTime(todayStr, time),
-            currency,
-            impact,
-            event: eventTitle,
-            forecast: '',
-            previous: '',
-          });
-        }
-      }
-    }
-  }
-
-  return events;
-}
-
-// Parse search result snippets into calendar events
-function parseSearchSnippetsToEvents(
-  results: { name: string; snippet: string; url: string }[],
-  todayStr: string
-): CalendarEvent[] {
-  const events: CalendarEvent[] = [];
-  const seen = new Set<string>();
-
-  const currencyKeywords: Record<string, string[]> = {
-    USD: ['us ', 'united states', 'usd', 'nonfarm', 'nfp', 'fomc', 'fed ', 'federal reserve', 'jobless claims', 'us cpi', 'us gdp', 'us retail', 'us pmi', 'us housing', 'us durable', 'ism', 'adp employment', 'us payrolls', 'unemployment rate'],
-    EUR: ['euro', 'eur', 'ecb', 'german', 'eurozone', 'eu pmi', 'eu cpi', 'eu gdp', 'ez cpi'],
-    GBP: ['pound', 'sterling', 'gbp', 'boe', 'bank of england', 'uk gdp', 'uk cpi', 'uk retail', 'uk pmi'],
-    JPY: ['yen', 'jpy', 'boj', 'bank of japan', 'japan cpi', 'japan gdp', 'japan pmi'],
-    AUD: ['australian dollar', 'aud', 'rba', 'reserve bank of australia', 'au pmi', 'au cpi'],
-    CAD: ['canadian dollar', 'cad', 'boc', 'bank of canada', 'ca retail', 'ca gdp'],
-    CHF: ['swiss franc', 'chf', 'snb', 'swiss national bank'],
-    NZD: ['new zealand', 'nzd', 'rbnz', 'nz gdp'],
-    CNY: ['yuan', 'cny', 'pboc', 'china pmi', 'china gdp'],
-  };
-  const highImpactKeywords = ['nfp', 'nonfarm', 'non-farm', 'fomc', 'fed rate', 'interest rate decision', 'cpi', 'gdp', 'rate decision', 'payrolls', 'jobless claims', 'unemployment rate'];
-  const mediumImpactKeywords = ['pmi', 'retail sales', 'ppi', 'housing', 'consumer confidence', 'industrial production', 'trade balance', 'consumer price'];
-
-  for (const r of results) {
-    if (!r.name && !r.snippet) continue;
-    const text = `${r.name} ${r.snippet}`.toLowerCase();
-
-    let currency = '';
-    for (const [curr, keywords] of Object.entries(currencyKeywords)) {
-      for (const kw of keywords) {
-        if (text.includes(kw)) { currency = curr; break; }
-      }
-      if (currency) break;
-    }
-    if (!currency) {
-      const currMatch = r.name?.match(/\b(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY)\b/i);
-      if (currMatch) currency = currMatch[1].toUpperCase();
-    }
-    if (!currency) continue;
-
-    let impact: 'high' | 'medium' | 'low' = 'low';
-    for (const kw of highImpactKeywords) { if (text.includes(kw)) { impact = 'high'; break; } }
-    if (impact === 'low') { for (const kw of mediumImpactKeywords) { if (text.includes(kw)) { impact = 'medium'; break; } } }
-
-    let eventTitle = (r.name || 'Economic Event')
-      .replace(/\s*[-|–—]\s*(Forex Factory|Investing\.com|FXStreet|Trading Economics|Myfxbook|XTB|ActionForex|MarketWatch|BeInCrypto|GoMarkets|TradingCharts|Mitrade|YouTube|Facebook|BLS\.gov|Bloomberg|Forex\.com|Reuters|IG|Tickmill|LeapRate|Lirunex|CBCX Markets|RCG Markets).*$/i, '')
-      .replace(/\s*\(\d{2}\.\d{2}\.\d{4}\)\s*/g, '')
-      .trim();
-
-    if (eventTitle.toLowerCase().includes('economic calendar') && r.snippet) {
-      const eventPatterns = [/(?:Nonfarm|Non-farm|NFP)\s+Payrolls/i, /Unemployment\s+Rate/i, /(?:CPI|Consumer\s+Price\s+Index)/i, /(?:PMI|Purchasing\s+Managers\s+Index)/i, /(?:GDP|Gross\s+Domestic\s+Product)/i, /Retail\s+Sales/i, /Jobless\s+Claims/i, /ISM\s+Manufacturing/i, /FOMC/i];
-      for (const pattern of eventPatterns) { const match = r.snippet.match(pattern); if (match) { eventTitle = match[0]; break; } }
-    }
-    if (eventTitle.toLowerCase() === 'economic calendar' || eventTitle.length < 5) continue;
-
-    let eventDate = todayStr;
-    let eventTime = '08:30';
-    const timeMatch = text.match(/(\d{1,2}:\d{2})\s*(am|pm|gmt|utc|et|est)?/i);
-    if (timeMatch) {
-      eventTime = timeMatch[1];
-      if (timeMatch[2]?.toLowerCase() === 'pm' && !eventTime.startsWith('12')) {
-        const [h, m] = eventTime.split(':');
-        eventTime = `${Number(h) + 12}:${m}`;
-      }
-    }
-
-    const normalizedTitle = eventTitle
-      .replace(/non-?farm\s+payrolls?s?/i, 'NFP')
-      .replace(/unemployment\s+rate/i, 'Unemployment Rate')
-      .replace(/consumer\s+price\s+index/i, 'CPI')
-      .replace(/purchasing\s+managers'?\s+index/i, 'PMI')
-      .replace(/gross\s+domestic\s+product/i, 'GDP')
-      .replace(/federal\s+open\s+market\s+committee/i, 'FOMC')
-      .substring(0, 30);
-    const dedupeKey = currency + '-' + eventDate + '-' + normalizedTitle;
-    if (seen.has(dedupeKey)) continue;
-    seen.add(dedupeKey);
-
-    events.push({
-      id: 'zai-s-' + events.length + '-' + currency + '-' + eventDate,
-      date: eventDate, time: eventTime,
-      dateTime: buildDateTime(eventDate, eventTime),
-      currency, impact, event: eventTitle, forecast: '', previous: '',
-    });
-  }
-
-  return sortEvents(events);
 }
 
 // ─── Cascade: Faireconomy first (free + reliable), then APIs, web search, fallback last ─
@@ -1215,22 +837,20 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     return { events: sortEvents(deduped), source: primarySource || 'ForexFactory/Faireconomy (Live)', unavailable: false };
   }
 
-  // 1. z-ai-web-dev-sdk — DISABLED in CF Workers
-  //    ZAI SDK's create() internally calls readFile('/.z-ai-config') which throws
-  //    createNotImplementedError in the CF Workers runtime (no filesystem).
-  //    Only Faireconomy + KV cache + last-good rescue serve live calendar data.
-  // try {
-  //   const zaiEvents = await fetchZaiCalendar();
-  //   if (zaiEvents.length > 0) {
-  //     if (!primarySource) primarySource = 'ZAI WebSearch+Reader (Live)';
-  //     collectedEvents.push(...zaiEvents);
-  //     console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
-  //   }
-  // } catch (err: any) {
-  //   errors.push('ZAI: ' + err.message);
-  //   console.error('[EconCalendar] ZAI failed:', err.message);
-  // }
-  console.log('[EconCalendar] Skipping ZAI (readFile not available in CF Workers)');
+  // 1. Gemini + Google Search grounding — LIVE fallback (pure HTTPS, CF Workers-safe).
+  //    Replaces z-ai-web-dev-sdk (its create() calls readFile → crashes on Workers).
+  //    Only used when Faireconomy gave insufficient data (<15 events → no early return above).
+  try {
+    const gmEvents = await fetchGeminiCalendar();
+    if (gmEvents.length > 0) {
+      if (!primarySource) primarySource = 'Gemini + Google Search (Live)';
+      collectedEvents.push(...gmEvents);
+      console.log(`[EconCalendar] Gemini: ${gmEvents.length} events, total now ${collectedEvents.length}`);
+    }
+  } catch (err: any) {
+    errors.push('Gemini: ' + err.message);
+    console.warn('[EconCalendar] Gemini grounding failed:', err.message);
+  }
 
   // 2. TradingEconomics Calendar (RapidAPI) — SKIPPED
   // RapidAPI removed/disabled the /calendar endpoint on tradingeconomics.p.rapidapi.com
@@ -1351,7 +971,7 @@ function isSampleCalendarData(events: CalendarEvent[]): boolean {
       if (item.event.toLowerCase().includes(indicator)) return true;
     }
     if (item.id && item.id.startsWith('fb-')) return true;
-    if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|ff-|inv-|ws-|zai-|fb-|fe-)/)) return true;
+    if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|ff-|inv-|ws-|gm-|zai-|fb-|fe-)/)) return true;
   }
   return false;
 }
@@ -1559,8 +1179,11 @@ export async function GET(request: NextRequest) {
         RAPIDAPI_KEY: rapKey ? `SET (${rapKey.length} chars, starts: ${rapKey.substring(0, 4)}...)` : 'NOT SET',
         FCSAPI_KEY: fcsKey ? `SET (${fcsKey.length} chars)` : 'NOT SET',
       },
-      zaiSdk: {
-        available: !!_zaiInstance,
+      geminiGrounding: {
+        keyConfigured: !!(
+          process.env.GEMINI_API_KEY ||
+          (Array.isArray(globalThisEnvKeys) && globalThisEnvKeys.includes('GEMINI_API_KEY'))
+        ),
       },
       processEnv: {
         FINNHUB_API_KEY: process.env.FINNHUB_API_KEY ? `exists (${process.env.FINNHUB_API_KEY.length} chars)` : 'undefined',
