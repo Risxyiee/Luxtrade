@@ -108,7 +108,7 @@ export default function KantorCeo3D() {
     if (action === 'quota') return ['CFO']
     if (action === 'acc-email' || action === 'auto-acc') return ['CSO']
     if (action.startsWith('tiktok-')) return ['CMO']
-    if (action === 'diag' || action === 'watchdog') return ['CTO']
+    if (action === 'diag' || action === 'watchdog' || action === 'qa') return ['CTO']
     if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
     return []
@@ -881,7 +881,7 @@ export default function KantorCeo3D() {
         {room==='CTO'&&(
           <div style={CARD}>
             <div style={{fontSize:15,fontWeight:700,color:'#0d9488',marginBottom:4}}>🖥️ RUANG CTO</div>
-            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>IT &amp; QA · Monitor sistem & bug</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>IT &amp; QA · Monitor sistem, bug & tes fitur otomatis</div>
             {cto?(
               <div>
                 <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -906,7 +906,18 @@ export default function KantorCeo3D() {
             <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
               <button style={BTN} onClick={()=>call('agents&only=cto')}>🔄 Cek Ulang</button>
               <button style={BTNP} onClick={()=>call('diag')}>🩺 Diagnostik</button>
+              <button style={BTNP} onClick={()=>call('qa')}>🧪 Tes Semua Fitur (QA)</button>
             </div>
+            {data&&data.total!==undefined&&data.results&&(
+              <div style={{marginTop:8,fontSize:11,lineHeight:1.7,...SEP}}>
+                <b style={{color:'#0d9488'}}>🧪 QA {data.total} fitur — {data.fails&&data.fails.length?`${data.fails.length} MASALAH ⚠️`:'SEMUA OK ✅'} · rata-rata {data.avgMs} ms</b>
+                <div style={{maxHeight:170,overflowY:'auto',marginTop:3}}>
+                  {(data.results||[]).map((r:any)=>(
+                    <div key={r.path}>{r.ok?'✅':'❌'} <b>{r.path}</b> — {r.label} · {r.status||'timeout'} ({r.ms} ms){r.err?<span style={{color:'#dc2626'}}> {r.err}</span>:null}</div>
+                  ))}
+                </div>
+                <div style={{opacity:.6,marginTop:3}}>QA jalan otomatis tiap briefing 08:00 WIB — hasilnya ikut laporan Discord.</div>
+              </div>)}
             {data&&data.env&&data.profiles&&(
               <div style={{marginTop:8,fontSize:11,lineHeight:1.65,...SEP}}>
                 <b style={{color:'#6d28d9'}}>🩺 Hasil Diagnostik</b><br/>
@@ -1088,7 +1099,7 @@ export default function KantorCeo3D() {
             <div style={SEP}>
               <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
               <div style={{opacity:.75,fontSize:10.5,marginTop:4,lineHeight:1.8}}>
-                🌅 <b>Briefing pagi</b> 08:00 WIB tiap hari (4 agen + AUTO-ACC)<br/>
+                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC<br/>
                 🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br/>
                 📊 <b>Laporan mingguan</b> Senin 10:00 WIB<br/>
                 ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.

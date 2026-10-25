@@ -446,10 +446,10 @@ async function sendDiscord(e: Env, message: string): Promise<boolean> {
 }
 
 /* ---------- Morning Briefing (gabungan 4 agen) ---------- */
-function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false): string {
+function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false, qa: any = null, cooLine = ''): string {
   const L: string[] = []
-  L.push('🌅 **MORNING BRIEFING — LUXTRADE SUPER AI**')
-  L.push(`📅 ${wibNow()} · 08:00 WIB`)
+  L.push('🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**')
+  L.push(`📅 ${wibNow()} · 08:00 WIB — laporan harian semua karyawan`)
   L.push('━━━━━━━━━━━━━━━━━━')
   L.push('🖥️ **CTO AGENT — IT & QA**')
   L.push(cto?.siteOk
@@ -458,6 +458,13 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(cto?.bugs24h > 0 ? `• Bug 24 jam terakhir: ${cto.bugs24h} ⚠️ segera cek bug_reports`
     : cto?.bugs24h === 0 ? '• Bug 24 jam terakhir: 0 ✅'
     : `• Bug 24 jam: gagal diambil ⚠️ ${String(cto?.err || '').slice(0, 110)}`)
+  if (qa && qa.total > 0) {
+    L.push(qa.fails?.length
+      ? `• QA ${qa.total} fitur dashboard: ${qa.ok} OK, ${qa.fails.length} MASALAH ⚠️`
+      : `• QA otomatis ${qa.total} fitur dashboard: SEMUA OK ✅ (rata-rata ${qa.avgMs} ms)`)
+    for (const f of (qa.fails || []).slice(0, 5))
+      L.push(`   ↳ ${f.path} → ${f.status || 'timeout'}${f.err ? ' — ' + f.err : ''}`)
+  }
   L.push('')
   L.push('👥 **CSO AGENT — CUSTOMER SUCCESS**')
   L.push(`• Total pendaftar: ${fmtN(cso?.total)}`)
@@ -481,20 +488,24 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• Email terkirim hari ini: ${fmtN(cfo?.emailToday)}/${fmtN(cfo?.emailLimit)} (Resend — ${cfo?.emailStatus || '-'})`)
   L.push(`• Status: ${cfo?.status || '-'}`)
   if (cfo?.err) L.push(`⚠️ CFO gagal: ${String(cfo.err).slice(0, 130)}`)
+  if (cooLine) L.push(cooLine)
   L.push('━━━━━━━━━━━━━━━━━━')
   if (autoAcc) L.push(autoAcc)
   L.push(autoOn
     ? '🤖 AUTO-ACC aktif — email sapaan user pasif dikirim CSO otomatis tiap pagi, Bos nggak perlu klik apa-apa.'
     : "Bos, klik tombol 'ACC EMAIL' di Ruang CEO (/kantor-ceo) jika ingin CSO mengirim email sapaan ke user pasif hari ini.")
+  L.push('ℹ️ Alarm darurat (situs DOWN / bug baru / kuota 80%) dikirim INSTAN kapan pun — watchdog jaga tiap 15 menit.')
   return L.join('\n')
 }
 
 async function runMorningBriefing(e: Env) {
-  const [cto, cso, cmo, cfo] = await Promise.all([
+  const [cto, cso, cmo, cfo, qa, cooLine] = await Promise.all([
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
     csoAgent(e).catch((x: any) => ({ total: -1, active: -1, passive: -1, err: String(x?.message || x) })),
     cmoAgent(e).catch((x: any) => ({ draft: '', angle: '', usedFallback: false, error: String(x?.message || x) })),
     cfoAgent(e).catch((x: any) => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error', err: String(x?.message || x) })),
+    qaAgent(e).catch((x: any) => ({ total: 0, ok: 0, fails: [], avgMs: 0, err: String(x?.message || x) })),
+    cooYesterdayLine(e).catch(() => ''),
   ])
   /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
      (1×/hari, dedup via agent_kv acc_email:<tanggal>). Bos tidur, karyawan kerja. */
@@ -508,7 +519,7 @@ async function runMorningBriefing(e: Env) {
     } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
     try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
   }
-  const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn)
+  const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine)
   let notifySent = false, notifyErr = ''
   try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
   const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, text }
@@ -732,6 +743,59 @@ async function weeklyReport(e: Env) {
 }
 
 /* ============================================================
+   QA OTOMATIS (CTO) — tes semua fitur/route utama Luxtradee
+   Dipanggil: briefing 08:00 WIB + tombol manual Ruang CTO.
+   Status tak terduga (5xx/timeout) = MASALAH → dilaporkan.
+   CF 521-524 (self-ping false negative) dianggap OK — sama
+   seperti ctoAgent: Worker ini jalan = situs pasti hidup.
+   ============================================================ */
+const QA_ROUTES: { path: string; label: string; expect: number[] }[] = [
+  { path: '/', label: 'Landing page', expect: [200] },
+  { path: '/about', label: 'Tentang', expect: [200] },
+  { path: '/blog', label: 'Blog', expect: [200] },
+  { path: '/faq', label: 'FAQ', expect: [200] },
+  { path: '/contact', label: 'Kontak', expect: [200] },
+  { path: '/upgrade', label: 'Upgrade PRO', expect: [200] },
+  { path: '/affiliate', label: 'Affiliate', expect: [200] },
+  { path: '/dashboard', label: 'Dashboard user', expect: [200] },
+  { path: '/settings', label: 'Pengaturan', expect: [200] },
+  { path: '/kantor-ceo', label: 'Kantor CEO', expect: [200] },
+  { path: '/api/health', label: 'API health', expect: [200] },
+  { path: '/api/landing-stats', label: 'API landing stats', expect: [200] },
+]
+
+async function qaAgent(e: Env) {
+  const CF_FALSE = [521, 522, 523, 524]
+  const results = await Promise.all(QA_ROUTES.map(async (r) => {
+    const t0 = Date.now()
+    try {
+      const res = await fetch(SITE_URL + r.path, { redirect: 'follow', signal: timeoutSignal(12_000) })
+      const cfFalse = CF_FALSE.includes(res.status)
+      return { path: r.path, label: r.label, status: cfFalse ? 200 : res.status, ok: r.expect.includes(res.status) || cfFalse, ms: Date.now() - t0 }
+    } catch (x: any) {
+      return { path: r.path, label: r.label, status: 0, ok: false, ms: Date.now() - t0, err: String(x?.message || x).slice(0, 60) }
+    }
+  }))
+  const fails = results.filter((r) => !r.ok)
+  const avgMs = Math.round(results.reduce((a, r) => a + r.ms, 0) / (results.length || 1))
+  const out = { at: new Date().toISOString(), total: results.length, ok: results.length - fails.length, fails, avgMs, results }
+  await kvSet(e, 'qa:last', JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+/* Ringkasan kerja COO 24 jam terakhir — buat laporan pagi 08:00 */
+async function cooYesterdayLine(e: Env): Promise<string> {
+  if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) return ''
+  const res = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_tasks?agent_type=eq.COO&created_at=gte.${encodeURIComponent(isoAgo(24))}&select=status`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+  if (!res.ok) return ''
+  const rows = (await res.json()) as { status?: string }[]
+  if (!rows.length) return ''
+  const pending = rows.filter((r) => r.status === 'pending').length
+  const approved = rows.filter((r) => r.status === 'approved').length
+  return `💼 **COO — Divisi Jualan**: ${rows.length} draf penawaran 24 jam terakhir (${approved} terkirim, ${pending} menunggu ACC Bos di /admin/ai-staff)`
+}
+
+/* ============================================================
    BAHAN ANALISIS TIKTOK — CRUD tabel tiktok_posts (migrasi 014)
    Dipakai Ruang CMO: Bos paste link + views/likes → caption
    diambil OTOMATIS via TikTok oEmbed (gratis, tanpa API key).
@@ -921,6 +985,9 @@ async function handle(req: Request): Promise<Response> {
       // CTO jaga situs 24/7 — Cloudflare cron tiap 15 menit (worker-entry.ts):
       // /api/ceo-agent?action=watchdog&key=CRON_SECRET
       return j(await watchdog(e))
+    case 'qa':
+      // CTO QA sweep — tes semua fitur/route utama (juga jalan otomatis di briefing 08:00)
+      return j(await qaAgent(e))
     case 'weekly':
       // Laporan mingguan — Cloudflare cron Senin 10:00 WIB (worker-entry.ts):
       // /api/ceo-agent?action=weekly&key=CRON_SECRET
@@ -968,6 +1035,7 @@ async function handle(req: Request): Promise<Response> {
           'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
           'action=auto-acc [POST &on=1|0] — toggle kirim email pasif OTOMATIS tiap briefing pagi',
           'action=watchdog — CTO jaga situs 24/7: DOWN/bug/kuota 80% → alarm Discord instan + triage bug otomatis (cron 15 mnt)',
+          'action=qa — CTO tes semua fitur dashboard (12 route) → hasil ikut laporan 08:00',
           'action=weekly — laporan mingguan 7 hari ke Discord (cron Minggu 20:00)',
           'action=tiktok-list — daftar bahan analisis TikTok (Ruang CMO)',
           'action=tiktok-add (POST JSON {url,views,likes}) — tambah post: caption auto via oEmbed',
