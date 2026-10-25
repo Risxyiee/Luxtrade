@@ -31,6 +31,121 @@ const CSS = `
 #ktoast.show{opacity:1;transform:translateX(-50%)}
 `
 
+/* ============================================================
+   STRUKTUR & JABATAN TIM AI — data lengkap untuk Ruang Struktur.
+   Sumber kebenaran: kode /api/ceo-agent, /api/cron/ai-coo-agent,
+   /api/admin/ai-staff & worker-entry.ts (jadwal cron Cloudflare).
+   Batas kemampuan ditulis JUJUR supaya Bos bisa menilai gap tim.
+   ============================================================ */
+const TEAM_DETAIL = [
+  {
+    id: 'COO', emoji: '💼', name: 'Bagas', jabatan: 'COO · Chief Operating Officer', divisi: 'Divisi Jualan & Monetisasi', color: '#059669', bg: 'rgba(16,185,129,.05)', border: 'rgba(16,185,129,.28)',
+    shift: 'Cron harian 08:00 WIB (slot 0 1 * * * UTC) · ACC Bos kapan pun di Ruang COO',
+    baca: 'profiles (free user + email) · trades 7 hari per user · ai_pending_tasks (riwayat kontak)',
+    tugas: [
+      'Pilih maks 3 free user paling aktif 7 hari = hot lead (sudah ketagihan produk, paling siap upgrade)',
+      'Racik email penawaran PRO personal via LLM (Groq → Gemini → templat cadangan)',
+      'Simpan draf sebagai task PENDING → tunggu ACC Bos di Ruang COO (human-in-the-loop)',
+      'Setelah ACC: email terkirim via Resend, status dicatat untuk pengukuran konversi',
+    ],
+    lapor: 'Ringkasan 24 jam di briefing 08:00 · % konversi penawaran→PRO di laporan mingguan Senin 10:00',
+    batas: [
+      'Maks 3 lead/hari & 1 lead cuma dikontak 1× per 7 hari (anti-spam)',
+      'Tidak bisa membalas reply dari lead — itu tetap tangan Bos',
+      'Belum ada A/B test subjek email, penawaran diskon, atau hitung open-rate',
+    ],
+    ide: 'Follow-up otomatis lead yang buka email tapi belum PRO · kupon diskon terkontrol · integrasi open-rate',
+  },
+  {
+    id: 'CTO', emoji: '🖥️', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488', bg: 'rgba(13,148,136,.05)', border: 'rgba(13,148,136,.25)',
+    shift: 'Watchdog tiap 15 menit 24/7 · QA sweep + laporan di briefing 08:00 WIB',
+    baca: 'Ping https://luxtradee.web.id · bug_reports · riwayat uptime (agent_kv) · env diagnostik',
+    tugas: [
+      'Ping situs tiap 15 menit — DOWN → alarm Discord instan (dedup 30 mnt), pulih → kabari sekali',
+      'Bug baru masuk → triage Gemini: 3 bug terakhir diringkas jadi diagnosa + prioritas P1/P2/P3',
+      'QA otomatis 12 route utama (landing, dashboard, upgrade, kantor-ceo, API) tiap briefing pagi — 5xx/timeout dilaporkan',
+      'Diagnostik env & tes query Supabase (tombol 🩺 Diagnostik di Ruang CTO)',
+    ],
+    lapor: 'Alarm instan ke Discord · baris QA & bug di Morning Briefing 08:00 · uptime % di laporan mingguan',
+    batas: [
+      'QA = HTTP GET route publik — tidak bisa login lalu klik-klik dashboard seperti manusia (tidak ada browser di Workers)',
+      'Tidak bisa memperbaiki bug sendiri — cuma laporkan & tebak penyebabnya',
+      'Bug di fitur berbayar tak terlihat kalau user tidak lapor lewat form bug',
+    ],
+    ide: 'QA route butuh-login pakai token uji · ping endpoint kritis per fitur (upload/evaluasi) · rollback otomatis kalau QA gagal parah',
+  },
+  {
+    id: 'CSO', emoji: '👥', name: 'Maya', jabatan: 'CSO · Chief Customer Success Officer', divisi: 'Customer Success & Retensi', color: '#be185d', bg: 'rgba(219,39,119,.05)', border: 'rgba(219,39,119,.25)',
+    shift: 'Hitung user di briefing 08:00 · email pasif otomatis 1×/hari (kalau AUTO-ACC on) · rapat dengan CMO 1×/hari',
+    baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
+    tugas: [
+      'Hitung pendaftar / aktif 24 jam / pasif tiap pagi — tampil di briefing & panel Ruang CSO',
+      'Kirim email sapaan ke maks 50 user pasif (3 variasi rotasi harian — anti email fatigue) via Resend',
+      'Ukur feedback: besoknya hitung berapa dari yang di-email yang balik upload (dilaporkan di briefing)',
+      'Bawa data nyata ke meja rapat sama Sinta (CMO): kenapa user daftar tapi males upload jurnal → jadi skrip konten',
+    ],
+    lapor: 'Angka user di briefing 08:00 · hasil rapat CSO×CMO dikirim Discord (pesan terpisah) · ACC EMAIL & AUTO-ACC di panel Ruang CSO',
+    batas: [
+      '"Aktif" = upload trades dalam 24 jam — user yang cuma login dihitung pasif',
+      'Email cuma ke 50 pendaftar terbaru yang pasif per hari (sisa nunggu besok)',
+      'Tidak bisa survey user langsung / membalas chat user (itu tugas CS bot /api/chat)',
+    ],
+    ide: 'Survey 1-klik "kenapa berhenti" di dashboard · segmen email beda (baru vs lama) · win-back khusus mantan user aktif',
+  },
+  {
+    id: 'CMO', emoji: '📣', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed', bg: 'rgba(124,58,237,.05)', border: 'rgba(124,58,237,.25)',
+    shift: 'Draf TikTok di briefing 08:00 atau kapan pun tombol "Buat Draf Baru" ditekan',
+    baca: 'tiktok_posts (top 5 konten Bos urut views) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
+    tugas: [
+      'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
+      'Bikin 1 draf TikTok/hari — rotasi 3 angle: pain point SMC/ICT · capek ngetik jurnal · max daily loss prop firm',
+      'Fallback 3 tingkat: Gemini → OpenRouter → templat statis (draf tidak pernah kosong)',
+      'Ikut rapat harian sama Maya: ubah akar masalah churn jadi skrip konten anti-churn',
+    ],
+    lapor: 'Draf di panel Ruang CMO (tinggal salin) + draf & sumber analisis di briefing 08:00 · skrip rapat di Ruang CSO',
+    batas: [
+      'Cuma 1 draf/hari — belum ada beberapa opsi pilihan',
+      'Tidak tahu performa SETELAH posting — views/likes berubah hanya kalau Bos update manual di Ruang CMO',
+      'Tidak bisa posting ke TikTok otomatis (butuh API resmi TikTok)',
+    ],
+    ide: 'Refresh views otomatis via oEmbed mingguan · 3 draf pilihan per hari · bank hook yang terbukti FYP',
+  },
+  {
+    id: 'CFO', emoji: '💰', name: 'Putri', jabatan: 'CFO · Chief Financial Officer', divisi: 'Anggaran API & Biaya', color: '#b45309', bg: 'rgba(217,119,6,.05)', border: 'rgba(217,119,6,.28)',
+    shift: 'Cek kuota di briefing 08:00 + watchdog 15 menit (alarm di 80%)',
+    baca: 'agent_kv quota: (Gemini Vision) · email: (Resend) · quota429: (event rate-limit)',
+    tugas: [
+      'Pantau kuota Gemini Vision harian (limit ±1.400) & kuota email Resend (100/hari)',
+      'Gerbang quota-track: setiap evaluasi upload user dicek dulu — kuota habis → ditunda (anti-429)',
+      'Alarm Discord 1×/hari kalau pemakaian ≥80%',
+      'Laporan pemakaian 7 hari di laporan mingguan',
+    ],
+    lapor: 'Baris kuota di briefing & panel Ruang CFO · alarm instan di 80% · rekap 7 hari mingguan',
+    batas: [
+      'Bukan keuangan uang sungguhan — belum pegang pendapatan PRO & biaya server',
+      'Limit diambil dari env, bukan dibaca langsung dari billing Gemini/Resend/Supabase',
+    ],
+    ide: 'Laporan pendapatan (hitung is_pro × harga) · banding biaya API vs revenue · target MRR bulanan',
+  },
+  {
+    id: 'CEO', emoji: '👔', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#334155', bg: 'rgba(51,65,85,.04)', border: 'rgba(51,65,85,.22)',
+    shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
+    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO) + status AUTO-ACC',
+    tugas: [
+      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → kirim ke Discord 08:00',
+      'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya',
+      'Susun laporan mingguan (pertumbuhan user, uptime, kuota, konversi COO) tiap Senin',
+      'Pintu kontrol manual di Ruang Rapat: briefing, watchdog, tes Discord, laporan mingguan',
+    ],
+    lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca',
+    batas: [
+      'Cuma bisa LAPOR — keputusan besar (harga, fitur, anggaran) tetap di tangan Bos',
+      'Briefing tidak dikirim ulang otomatis kalau Discord gagal — harus klik manual',
+    ],
+    ide: '1 "Next Best Action" tiap pagi: prioritas tunggal apa yang Bos harus kerjakan hari ini',
+  },
+]
+
 export default function KantorCeo3D() {
   const mountRef = useRef(null)
   const runBriefingRef = useRef(null)
@@ -416,7 +531,7 @@ export default function KantorCeo3D() {
 
       /* ---------- fokus kamera per ruangan ---------- */
       const FOCUS={on:false,pos:new THREE.Vector3(),tgt:new THREE.Vector3()}
-      const ROOMV={overview:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],COO:[[10.75,4.6,-.8],[10.75,.9,-7]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
+      const ROOMV={overview:[[2,9,17],[2,.8,0]],struktur:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],COO:[[10.75,4.6,-.8],[10.75,.9,-7]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
       const focusRoom=r=>{const P=ROOMV[r];if(!P){FOCUS.on=false;return}
         FOCUS.pos.set(...P[0]);FOCUS.tgt.set(...P[1]);FOCUS.on=true}
       focusRef.current=focusRoom
@@ -883,7 +998,7 @@ export default function KantorCeo3D() {
   const coo=data&&data.coo
   const talk=data&&data.talk
   const autoacc=(data as any)?.autoacc
-  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['COO','💼 COO'],['rapat','🌅 Rapat']]
+  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['COO','💼 COO'],['struktur','📋 Struktur'],['rapat','🌅 Rapat']]
   const devOpen=process.env.NODE_ENV!=='production'
 
   return (
@@ -982,6 +1097,7 @@ export default function KantorCeo3D() {
                 <b style={{color:'#334155'}}>👔 Alexander — CEO</b><br/>
                 <span style={{opacity:.75}}>Kumpulin semua laporan jadi Morning Briefing 08:00 + laporan mingguan Senin 10:00 → Discord. Klik laptopnya untuk briefing manual.</span>
               </div>
+              <button style={{...BTN,fontSize:11,marginTop:8,width:'100%'}} onClick={()=>setRoom('struktur')}>🔍 Buka Struktur & Jabatan Lengkap</button>
             </div>
           </>)}
 
@@ -1100,6 +1216,10 @@ export default function KantorCeo3D() {
                   <div style={{background:'rgba(219,39,119,.06)',borderRadius:8,padding:'6px 8px',fontSize:11,lineHeight:1.55,border:'1px solid rgba(219,39,119,.12)'}}>
                     🔍 <b>Diagnosa:</b> {talk.diagnosis}
                   </div>
+                  {talk.intel&&(
+                    <div style={{marginTop:5,fontSize:10,lineHeight:1.55,opacity:.8,background:'rgba(15,23,42,.04)',borderRadius:7,padding:'5px 7px'}}>
+                      📊 <b>Data nyata yang Maya bawa ke meja rapat:</b> {talk.intel.total} pendaftar · {talk.intel.active7d} aktif 7 hr · {talk.intel.passive} pasif · <b style={{color:'#be185d'}}>{talk.intel.baruTakAktif} pendaftar baru belum pernah upload</b>{(talk.intel.bug7d??-1)>=0?<span> · {talk.intel.bug7d} bug 7 hr</span>:null}
+                    </div>)}
                   {talk.dupToday?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>udah diskusi hari ini — ini hasil terakhir (briefing 08:00 juga jalanin otomatis)</div>:null}
                   {Array.isArray(talk.reasons)&&talk.reasons.length>0&&(
                     <div style={{marginTop:5,fontSize:10.5,lineHeight:1.6,opacity:.85}}>
