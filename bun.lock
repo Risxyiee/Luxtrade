@@ -78,6 +78,7 @@
         "tailwind-merge": "^3.3.1",
         "tailwindcss-animate": "^1.0.7",
         "tesseract.js": "^7.0.0",
+        "three": "^0.186.1",
         "vaul": "^1.1.2",
         "web-push": "^3.6.7",
         "z-ai-web-dev-sdk": "^0.0.17",
@@ -1989,6 +1990,8 @@
     "tesseract.js-core": ["tesseract.js-core@7.0.0", "", {}, ""],
 
     "text-segmentation": ["text-segmentation@1.0.3", "", { "dependencies": { "utrie": "^1.0.2" } }, ""],
+
+    "three": ["three@0.186.1", "", {}, "sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA=="],
 
     "through2": ["through2@4.0.2", "", { "dependencies": { "readable-stream": "3" } }, ""],
 
