@@ -10,6 +10,7 @@
 // notifyErr, domain luxtradee.web.id, tabel bug_reports.
 // ============================================================
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 const CSS = `
 .kg{background:rgba(18,12,34,.55);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);border:1px solid rgba(255,255,255,.14);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
@@ -33,7 +34,9 @@ export default function KantorCeo3D() {
   const runBriefingRef = useRef(null)
   const [loaded, setLoaded] = useState(false)
   const [sceneErr, setSceneErr] = useState('')
+  const [gate, setGate] = useState<'checking' | 'ok' | 'denied'>('checking')
   const [token, setToken] = useState('')
+  const [sbKey, setSbKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [data, setData] = useState(null)
   const [clock, setClock] = useState('')
@@ -44,7 +47,32 @@ export default function KantorCeo3D() {
     f(); const iv = setInterval(f, 1000); return () => clearInterval(iv)
   }, [])
 
-  useEffect(() => { setToken(localStorage.getItem('lux_admin_secret') || '') }, [])
+  /* ---------- email-gate: cuma owner (luxtradee@gmail.com) yang boleh masuk.
+     Tidak perlu tempel secret apa pun — pakai sesi login situs yang sudah ada. */
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const sb = await getClientBrowserAsync()
+        if (!sb) { if (!cancelled) setGate('denied'); return }
+        const { data: sdata } = await sb.auth.getSession()
+        const email = (sdata?.session?.user?.email || '').toLowerCase().trim()
+        if (cancelled) return
+        if (email === 'luxtradee@gmail.com') {
+          setToken(sdata.session.access_token)
+          try {
+            const { loadSupabaseConfig } = await import('@/lib/supabase/config-loader')
+            const cfg = await loadSupabaseConfig()
+            if (!cancelled && cfg.anonKey) setSbKey(cfg.anonKey)
+          } catch { /* anon key opsional — env bisa jalan tanpa ini */ }
+          setGate('ok')
+        } else {
+          setGate('denied')
+        }
+      } catch { if (!cancelled) setGate('denied') }
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   /* ---------- pemanggil API ---------- */
   const call = useCallback(async (action, method = 'GET') => {
@@ -52,11 +80,14 @@ export default function KantorCeo3D() {
     try {
       const res = await fetch(`/api/ceo-agent?action=${action}`, {
         method,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(sbKey ? { 'X-SB-Key': sbKey } : {}),
+        },
       })
       setData(await res.json())
     } catch (e) { setData({ error: String(e) }) } finally { setBusy(false) }
-  }, [token])
+  }, [token, sbKey])
 
   useEffect(() => { runBriefingRef.current = () => call('briefing', 'POST') }, [call])
 
@@ -574,6 +605,23 @@ export default function KantorCeo3D() {
 
   return (
     <main style={{position:'fixed',inset:0,background:'#05050a',overflow:'hidden',fontFamily:'system-ui,sans-serif'}}>
+      {gate==='checking'&&(
+        <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',color:'#10f5a0',fontFamily:'monospace',letterSpacing:'.2em',fontSize:12,zIndex:50}}>
+          MEMERIKSA AKSES…
+        </div>)}
+      {gate==='denied'&&(
+        <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',zIndex:50,padding:16}}>
+          <div style={{...CARD,maxWidth:340,textAlign:'center'}}>
+            <div style={{fontSize:40,marginBottom:8}}>🔒</div>
+            <b style={{color:'#10f5a0',fontSize:15}}>Ruang CEO Terkunci</b>
+            <div style={{marginTop:10,opacity:.85,lineHeight:1.6}}>
+              Ruangan ini khusus untuk<br/><b style={{color:'#10f5a0'}}>luxtradee@gmail.com</b><br/>
+              Login dulu di situs dengan email tersebut, lalu buka halaman ini lagi.
+            </div>
+            <a href="/auth/login" style={{display:'inline-block',marginTop:14,...BTN,textDecoration:'none'}}>🔑 Ke Halaman Login</a>
+          </div>
+        </div>)}
+
       <div ref={mountRef} style={{position:'absolute',inset:0,overflow:'hidden'}}/>
 
       {(!loaded&&!sceneErr)&&(
@@ -588,12 +636,7 @@ export default function KantorCeo3D() {
       <div style={{position:'absolute',top:16,right:16,zIndex:20,display:'flex',flexDirection:'column',gap:10,maxWidth:262,maxHeight:'calc(100vh - 32px)',overflowY:'auto'}}>
         <div style={CARD}>
           <div style={{fontSize:22,fontWeight:700,color:'#10f5a0'}}>{clock} <span style={{fontSize:11,opacity:.6}}>WIB</span></div>
-          <div style={{opacity:.6,fontSize:11,marginBottom:10}}>SUPER AI AGENT · CEO DASHBOARD</div>
-          <input
-            value={token} onChange={e=>{setToken(e.target.value);localStorage.setItem('lux_admin_secret',e.target.value)}}
-            placeholder="ADMIN_SECRET (disimpan lokal)"
-            style={{width:'100%',marginBottom:10,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,.14)',background:'rgba(255,255,255,.05)',color:'#e8fff6',font:'inherit',fontSize:11,boxSizing:'border-box'}}
-          />
+          <div style={{opacity:.6,fontSize:11,marginBottom:10}}>SUPER AI AGENT · CEO DASHBOARD<br/><span style={{color:'#10f5a0',opacity:.9}}>👤 luxtradee@gmail.com</span></div>
           <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
             <button style={{...BTN,opacity:busy?.5:1}} disabled={busy} onClick={()=>call('briefing','POST')}>
               {busy?'⏳ Jalan…':'🌅 Jalankan Briefing + Discord'}
@@ -601,8 +644,14 @@ export default function KantorCeo3D() {
             <button style={BTN} onClick={()=>call('agents')}>🤖 Data 4 Agen</button>
             <button style={BTN} onClick={()=>call('quota')}>💰 Kuota</button>
             <button style={BTN} onClick={()=>call('briefing-last')}>📜 Terakhir</button>
+            <button style={{...BTN,borderColor:'rgba(251,191,36,.5)',background:'rgba(251,191,36,.1)',color:'#fbbf24'}} onClick={()=>call('discord-test')}>🧪 Tes Discord</button>
           </div>
+          {(data&&data.ok!==undefined&&!data.cto&&!data.cso)&&(
+            <div style={{marginTop:8,fontSize:11.5,color:data.ok?'#10f5a0':'#ef4444'}}>
+              🧪 Tes Discord: {data.ok?'berhasil — cek channel Discord ✅':String(data.error||'gagal').slice(0,140)}
+            </div>)}
           <div style={{opacity:.45,fontSize:10.5,marginTop:10,lineHeight:1.5}}>
+            Akses otomatis via login <b>luxtradee@gmail.com</b> — tanpa secret.<br/>
             Cron 08:00 WIB: cron-job.org → URL <b>/api/ceo-agent?action=briefing&amp;key=CRON_SECRET</b>
           </div>
         </div>
@@ -637,7 +686,7 @@ export default function KantorCeo3D() {
         {data&&data.text&&(
           <div style={CARD}>
             <b>Discord</b>{' '}
-            {data.notifySent?'✅ terkirim ke channel Discord':`❌ ${data.notifyErr||'gagal'}`}
+            {data.notifySent?'✅ terkirim ke channel Discord':`❌ ${data.notifyErr||'gagal — klik 🧪 Tes Discord untuk diagnosa'}`}
             <div style={{whiteSpace:'pre-wrap',marginTop:8,opacity:.75,fontSize:11.5,maxHeight:260,overflowY:'auto'}}>{data.text}</div>
           </div>)}
         {data&&data.error&&(
