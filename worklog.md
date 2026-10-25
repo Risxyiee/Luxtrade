@@ -1176,3 +1176,20 @@ Stage Summary:
 - 3D scene significantly brighter (especially at night)
 - Each agent room has dedicated, styled controls with clear CTAs
 - User needs to set SUPABASE_SERVICE_ROLE_KEY in Cloudflare Secrets to fix CSO/CTO data
+---
+Task ID: 17
+Agent: main
+Task: Wire 3D characters to REAL agent work (busy state, real results in thought bubbles)
+
+Work Log:
+- Added liveRef (mirror of data state), busyRef (agent → in-flight timestamp), doneRef (agent → completion timestamp) to KantorCeo3D component
+- Added jobsOfAction() mapping API action → agent jobs (agents&only=cto → CTO, briefing → all+CEO, acc-email → CSO, etc.)
+- call() now marks jobs busy before fetch, marks done + timestamp in finally
+- thought2() priority chain: busy → real working message; done <=9s → celebration with REAL numbers; idle → realStatus() live lines alternating with flavor text
+- realStatus() reads liveRef and formats real agent results (web status/latency/bugs, user counts, quota, briefing sent)
+- window.__kceo.toast() bridge added — call() fires scene toasts on briefing sent / ACC EMAIL recorded
+- Committed 385c78b9, pushed to GitHub
+
+Stage Summary:
+- 3D characters now visibly "work for real": bubbles show real API results, working state while calls run, celebration after
+- Data was always real (real ping/Supabase/Gemini/Discord); now the visualization is connected too
