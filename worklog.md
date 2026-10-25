@@ -1377,3 +1377,26 @@ Stage Summary:
 - Tim AI v3 LIVE di produksi: 8 karyawan (Raka/Maya/Sinta/Putri/Bagas/Dewi/Farhan/Alexander) + 3 upgrade kecerdasan: memori bersama antar agen, email retensi personal per user, prioritas Bos ter-akuntabilitas harian
 - Bos tidak perlu setup apa pun di produksi (OPENROUTER_API_KEY opsional tetap disarankan)
 - Ide lanjutan yang disampaikan ke Bos: skor churn, A/B subject, chat 2 arah Discord bot, TTS briefing, refresh views oEmbed, 3 draf pilihan/hari, Data Analyst korelasi emosi
+---
+Task ID: 25
+Agent: Z.ai Code (main)
+Task: Arsitektur MULTI-AGENT — tiap karyawan AI pakai model OpenRouter sendiri sesuai SOP Bos + fix URL TikTok link pendek
+
+Work Log:
+- ceo-agent/route.ts: hapus openRouterText lama → helper baru OR_URL + AGENT_MODELS (coo/cto/cso/cmo/ceo/da/gh) + OR_TEAM_FALLBACK 'zhipu/glm-4-flash' + orChain() (override env OR_MODEL_CTO dll; legacy OPENROUTER_MODEL tetap untuk Sinta) + openRouterChat() (native fetch, Bearer, body OpenAI, parsing result.choices[0].message.content.trim(), coba model per chain, timeout 45s) + agentBrain() (OpenRouter model karyawan → Gemini cadangan → throw; caller pakai templat statis)
+- Raka (CTO): triage bug di watchdog pindah dari Gemini-only ke agentBrain('cto') = qwen-2.5-coder-7b-instruct:free; gagal → daftar mentah (alarm tetap kirim)
+- Maya (CSO): sendPassiveEmails — draf email hari ini diracik agentBrain('cso') = gemma-2-9b-it:free (1 panggilan LLM/hari, rotasi 3 nada CSO_EMAIL_TONES), personalisasi per user tetap dari data trade asli (personalLine), CTA+footer statis sistem (anti halusinasi link), sanitasi URL dari output LLM; gagal → PASSIVE_VARIANTS. Return +emailProvider/emailModel → baris AUTO-ACC briefing menyebut draf Maya via <model>
+- Sinta (CMO): cmoAgent — rantai GLM-4.7-flash → glm-4-flash → Gemini → fallbackDraft; draf WAJIB menjawab alasan churn dari rapat Maya×Sinta terakhir (cso-cmo:last → churnLine di userPrompt); cache cmo:<day> = 1 draf/hari SOP (dashboard & briefing share); return +model
+- Alexander (CEO): ceoComposeBriefing() baru — Llama 3.1 8B merapikan laporan mentah buildBriefing jadi Morning Briefing rapi (validasi: ≥300 char + wajib ada CTO/CSO/CMO, gagal → templat); NBA pindah dari Gemini-only ke agentBrain('ceo') (tak lagi butuh GEMINI_API_KEY)
+- Putri (CFO): tetap TANPA LLM (pure code) — ditegaskan di komentar & kartu Struktur
+- ai-coo-agent/route.ts: callBagas() — Llama 3.1 8b:free via OpenRouter (native fetch, OR_MODEL_COO override, fallback glm-4-flash) → callLLM lama (Groq→Gemini) → templat; notif Telegram/response pakai provider nyata per draf; LLMResult.provider + 'openrouter' (lib/ai-llm.ts)
+- FIX TikTok: TT_URL_RE terima www/m/vt/vm.tiktok.com (link pendek vt.tiktok.com/ZSgQjsxYP diterima — unit test 7/7 PASS); resolve redirect vt/vm → canonical hanya jika /video|photo// (sandbox resolve ke /about → tak dipakai); oEmbed coba canonical lalu URL asli; pesan error + placeholder UI update
+- diag: env OPENROUTER_API_KEY/MODEL; info action menampilkan tabel model; UI KantorCeo3D: TEAM_DETAIL + PHASE_TASK + badge talk/CMO/DA/GH (openrouter = model resmi, gemini = cadangan) + footer Ruang CMO
+- Lint + tsc bersih; agent-browser: /kantor-ceo render 10 chip, Ruang Struktur tampil model tiap karyawan, placeholder vt.tiktok.com OK, 0 page error; info endpoint menampilkan alokasi model
+- Commit 7f6bde3d, push origin/main (CF auto-deploy ±2-3 mnt)
+
+Stage Summary:
+- SOP Multi-Agent Bos live: Bagas=llama-3.1-8b, Raka=qwen-2.5-coder-7b, Maya=gemma-2-9b, Sinta=glm-4.7-flash(→glm-4-flash), Alexander=llama-3.1-8b, Putri=tanpa LLM — semua native fetch OpenRouter dgn rantai fallback tak pernah crash
+- PENTING produksi: OPENROUTER_API_KEY WAJIB diset di Cloudflare Workers Secrets (sebelumnya opsional — sekarang otak utama semua agen; tanpa itu semua agen jatuh ke Gemini lalu templat)
+- Link pendek TikTok diterima di Ruang CMO
+- Dewi (DA) & Farhan (GH) ikut dialokasikan (gemma-2-9b & llama-3.1-8b, mingguan — tak bentrok kuota Maya/Bagas); bisa diganti via OR_MODEL_DA/OR_MODEL_GH
