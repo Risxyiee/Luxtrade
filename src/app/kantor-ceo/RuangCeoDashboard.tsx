@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Mail,
   Megaphone,
   RefreshCw,
   Send,
@@ -49,7 +50,7 @@ interface CfoResult {
 }
 interface AgentsPayload { cto?: CtoResult; cso?: CsoResult; cmo?: CmoResult; cfo?: CfoResult }
 interface BriefingSummary extends AgentsPayload {
-  at?: string; waSent?: boolean; waErr?: string; text?: string
+  at?: string; notifySent?: boolean; notifyErr?: string; text?: string
 }
 
 const KEY_STORAGE = 'ruangCeoKey'
@@ -80,7 +81,7 @@ function StatusBadge({ ok, label }: { ok: boolean | null; label: string }) {
 export default function RuangCeoDashboard() {
   const [key, setKey] = useState('')
   const [showKey, setShowKey] = useState(false)
-  const [loading, setLoading] = useState<'agents' | 'briefing' | 'last' | null>(null)
+  const [loading, setLoading] = useState<'agents' | 'briefing' | 'last' | 'acc' | null>(null)
   const [agents, setAgents] = useState<AgentsPayload | null>(null)
   const [briefing, setBriefing] = useState<BriefingSummary | null>(null)
 
@@ -115,8 +116,8 @@ export default function RuangCeoDashboard() {
     try {
       const data = await callAgent('briefing', key)
       setBriefing(data as BriefingSummary)
-      if ((data as BriefingSummary).waSent) toast.success('Briefing jalan + terkirim ke WhatsApp!')
-      else toast.warning('Briefing jalan, tapi WA gagal terkirim — cek WA_TOKEN/WA_TARGET.')
+      if ((data as BriefingSummary).notifySent) toast.success('Briefing jalan + terkirim ke Discord!')
+      else toast.warning('Briefing jalan, tapi gagal kirim ke Discord — cek DISCORD_WEBHOOK_URL.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Briefing gagal dijalankan')
     } finally {
@@ -147,6 +148,25 @@ export default function RuangCeoDashboard() {
       toast.error('Gagal mengopi — browser memblokir clipboard')
     }
   }, [briefing])
+
+  /* Flow "ACC EMAIL" — kirim email sapaan ke user pasif (Resend),
+     pengganti reply "ACC EMAIL" via WhatsApp yang sudah dimatikan */
+  const handleAccEmail = useCallback(async () => {
+    if (!key) { toast.error('Masukkan ADMIN_SECRET / CRON_SECRET dulu ya, Bos.') ; return }
+    setLoading('acc')
+    try {
+      const data = await callAgent('acc-email', key)
+      if (data?.dup) { toast.info('ACC EMAIL hari ini sudah pernah dijalankan (dedup harian).'); return }
+      const sent = typeof data?.emailsSent === 'number' && (data.emailsSent as number) >= 0
+        ? (data.emailsSent as number) : null
+      if (sent === null) toast.warning('ACC EMAIL dicatat — set RESEND_API_KEY agar email terkirim otomatis.')
+      else toast.success(`Email sapaan terkirim ke ${sent} user pasif hari ini`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ACC EMAIL gagal dijalankan')
+    } finally {
+      setLoading(null)
+    }
+  }, [key])
 
   const cto = briefing?.cto ?? agents?.cto
   const cso = briefing?.cso ?? agents?.cso
@@ -216,10 +236,14 @@ export default function RuangCeoDashboard() {
             </Button>
             <Button onClick={handleBriefing} disabled={loading !== null} variant="secondary">
               <Send className={`mr-2 h-4 w-4 ${loading === 'briefing' ? 'animate-pulse' : ''}`} aria-hidden="true" />
-              {loading === 'briefing' ? 'Briefing berjalan…' : 'Jalankan Briefing + Kirim WA'}
+              {loading === 'briefing' ? 'Briefing berjalan…' : 'Jalankan Briefing + Kirim Discord'}
             </Button>
             <Button onClick={handleBriefingLast} disabled={loading !== null} variant="outline">
               {loading === 'last' ? 'Memuat…' : 'Briefing Terakhir'}
+            </Button>
+            <Button onClick={handleAccEmail} disabled={loading !== null} variant="outline">
+              <Mail className={`mr-2 h-4 w-4 ${loading === 'acc' ? 'animate-pulse' : ''}`} aria-hidden="true" />
+              {loading === 'acc' ? 'Mengirim email…' : 'ACC EMAIL ke User Pasif'}
             </Button>
           </div>
         </CardContent>
@@ -347,9 +371,9 @@ export default function RuangCeoDashboard() {
             <CardTitle className="text-base">Morning Briefing</CardTitle>
             <CardDescription>
               {briefing.at ? new Date(briefing.at).toLocaleString('id-ID') : ''}
-              {' · '}WA: {briefing.waSent
+              {' · '}Discord: {briefing.notifySent
                 ? <span className="font-medium text-emerald-700">terkirim ✅</span>
-                : <span className="font-medium text-rose-600">gagal{briefing.waErr ? ` — ${briefing.waErr}` : ''}</span>}
+                : <span className="font-medium text-rose-600">gagal{briefing.notifyErr ? ` — ${briefing.notifyErr}` : ''}</span>}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

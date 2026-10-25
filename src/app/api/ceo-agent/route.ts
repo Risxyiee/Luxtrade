@@ -7,6 +7,8 @@
 // Catatan adaptasi utk project Luxtradee (tanpa mengubah perilaku):
 //  - SUPABASE_URL / SUPABASE_ANON_KEY fallback ke NEXT_PUBLIC_* bila belum diset
 //  - SITE_URL & alamat email pakai domain produksi luxtradee.web.id
+//  - Notifikasi pakai DISCORD WEBHOOK (bukan WhatsApp Fonnte/Wablas) —
+//    konsisten dgn seluruh notifikasi admin Luxtradee yang sudah migrasi ke Discord
 // ============================================================
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
@@ -201,35 +203,45 @@ async function cfoAgent(e: Env) {
   }
 }
 
-/* ---------- WhatsApp Gateway ---------- */
-async function sendWA(e: Env, message: string) {
-  if (e.WA_PROVIDER === 'wablas') {
-    const res = await fetch('https://console.wablas.com/api/send-message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: e.WA_TOKEN || '' },
-      body: JSON.stringify({ phone: e.WA_TARGET, message }),
-      signal: timeoutSignal(15_000),
-    })
-    if (!res.ok) throw new Error(`Wablas HTTP ${res.status}`)
-    return true
+/* ---------- Notifikasi Discord (pengganti WhatsApp gateway) ----------
+   Hanya butuh 1 secret: DISCORD_WEBHOOK_URL (sudah diset di Cloudflare).
+   Pesan memakai markdown Discord (**bold**), max 2000 char. */
+async function sendDiscord(e: Env, message: string): Promise<boolean> {
+  let webhookUrl = e.DISCORD_WEBHOOK_URL || ''
+  if (!webhookUrl) {
+    // fallback: binding env CF Workers (OpenNext context)
+    try {
+      const sym = Symbol.for('__cloudflare-context__')
+      const ctx = (globalThis as Record<symbol, unknown>)[sym] as { env?: Record<string, string> } | undefined
+      webhookUrl = ctx?.env?.DISCORD_WEBHOOK_URL || ''
+    } catch { /* ignore */ }
   }
-  const res = await fetch('https://api.fonnte.com/send', {
+  if (!webhookUrl)
+    throw new Error('DISCORD_WEBHOOK_URL belum diset — Cloudflare → Workers → luxtradee → Variables & Secrets')
+
+  const res = await fetch(webhookUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: e.WA_TOKEN || '' },
-    body: JSON.stringify({ target: e.WA_TARGET, message }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: 'LuxTradee CEO Agent',
+      content: message.slice(0, 2000), // batas hard Discord
+    }),
     signal: timeoutSignal(15_000),
   })
-  if (!res.ok) throw new Error(`Fonnte HTTP ${res.status}`)
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 120)
+    throw new Error(`Discord HTTP ${res.status}${detail ? ' — ' + detail : ''}`)
+  }
   return true
 }
 
 /* ---------- Morning Briefing (gabungan 4 agen) ---------- */
 function buildBriefing(cto: any, cso: any, cmo: any, cfo: any): string {
   const L: string[] = []
-  L.push('🌅 *MORNING BRIEFING — LUXTRADE SUPER AI*')
+  L.push('🌅 **MORNING BRIEFING — LUXTRADE SUPER AI**')
   L.push(`📅 ${wibNow()} · 08:00 WIB`)
   L.push('━━━━━━━━━━━━━━━━━━')
-  L.push('🖥️ *CTO AGENT — IT & QA*')
+  L.push('🖥️ **CTO AGENT — IT & QA**')
   L.push(cto?.siteOk
     ? `• Website: ✅ ${cto.status} OK (${cto.latencyMs} ms)`
     : `• Website: ❌ DOWN (${cto?.status || 'timeout'})${cto?.err ? ' — ' + String(cto.err).slice(0, 80) : ''}`)
@@ -237,22 +249,22 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any): string {
     : cto?.bugs24h === 0 ? '• Bug 24 jam terakhir: 0 ✅'
     : '• Bug 24 jam: data gagal diambil ⚠️')
   L.push('')
-  L.push('👥 *CSO AGENT — CUSTOMER SUCCESS*')
+  L.push('👥 **CSO AGENT — CUSTOMER SUCCESS**')
   L.push(`• Total pendaftar: ${fmtN(cso?.total)}`)
   L.push(`• User aktif (upload 24 jam): ${fmtN(cso?.active)}`)
   L.push(`• User pasif (>24 jam tanpa aktivitas): ${fmtN(cso?.passive)}`)
   L.push('')
-  L.push('📣 *CMO AGENT — DRAF TIKTOK HARI INI*')
+  L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
   if (cmo?.usedFallback) L.push('_(Gemini limit — pakai draf cadangan, mohon revisi manual)_')
   L.push('')
-  L.push('💰 *CFO AGENT — KUOTA API GEMINI*')
+  L.push('💰 **CFO AGENT — KUOTA API GEMINI**')
   L.push(`• Terpakai kemarin: ${fmtN(cfo?.usedYesterday)}/${fmtN(cfo?.limit)}`)
   L.push(`• Terpakai hari ini: ${fmtN(cfo?.usedToday)}/${fmtN(cfo?.limit)}`)
   L.push(`• Event 429 kemarin: ${fmtN(cfo?.quota429)}`)
   L.push(`• Status: ${cfo?.status || '-'}`)
   L.push('━━━━━━━━━━━━━━━━━━')
-  L.push("Bos, balas 'ACC EMAIL' jika ingin CSO mengirim email sapaan ke user pasif hari ini.")
+  L.push("Bos, klik tombol 'ACC EMAIL' di Ruang CEO (/kantor-ceo) jika ingin CSO mengirim email sapaan ke user pasif hari ini.")
   return L.join('\n')
 }
 
@@ -264,9 +276,9 @@ async function runMorningBriefing(e: Env) {
     cfoAgent(e).catch(() => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error' })),
   ])
   const text = buildBriefing(cto, cso, cmo, cfo)
-  let waSent = false, waErr = ''
-  try { await sendWA(e, text); waSent = true } catch (x: any) { waErr = String(x?.message || x) }
-  const summary = { at: new Date().toISOString(), waSent, waErr, cto, cso, cmo, cfo, text }
+  let notifySent = false, notifyErr = ''
+  try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
+  const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, text }
   await kvSet(e, 'briefing:last', JSON.stringify(summary))
   return summary
 }
@@ -347,11 +359,9 @@ async function handle(req: Request): Promise<Response> {
       await kvSet(e, k, String(used + 1))
       return j({ allowed: true, usedToday: used + 1, remaining: limit - used - 1, limit })
     }
-    case 'webhook': {
-      // Webhook WA (Fonnte) — URL: /api/ceo-agent?action=webhook&key=<ADMIN_SECRET>
-      const body = await req.json().catch(() => ({}) as any)
-      const text = String(body?.message ?? body?.text ?? '').trim().toUpperCase()
-      if (!text.includes('ACC EMAIL')) return j({ ok: true, ignored: true })
+    case 'acc-email': {
+      // Flow "ACC EMAIL" — dipicu tombol di dashboard /kantor-ceo
+      // (pengganti reply "ACC EMAIL" via WhatsApp Fonnte yang sudah dimatikan)
       const day = utcDay()
       if (await kvGet(e, `acc_email:${day}`)) return j({ ok: true, dup: true })
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
@@ -360,19 +370,20 @@ async function handle(req: Request): Promise<Response> {
       const reply = emailsSent >= 0
         ? `Siap Bos! ✅ Email sapaan terkirim ke ${emailsSent} user pasif hari ini.`
         : 'Siap Bos! ✅ ACC EMAIL dicatat. Set RESEND_API_KEY agar email terkirim otomatis.'
-      try { await sendWA(e, reply) } catch { /* ignore */ }
+      try { await sendDiscord(e, reply) } catch { /* ignore */ }
       return j({ ok: true, accEmail: true, emailsSent })
     }
     default:
       return j({
         app: 'Luxtrade Super AI Agent',
+        notify: 'Discord webhook (DISCORD_WEBHOOK_URL)',
         actions: [
-          'action=briefing (POST/GET) — jalankan 4 agen + kirim WA',
-          'action=agents — data 4 agen tanpa kirim WA',
+          'action=briefing (POST/GET) — jalankan 4 agen + kirim laporan ke Discord',
+          'action=agents — data 4 agen tanpa kirim',
           'action=quota — laporan kuota (CFO)',
           'action=quota-track (POST) — gerbang anti-429 sebelum Gemini Vision',
           'action=briefing-last — briefing terakhir',
-          'action=webhook (POST) — webhook Fonnte untuk "ACC EMAIL"',
+          'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
         ],
       })
   }
