@@ -1049,3 +1049,27 @@ Stage Summary:
 - Penting utk project ini: JANGAN pakai runtime='edge' di API route mana pun (OpenNext CF)
 - Semua app route berjalan di Workers via OpenNext — perilaku route tidak berubah
 - Setelah build sukses: /kantor-ceo live, login pakai CRON_SECRET / ADMIN_SECRET
+
+---
+Task ID: 15
+Agent: main (Z.ai Code)
+Task: Perbaiki 4 error Ruang CEO dari screenshot production + tambah animasi UI
+
+Work Log:
+- Screenshot user menunjukkan: Supabase error_logs 404, Supabase users 400,
+  Gemini gemini-1.5-flash 404 (retired), Website 522, UI tanpa animasi
+- Cek prisma/schema.prisma: tabel asli = profiles, trades, bug_reports
+  (users/last_upload_at/error_logs tidak ada — bawaan kode lama project lain)
+- CTO: pindah ke bug_reports; ping retry 1x; note utk 521-524 Cloudflare edge
+- CSO: total=profiles, aktif=user_id unik trades 24jam (fetchActiveUserIds), pasif=total-aktif
+- CMO: default gemini-2.5-flash + thinkingConfig thinkingBudget:0, maxOutputTokens 2048
+- ACC EMAIL: kandidat = profiles email=not.is.null minus aktif 24 jam, cap 50
+- Dashboard: framer-motion (sudah ada di package.json) — stagger fadeUp, hover lift,
+  progress scaleX, live dot pulse; framer-motion Variants typed
+- lint bersih → commit 883c75b1 → push origin/main (CF auto-deploy)
+
+Stage Summary:
+- ceo-agent kini 100% memakai skema Supabase Luxtradee yang sebenarnya
+- Tidak perlu SQL tambahan (bug_reports & profiles sudah ada, agent_kv sudah dijalankan user)
+- Klarifikasi ke user: kode page.tsx yang "dikirim" dulu tidak pernah masuk —
+  yang diterima hanya route.ts; dashboard dibangun sendiri dan kini diberi animasi
