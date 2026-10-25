@@ -47,6 +47,13 @@ export default function KantorCeo3D() {
   const [acc, setAcc] = useState<any>(null)
   const [copied, setCopied] = useState(false)
   const [clock, setClock] = useState('')
+  /* Bahan analisis TikTok (Ruang CMO) */
+  const [tt, setTt] = useState<any[]>([])
+  const [ttUrl, setTtUrl] = useState('')
+  const [ttViews, setTtViews] = useState('')
+  const [ttLikes, setTtLikes] = useState('')
+  const [ttMsg, setTtMsg] = useState('')
+  const [ttBusy, setTtBusy] = useState(false)
   /* ---- JEMBATAN data real → scene 3D ----
      liveRef = mirror state `data` supaya loop 3D bisa baca hasil agen ASLI.
      busyRef = agen yang SEDANG dikerjakan beneran (API call in-flight).
@@ -100,6 +107,7 @@ export default function KantorCeo3D() {
     if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'CEO']
     if (action === 'quota') return ['CFO']
     if (action === 'acc-email' || action === 'auto-acc') return ['CSO']
+    if (action.startsWith('tiktok-')) return ['CMO']
     if (action === 'diag' || action === 'watchdog') return ['CTO']
     if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
@@ -140,6 +148,47 @@ export default function KantorCeo3D() {
   useEffect(() => { if (gate === 'ok') { call('agents&only=cto,cso,cfo'); call('auto-acc') } // eslint-disable-line react-hooks/exhaustive-deps
   }, [gate])
   useEffect(() => { focusRef.current && focusRef.current(room) }, [room])
+
+  /* ---------- Bahan analisis TikTok (dipakai CMO tiap bikin draf) ---------- */
+  const ttH = { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(sbKey ? { 'X-SB-Key': sbKey } : {}) }
+  const ttLoad = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ceo-agent?action=tiktok-list', { headers: ttH })
+      const r = await res.json()
+      setTt(r?.posts || [])
+      if (r?.error) setTtMsg('⚠️ ' + r.error)
+    } catch (e) { setTtMsg('⚠️ ' + String(e)) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, sbKey])
+  const ttAdd = async () => {
+    if (!ttUrl.trim() || ttBusy) return
+    setTtBusy(true); setTtMsg('')
+    try {
+      const res = await fetch('/api/ceo-agent?action=tiktok-add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...ttH },
+        body: JSON.stringify({ url: ttUrl.trim(), views: Number(ttViews) || 0, likes: Number(ttLikes) || 0 }),
+      })
+      const r = await res.json()
+      if (r?.error) setTtMsg('⚠️ ' + r.error)
+      else {
+        setTtMsg(r?.captionAuto ? '✅ Tersimpan — caption diambil otomatis dari TikTok' : '✅ Tersimpan')
+        setTtUrl(''); setTtViews(''); setTtLikes('')
+        window.__kceo?.toast?.('📚 CMO dapat bahan analisis baru!')
+        await ttLoad()
+      }
+    } catch (e) { setTtMsg('⚠️ ' + String(e)) } finally { setTtBusy(false) }
+  }
+  const ttDel = async (id: string) => {
+    setTtBusy(true)
+    try {
+      await fetch(`/api/ceo-agent?action=tiktok-del&id=${encodeURIComponent(id)}`, { method: 'POST', headers: ttH })
+      setTt((l) => l.filter((p) => p.id !== id))
+    } catch { /* ignore */ } finally { setTtBusy(false) }
+  }
+  // Ruang CMO dibuka → muat daftar bahan
+  useEffect(() => { if (room === 'CMO') ttLoad() /* eslint-disable-line react-hooks/exhaustive-deps */
+  }, [room])
 
   /* ============================================================
      SCENE 3D — dimuat penuh di client (tanpa SSR)
@@ -929,6 +978,7 @@ export default function KantorCeo3D() {
               <div>
                 <div style={{background:'rgba(124,58,237,.06)',borderRadius:10,padding:10,whiteSpace:'pre-wrap',opacity:.92,fontSize:12,maxHeight:280,overflowY:'auto',lineHeight:1.6,border:'1px solid rgba(124,58,237,.12)'}}>{cmo.draft||cmo.error||'—'}</div>
                 {cmo.usedFallback?<div style={{opacity:.5,marginTop:4,fontSize:11}}>(fallback — Gemini limit, revisi manual)</div>:null}
+                {cmo.basedOn==='tiktok'?<div style={{color:'#7c3aed',fontSize:10.5,marginTop:2}}>📚 Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div>:null}
                 {cmo.angle?<div style={{opacity:.5,fontSize:10.5,marginTop:2}}>Angle: {cmo.angle.slice(0,60)}…</div>:null}
               </div>
             ):(<div style={{opacity:.6,marginTop:6}}>Belum ada draf — klik ✍️ untuk generate</div>)}
@@ -937,9 +987,34 @@ export default function KantorCeo3D() {
               <button style={BTN} disabled={!cmo||!cmo.draft} onClick={async()=>{try{await navigator.clipboard.writeText(cmo.draft);setCopied(true);setTimeout(()=>setCopied(false),1800)}catch{}}}>📋 Salin</button>
               {copied?<span style={{color:'#059669',fontSize:11}}>tersalin ✅</span>:null}
             </div>
+            <div style={{marginTop:10,borderTop:'1px solid rgba(124,58,237,.15)',paddingTop:8}}>
+              <b style={{color:'#7c3aed',fontSize:12}}>📚 Bahan Analisis TikTok ({tt.length})</b>
+              <div style={{opacity:.6,fontSize:10.5,marginTop:2,lineHeight:1.5}}>Paste link TikTok lo + views/likes — caption diambil OTOMATIS. CMO pelajari 5 konten terbaik tiap bikin draf: makin banyak bahan, makin pintar.</div>
+              <div style={{display:'flex',gap:4,marginTop:6,flexWrap:'wrap'}}>
+                <input value={ttUrl} onChange={e=>setTtUrl(e.target.value)} placeholder="https://www.tiktok.com/@lo/video/..." style={{flex:'1 1 150px',minWidth:0,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
+                <input value={ttViews} onChange={e=>setTtViews(e.target.value)} placeholder="views" inputMode="numeric" style={{width:62,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
+                <input value={ttLikes} onChange={e=>setTtLikes(e.target.value)} placeholder="likes" inputMode="numeric" style={{width:62,fontSize:11.5,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(124,58,237,.25)',background:'rgba(255,255,255,.75)',color:'#1e293b'}}/>
+                <button style={{...BTNP,opacity:ttBusy?.5:1,fontSize:11.5}} disabled={ttBusy||!ttUrl.trim()} onClick={ttAdd}>{ttBusy?'⏳':'➕ Tambah'}</button>
+              </div>
+              {ttMsg?<div style={{fontSize:10.5,marginTop:4,color:ttMsg.startsWith('⚠️')?'#b91c1c':'#047857',opacity:.85}}>{ttMsg}</div>:null}
+              {tt.length?(
+                <div style={{marginTop:6,maxHeight:150,overflowY:'auto',display:'flex',flexDirection:'column',gap:4}}>
+                  {tt.map((p)=>(
+                    <div key={p.id} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(124,58,237,.05)',borderRadius:8,padding:'5px 8px'}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:10.5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'#1e293b'}}>{p.caption||p.url}</div>
+                        <div style={{fontSize:9.5,opacity:.55}}>👁 {Number(p.views||0).toLocaleString('id-ID')} · ❤️ {Number(p.likes||0).toLocaleString('id-ID')}</div>
+                      </div>
+                      <button style={{...BTN,fontSize:10,padding:'4px 8px'}} disabled={ttBusy} onClick={()=>ttDel(p.id)}>🗑</button>
+                    </div>
+                  ))}
+                </div>
+              ):<div style={{fontSize:10.5,opacity:.5,marginTop:4}}>Belum ada bahan — CMO masih pakai referensi statis TIKTOK_REFERENCE.</div>}
+            </div>
             <div style={{opacity:.5,fontSize:10.5,marginTop:8,lineHeight:1.5}}>
               Draf dibuat Gemini 2.5 Flash · Rotasi angle harian<br/>
-              Histori 5 draf terakhir disimpan (anti repetisi)
+              Histori 5 draf terakhir disimpan (anti repetisi)<br/>
+              📚 Bahan TikTok lo = acuan utama — isi terus biar draf makin mirin konten yang FYP
             </div>
           </div>)}
 
@@ -968,6 +1043,7 @@ export default function KantorCeo3D() {
                 </div>
                 <div style={{marginTop:6}}>
                   Event 429 kemarin: <b>{cfo.quota429??'—'}</b><br/>
+                  Email hari ini: <b>{cfo.emailToday??'—'}/{cfo.emailLimit??100}</b> (Resend)<br/>
                   Status: <b style={{color:cfo.status&&String(cfo.status).indexOf('KRITIS')===0?'#dc2626':cfo.status&&String(cfo.status).indexOf('WASPADA')===0?'#d97706':'#059669'}}>{cfo.status??''}</b>
                 </div>
                 {cfo.error?<div style={ERR}>⚠️ {String(cfo.error).slice(0,120)}</div>:null}
