@@ -1315,3 +1315,22 @@ Stage Summary:
 - CSO tidak cuma hitung user aktif: tiap hari Maya ngobrol sama Sinta bawa data nyata → akar masalah user males jurnal + skrip konten TikTok siap salin; hasil ikut dikirim Discord otomatis setelah briefing 08:00 (pesan terpisah, dedup harian)
 - Struktur tim bisa direview di kartu "Struktur & Tugas Tim" (room Semua) — detail lengkap dikirim ke Bos via chat
 - Yang perlu Bos lakukan di produksi: TIDAK ADA (migrasi 013/014 sudah lalu) — tinggal push & deploy otomatis; OPENROUTER_API_KEY opsional tetap disarankan
+---
+Task ID: 23
+Agent: main
+Task: Pindah COO ke ruang kantor + fitur diskusi CSO×CMO (alesan user males jurnal → skrip konten) + jabatan & pekerjaan detail tiap karyawan AI
+
+Work Log:
+- Audit status: ternyata pindah COO ke Kantor 3D + backend/frontend diskusi CSO×CMO + QA CTO SUDAH dibuat di sesi sebelumnya (commit cd3016bb, 7dc4d533 — sempat tak tercatat karena context habis). /admin/ai-staff kini redirect, antrean ACC COO ada di Ruang COO /kantor-ceo
+- KantorCeo3D.tsx: tambah TEAM_DETAIL (modul scope) — 6 kartu karyawan (Bagas COO/Raka CTO/Maya CSO/Sinta CMO/Putri CFO/Alexander CEO) berisi: jam kerja (cron Cloudflare asli dari worker-entry.ts), data yang dibaca, tugas konkret, bentuk laporan, batas kemampuan JUJUR, ide pengembangan
+- Ruang baru '📋 Struktur' (chip ke-7): panel scrollable berisi semua kartu + blok gap analysis 'Kursi yang masih kosong' (Data Analyst, Support Closer, Growth Hacker, promosi affiliate); ROOMV kamera struktur = view overview
+- Kartu '📋 Struktur & Tugas Tim' di overview: tombol 'Buka Struktur & Jabatan Lengkap' → setRoom('struktur')
+- Panel Diskusi CSO×CMO di Ruang CSO: tampilkan talk.intel (data nyata yang Maya bawa: pendaftar/aktif 7hr/pasif/pendaftar baru belum pernah upload/bug 7hr)
+- Perbaiki duplikasi TEAM_DETAIL (MultiEdit parsial) via python script; hapus landing-check.png dari repo + gitignore
+- Lint clean; verifikasi agent-browser: scene load, 8 chip ruangan, panel Struktur render 13/13 cek konten (6 karyawan + semua seksi), tombol overview→struktur OK, ruang CSO/COO/CTO/CMO/CFO/Rapat render OK, 0 page error (console error hanya env Supabase sandbox)
+- Commit 3ee0f4f3, push (CF auto-deploy ±2-3 mnt)
+
+Stage Summary:
+- Semua 3 permintaan user tuntas: COO tinggal di kantor (bukan admin panel), Maya (CSO) rutin rapat bareng Sinta (CMO) bawa data nyata → akar masalah user males jurnal → skrip TikTok (jalan otomatis 08:00 + tombol manual, hasil ke Discord), dan jabatan/pekerjaan semua karyawan terdokumentasi detail di Ruang Struktur
+- Gap analysis disampaikan jujur ke Bos: kursi kosong = Data Analyst, Support Closer, Growth Hacker, affiliate promoter
+- Tidak ada migrasi SQL baru; tidak ada perubahan cron (tetap 3 trigger)
