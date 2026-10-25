@@ -65,6 +65,12 @@ function sbUrl(e: Env) {
 function sbAnonKey(e: Env) {
   return cleanEnv(e.SUPABASE_ANON_KEY || e.NEXT_PUBLIC_SUPABASE_ANON_KEY || INLINED_SB_KEY)
 }
+/* Service role key — bypass RLS untuk CEO agent (baca profiles/trades/bug_reports
+   tanpa diblok policy anon). Ambil dari env SUPABASE_SERVICE_ROLE_KEY.
+   Kalau belum diset, fallback ke anon key (data tertentu akan 401). */
+function sbServiceKey(e: Env) {
+  return cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) || sbAnonKey(e)
+}
 function ownerEmail(e: Env) {
   return (cleanEnv(e.OWNER_EMAIL) || 'luxtradee@gmail.com').toLowerCase()
 }
@@ -109,16 +115,28 @@ async function kvIncr(e: Env, key: string): Promise<number> {
   return cur + 1
 }
 
-/* ---------- hitung baris Supabase tanpa mengunduh data ---------- */
+/* ---------- Supabase headers ---------- */
+/* sbH = anon key — untuk tabel yang punya RLS policy SELECT untuk anon (agent_kv, dll) */
 function sbH(e: Env) {
   return { apikey: sbAnonKey(e), Authorization: `Bearer ${sbAnonKey(e)}` }
 }
+/* sbHPriv = service_role key — bypass RLS, untuk CEO agent baca profiles/trades/bug_reports */
+function sbHPriv(e: Env) {
+  const sk = sbServiceKey(e)
+  return { apikey: sbAnonKey(e), Authorization: `Bearer ${sk}` }
+}
 async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
   const url = `${sbUrl(e)}/rest/v1/${table}?select=*&limit=1${filters ? '&' + filters : ''}`
-  const res = await fetch(url, { headers: { ...sbH(e), Prefer: 'count=exact' }, signal: timeoutSignal(10_000) })
+  /* Gunakan service_role key untuk tabel yang butuh bypass RLS.
+     agent_kv punya RLS policy SELECT untuk anon → pakai sbH saja.
+     profiles/trades/bug_reports butuh service_role → pakai sbHPriv. */
+  const usePriv = ['profiles', 'trades', 'bug_reports'].includes(table)
+  const res = await fetch(url, { headers: { ...(usePriv ? sbHPriv(e) : sbH(e)), Prefer: 'count=exact' }, signal: timeoutSignal(10_000) })
   if (!res.ok) {
     const hint = res.status === 401
-      ? ' — SUPABASE_ANON_KEY salah/expired (cek Cloudflare Secrets: tanpa kutip & spasi, copy dari Supabase → Settings → API → anon public)'
+      ? (usePriv && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)
+        ? ' — RLS blokir anon key. Set SUPABASE_SERVICE_ROLE_KEY di Cloudflare Secrets (Supabase → Settings → API → service_role secret)'
+        : ' — SUPABASE_ANON_KEY / SERVICE_ROLE_KEY salah/expired (cek Cloudflare Secrets: tanpa kutip & spasi)')
       : res.status === 404
         ? ` — tabel "${table}" tidak ada`
         : ''
@@ -179,11 +197,12 @@ async function ctoAgent(e: Env) {
    pemilik user_id yang muncul di trades dalam 24 jam terakhir.
    ============================================================ */
 async function fetchActiveUserIds(e: Env, since: string): Promise<Set<string>> {
+  /* Pakai service_role key — trades butuh bypass RLS */
   const res = await fetch(
     `${sbUrl(e)}/rest/v1/trades?select=user_id&created_at=gte.${encodeURIComponent(since)}&limit=1000`,
-    { headers: sbH(e), signal: timeoutSignal(10_000) },
+    { headers: sbHPriv(e), signal: timeoutSignal(10_000) },
   )
-  if (!res.ok) throw new Error(`Supabase trades HTTP ${res.status}`)
+  if (!res.ok) throw new Error(`Supabase trades HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
   const rows = (await res.json()) as { user_id?: string }[]
   return new Set(rows.map((r) => r.user_id).filter(Boolean) as string[])
 }
@@ -372,9 +391,10 @@ async function sendPassiveEmails(e: Env): Promise<number> {
   const activeIds = await fetchActiveUserIds(e, since)
 
   // kandidat: profil dengan email, terbaru dulu — maks 200 kandidat
+  /* Pakai service_role key — profiles butuh bypass RLS */
   const url = `${sbUrl(e)}/rest/v1/profiles?select=id,email&email=not.is.null&order=created_at.desc&limit=200`
-  const res = await fetch(url, { headers: sbH(e), signal: timeoutSignal(10_000) })
-  if (!res.ok) throw new Error(`Supabase profiles HTTP ${res.status}`)
+  const res = await fetch(url, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+  if (!res.ok) throw new Error(`Supabase profiles HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
   const profiles = (await res.json()) as { id?: string; email?: string }[]
 
   const emails = profiles
@@ -467,6 +487,7 @@ async function handle(req: Request): Promise<Response> {
         sbUrl: sbUrl(e),
         env: {
           SUPABASE_ANON_KEY: has('SUPABASE_ANON_KEY') || has('NEXT_PUBLIC_SUPABASE_ANON_KEY') || !!INLINED_SB_KEY,
+        SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
           GEMINI_API_KEY: has('GEMINI_API_KEY'),
           RESEND_API_KEY: has('RESEND_API_KEY'),
           DISCORD_WEBHOOK_URL: has('DISCORD_WEBHOOK_URL'),

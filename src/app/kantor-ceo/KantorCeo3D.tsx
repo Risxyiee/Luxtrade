@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 const CSS = `
-.kg{background:rgba(255,255,255,.88);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border:1px solid rgba(15,23,42,.09);border-radius:16px;box-shadow:0 10px 34px rgba(30,41,59,.16)}
+.kg{background:rgba(255,255,255,.92);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border:1px solid rgba(15,23,42,.08);border-radius:16px;box-shadow:0 8px 28px rgba(30,41,59,.12)}
 #kclock{position:absolute;top:16px;left:16px;padding:12px 16px;min-width:190px;color:#1f2437;font-family:system-ui,sans-serif}
 #ktime{font-size:34px;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums;color:#0f172a}
 #kphase{font-size:13px;color:#0d9488;margin-bottom:8px}
@@ -26,7 +26,7 @@ const CSS = `
 #khint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);padding:8px 16px;font-size:12px;color:#1f2437;opacity:.9;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 #ktip{position:absolute;left:0;top:0;width:220px;padding:11px 14px;font-size:13px;line-height:1.4;color:#1f2437;pointer-events:none;opacity:0;transition:opacity .25s;will-change:transform}
 #ktip b{display:flex;justify-content:space-between;margin-bottom:5px}#ktip b span{color:#0d9488;font-weight:500}
-.kbb{position:absolute;left:0;top:0;pointer-events:none;padding:5px 9px;font-size:11px;line-height:1.3;border-radius:12px;max-width:190px;background:rgba(255,255,255,.9);border:1px solid rgba(15,23,42,.12);box-shadow:0 4px 14px rgba(30,41,59,.18);transform-origin:50% 100%;will-change:transform;color:#1f2437;font-family:system-ui,sans-serif}.kbb b{display:block;color:#0d9488}.kbb i{font-style:normal;opacity:.8;display:block}
+.kbb{position:absolute;left:0;top:0;pointer-events:none;padding:5px 9px;font-size:11px;line-height:1.3;border-radius:12px;max-width:190px;background:rgba(255,255,255,.92);border:1px solid rgba(15,23,42,.1);box-shadow:0 4px 14px rgba(30,41,59,.14);transform-origin:50% 100%;will-change:transform;color:#1f2437;font-family:system-ui,sans-serif}.kbb b{display:block;color:#0d9488}.kbb i{font-style:normal;opacity:.8;display:block}
 #ktoast{position:absolute;left:50%;bottom:70px;transform:translateX(-50%) translateY(10px);padding:10px 20px;font-size:13px;color:#0f172a;opacity:0;transition:.4s;pointer-events:none;white-space:nowrap}
 #ktoast.show{opacity:1;transform:translateX(-50%)}
 `
@@ -202,7 +202,7 @@ export default function KantorCeo3D() {
       renderer.setSize(mount.clientWidth||innerWidth,mount.clientHeight||innerHeight)
       renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap
       renderer.outputColorSpace=THREE.SRGBColorSpace
-      renderer.toneMapping=THREE.NeutralToneMapping;renderer.toneMappingExposure=1.15
+      renderer.toneMapping=THREE.NeutralToneMapping;renderer.toneMappingExposure=1.25
       mount.appendChild(renderer.domElement)
       const scene=new THREE.Scene();scene.background=new THREE.Color('#dfe7f2');scene.fog=new THREE.Fog('#dfe7f2',45,110)
       const camera=new THREE.PerspectiveCamera(42,(mount.clientWidth||innerWidth)/(mount.clientHeight||innerHeight),.1,100)
@@ -227,23 +227,23 @@ export default function KantorCeo3D() {
       const sph=(r,m,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,14),m);o.position.set(x,y,z);o.castShadow=true;p.add(o);return o}
 
       /* ---------- pencahayaan ikut waktu (TERANG — siang putih terang, malam tetap nyaman) ---------- */
-      const amb=new THREE.AmbientLight(0xffffff,.85);scene.add(amb)
-      const sun=new THREE.DirectionalLight(0xffffff,1.05);sun.position.set(6,14,9);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048)
+      const amb=new THREE.AmbientLight(0xffffff,1.0);scene.add(amb)
+      const sun=new THREE.DirectionalLight(0xffffff,1.15);sun.position.set(6,14,9);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048)
       Object.assign(sun.shadow.camera,{left:-20,right:20,top:14,bottom:-14,far:50});scene.add(sun)
       const spot=(c,i,p,t)=>{const s=new THREE.SpotLight(c,i,0,.75,1);s.position.set(...p);s.target.position.set(...t);s.castShadow=true;s.shadow.mapSize.set(1024,1024);scene.add(s,s.target);return s}
       const sp1=spot(PU,1.9,[-5,10,0],[-2,0,0]),sp2=spot(EM,1.6,[10,9,4],[10,0,4])
       const accL=new THREE.PointLight(EM,1.2,18);accL.position.set(1.5,3,-8.4);scene.add(accL)
       const pl2=new THREE.PointLight(PU,.9,18);pl2.position.set(6,2.5,-5);scene.add(pl2)
       const ceilGlows=[]
-      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#8f88c8'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#8d84c9'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#141830'),cT=new THREE.Color()
+      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#a8a0d5'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#2d3250'),cT=new THREE.Color()
       const dayFactor=m=>m<300?0:m<420?(m-300)/120:m<870?1:m<1020?1-(m-870)/150:0
       let dayF=null
       const lightTick=dt=>{
         const d=dayFactor(C.min);if(dayF===null)dayF=d;dayF=dm(dayF,d,.6,dt)
-        sun.intensity=.12+1.05*dayF;cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
-        amb.intensity=.4+.55*dayF;cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
-        sp1.intensity=1.9*(.25+.75*dayF);sp2.intensity=1.6*(.25+.75*dayF)
-        ceilGlows.forEach(m=>m.emissiveIntensity=.18+.95*dayF)
+        sun.intensity=.22+1.05*dayF;cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
+        amb.intensity=.55+.45*dayF;cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
+        sp1.intensity=1.9*(.4+.6*dayF);sp2.intensity=1.6*(.4+.6*dayF)
+        ceilGlows.forEach(m=>m.emissiveIntensity=.3+.85*dayF)
         cT.copy(cBgD).lerp(cBgN,1-dayF);scene.background.copy(cT);scene.fog.color.copy(cT)}
 
       /* ---------- lantai, dinding, neon ---------- */
@@ -661,10 +661,14 @@ export default function KantorCeo3D() {
   },[])
 
   /* ---------- panel kontrol per RUANGAN ---------- */
-  const CARD={background:'rgba(255,255,255,.88)',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',border:'1px solid rgba(15,23,42,.09)',borderRadius:14,padding:'12px 14px',color:'#1f2437',fontSize:12.5,lineHeight:1.55,minWidth:248,maxWidth:274}
+  const CARD={background:'rgba(255,255,255,.92)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',border:'1px solid rgba(15,23,42,.08)',borderRadius:14,padding:'14px 16px',color:'#1f2437',fontSize:12.5,lineHeight:1.55,minWidth:260,maxWidth:290}
   const BTN={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(13,148,136,.45)',background:'rgba(16,185,129,.13)',color:'#0f766e'}
+  const BTNP={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(124,58,237,.4)',background:'rgba(124,58,237,.1)',color:'#6d28d9'}
+  const BTNR={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(219,39,119,.4)',background:'rgba(219,39,119,.1)',color:'#be185d'}
+  const BTNO={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(217,119,6,.4)',background:'rgba(217,119,6,.1)',color:'#b45309'}
   const ERR={marginTop:8,fontSize:11.5,color:'#dc2626'}
   const OKS={marginTop:8,fontSize:11.5,color:'#059669'}
+  const SEP={marginTop:8,borderTop:'1px dashed rgba(15,23,42,.15)',paddingTop:8}
   const cto=data&&data.cto,cso=data&&data.cso,cmo=data&&data.cmo,cfo=data&&data.cfo
   const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['rapat','🌅 Rapat']]
   const devOpen=process.env.NODE_ENV!=='production'
@@ -716,10 +720,9 @@ export default function KantorCeo3D() {
         {room==='overview'&&(
           <>
             <div style={CARD}>
-              <b style={{color:'#0d9488'}}>🏢 Denah Kantor</b>
+              <b style={{color:'#0d9488',fontSize:14}}>🏢 Denah Kantor CEO</b>
               <div style={{marginTop:6,opacity:.85,fontSize:11.5,lineHeight:1.6}}>
-                Empat ruangan kaca di kiri = ruang kerja tiap agen.<br/>
-                Klik karyawan di scene 3D atau chip di atas untuk masuk ruangannya.<br/>
+                Setiap agen punya <b>ruangan sendiri</b> — klik chip atau karyawan 3D untuk masuk.<br/>
                 Klik laptop CEO = jalankan briefing beneran.
               </div>
             </div>
@@ -727,16 +730,18 @@ export default function KantorCeo3D() {
               <div style={CARD}><b style={{color:'#0d9488'}}>🖥️ CTO — IT &amp; QA</b><br/>
                 Web {cto.siteOk?'✅':'❌'} · Bug 24 jam {cto.bugs24h>=0?cto.bugs24h:'?'}
                 {cto.err?<div style={{opacity:.55,fontSize:11}}>{String(cto.err).slice(0,70)}</div>:null}
+                <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang CTO untuk Cek Ulang & Diagnostik</div>
               </div>)}
             {cso&&(
               <div style={CARD}><b style={{color:'#db2777'}}>👥 CSO — Customer Success</b><br/>
                 Total {cso.total??'—'} · Aktif {cso.active??'—'} · Pasif {cso.passive??'—'}
-                <div style={{opacity:.55,fontSize:11}}>tombol ACC EMAIL ada di Ruang CSO</div>
+                {cso.error?<div style={{opacity:.55,fontSize:11,color:'#dc2626'}}>⚠️ {String(cso.error).slice(0,80)}</div>:null}
+                <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang CSO untuk ACC EMAIL</div>
               </div>)}
             {cmo&&(
               <div style={CARD}><b style={{color:'#7c3aed'}}>📣 CMO — Draf TikTok</b><br/>
                 {cmo.draft?'draf hari ini siap ✅':'belum ada draf'}
-                <div style={{opacity:.55,fontSize:11}}>baca & salin di Ruang CMO</div>
+                <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang CMO untuk buat & salin draf</div>
               </div>)}
             {cfo&&(
               <div style={CARD}><b style={{color:'#d97706'}}>💰 CFO — Kuota</b><br/>
@@ -744,93 +749,153 @@ export default function KantorCeo3D() {
               </div>)}
           </>)}
 
+        {/* ============ RUANG CTO — IT & QA ============ */}
         {room==='CTO'&&(
           <div style={CARD}>
-            <b style={{color:'#0d9488'}}>🖥️ RUANG CTO — IT &amp; QA</b>
+            <div style={{fontSize:15,fontWeight:700,color:'#0d9488',marginBottom:4}}>🖥️ RUANG CTO</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>IT &amp; QA · Monitor sistem & bug</div>
             {cto?(
-              <div style={{marginTop:6}}>
-                Website: {cto.siteOk?`✅ ${cto.status} OK (${cto.latencyMs} ms)`:`❌ DOWN (${cto.status||'timeout'})`}<br/>
-                Bug 24 jam: {cto.bugs24h>=0?`${cto.bugs24h} ${cto.bugs24h>0?'⚠️':'✅'}`:'gagal diambil ⚠️'}
-                {cto.err?<div style={{opacity:.55,fontSize:11}}>— {String(cto.err).slice(0,110)}</div>:null}
+              <div>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <span style={{fontSize:22}}>{cto.siteOk?'✅':'❌'}</span>
+                  <div>
+                    <b>Website luxtradee.web.id</b><br/>
+                    <span style={{opacity:.8}}>{cto.siteOk?`${cto.status} OK · ${cto.latencyMs} ms`:`DOWN (${cto.status||'timeout'})`}</span>
+                  </div>
+                </div>
+                <div style={SEP}>
+                  <b>Bug 24 jam terakhir</b><br/>
+                  {cto.bugs24h>=0
+                    ?<span style={{fontSize:18,fontWeight:700,color:cto.bugs24h>0?'#dc2626':'#059669'}}>{cto.bugs24h}</span>
+                    :<span style={{color:'#dc2626'}}>gagal diambil ⚠️</span>}
+                </div>
+                {cto.err?<div style={{opacity:.55,fontSize:11,marginTop:4}}>📝 {String(cto.err).slice(0,130)}</div>:null}
               </div>
-            ):(<div style={{opacity:.6,marginTop:6}}>klik 🔄 Cek Ulang untuk scan sistem</div>)}
-            <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
+            ):(<div style={{opacity:.6,marginTop:6}}>Belum ada data — klik tombol di bawah</div>)}
+            <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
               <button style={BTN} onClick={()=>call('agents&only=cto')}>🔄 Cek Ulang</button>
-              <button style={{...BTN,borderColor:'rgba(124,58,237,.45)',background:'rgba(124,58,237,.1)',color:'#6d28d9'}} onClick={()=>call('diag')}>🩺 Diagnostik</button>
+              <button style={BTNP} onClick={()=>call('diag')}>🩺 Diagnostik</button>
             </div>
             {data&&data.env&&data.profiles&&(
-              <div style={{marginTop:8,fontSize:11,lineHeight:1.65,borderTop:'1px dashed rgba(15,23,42,.18)',paddingTop:6}}>
-                <b style={{color:'#6d28d9'}}>🩺 Diagnostik Sistem</b><br/>
+              <div style={{marginTop:8,fontSize:11,lineHeight:1.65,...SEP}}>
+                <b style={{color:'#6d28d9'}}>🩺 Hasil Diagnostik</b><br/>
                 {['profiles','trades','bug_reports','agent_kv'].map(k=>{const r=data[k]||{};return(
                   <div key={k}>{r.ok?'✅':'❌'} <b>{k}</b>{r.ok?'':<span style={{color:'#dc2626'}}> — {String(r.error||'').slice(0,90)}</span>}</div>)})}
                 <div style={{opacity:.6,marginTop:3}}>{Object.entries(data.env).map(([k,v]:any)=>`${k} ${v?'✅':'❌'}`).join(' · ')}</div>
               </div>)}
           </div>)}
 
+        {/* ============ RUANG CSO — Customer Success ============ */}
         {room==='CSO'&&(
           <div style={CARD}>
-            <b style={{color:'#db2777'}}>👥 RUANG CSO — Customer Success</b>
+            <div style={{fontSize:15,fontWeight:700,color:'#db2777',marginBottom:4}}>👥 RUANG CSO</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Customer Success · Kelola user & email</div>
             {cso?(
-              <div style={{marginTop:6}}>
-                Total pendaftar: <b>{cso.total??'—'}</b><br/>
-                Aktif (upload 24 jam): <b>{cso.active??'—'}</b><br/>
-                Pasif (&gt;24 jam): <b>{cso.passive??'—'}</b>
+              <div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,textAlign:'center'}}>
+                  <div style={{background:'rgba(219,39,119,.08)',borderRadius:8,padding:'6px 4px'}}>
+                    <div style={{fontSize:18,fontWeight:700,color:'#be185d'}}>{cso.total??'—'}</div>
+                    <div style={{fontSize:10,opacity:.7}}>Total</div>
+                  </div>
+                  <div style={{background:'rgba(16,185,129,.08)',borderRadius:8,padding:'6px 4px'}}>
+                    <div style={{fontSize:18,fontWeight:700,color:'#059669'}}>{cso.active??'—'}</div>
+                    <div style={{fontSize:10,opacity:.7}}>Aktif</div>
+                  </div>
+                  <div style={{background:'rgba(217,119,6,.08)',borderRadius:8,padding:'6px 4px'}}>
+                    <div style={{fontSize:18,fontWeight:700,color:'#b45309'}}>{cso.passive??'—'}</div>
+                    <div style={{fontSize:10,opacity:.7}}>Pasif</div>
+                  </div>
+                </div>
                 {cso.error?<div style={ERR}>⚠️ {String(cso.error).slice(0,130)}</div>:null}
               </div>
-            ):(<div style={{opacity:.6,marginTop:6}}>klik 🔄 untuk hitung ulang</div>)}
-            <button style={{...BTN,width:'100%',marginTop:10,borderColor:'rgba(219,39,119,.45)',background:'rgba(219,39,119,.1)',color:'#be185d',opacity:acc==='busy'?.5:1}} disabled={acc==='busy'}
-              onClick={async()=>{setAcc('busy');const r=await call('acc-email','POST');setAcc(r)}}>
-              📧 ACC EMAIL ke User Pasif
-            </button>
-            {acc&&acc!=='busy'&&(acc.dup
-              ?<div style={OKS}>ℹ️ ACC EMAIL sudah dicatat hari ini — user jangan dispam, besok lagi.</div>
-              :acc.ok?<div style={OKS}>✅ ACC tercatat{typeof acc.emailsSent==='number'&&acc.emailsSent>=0?` — ${acc.emailsSent} email sapaan terkirim (Resend)`:' — set RESEND_API_KEY supaya email terkirim otomatis'}.</div>
-              :<div style={ERR}>❌ {String(acc.error||'gagal').slice(0,140)}</div>)}
-            <div style={{marginTop:8}}>
+            ):(<div style={{opacity:.6,marginTop:6}}>Belum ada data — klik tombol di bawah</div>)}
+            <div style={SEP}>
+              <b style={{color:'#be185d'}}>📧 ACC EMAIL</b>
+              <div style={{opacity:.7,fontSize:11,marginTop:2}}>Kirim email sapaan ke user pasif hari ini</div>
+              <button style={{...BTNR,width:'100%',marginTop:6,opacity:acc==='busy'?.5:1}} disabled={acc==='busy'}
+                onClick={async()=>{setAcc('busy');const r=await call('acc-email','POST');setAcc(r)}}>
+                {acc==='busy'?'⏳ Mengirim…':'📧 ACC EMAIL ke User Pasif'}
+              </button>
+              {acc&&acc!=='busy'&&(acc.dup
+                ?<div style={OKS}>ℹ️ ACC EMAIL sudah dicatat hari ini — besok lagi.</div>
+                :acc.ok?<div style={OKS}>✅ ACC tercatat{typeof acc.emailsSent==='number'&&acc.emailsSent>=0?` — ${acc.emailsSent} email terkirim (Resend)`:' — set RESEND_API_KEY utk kirim otomatis'}.</div>
+                :<div style={ERR}>❌ {String(acc.error||'gagal').slice(0,140)}</div>)}
+            </div>
+            <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
               <button style={BTN} onClick={()=>call('agents&only=cso')}>🔄 Hitung Ulang</button>
             </div>
           </div>)}
 
+        {/* ============ RUANG CMO — Marketing & Copywriter ============ */}
         {room==='CMO'&&(
           <div style={CARD}>
-            <b style={{color:'#7c3aed'}}>📣 RUANG CMO — Draf TikTok</b>
+            <div style={{fontSize:15,fontWeight:700,color:'#7c3aed',marginBottom:4}}>📣 RUANG CMO</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Marketing &amp; Copywriter AI · Draf TikTok</div>
             {cmo?(
-              <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.92,fontSize:12,maxHeight:300,overflowY:'auto'}}>{cmo.draft||cmo.error||'—'}</div>
-            ):(<div style={{opacity:.6,marginTop:6}}>klik ✍️ untuk generate draf hari ini</div>)}
-            {cmo&&cmo.usedFallback?<div style={{opacity:.5,marginTop:4}}>(fallback — Gemini limit)</div>:null}
-            <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
-              <button style={{...BTN,borderColor:'rgba(124,58,237,.45)',background:'rgba(124,58,237,.1)',color:'#6d28d9'}} onClick={()=>call('agents&only=cmo')}>✍️ Buat Draf Baru</button>
+              <div>
+                <div style={{background:'rgba(124,58,237,.06)',borderRadius:10,padding:10,whiteSpace:'pre-wrap',opacity:.92,fontSize:12,maxHeight:280,overflowY:'auto',lineHeight:1.6,border:'1px solid rgba(124,58,237,.12)'}}>{cmo.draft||cmo.error||'—'}</div>
+                {cmo.usedFallback?<div style={{opacity:.5,marginTop:4,fontSize:11}}>(fallback — Gemini limit, revisi manual)</div>:null}
+                {cmo.angle?<div style={{opacity:.5,fontSize:10.5,marginTop:2}}>Angle: {cmo.angle.slice(0,60)}…</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6}}>Belum ada draf — klik ✍️ untuk generate</div>)}
+            <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
+              <button style={BTNP} onClick={()=>call('agents&only=cmo')}>✍️ Buat Draf Baru</button>
               <button style={BTN} disabled={!cmo||!cmo.draft} onClick={async()=>{try{await navigator.clipboard.writeText(cmo.draft);setCopied(true);setTimeout(()=>setCopied(false),1800)}catch{}}}>📋 Salin</button>
               {copied?<span style={{color:'#059669',fontSize:11}}>tersalin ✅</span>:null}
             </div>
-          </div>)}
-
-        {room==='CFO'&&(
-          <div style={CARD}>
-            <b style={{color:'#d97706'}}>💰 RUANG CFO — Kuota Gemini</b>
-            {cfo?(
-              <div style={{marginTop:6}}>
-                Kemarin: {cfo.usedYesterday??'—'} / {cfo.limit}<br/>
-                Hari ini: <b>{cfo.usedToday??'—'}</b> / {cfo.limit}<br/>
-                Event 429 kemarin: {cfo.quota429??'—'}<br/>
-                Status: <b style={{color:cfo.status&&String(cfo.status).indexOf('KRITIS')===0?'#dc2626':cfo.status&&String(cfo.status).indexOf('WASPADA')===0?'#d97706':'#059669'}}>{cfo.status??''}</b>
-                {cfo.error?<div style={ERR}>⚠️ {String(cfo.error).slice(0,120)}</div>:null}
-              </div>
-            ):(<div style={{opacity:.6,marginTop:6}}>klik 🔄 untuk muat kuota</div>)}
-            <div style={{marginTop:8}}>
-              <button style={BTN} onClick={()=>call('quota')}>🔄 Refresh Kuota</button>
+            <div style={{opacity:.5,fontSize:10.5,marginTop:8,lineHeight:1.5}}>
+              Draf dibuat Gemini 2.5 Flash · Rotasi angle harian<br/>
+              Histori 5 draf terakhir disimpan (anti repetisi)
             </div>
           </div>)}
 
+        {/* ============ RUANG CFO — API Quota Manager ============ */}
+        {room==='CFO'&&(
+          <div style={CARD}>
+            <div style={{fontSize:15,fontWeight:700,color:'#d97706',marginBottom:4}}>💰 RUANG CFO</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>API Quota Manager · Anti-429 Gemini Vision</div>
+            {cfo?(
+              <div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  <div style={{background:'rgba(217,119,6,.06)',borderRadius:8,padding:8,textAlign:'center'}}>
+                    <div style={{fontSize:10,opacity:.7}}>Hari Ini</div>
+                    <div style={{fontSize:20,fontWeight:700,color:'#b45309'}}>{cfo.usedToday??'—'}</div>
+                    <div style={{fontSize:10,opacity:.5}}>dari {cfo.limit}</div>
+                  </div>
+                  <div style={{background:'rgba(100,116,139,.06)',borderRadius:8,padding:8,textAlign:'center'}}>
+                    <div style={{fontSize:10,opacity:.7}}>Kemarin</div>
+                    <div style={{fontSize:20,fontWeight:700,color:'#475569'}}>{cfo.usedYesterday??'—'}</div>
+                    <div style={{fontSize:10,opacity:.5}}>dari {cfo.limit}</div>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div style={{marginTop:8,height:8,borderRadius:4,background:'rgba(15,23,42,.08)'}}>
+                  <div style={{height:'100%',borderRadius:4,background:cfo.status&&String(cfo.status).indexOf('KRITIS')===0?'#dc2626':cfo.status&&String(cfo.status).indexOf('WASPADA')===0?'#d97706':'#059669',width:`${Math.min(100,Math.round(((cfo.usedToday||0)/(cfo.limit||1))*100))}%`,transition:'width .4s'}}/>
+                </div>
+                <div style={{marginTop:6}}>
+                  Event 429 kemarin: <b>{cfo.quota429??'—'}</b><br/>
+                  Status: <b style={{color:cfo.status&&String(cfo.status).indexOf('KRITIS')===0?'#dc2626':cfo.status&&String(cfo.status).indexOf('WASPADA')===0?'#d97706':'#059669'}}>{cfo.status??''}</b>
+                </div>
+                {cfo.error?<div style={ERR}>⚠️ {String(cfo.error).slice(0,120)}</div>:null}
+              </div>
+            ):(<div style={{opacity:.6,marginTop:6}}>Belum ada data — klik tombol di bawah</div>)}
+            <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
+              <button style={BTN} onClick={()=>call('quota')}>🔄 Refresh Kuota</button>
+              <button style={BTNO} onClick={()=>call('agents&only=cfo')}>📊 Cek Ulang</button>
+            </div>
+          </div>)}
+
+        {/* ============ RUANG RAPAT — CEO Suite ============ */}
         {room==='rapat'&&(
           <div style={CARD}>
-            <b style={{color:'#0f766e'}}>🌅 RUANG RAPAT — CEO Suite</b>
-            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
+            <div style={{fontSize:15,fontWeight:700,color:'#0f766e',marginBottom:4}}>🌅 RUANG RAPAT</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>CEO Suite · Briefing & kontrol utama</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
               <button style={{...BTN,opacity:busy?.5:1}} disabled={busy} onClick={()=>call('briefing','POST')}>
                 {busy?'⏳ Jalan…':'🌅 Briefing + Discord'}
               </button>
               <button style={BTN} onClick={()=>call('briefing-last')}>📜 Terakhir</button>
-              <button style={{...BTN,borderColor:'rgba(217,119,6,.5)',background:'rgba(217,119,6,.1)',color:'#b45309'}} onClick={()=>call('discord-test')}>🧪 Tes Discord</button>
+              <button style={BTNO} onClick={()=>call('discord-test')}>🧪 Tes Discord</button>
             </div>
             {(data&&data.ok!==undefined&&!data.cto&&!data.cso)&&(
               <div style={data.ok?OKS:ERR}>
@@ -839,12 +904,12 @@ export default function KantorCeo3D() {
             {data&&data.text&&(
               <div style={{marginTop:8}}>
                 <b>Discord:</b> {data.notifySent?'✅ terkirim':`❌ ${data.notifyErr||'gagal — klik 🧪 Tes Discord'}`}
-                <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.8,fontSize:11.5,maxHeight:260,overflowY:'auto'}}>{data.text}</div>
+                <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.8,fontSize:11.5,maxHeight:260,overflowY:'auto',background:'rgba(15,23,42,.04)',borderRadius:8,padding:8}}>{data.text}</div>
               </div>)}
             {data&&data.error&&data.text===undefined&&data.ok===undefined&&(<div style={ERR}>⚠️ {String(data.error).slice(0,200)}</div>)}
-            <div style={{opacity:.55,fontSize:10.5,marginTop:10,lineHeight:1.5}}>
-              Cron 08:00 WIB: cron-job.org → <b>/api/ceo-agent?action=briefing&amp;key=CRON_SECRET</b><br/>
-              Akses dashboard otomatis via login luxtradee@gmail.com.
+            <div style={{...SEP,opacity:.55,fontSize:10.5,lineHeight:1.5}}>
+              <b>Cron 08:00 WIB:</b> cron-job.org → /api/ceo-agent?action=briefing&amp;key=CRON_SECRET<br/>
+              <b>Akses:</b> login luxtradee@gmail.com · token JWT otomatis
             </div>
           </div>)}
       </div>
