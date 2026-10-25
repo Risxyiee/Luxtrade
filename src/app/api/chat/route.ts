@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { geminiChat, isGeminiAvailable } from '@/lib/gemini'
+import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
 export const dynamic = 'force-dynamic'
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check Gemini availability
-    if (!isGeminiAvailable()) {
+    if (!await isGeminiAvailableAsync()) {
       console.error('[chat API] GEMINI_API_KEY not configured')
       return NextResponse.json({
         response: language === 'en'
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
 // Health check
 export async function GET() {
   return NextResponse.json({
-    status: isGeminiAvailable() ? 'ok' : 'not_configured',
+    status: await isGeminiAvailableAsync() ? 'ok' : 'not_configured',
     provider: 'gemini',
     model: 'gemini-2.5-flash',
   })

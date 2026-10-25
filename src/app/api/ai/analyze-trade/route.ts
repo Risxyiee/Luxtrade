@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
-import { geminiPrompt, isGeminiAvailable } from '@/lib/gemini'
+import { geminiPrompt, isGeminiAvailableAsync } from '@/lib/gemini'
 
 /**
  * AI Trade Analysis API
@@ -104,7 +104,7 @@ ${JSON.stringify(recentTrades, null, 2)}`
     let analysis = ''
     let source: 'gemini' | 'fallback' = 'fallback'
 
-    if (isGeminiAvailable()) {
+    if (await isGeminiAvailableAsync()) {
       try {
         const geminiResult = await geminiPrompt(analysisPrompt, {
           systemInstruction: SYSTEM_PROMPT,
