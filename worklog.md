@@ -1009,3 +1009,24 @@ Stage Summary:
 - Fitur Ruang CEO murni additive — 0 file existing diubah
 - USER ACTION: ① jalankan supabase-migrations/012_create_agent_kv.sql di Supabase SQL Editor; ② set secrets di Cloudflare: ADMIN_SECRET + CRON_SECRET (wajib), opsional TIKTOK_REFERENCE, WA_PROVIDER/WA_TOKEN/WA_TARGET, DAILY_VISION_LIMIT, RESEND_API_KEY; ③ cron-job.org 08:00 WIB → /api/ceo-agent?action=briefing&key=CRON_SECRET
 - Catatan skema: COL di route mengasumsikan tabel users (kolom last_upload_at, email) + error_logs — sesuaikan bila skema beda (mis. users→profiles)
+
+---
+Task ID: 13
+Agent: main (Z.ai Code)
+Task: Jawab user (mana SQL Supabase) + migrasi notifikasi Ruang CEO dari WhatsApp (Fonnte/Wablas) ke Discord webhook
+
+Work Log:
+- Verifikasi commit 161bab05 (Ruang CEO) sudah push ke origin/main
+- Ganti sendWA() Fonnte/Wablas → sendDiscord() pakai DISCORD_WEBHOOK_URL (fallback CF context env)
+- Briefing markdown WhatsApp (*bold*) → Discord (**bold**), slice 2000 char
+- Action 'webhook' (reply Fonnte) diganti 'acc-email' — dipicu tombol di dashboard
+- Summary keys waSent/waErr → notifySent/notifyErr
+- Dashboard: tombol "Jalankan Briefing + Kirim Discord", status Discord, tombol baru "ACC EMAIL ke User Pasif" (Mail icon)
+- lint bersih → commit 392c3de0 → push origin/main
+
+Stage Summary:
+- Notifikasi Ruang CEO kini 100% Discord (konsisten dgn sisanya) — secret WA tidak diperlukan
+- SQL agent_kv tersedia di supabase-migrations/012_create_agent_kv.sql (user harus jalankan di Supabase SQL Editor)
+- Env Ruang CEO: SUPABASE_URL, SUPABASE_ANON_KEY, GEMINI_API_KEY, CRON_SECRET, ADMIN_SECRET, DISCORD_WEBHOOK_URL (opsional: GEMINI_MODEL, TIKTOK_REFERENCE, DAILY_VISION_LIMIT, RESEND_API_KEY)
+- Cron 08:00 WIB: /api/ceo-agent?action=briefing&key=CRON_SECRET
+- Deploy masih manual dari lokal (sandbox tanpa CLOUDFLARE_API_TOKEN)
