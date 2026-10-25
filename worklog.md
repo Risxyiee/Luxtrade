@@ -1099,3 +1099,29 @@ Stage Summary:
   ADMIN_SECRET/CRON_SECRET tetap dipakai utk auth API
 - Klik laptop CEO = POST briefing (beneran kirim Discord)
 - three.js lazy-load client-only, tidak membebani SSR/prerender
+
+---
+Task ID: 17
+Agent: main (Z.ai Code)
+Task: Email-gate Ruang CEO (luxtradee@gmail.com) + fix Discord "belum diset" + Supabase 401
+
+Work Log:
+- Permintaan user: masuk /kantor-ceo tanpa secret apa pun, cukup login email luxtradee@gmail.com
+- API: verifyOwnerToken via Supabase /auth/v1/user (URL project dipatok ke
+  klxkdrfsfcoankbaoejn agar tak bisa dipalsukan); isOwner menggantikan kebutuhan
+  ADMIN_SECRET di dashboard; CRON_SECRET/ADMIN_SECRET tetap utk cron
+- UI 3D: gate checking/denied/ok; token otomatis dari sb.auth.getSession();
+  anon key publik dikirim via header X-SB-Key (menimpa env yang salah →
+  fix Supabase profiles HTTP 401 dari screenshot)
+- cleanEnv() strip kutip/spasi semua secret; sendDiscord pakai cleanEnv
+- action=discord-test + tombol 🧪 Tes Discord → error mentah tampil (bukan
+  cuma "belum diset"); panel briefing menyarankan klik tes
+- CTO self-ping CF 521-524 → siteOk=true (Worker eksekusi = hidup)
+- lint OK, compile /kantor-ceo OK → commit d3500b83 → push origin/main
+
+Stage Summary:
+- Masuk Ruang CEO: login luxtradee@gmail.com di situs, buka /kantor-ceo — selesai
+- Jika Discord masih gagal: klik 🧪 Tes Discord → pesan error spesifik
+  (mis. HTTP 404 = webhook deleted, 401 = URL salah) — bukan lagi teks ambigu
+- Screenshot user masih menampilkan dashboard 2D lama = deploy 3D belum selesai
+  saat itu; setelah deploy ini: 3D + email-gate aktif bersamaan
