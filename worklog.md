@@ -1454,3 +1454,43 @@ Stage Summary:
   kini info ini juga tertulis di UI overview
 - Jam kantor kini jujur ikut WIB nyata; simulasi hanya lewat tombol Cepat/Lompat
 - Commit: fix jam WIB + perf + overview ringkas
+
+---
+Task ID: 28
+Agent: Z.ai (main)
+Task: Rombak UI mobile/desktop kantor CEO ke gaya "Apple Vision Pro / Spatial UI" — RuangCeoDashboard.tsx
+
+Work Log:
+- File baru src/app/kantor-ceo/RuangCeoDashboard.tsx: seluruh panel kontrol
+  dipindah dari KantorCeo3D.tsx (1717 → 980 baris) + re-theme dark glass
+- Wujud 1 (standby): SEMUA kartu disembunyikan; hanya floating pill
+  "CEO Command Center" bottom-center (bg-black/20 backdrop-blur-2xl border-white/10
+  shadow-[0_4px_30px_rgba(0,0,0,0.5)], whitespace-nowrap agar tak wrap di mobile)
+  + kapsul jam WIB nyata kanan-atas (ClockWib pindah + dipercantik, interval 1 dtk
+  terisolasi — tak re-render sheet)
+- Wujud 2 (aktif): glass bottom sheet fixed bottom, max-h-[50vh] TEPAT (terukur
+  450px/900px = 50%), rounded-t-3xl p-5, slide-up transition-transform duration-300,
+  pointer-events-none saat tertutup (3D tetap interaktif), grabber + ✕ + tap-luar
+  untuk menutup
+- Horizontal Agent Dock: flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory;
+  kartu min-w-[80%] (sm:min-w-[340px]) snap-center bg-white/5 border-white/10
+  rounded-2xl p-4; 9 kartu (CEO/CTO/CSO/CMO/CFO/COO/DA/GH/Struktur) dengan status
+  LANGSUNG dari data agen + dot ok/idle; kartu aktif auto-scroll ke tengah
+- Semua 9 ruangan di-port ke dark glass (teks putih, aksen terang, input/scroll
+  gelap) — logika/handler tidak berubah; TEAM_DETAIL ikut pindah
+- Bridge: klik karakter 3D → setRoom + window.__kceo.openSheet() (scene merge
+  openSheet lama agar tak ter-timpa saat init)
+- CSS scene: .kchip dihapus; #khint dinaikkan ke bottom:88px & #ktoast ke 144px
+  (di atas pill, anti tumpang tindih)
+- BONUS: hapus public/robots.txt yang konflik dengan app/robots.ts (500 → 200)
+- Verifikasi Agent Browser (mobile 390x844 + desktop 1440x900): standby bersih,
+  sheet buka/tutup (✕/grabber/tap-luar), dock snap + auto-center, ruangan
+  CTO/GH/Rapat/Struktur render, kamera 3D terbang, bridge openSheet OK,
+  sheet tepat 50vh, 0 error baru (error Supabase sandbox & THREE.Clock lama)
+- lint bersih
+
+Stage Summary:
+- Kanvas 3D kini TIDAK tertutup panel lagi — UI cuma pill + kapsul jam saat standby
+- Semua fitur ruangan tetap utuh (QA/E2E, ACC EMAIL, AUTO-ACC, draf TikTok,
+  antrean COO, analisis Dewi, eksperimen Farhan, struktur tim, briefing)
+- Commit: feat: UI Vision Pro — RuangCeoDashboard floating pill + glass sheet + agent dock
