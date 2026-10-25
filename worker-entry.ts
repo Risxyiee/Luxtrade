@@ -10,12 +10,25 @@
 // NOTE: Cloudflare Workers Free plan = max 5 cron triggers per account.
 // AI agents consolidated into existing schedules (they're background tasks
 // that just queue drafts for human approval — exact timing not critical).
+//
+// Ruang CEO (Super AI Agent) ikut menumpang jadwal yang sudah ada —
+// NOL slot cron baru dipakai:
+//   0 1 * * *  → briefing pagi 08:00 WIB (4 agen + AUTO-ACC email pasif)
+//   0 3 * * 1  → laporan mingguan Senin 10:00 WIB
+//   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
 const CRON_ROUTES = {
-  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-cs-agent'],
+  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-cs-agent', '/api/ceo-agent?action=briefing'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
-  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/cron/ai-marketing-agent'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify'],
+  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/cron/ai-marketing-agent', '/api/ceo-agent?action=weekly'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog'],
 }
+
+/* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
+   dan bisa jalan lama (briefing = 1 panggilan Gemini + kirim ±50 email
+   berurutan) — makanya timeout-nya 120 dtk, bukan 30 dtk. */
+const CEO_TIMEOUT_MS = 120_000
+const DEFAULT_TIMEOUT_MS = 30_000
+const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent')
 
 export default {
   async fetch(request, env, ctx) {
@@ -61,13 +74,19 @@ export default {
       ctx.waitUntil(
         (async () => {
           try {
+            const isCeo = ceoRoute(route)
+            // ceo-agent otentikasi via ?key=CRON_SECRET — tambahkan jika ada.
+            let path = route
+            if (isCeo && env.CRON_SECRET)
+              path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(env.CRON_SECRET)
+
             const headers = { 'Content-Type': 'application/json' }
             if (cronSecret) headers['Authorization'] = `Bearer ${cronSecret}`
 
-            const res = await fetch(`${siteUrl}${route}`, {
+            const res = await fetch(`${siteUrl}${path}`, {
               method: 'GET',
               headers,
-              signal: AbortSignal.timeout(30000),
+              signal: AbortSignal.timeout(isCeo ? CEO_TIMEOUT_MS : DEFAULT_TIMEOUT_MS),
             })
 
             if (!res.ok) {

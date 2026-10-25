@@ -83,10 +83,10 @@
         // ─── Cron triggers → worker-entry.ts scheduled() → /api/cron/* ──────────
         // NOTE: Workers Free plan = max 5 crons. AI agents consolidated into
         // existing daily/weekly schedules (they just queue drafts for approval).
-        // 0 1 * * *  = 08:00 WIB harian  (daily-reminder + downgrade-expired-pro + ai-cs-agent)
+        // 0 1 * * *  = 08:00 WIB harian  (daily-reminder + downgrade-expired-pro + ai-cs-agent + ceo briefing + AUTO-ACC)
         // 0 3 * * *  = 10:00 WIB harian  (re-engage + downgrade-expired-pro)
-        // 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary + ai-marketing-agent)
-        // */15 * * * = tiap 15 menit     (econ-calendar-notify)
+        // 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary + ai-marketing-agent + ceo weekly report)
+        // */15 * * * = tiap 15 menit     (econ-calendar-notify + ceo watchdog 24/7)
         "triggers": {
                 "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
         }
