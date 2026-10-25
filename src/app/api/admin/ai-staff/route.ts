@@ -9,11 +9,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * API Approval untuk AI Staff (Human-in-the-Loop)
  * Dipakai oleh dashboard admin /admin/ai-staff.
  *
- * GET  → daftar task status 'pending' (semua agent)
+ * RIWAYAT: CS Agent & Marketing Agent DIPENSIUNKAN (dobel dengan karyawan
+ * Kantor CEO) — dashboard sekarang hanya menampilkan 1 karyawan: COO Jualan.
+ * Task lama CS/MARKETING tidak lagi dimuat.
+ *
+ * GET  → daftar task status 'pending' agent_type='COO'
  * POST → { taskId, action: 'approve' | 'reject', edited?: { subject, body } }
- *        - approve + agent CS        → kirim email asli via Resend ke user
- *        - approve + agent MARKETING → tandai selesai (konten siap dipakai)
- *        - reject                    → tandai rejected (keluar dari antrean)
+ *        - approve + agent COO/CS → kirim email asli via Resend ke lead
+ *        - reject                 → tandai rejected (keluar dari antrean)
  *
  * Auth: requireAdmin (session Supabase + ADMIN_EMAILS / profiles.role)
  */
@@ -22,21 +25,17 @@ export const dynamic = 'force-dynamic'
 
 interface PendingTask {
   id: string
-  agent_type: 'CS' | 'MARKETING'
+  agent_type: 'CS' | 'MARKETING' | 'COO'
   target_user_id: string | null
   context_data: {
     email?: string
     fullName?: string
     totalTrades?: number
     joinedAt?: string
-    audienceSnapshot?: Record<string, unknown>
-    generatedForDate?: string
   }
   generated_content: {
     subject?: string
     body?: string
-    analysis?: string
-    ideas?: Array<{ hook: string; script: string; caption: string; cta: string }>
     provider?: string
     model?: string
     generatedAt?: string
@@ -58,6 +57,7 @@ async function listPending(admin: SupabaseClient) {
     .from('ai_pending_tasks')
     .select('*')
     .eq('status', 'pending')
+    .eq('agent_type', 'COO') // hanya COO — CS & MARKETING sudah dipensiunkan
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -67,7 +67,7 @@ async function listPending(admin: SupabaseClient) {
         success: false,
         error: 'Tabel ai_pending_tasks belum ada — jalankan supabase-migrations/011_create_ai_pending_tasks.sql',
         tasks: [],
-        counts: { cs: 0, marketing: 0 },
+        counts: { coo: 0 },
       }, { status: 400 })
     }
     // 42501: tabel ADA tapi GRANT untuk service_role belum diset
@@ -78,7 +78,7 @@ async function listPending(admin: SupabaseClient) {
         success: false,
         error: 'Akses DB ditolak (42501) — jalankan di Supabase SQL Editor: GRANT ALL ON public.ai_pending_tasks TO service_role; GRANT SELECT ON public.ai_pending_tasks TO authenticated;',
         tasks: [],
-        counts: { cs: 0, marketing: 0 },
+        counts: { coo: 0 },
       }, { status: 503 })
     }
     // Log error asli supaya 500 bisa didiagnosis dari CF Workers logs
@@ -96,8 +96,7 @@ async function listPending(admin: SupabaseClient) {
     success: true,
     tasks,
     counts: {
-      cs: tasks.filter(t => t.agent_type === 'CS').length,
-      marketing: tasks.filter(t => t.agent_type === 'MARKETING').length,
+      coo: tasks.filter(t => t.agent_type === 'COO').length,
     },
   })
 }
@@ -173,8 +172,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Draf ditolak & dikeluarkan dari antrean' })
     }
 
-    // ─── APPROVE ───────────────────────────────────────────────────────────
-    if (task.agent_type === 'CS') {
+    // ─── APPROVE — COO & CS: kirim email asli via Resend ──────────────────
+    if (task.agent_type === 'COO' || task.agent_type === 'CS') {
+      const isCoo = task.agent_type === 'COO'
       // Kirim email asli via Resend dengan konten yang mungkin sudah diedit admin
       const to = task.context_data?.email
       if (!to) {
@@ -223,20 +223,20 @@ export async function POST(request: NextRequest) {
       }
 
       await sendTelegramNotification(
-        `✅ <b>AI CS Agent</b>\n\n📧 Email follow-up DIKIRIM ke <code>${to}</code>\nSubjek: "${subject}"\nDisetujui oleh: ${user?.email || 'admin'}`
+        `✅ <b>AI ${isCoo ? 'COO — Jualan' : 'CS Agent'}</b>\n\n📧 Email ${isCoo ? 'penawaran PRO' : 'follow-up'} DIKIRIM ke <code>${to}</code>\nSubjek: "${subject}"\nDisetujui oleh: ${user?.email || 'admin'}`
       )
 
       return NextResponse.json({ success: true, message: `Email terkirim ke ${to}`, emailSent: true })
     }
 
-    // MARKETING: tandai selesai (konten siap diproduksi admin)
+    // Tipe lain (defensif — tipe lama): tandai selesai generik
     const { error: updErrMkt } = await admin
       .from('ai_pending_tasks')
       .update({
         status: 'approved',
         updated_at: new Date().toISOString(),
         executed_at: new Date().toISOString(),
-        executed_result: { note: 'Konten disetujui & siap diproduksi', approvedBy: user?.email || 'admin' },
+        executed_result: { note: 'Task disetujui', approvedBy: user?.email || 'admin' },
       })
       .eq('id', taskId)
 
@@ -244,9 +244,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Gagal approve: ' + updErrMkt.message }, { status: 500 })
     }
 
-    await sendTelegramNotification(`✅ <b>AI Marketing Agent</b>\n\n🎬 Konten TikTok DISETUJUI oleh ${user?.email || 'admin'} — siap diproduksi`)
-
-    return NextResponse.json({ success: true, message: 'Konten disetujui — siap diproduksi!' })
+    return NextResponse.json({ success: true, message: 'Task disetujui!' })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[admin/ai-staff] Error:', msg)

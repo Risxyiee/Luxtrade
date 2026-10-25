@@ -11,15 +11,18 @@
 // AI agents consolidated into existing schedules (they're background tasks
 // that just queue drafts for human approval — exact timing not critical).
 //
+// Riwayat: ai-cs-agent & ai-marketing-agent DIPENSIUNKAN (dobel dengan
+// karyawan Kantor CEO: CSO & CMO) — digantikan 1 karyawan: COO Jualan.
+//
 // Ruang CEO (Super AI Agent) ikut menumpang jadwal yang sudah ada —
 // NOL slot cron baru dipakai:
 //   0 1 * * *  → briefing pagi 08:00 WIB (4 agen + AUTO-ACC email pasif)
 //   0 3 * * 1  → laporan mingguan Senin 10:00 WIB
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
 const CRON_ROUTES = {
-  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-cs-agent', '/api/ceo-agent?action=briefing'],
+  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
-  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/cron/ai-marketing-agent', '/api/ceo-agent?action=weekly'],
+  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
   '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog'],
 }
 
