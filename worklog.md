@@ -1228,3 +1228,23 @@ Stage Summary:
 - Full autonomy now self-contained: NO external cron service, NO manual setup — user only flips AUTO-ACC ON once in Ruang CSO
 - Briefing 08:00 WIB daily (4 agents + auto passive-email), watchdog every 15 min (DOWN/bug/quota → instant Discord alarm), weekly report Monday 10:00 WIB
 - Honest team assessment delivered: roles (CTO/CSO/CMO/CFO) correct for a beginner site chasing money+users; gap was scheduling, now closed
+---
+Task ID: 20
+Agent: main
+Task: Pensiunkan 2 karyawan AI di dashboard admin (CS + Marketing) — ganti 1 karyawan baru: COO Jualan dengan animasi 3D
+
+Work Log:
+- User: 2 karyawan di /admin/ai-staff bentrok dengan karyawan Kantor CEO (CSO email pasif ≈ CS agent; CMO TikTok ≈ Marketing agent) → hapus dua-duanya, tambah COO jualan 3D
+- Deleted src/app/api/cron/ai-cs-agent + ai-marketing-agent; worker-entry CRON_ROUTES dibersihkan (slot 08:00 WIB diisi COO, slot Senin dikosongkan)
+- Migration 013_add_coo_agent_type.sql: agent_type CHECK constraint + 'COO' (user harus paste di Supabase SQL Editor sekali)
+- New /api/cron/ai-coo-agent: hot leads = free user (is_pro=false) dengan trades terbanyak 7 hari; cooldown recontact 7 hari; max 3/run; LLM groq→gemini→template bikin draf email penawaran PRO personal; insert ai_pending_tasks 'COO' pending; notif Telegram; ?dry=true support; error jelas kalau migration 013 belum dijalankan
+- /api/admin/ai-staff: GET hanya agent_type='COO'; approve COO/CS kirim email Resend (getPromotionalEmailHtml); MARKETING branch diganti fallback generik
+- New CooEmployee3D.tsx (Three.js raw, dynamic import ssr:false): karakter 'Raka' — jas, dasi emerald, kacamata, rambut, mata kedip, mulut; meja + monitor dengan 6 bar chart sales animasi + LED; koin emas melayang spin; lengan kanan melambai saat pendingCount>0; klik = salute 2s + toast via onPoke; rim light emerald + point gold; resize observer; full dispose di cleanup
+- page.tsx rewrite: single COO queue (no tabs), header 'AI Staff · COO Jualan', info shift card, lead cards dengan badge 'N trades/7hr HOT', draf subject/body editable, ACC & Kirim / Tolak, sticky footer, empty state
+- Lint + tsc clean; dev server verify: /admin/ai-staff HTTP 200, compiled OK; committed 4ec76a02, pushed (CF auto-deploy)
+
+Stage Summary:
+- Dashboard admin kini 1 karyawan: COO Raka 3D fokus MONETISASI (free user aktif → PRO), human-in-the-loop
+- Kantor CEO tetap 4 karyawan operasional (CTO/CSO/CMO/CFO) — tidak ada lagi duplikasi email/konten
+- PENDING USER ACTION: jalankan 013_add_coo_agent_type.sql di Supabase SQL Editor (1 paste) sebelum cron COO pertama besok 08.00 WIB
+- AI CS live chat user bilang udah ada — terkonfirmasi: /api/chat Gemini CS bot sudah eksis, tidak dibangun ulang
