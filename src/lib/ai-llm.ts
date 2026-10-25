@@ -13,7 +13,7 @@ import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 export interface LLMResult {
   text: string
-  provider: 'groq' | 'gemini'
+  provider: 'groq' | 'gemini' | 'openrouter'
   model: string
 }
 

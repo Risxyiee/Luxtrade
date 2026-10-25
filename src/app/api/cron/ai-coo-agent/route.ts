@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
+import { callLLM, extractJson, getLLMProviderName, type LLMResult } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
-import { callLLM, extractJson, getLLMProviderName } from '@/lib/ai-llm'
 import { sendTelegramNotification } from '@/lib/telegram'
 
 /**
@@ -60,6 +60,59 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
 }
 
 // ─── AI: racik email jualan PRO ────────────────────────────────────────────
+/* ═══ SOP MULTI-AGENT — model resmi BAGAS (COO) ═══
+   meta-llama/llama-3.1-8b-instruct:free via OpenRouter (native fetch,
+   parsing standar OpenAI). Cadangan: zhipu/glm-4-flash → rantai lama
+   (Groq → Gemini lewat callLLM) → templat statis buildTemplateDraft. */
+const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const BAGAS_MODEL = 'meta-llama/llama-3.1-8b-instruct:free'
+const BAGAS_FALLBACK_MODEL = 'zhipu/glm-4-flash'
+
+async function getOpenRouterKey(): Promise<string> {
+  try { return (await getEnvVar('OPENROUTER_API_KEY', { quiet: true })) || process.env.OPENROUTER_API_KEY || '' } catch { return process.env.OPENROUTER_API_KEY || '' }
+}
+
+async function callBagas(systemPrompt: string, userPrompt: string, maxTokens = 600): Promise<LLMResult | null> {
+  const key = (await getOpenRouterKey()).trim()
+  if (!key) return null
+  for (const model of [process.env.OR_MODEL_COO?.trim() || BAGAS_MODEL, BAGAS_FALLBACK_MODEL]) {
+    try {
+      const res = await fetch(OR_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.8,
+          max_tokens: maxTokens,
+        }),
+        signal: AbortSignal.timeout(45_000),
+      })
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        console.error(`[ai-coo-agent] OpenRouter ${model} ${res.status}: ${errBody.substring(0, 160)}`)
+        continue
+      }
+      const result: { choices?: Array<{ message?: { content?: string } }> } = await res.json()
+      const text = result?.choices?.[0]?.message?.content?.trim()
+      if (!text) {
+        console.error(`[ai-coo-agent] OpenRouter ${model} returned empty content`)
+        continue
+      }
+      return { text, provider: 'openrouter', model }
+    } catch (err: any) {
+      console.error(`[ai-coo-agent] OpenRouter ${model} error:`, err?.message || err)
+    }
+  }
+  return null
+}
+
 const COO_SYSTEM_PROMPT = `Kamu adalah COO (Chief Operating Officer) Luxtradee — divisi jualan. Misi kamu: konversi free user paling aktif jadi pelanggan PRO.
 
 Kamu menulis email penawaran upgrade PERSONAL untuk user yang SUDAH RAJIN upload jurnal trading (bukan user baru!) tapi masih pakai versi gratis.
@@ -106,7 +159,10 @@ function buildTemplateDraft(l: CooLead): CooDraft {
 }
 
 async function generateCooDraft(l: CooLead): Promise<CooDraft> {
-  const llm = await callLLM(COO_SYSTEM_PROMPT, buildCooUserPrompt(l), 600)
+  /* SOP Multi-Agent: model resmi Bagas dulu (OpenRouter Llama 3.1 8B) →
+     rantai lama Groq → Gemini → templat statis. */
+  const llm = (await callBagas(COO_SYSTEM_PROMPT, buildCooUserPrompt(l), 600))
+    ?? (await callLLM(COO_SYSTEM_PROMPT, buildCooUserPrompt(l), 600))
   if (llm) {
     const parsed = extractJson<{ subject?: string; body?: string }>(llm.text)
     if (parsed?.subject && parsed?.body) {
@@ -224,8 +280,7 @@ async function handleRequest(request: NextRequest) {
     })
   }
 
-  // 4. LLM racik draf jualan — paralel
-  const provider = await getLLMProviderName()
+  // 4. LLM racik draf jualan — paralel (model resmi Bagas via OpenRouter)
   const drafts = await Promise.all(
     targets.map(async (l): Promise<{ lead: CooLead; draft: CooDraft; error?: string }> => {
       try {
@@ -240,7 +295,7 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({
       success: true,
       dryRun: true,
-      llmProvider: provider,
+      llmProvider: [...new Set(drafts.map(d => d.draft.provider))].join(', ') || await getLLMProviderName(),
       wouldCreate: drafts.map(d => ({ email: d.lead.email, name: d.lead.fullName, trades7d: d.lead.trades7d, subject: d.draft.subject, provider: d.draft.provider })),
       stats: { totalProfiles: profiles.length, activeFreeUsers: hotLeads.length, inCooldown: recentlyContacted.size },
     })
@@ -280,14 +335,15 @@ async function handleRequest(request: NextRequest) {
   const draftList = drafts
     .map(d => `• ${d.lead.fullName || d.lead.email} (${d.lead.trades7d} trades/7hr) → "${d.draft.subject}"`)
     .join('\n')
+  const provs = [...new Set(drafts.map(d => d.draft.provider))].join(', ') || await getLLMProviderName()
   await sendTelegramNotification(
-    `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provider}</b>\n\n${draftList}\n\n👉 Review & ACC di Ruang COO: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/kantor-ceo`
+    `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provs}</b>\n\n${draftList}\n\n👉 Review & ACC di Ruang COO: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/kantor-ceo`
   )
 
   return NextResponse.json({
     success: true,
     created: inserted?.length ?? rows.length,
-    llmProvider: provider,
+    llmProvider: [...new Set(drafts.map(d => d.draft.provider))].join(', '),
     drafts: drafts.map(d => ({ email: d.lead.email, trades7d: d.lead.trades7d, subject: d.draft.subject, provider: d.draft.provider })),
     errors: drafts.filter(d => d.error).map(d => ({ email: d.lead.email, error: d.error })),
   })
