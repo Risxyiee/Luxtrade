@@ -977,7 +977,9 @@ export default function KantorCeo3D() {
             {cmo?(
               <div>
                 <div style={{background:'rgba(124,58,237,.06)',borderRadius:10,padding:10,whiteSpace:'pre-wrap',opacity:.92,fontSize:12,maxHeight:280,overflowY:'auto',lineHeight:1.6,border:'1px solid rgba(124,58,237,.12)'}}>{cmo.draft||cmo.error||'—'}</div>
-                {cmo.usedFallback?<div style={{opacity:.5,marginTop:4,fontSize:11}}>(fallback — Gemini limit, revisi manual)</div>:null}
+                {cmo.usedFallback?<div style={{opacity:.5,marginTop:4,fontSize:11}}>(fallback — Gemini &amp; OpenRouter gagal, revisi manual)</div>:null}
+                {cmo.provider==='openrouter'?<div style={{color:'#d97706',marginTop:4,fontSize:11}}>⚡ Cadangan OpenRouter — Gemini lagi 429/error, otomatis pindah</div>:null}
+                {cmo.provider==='gemini'?<div style={{opacity:.4,marginTop:2,fontSize:10.5}}>✅ Gemini (utama)</div>:null}
                 {cmo.basedOn==='tiktok'?<div style={{color:'#7c3aed',fontSize:10.5,marginTop:2}}>📚 Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div>:null}
                 {cmo.angle?<div style={{opacity:.5,fontSize:10.5,marginTop:2}}>Angle: {cmo.angle.slice(0,60)}…</div>:null}
               </div>
