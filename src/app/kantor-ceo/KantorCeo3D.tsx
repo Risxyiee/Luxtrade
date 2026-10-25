@@ -1400,6 +1400,52 @@ export default function KantorCeo3D() {
             </div>
           </div>)}
 
+        {/* ============ RUANG STRUKTUR — Jabatan & Pekerjaan Tiap Karyawan ============ */}
+        {room==='struktur'&&(
+          <div style={CARD}>
+            <div style={{fontSize:15,fontWeight:700,color:'#0f172a',marginBottom:4}}>📋 STRUKTUR TIM AI</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8,lineHeight:1.55}}>
+              Jabatan, pekerjaan & jadwal tiap karyawan — plus <b style={{color:'#b45309'}}>batas kemampuan yang jujur</b>, biar Bos bisa menilai apa yang kurang dan layak ditambah.
+            </div>
+            <div style={{maxHeight:'calc(100vh - 210px)',overflowY:'auto',paddingRight:2}}>
+              {TEAM_DETAIL.map(m=>(
+                <div key={m.id} style={{border:'1px solid '+m.border,background:m.bg,borderRadius:10,padding:'9px 10px',marginBottom:8}}>
+                  <div style={{fontSize:12.5,fontWeight:700,color:m.color}}>{m.emoji} {m.name} — {m.jabatan}</div>
+                  <div style={{fontSize:9.5,opacity:.6,marginBottom:5,textTransform:'uppercase',letterSpacing:'.05em'}}>{m.divisi}</div>
+                  <div style={{fontSize:10.5,lineHeight:1.6}}>
+                    <b>🕐 Jam kerja:</b> {m.shift}<br/>
+                    <b>📥 Baca data:</b> {m.baca}
+                    <div style={{marginTop:4}}><b>📋 Tugas:</b>
+                      <ul style={{margin:'2px 0 0',paddingLeft:15}}>
+                        {m.tugas.map((t,i)=><li key={i}>{t}</li>)}
+                      </ul>
+                    </div>
+                    <div style={{marginTop:4}}><b>📤 Laporan:</b> {m.lapor}</div>
+                    <div style={{marginTop:4}}><b style={{color:'#b45309'}}>⚠️ Belum bisa:</b>
+                      <ul style={{margin:'2px 0 0',paddingLeft:15}}>
+                        {m.batas.map((t,i)=><li key={i}>{t}</li>)}
+                      </ul>
+                    </div>
+                    <div style={{marginTop:4,opacity:.8}}><b style={{color:'#0d9488'}}>💡 Bisa ditambah:</b> {m.ide}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{border:'1px dashed rgba(217,119,6,.4)',background:'rgba(217,119,6,.06)',borderRadius:10,padding:'9px 10px',fontSize:10.5,lineHeight:1.6,marginBottom:4}}>
+                <b style={{color:'#b45309'}}>🧩 Kursi yang masih kosong (opini jujur):</b>
+                <ul style={{margin:'3px 0 0',paddingLeft:15}}>
+                  <li><b>Data Analyst</b> — belum ada yang mengolah pola trading user (pair favorit, win rate, jam ramai) → bisa jadi insight premium + materi konten CMO</li>
+                  <li><b>Support Closer</b> — CS bot chat (/api/chat) sudah jawab pertanyaan user, tapi belum ada yang follow-up penyelesaian bug ke user pelapor sampai tuntas</li>
+                  <li><b>Growth Hacker</b> — belum ada eksperimen otomatis (uji 2 versi CTA/landing, ukur konversi, pilih pemenang)</li>
+                  <li>Halaman affiliate sudah ada, tapi belum ada agen yang aktif mempromosikan programnya</li>
+                </ul>
+              </div>
+              <div style={{opacity:.5,fontSize:10,lineHeight:1.5}}>
+                Semua jadwal jalan otomatis via Cloudflare Cron bawaan — tanpa cron-job.org.<br/>
+                Mau pindahkan tugas antar karyawan, ubah jadwal, atau tambah kursi baru? Bilang saja, Bos.
+              </div>
+            </div>
+          </div>)}
+
         {/* ============ RUANG RAPAT — CEO Suite ============ */}
         {room==='rapat'&&(
           <div style={CARD}>
