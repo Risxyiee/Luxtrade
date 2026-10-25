@@ -1494,3 +1494,19 @@ Stage Summary:
 - Semua fitur ruangan tetap utuh (QA/E2E, ACC EMAIL, AUTO-ACC, draf TikTok,
   antrean COO, analisis Dewi, eksperimen Farhan, struktur tim, briefing)
 - Commit: feat: UI Vision Pro — RuangCeoDashboard floating pill + glass sheet + agent dock
+
+---
+Task ID: 26
+Agent: Z (main)
+Task: Hapus "panel di kanan" — kapsul jam WIB top-right pada RuangCeoDashboard (kelanjutan UI Vision Pro)
+
+Work Log:
+- Identifikasi: yang dimaksud user = kapsul `fixed top-4 right-4` (Dot + ClockWib) yang masih tersisa dari refactor Vision Pro (commit 7a05fbf9).
+- RuangCeoDashboard.tsx: hapus kapsul top-right; ClockWib dipindah ke dalam floating pill bawah (dipisah divider `w-px h-4 bg-white/15`) + ke header sheet (Dot + ClockWib + tombol X digabung dalam wrapper `ml-auto`).
+- ClockWib dikecilkan ke text-[13px]/text-[8.5px] biar serasi di pill.
+- Verifikasi agent-browser viewport 390x844 & 1440x900: standby = satu pill bawah saja, kanan atas bersih; sheet = header rapi dengan jam; lint bersih.
+
+Stage Summary:
+- Commit 4f4aab30 pushed ke main → Cloudflare auto-deploy ±2-3 menit.
+- Wujud standby kini benar-benar hanya 1 pill "CEO Command Center | 23.11.08 WIB" — kanvas 3D tidak tertutup panel apa pun.
+- Catatan: HUD jam kantor (#kclock) + tombol simulasi tetap di KIRI atas (bagian scene 3D, bukan panel kanan); banner "Mode dev" hanya tampil saat dev.
