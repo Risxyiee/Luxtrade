@@ -51,7 +51,7 @@ interface UserProfile {
 // Quick action links configuration
 const quickActions = [
   { href: '/admin-email', label: 'Email Broadcast', icon: Mail },
-  { href: '/admin/ai-staff', label: 'AI Staff', icon: Bot },
+  { href: '/kantor-ceo', label: 'Kantor AI (Ruang COO)', icon: Bot },
   { href: '/dashboard/admin/affiliate', label: 'Affiliate', icon: Share2 },
   { href: '/dashboard/admin/promo-codes', label: 'Promo Codes', icon: Tag },
   { href: '/dashboard/admin/social-links', label: 'Social Links', icon: Link2 },

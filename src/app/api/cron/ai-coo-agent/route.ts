@@ -25,7 +25,7 @@ import { sendTelegramNotification } from '@/lib/telegram'
  *   5. Notif Telegram: "N hot leads menunggu ACC"
  *
  * Eksekusi final (kirim email via Resend) HANYA setelah Bos ACC
- * di /admin/ai-staff — human-in-the-loop.
+ * di Ruang COO (/kantor-ceo) — human-in-the-loop.
  *
  * Auth: Bearer CRON_SECRET (skip jika secret belum diset).
  * Params: ?dry=true untuk preview tanpa menulis DB.
@@ -281,7 +281,7 @@ async function handleRequest(request: NextRequest) {
     .map(d => `• ${d.lead.fullName || d.lead.email} (${d.lead.trades7d} trades/7hr) → "${d.draft.subject}"`)
     .join('\n')
   await sendTelegramNotification(
-    `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provider}</b>\n\n${draftList}\n\n👉 Review & ACC di: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/admin/ai-staff`
+    `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provider}</b>\n\n${draftList}\n\n👉 Review & ACC di Ruang COO: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/kantor-ceo`
   )
 
   return NextResponse.json({

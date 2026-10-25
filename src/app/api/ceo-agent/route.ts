@@ -522,7 +522,26 @@ async function runMorningBriefing(e: Env) {
   const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine)
   let notifySent = false, notifyErr = ''
   try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
-  const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, text }
+
+  /* DISKUSI HARIAN CSO × CMO — 1×/hari, otomatis setelah briefing utama.
+     Maya laporkan akar masalah user pasif + Sinta bikin skrip konten.
+     Hasilnya dikirim ke Discord SEBAGAI PESAN TERPISAH (briefing utama
+     sudah hampir penuh 2000 char) + disimpan buat panel Ruang CSO.
+     Kalau Bos sudah jalankan manual hari ini → skip (no duplikat). */
+  let talk: CsoCmoTalk | null = null
+  let talkSent = false
+  try {
+    if (!(await kvGet(e, `cso-cmo:${utcDay()}`))) {
+      await kvSet(e, `cso-cmo:${utcDay()}`, new Date().toISOString())
+      talk = await csoCmoTalk(e)
+      try { await sendDiscord(e, talkToDiscord(talk)); talkSent = true } catch { /* ignore */ }
+    } else {
+      const raw = await kvGet(e, 'cso-cmo:last')
+      if (raw) talk = JSON.parse(raw) as CsoCmoTalk
+    }
+  } catch { /* talk opsional — briefing utama tetap sah */ }
+
+  const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, talk, talkSent, text }
   await kvSet(e, 'briefing:last', JSON.stringify(summary))
   return summary
 }
@@ -783,6 +802,21 @@ async function qaAgent(e: Env) {
   return out
 }
 
+/* Antrean COO — hitung draf penawaran yang masih menunggu ACC Bos.
+   Dipakai: kartu overview, status live karakter 3D, panel Ruang COO.
+   Tabel ai_pending_tasks dibuat lewat supabase-migrations/013 —
+   kalau tabelnya belum ada, balik kosong (jangan error). */
+async function cooPending(e: Env): Promise<{ pending: number; approved24h: number }> {
+  const out = { pending: 0, approved24h: 0 }
+  if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) return out
+  const res = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_tasks?agent_type=eq.COO&created_at=gte.${encodeURIComponent(isoAgo(48))}&select=status`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+  if (!res.ok) return out
+  const rows = (await res.json()) as { status?: string }[]
+  out.pending = rows.filter((r) => r.status === 'pending').length
+  out.approved24h = rows.filter((r) => r.status === 'approved').length
+  return out
+}
+
 /* Ringkasan kerja COO 24 jam terakhir — buat laporan pagi 08:00 */
 async function cooYesterdayLine(e: Env): Promise<string> {
   if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) return ''
@@ -792,7 +826,176 @@ async function cooYesterdayLine(e: Env): Promise<string> {
   if (!rows.length) return ''
   const pending = rows.filter((r) => r.status === 'pending').length
   const approved = rows.filter((r) => r.status === 'approved').length
-  return `💼 **COO — Divisi Jualan**: ${rows.length} draf penawaran 24 jam terakhir (${approved} terkirim, ${pending} menunggu ACC Bos di /admin/ai-staff)`
+  return `💼 **COO — Divisi Jualan**: ${rows.length} draf penawaran 24 jam terakhir (${approved} terkirim, ${pending} menunggu ACC Bos di Ruang COO — /kantor-ceo)`
+}
+
+/* ============================================================
+   DISKUSI HARIAN CSO × CMO (RuCSO upgrade)
+   Maya (CSO) bawa DATA NYATA user pasif ke meja Sinta (CMO):
+   berapa yang mendaftar tapi tak pernah upload jurnal, keluhan
+   bug, feedback email. Gemini menyusun DIALOG keduanya mencari
+   ROOT CAUSE "kenapa user nggak mau pakai jurnal" → lalu CMO
+   menulis 1 SKRIP KONTEN TikTok yang menjawab alasan teratas.
+   Dipakai: tombol manual Ruang CSO + otomatis 1×/hari di briefing 08:00.
+   ============================================================ */
+interface TalkTurn { who: 'CSO' | 'CMO'; text: string }
+interface CsoCmoTalk {
+  at: string
+  provider: 'gemini' | 'openrouter' | 'fallback'
+  diagnosis: string
+  reasons: string[]
+  dialog: TalkTurn[]
+  script: { hook: string; body: string; cta: string }
+  intel: { total: number; active24h: number; active7d: number; passive: number; baruTakAktif: number; bug7d: number }
+  raw?: string
+}
+
+/* JSON tololeran: buang fence markdown, ambil blok { ... } terluas */
+function extractJsonLoose(text: string): string | null {
+  const clean = text.replace(/```(?:json)?/gi, '').trim()
+  const a = clean.indexOf('{')
+  const b = clean.lastIndexOf('}')
+  if (a < 0 || b <= a) return null
+  return clean.slice(a, b + 1)
+}
+
+async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
+  /* ---- 1. Kumpulkan intel nyata dari database ---- */
+  const active24 = await fetchActiveUserIds(e, isoAgo(24))
+  const active7 = await fetchActiveUserIds(e, isoAgo(24 * 7))
+  const total = await supaCount(e, 'profiles')
+  const baru14 = await supaCount(e, 'profiles', 'created_at=gte.' + isoAgo(24 * 14))
+  const bug7d = await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24 * 7)).catch(() => -1)
+
+  /* Contoh keluhan user (bug 7 hari) — bahan obrolan konkret */
+  let bugSamples: string[] = []
+  try {
+    const bres = await fetch(`${sbUrl(e)}/rest/v1/bug_reports?select=description&created_at=gte.${encodeURIComponent(isoAgo(24 * 7))}&order=created_at.desc&limit=5`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    if (bres.ok) bugSamples = ((await bres.json()) as { description?: string }[]).map((b) => String(b.description || '').replace(/\s+/g, ' ').slice(0, 160)).filter((s) => s.length > 3)
+  } catch { /* opsional */ }
+
+  /* Feedback email CSO kemarin — berapa yang balik */
+  let emailed = 0, returned = 0
+  try {
+    const ids: string[] = JSON.parse((await kvGet(e, `csmailed:${utcDay(-1)}`)) || '[]')
+    emailed = ids.length
+    returned = ids.filter((id) => active7.has(id)).length
+  } catch { /* ignore */ }
+
+  const intel = {
+    total,
+    active24h: active24.size,
+    active7d: active7.size,
+    passive: Math.max(0, total - active24.size),
+    /* Pendaftar 14 hari terakhir yang TIDAK pernah upload jurnal = calon churn paling nyata */
+    baruTakAktif: Math.max(0, baru14 - active7.size),
+    bug7d,
+  }
+
+  const intelText =
+    `DATA NYATA Luxtradee (web app jurnal trading XAUUSD, upload screenshot → evaluasi AI):\n` +
+    `- Total pendaftar: ${intel.total}\n` +
+    `- Aktif 24 jam: ${intel.active24h} · Aktif 7 hari: ${intel.active7d}\n` +
+    `- Pasif (di luar 24 jam): ${intel.passive}\n` +
+    `- Daftar 14 hari terakhir: ${baru14} — ${intel.baruTakAktif} di antaranya BELUM PERNAH upload jurnal sama sekali\n` +
+    (emailed ? `- Email sapaan kemarin: ${emailed} user dikontak, ${returned} balik aktif\n` : '') +
+    (bug7d >= 0 ? `- Laporan bug 7 hari: ${bug7d}\n` : '') +
+    (bugSamples.length ? `- Contoh keluhan user:\n${bugSamples.map((s) => `  • ${s}`).join('\n')}\n` : '')
+
+  /* ---- 2. Dialog Maya (CSO) × Sinta (CMO) + skrip konten ---- */
+  const systemPrompt =
+    `Kamu penulis skenario internal tim Luxtradee. Tulis DIALOG kerja singkat antara 2 karyawan AI:\n` +
+    `- MAYA (CSO, cewek, peduli user, bicara pake data)\n` +
+    `- SINTA (CMO, copywriter TikTok, bahasa gaul kreatif)\n\n` +
+    `TOPIK: cari akar masalah KENAPA user mendaftar tapi nggak mau/males pakai jurnal trading (upload screenshot). Maya bawa data, Sinta menduga-duga penyebab psikologis (malas, bingung mulai, ngerasa ribet, belum yakin manfaat) dan mengusulkan angle konten.\n` +
+    `Akhi: Sinta membuat 1 skrip video TikTok (hook 3 detik → isi → CTA, 30-45 dtk) yang MENJAWAB alasan teratas — target trader XAUUSD Indonesia.\n\n` +
+    `OUTPUT HANYA JSON valid (tanpa markdown, tanpa penjelasan):\n` +
+    `{"diagnosis":"1-2 kalimat inti masalah","reasons":["alasan 1","alasan 2","alasan 3"],"dialog":[{"who":"CSO","text":"..."},{"who":"CMO","text":"..."}],"script":{"hook":"...","body":"...","cta":"..."}}\n` +
+    `Aturan: dialog 6-8 giliran pergantian, tiap teks maks 200 karakter, bahasa Indonesia santai, sebutkan angka data yang nyata.`
+
+  const userPrompt = `${intelText}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
+
+  let provider: CsoCmoTalk['provider'] = 'fallback'
+  let parsed: Omit<CsoCmoTalk, 'at' | 'provider' | 'intel' | 'raw'> | null = null
+  let raw = ''
+  try {
+    raw = await geminiText(e, systemPrompt, userPrompt, 2048, 0.8)
+    provider = 'gemini'
+  } catch {
+    try {
+      raw = await openRouterText(e, systemPrompt, userPrompt, 2048)
+      provider = 'openrouter'
+    } catch { raw = '' }
+  }
+
+  if (raw) {
+    try {
+      const j = JSON.parse(extractJsonLoose(raw) || raw)
+      const dialog: TalkTurn[] = Array.isArray(j.dialog)
+        ? j.dialog
+            .map((d: { who?: string; text?: string }) => ({ who: String(d?.who || '').toUpperCase().includes('CMO') ? 'CMO' : 'CSO', text: String(d?.text || '').slice(0, 400) }))
+            .filter((d: TalkTurn) => d.text)
+        : []
+      if (dialog.length >= 2 && (j.script?.hook || j.diagnosis)) {
+        parsed = {
+          diagnosis: String(j.diagnosis || '').slice(0, 400),
+          reasons: Array.isArray(j.reasons) ? j.reasons.map((r: unknown) => String(r).slice(0, 140)).slice(0, 5) : [],
+          dialog,
+          script: {
+            hook: String(j.script?.hook || '').slice(0, 400),
+            body: String(j.script?.body || '').slice(0, 900),
+            cta: String(j.script?.cta || '').slice(0, 300),
+          },
+        }
+      }
+    } catch { /* JSON rusak → fallback */ }
+  }
+
+  if (!parsed) {
+    /* Fallback tanpa LLM: dialog templat dari data nyata */
+    provider = 'fallback'
+    const topReason = intel.baruTakAktif > 0
+      ? `${intel.baruTakAktif} dari ${baru14} pendaftar baru belum pernah upload jurnal`
+      : `${intel.passive} user pasif tidak upload dalam 24 jam`
+    parsed = {
+      diagnosis: `${topReason} — kemungkinan karena terasa ribet/bingung mulai, bukan karena tidak tertarik.`,
+      reasons: [
+        'Bingung mulai — nggak tahu screenshot yang bagus seperti apa',
+        'Kira jurnal = ngetik manual yang panjang',
+        'Belum merasakan manfaat evaluasi di 5 menit pertama',
+      ],
+      dialog: [
+        { who: 'CSO', text: `Sinta, dari data: ${topReason}. Ini pola yang sama tiap minggu.` },
+        { who: 'CMO', text: 'Berarti masalahnya bukan "males nggak mau" — tapi mereka belum lihat prosesnya semudah apa. Kita tunjukkan, jangkan dijelasin.' },
+        { who: 'CSO', text: 'Setuju. Keluhan terbanyak juga soal mulai yang bingung, bukan soal fitur.' },
+        { who: 'CMO', text: 'Oke, gua bikin skrip: video 30 detik, tunjukkan upload screenshot → evaluasi muncul. Satu take, no talking-head.' },
+      ],
+      script: {
+        hook: '"Daftar tapi belum pernah upload jurnal? Rugi 90% manfaatnya."',
+        body: `Rekam layar: drag screenshot trade → upload → evaluasi AI muncul dalam hitungan detik. Teks besar: "Bukan ngetik. Cuma 2 menit." Tutup dengan chart perbandingan before/after pakai evaluasi. Data bagimu: ${intel.baruTakAktif || intel.passive} trader lain masih nunda — jadi yang beda.`,
+        cta: '"Upload 1 screenshot hari ini — link di bio, gratis."',
+      },
+    }
+  }
+
+  const out: CsoCmoTalk = { at: new Date().toISOString(), provider, intel, ...parsed }
+  await kvSet(e, 'cso-cmo:last', JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+/* Versi teks buat Discord — pesan terpisah setelah briefing utama */
+function talkToDiscord(t: CsoCmoTalk): string {
+  const L: string[] = []
+  L.push('💬 **DISKUSI CSO × CMO — kenapa user males upload jurnal?**')
+  L.push(`🔍 ${t.diagnosis}`)
+  for (const d of t.dialog.slice(0, 6)) L.push(`${d.who === 'CSO' ? '👩‍💼 Maya (CSO)' : '📣 Sinta (CMO)'}: ${d.text}`)
+  if (t.script?.hook) {
+    L.push('')
+    L.push('🎬 **SKRIP KONTEN HASIL RAPAT:**')
+    L.push(`HOOK: ${t.script.hook}\nISI: ${t.script.body}\nCTA: ${t.script.cta}`)
+  }
+  L.push('_(Diskusi otomatis CSO × CMO — skrip lengkap ada di Ruang CSO /kantor-ceo)_')
+  return L.join('\n').slice(0, 1900)
 }
 
 /* ============================================================
@@ -897,7 +1100,7 @@ async function handle(req: Request): Promise<Response> {
   if (action !== 'info' && !(isCron || isAdmin || isOwner || noSecrets))
     return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
-  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last') {
+  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last') {
     const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(k => (k === 'SUPABASE_URL' && !sbUrl(e)) || (k === 'SUPABASE_ANON_KEY' && !sbAnonKey(e)))
     if (missing.length) return j({ error: 'ENV belum diset: ' + missing.join(', ') }, 500)
   }
@@ -910,17 +1113,18 @@ async function handle(req: Request): Promise<Response> {
       return raw ? j(JSON.parse(raw)) : j({ error: 'belum ada briefing' }, 404)
     }
     case 'agents': {
-      // ?only=cto,cso,cfo — jalankan subset agen (hemat kuota Gemini saat
+      // ?only=cto,cso,cfo,coo — jalankan subset agen (hemat kuota Gemini saat
       // dashboard dibuka; draf TikTok CMO hanya dibuat kalau diminta)
       const only = (url.searchParams.get('only') || '').split(',').map((s) => s.trim()).filter(Boolean)
       const want = (w: string) => !only.length || only.includes(w)
-      const [cto, cso, cmo, cfo] = await Promise.all([
+      const [cto, cso, cmo, cfo, coo] = await Promise.all([
         want('cto') ? ctoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
         want('cso') ? csoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
         want('cmo') ? cmoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
         want('cfo') ? cfoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
+        want('coo') ? cooPending(e).catch(() => ({ pending: 0, approved24h: 0 })) : Promise.resolve(undefined),
       ])
-      return j({ cto, cso, cmo, cfo })
+      return j({ cto, cso, cmo, cfo, coo })
     }
     case 'diag': {
       // Diagnostik sistem untuk Ruang CTO — periksa env + tes tiap query
@@ -1020,6 +1224,29 @@ async function handle(req: Request): Promise<Response> {
     case 'tiktok-del':
       // Hapus post bahan analisis: ?id=<uuid>
       try { return j(await tikTokDel(e, url.searchParams.get('id') || '')) } catch (x: any) { return j({ error: String(x?.message || x) }, 400) }
+    case 'talk':
+      // Diskusi CSO × CMO (Ruang CSO): akar masalah user pasif + skrip konten.
+      // Dedup per hari — kalau sudah jalan pagi ini, balikin hasil yang tersimpan.
+      // Respons dibungkus {talk} — tanpa key `error` di root supaya state
+      // dashboard ruangan lain tidak ikut menampilkan pesan ini.
+      try {
+        const dayKey = `cso-cmo:${utcDay()}`
+        if (await kvGet(e, dayKey)) {
+          const last = await kvGet(e, 'cso-cmo:last')
+          return last ? j({ talk: { ...JSON.parse(last), dupToday: true } }) : j({ talk: await csoCmoTalk(e) })
+        }
+        await kvSet(e, dayKey, new Date().toISOString())
+        return j({ talk: await csoCmoTalk(e) })
+      } catch (x: any) { return j({ talkError: String(x?.message || x).slice(0, 160) }, 200) }
+    case 'talk-last': {
+      // Hasil diskusi CSO × CMO terakhir (dipakai Ruang CSO saat dibuka).
+      // Selalu bentuk {talk} — tanpa key `error` di root (tidak bocor ke
+      // panel ruangan lain). Gagal baca KV → talk:null (panel tampil kosong).
+      try {
+        const last = await kvGet(e, 'cso-cmo:last')
+        return last ? j({ talk: JSON.parse(last) }) : j({ talk: null })
+      } catch { return j({ talk: null }) }
+    }
     default:
       return j({
         app: 'Luxtrade Super AI Agent',
@@ -1040,6 +1267,8 @@ async function handle(req: Request): Promise<Response> {
           'action=tiktok-list — daftar bahan analisis TikTok (Ruang CMO)',
           'action=tiktok-add (POST JSON {url,views,likes}) — tambah post: caption auto via oEmbed',
           'action=tiktok-del (?id=) — hapus post bahan analisis',
+          'action=talk — diskusi harian CSO × CMO: akar masalah user pasif + skrip konten (Ruang CSO)',
+          'action=talk-last — hasil diskusi CSO × CMO terakhir',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })

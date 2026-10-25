@@ -54,6 +54,14 @@ export default function KantorCeo3D() {
   const [ttLikes, setTtLikes] = useState('')
   const [ttMsg, setTtMsg] = useState('')
   const [ttBusy, setTtBusy] = useState(false)
+  /* Antrean ACC jualan COO (pindahan dari /admin/ai-staff) */
+  const [cooTasks, setCooTasks] = useState<any[]>([])
+  const [cooLoading, setCooLoading] = useState(false)
+  const [cooDrafts, setCooDrafts] = useState<Record<string, { subject: string; body: string }>>({})
+  const [cooActing, setCooActing] = useState<string | null>(null)
+  const cooInitRef = useRef<Set<string>>(new Set())
+  /* Tombol salin skrip hasil diskusi CSO × CMO */
+  const [talkCopied, setTalkCopied] = useState(false)
   /* ---- JEMBATAN data real → scene 3D ----
      liveRef = mirror state `data` supaya loop 3D bisa baca hasil agen ASLI.
      busyRef = agen yang SEDANG dikerjakan beneran (API call in-flight).
@@ -101,13 +109,15 @@ export default function KantorCeo3D() {
   /* ---------- pemanggil API (hasil di-merge supaya tiap ruangan punya datanya) ---------- */
   /* Map action → karakter mana yang "beneran kerja" di scene 3D */
   const jobsOfAction = (action: string): string[] => {
-    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO', cfo: 'CFO' }
+    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO', cfo: 'CFO', coo: 'COO' }
     if (action.startsWith('agents&only=')) return (action.split('only=')[1] || '').split(',').map(s => M[s.trim()]).filter(Boolean)
-    if (action === 'agents') return ['CTO', 'CSO', 'CFO']
-    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'CEO']
+    if (action === 'agents') return ['CTO', 'CSO', 'CFO', 'COO']
+    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'COO', 'CEO']
     if (action === 'quota') return ['CFO']
     if (action === 'acc-email' || action === 'auto-acc') return ['CSO']
     if (action.startsWith('tiktok-')) return ['CMO']
+    if (action === 'talk') return ['CSO', 'CMO']
+    if (action.startsWith('coo-')) return ['COO']
     if (action === 'diag' || action === 'watchdog' || action === 'qa') return ['CTO']
     if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
@@ -135,6 +145,10 @@ export default function KantorCeo3D() {
       window.__kceo?.toast?.(r?.dup ? '📧 ACC EMAIL sudah dicatat hari ini' : r?.ok ? '📧 ACC EMAIL dicatat — CSO tuntas!' : '⚠️ ACC EMAIL gagal — cek Ruang CSO')
       return r
     }
+    if (action === 'talk') { // diskusi CSO × CMO — hasilnya tampil di Ruang CSO
+      window.__kceo?.toast?.(r?.talk?.diagnosis ? '💬 Diskusi selesai — Maya & Sinta nemu akar masalah + skrip konten!' : r?.talkError ? '⚠️ Diskusi gagal — ' + String(r.talkError).slice(0, 60) : '⚠️ Diskusi gagal — cek koneksi/kuota AI')
+      return r
+    }
     if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
     if (action === 'briefing' && r?.text)
       window.__kceo?.toast?.(r.notifySent ? '🌅 Briefing terkirim ke Discord! ✅' : '⚠️ Briefing jalan — Discord gagal kirim')
@@ -144,8 +158,8 @@ export default function KantorCeo3D() {
 
   useEffect(() => { runBriefingRef.current = () => call('briefing', 'POST') }, [call])
   useEffect(() => { pickRef.current = (r: string) => setRoom(r) }, [])
-  // Kantor dibuka: muat CTO/CSO/CFO + status AUTO-ACC — draf TikTok CMO hanya saat diminta (hemat kuota Gemini)
-  useEffect(() => { if (gate === 'ok') { call('agents&only=cto,cso,cfo'); call('auto-acc') } // eslint-disable-line react-hooks/exhaustive-deps
+  // Kantor dibuka: muat CTO/CSO/CFO/COO + status AUTO-ACC — draf TikTok CMO hanya saat diminta (hemat kuota Gemini)
+  useEffect(() => { if (gate === 'ok') { call('agents&only=cto,cso,cfo,coo'); call('auto-acc') } // eslint-disable-line react-hooks/exhaustive-deps
   }, [gate])
   useEffect(() => { focusRef.current && focusRef.current(room) }, [room])
 
@@ -186,8 +200,64 @@ export default function KantorCeo3D() {
       setTt((l) => l.filter((p) => p.id !== id))
     } catch { /* ignore */ } finally { setTtBusy(false) }
   }
-  // Ruang CMO dibuka → muat daftar bahan
-  useEffect(() => { if (room === 'CMO') ttLoad() /* eslint-disable-line react-hooks/exhaustive-deps */
+
+  /* ---------- Antrean ACC jualan COO (pindahan dari /admin/ai-staff) ---------- */
+  const cooLoad = useCallback(async (silent = false) => {
+    if (!token) return
+    if (!silent) setCooLoading(true)
+    try {
+      const res = await fetch('/api/admin/ai-staff', { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
+      const r = await res.json()
+      if (res.ok && r?.success) {
+        const fresh = (r.tasks || []) as any[]
+        setCooTasks(fresh)
+        setCooDrafts(prev => {
+          const next = { ...prev }
+          for (const t of fresh) {
+            if (!cooInitRef.current.has(t.id)) {
+              cooInitRef.current.add(t.id)
+              next[t.id] = { subject: t.generated_content?.subject || '', body: t.generated_content?.body || '' }
+            }
+          }
+          return next
+        })
+      } else if (!silent) {
+        window.__kceo?.toast?.('⚠️ ' + String(r?.error || 'Gagal memuat antrean COO').slice(0, 90))
+      }
+    } catch { if (!silent) window.__kceo?.toast?.('⚠️ Jaringan gagal — antrean COO tidak termuat') }
+    finally { if (!silent) setCooLoading(false) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  const cooAct = async (t: any, action: 'approve' | 'reject') => {
+    if (cooActing) return
+    setCooActing(t.id)
+    try {
+      const draft = cooDrafts[t.id]
+      const res = await fetch('/api/admin/ai-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ taskId: t.id, action, ...(action === 'approve' ? { edited: { subject: draft?.subject, body: draft?.body } } : {}) }),
+      })
+      const r = await res.json()
+      if (res.ok && r?.success) {
+        window.__kceo?.toast?.(action === 'approve' ? `💸 Email penawaran terkirim ke ${t.context_data?.email || 'lead'}!` : '🗑️ Draf ditolak — keluar antrean')
+        doneRef.current['COO'] = Date.now()
+        await cooLoad(true)
+        call('agents&only=coo')
+      } else {
+        window.__kceo?.toast?.('⚠️ ' + String(r?.error || 'Gagal memproses task').slice(0, 110))
+      }
+    } catch { window.__kceo?.toast?.('⚠️ Jaringan gagal — coba lagi') }
+    finally { setCooActing(null) }
+  }
+
+  // Ruangan dibuka → muat datanya (CMO: bahan TikTok · COO: antrean ACC · CSO: hasil diskusi)
+  useEffect(() => {
+    if (room === 'CMO') ttLoad()
+    if (room === 'COO') cooLoad()
+    if (room === 'CSO') call('talk-last')
+  /* eslint-disable react-hooks/exhaustive-deps */
   }, [room])
 
   /* ============================================================
@@ -224,23 +294,24 @@ export default function KantorCeo3D() {
       const toastEl=$t('#ktoast');let toastTO
       const showToast=msg=>{toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTO);toastTO=setTimeout(()=>toastEl.classList.remove('show'),4200)}
 
-      /* ---------- tim = 4 agen + CEO ---------- */
+      /* ---------- tim = 5 agen + CEO ---------- */
       const CAST=[
         {name:'Raka',job:'CTO',title:'CTO Agent · IT & QA',lazy:.25,shirt:'#0e7490',skin:'#c68642',hair:'#111',desk:[-11,-6.5],room:'back',accent:'#14b8a6'},
         {name:'Sinta',job:'CMO',title:'CMO Agent · Copywriter',lazy:.6,shirt:'#7c3aed',skin:'#e0ac69',hair:'#2b1b12',desk:[-2.75,-6.5],room:'back',accent:'#8b5cf6'},
         {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-11,3],room:'front',accent:'#ec4899'},
         {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#b45309',skin:'#f1c27d',hair:'#3b2314',desk:[-2.75,3],room:'front',accent:'#f59e0b'},
+        {name:'Bagas',job:'COO',title:'COO Agent · Jualan',lazy:.7,shirt:'#059669',skin:'#e0ac69',hair:'#241c12',desk:[9.5,-6.5],room:'back',accent:'#10b981'},
         {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155'}]
-      const PHASES=['Cek Sistem & Bug','Hitung User','Draf TikTok','Cek Kuota','Kirim Briefing']
-      const PHASE_JOB=['CTO','CSO','CMO','CFO','CEO']
-      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','CMO':'Generate draf TikTok di Gemini','CFO':'Pantau kuota Gemini anti-429','CEO':'Review & kirim Morning Briefing'}
-      const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Draf TikTok baru siap','Kuota aman — 0 event 429','Briefing terkirim ke Discord']
+      const PHASES=['Cek Sistem & Bug','Hitung User','Draf TikTok','Cek Kuota','Follow-up Jualan','Kirim Briefing']
+      const PHASE_JOB=['CTO','CSO','CMO','CFO','COO','CEO']
+      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','CMO':'Generate draf TikTok di Gemini','CFO':'Pantau kuota Gemini anti-429','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Review & kirim Morning Briefing'}
+      const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Draf TikTok baru siap','Kuota aman — 0 event 429','Lead difollow-up, draf siap ACC','Briefing terkirim ke Discord']
       const SITE={ver:1.0,vis:41,day:1247}
       const PROJ={ph:0,prog:35,sprint:1,done:0}
-      const projTot=()=>(PROJ.ph+PROJ.prog/100)/5*100
+      const projTot=()=>(PROJ.ph+PROJ.prog/100)/6*100
       const INC={active:false,next:60+rnd(0,60),endT:0,boostT:0}
 
-      const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0}]
+      const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0},{p:[12.5,4.8],y:PI/2,sit:0}]
       const OBST=[];CAST.forEach(c=>OBST.push({x:c.desk[0],z:c.desk[1],hw:c.ceo?1.3:.9,hd:.45}))
       OBST.push({x:10,z:2.6,hw:1.2,hd:.5},{x:10,z:5.4,hw:1.2,hd:.5},{x:10,z:4,hw:.6,hd:.3},{x:13.7,z:4,hw:.4,hd:1.7},{x:15.2,z:1,hw:.2,hd:.2},{x:-13.5,z:-4.5,hw:.6,hd:.3},{x:-9,z:6,hw:1.5,hd:.7},{x:7.6,z:-4,hw:.3,hd:.3},{x:-7.6,z:-6,hw:.3,hd:.3},{x:7.6,z:9,hw:.3,hd:.3},{x:-3,z:10,hw:.3,hd:.3})
       // dinding kamar (segmen dengan celah pintu di depan tiap meja) — jalan kaki otomatis lewat pintu
@@ -248,6 +319,8 @@ export default function KantorCeo3D() {
       const wsegV=(x,z1,z2)=>OBST.push({x,z:(z1+z2)/2,hw:.14,hd:(z2-z1)/2})
       ;[[-15.5,-11.8],[-10.2,-3.55],[-1.95,1]].forEach(s=>{wseg(s[0],s[1],-2.5);wseg(s[0],s[1],-.5);wseg(s[0],s[1],6.5)})
       wsegV(-6.5,-10,-2.5);wsegV(-6.5,-.5,6.5);wsegV(1,-10,-2.5);wsegV(1,-.5,6.5)
+      /* Ruang COO (baru — pindahan dari /admin/ai-staff): kaca ke-5 di sisi kanan belakang */
+      wsegV(8.5,-10,-2.5);wseg(8.5,10.1,-2.5);wseg(11.7,13.5,-2.5)
       const POSE={deep:{tp:.08,hp:.2,ra:[-.6,.08,-1],la:[-.6,.08,-1]},phone:{tp:-.28,hp:.62,ra:[-.7,.05,-1.5],la:[-.7,.05,-1.5]},
         stretch:{tp:-.2,hp:-.25,ra:[-2.9,.3,-.2],la:[-2.9,.3,-.2]},scratch:{tp:0,hp:-.05,ra:[-.7,.05,-1.5],la:[-2.3,.45,-1.9]},
         chat:{tp:0,hp:0,ra:[-.3,.1,-.7],la:[-.2,.1,-.4]},drink:{tp:-.05,hp:-.1,ra:[-1.8,.1,-1.9],la:[-.2,.1,-.4]},think:{tp:.05,hp:.08,ra:[-.7,.05,-1.5],la:[-1.1,.25,-2.2]},stand:{tp:0,hp:0,ra:[0,.08,-.08],la:[0,.08,-.08]}}
@@ -256,6 +329,7 @@ export default function KantorCeo3D() {
         CSO:{deep:['Hitung total pendaftar dari Supabase','Segmentasi user aktif vs pasif','Susun daftar user pasif buat email'],phone:['Scroll daftar user baru'],chat:['Diskusi email sapaan bareng CEO']},
         CMO:{deep:['Generate draf TikTok via Gemini','Analisis gaya naskah CEO yang fyp','Rotasi angle: SMC/ICT hari ini'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
         CFO:{deep:['Pantau kuota Gemini Vision harian','Cek frekuensi upload — hindari 429','Hitung sisa request hari ini'],phone:['Lihat grafik pemakaian API'],chat:['Set quota-track ke backend']},
+        COO:{deep:['Susun draf penawaran PRO buat hot lead','Cek trades 7 hari — siapa paling rajin','Follow-up lead minggu lalu, ada yang balik?'],phone:['Scroll profil user aktif cari calon PRO'],chat:['Lapor konversi jualan ke CEO']},
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu ☕'}
       let tNow=0
@@ -275,6 +349,8 @@ export default function KantorCeo3D() {
             return live.cmo.draft?'📊 LIVE: draf TikTok hari ini sudah siap ✅':null
           if(job==='CFO'&&live.cfo&&!live.cfo.error)
             return `📊 LIVE: kuota ${live.cfo.usedToday}/${live.cfo.limit} hari ini · ${String(live.cfo.status||'').trim()}`
+          if(job==='COO'&&live.coo&&!live.coo.error)
+            return live.coo.pending>0?`📊 LIVE: ${live.coo.pending} draf penawaran nunggu ACC Bos`:'📊 LIVE: antrean jualan bersih ✅'
           if(job==='CEO'&&live.text)
             return live.notifySent?'📊 LIVE: briefing terakhir sudah terkirim ✅':'📊 LIVE: briefing siap — tinggal kirim'
         }catch{ }
@@ -286,6 +362,7 @@ export default function KantorCeo3D() {
             CSO:'⏳ Lagi hitung user dari database Supabase — kerja beneran!',
             CMO:'⏳ Lagi nulis draf TikTok di Gemini — kerja beneran!',
             CFO:'⏳ Lagi audit kuota API — kerja beneran!',
+            COO:'⏳ Lagi buru hot lead & susun draf penawaran — kerja beneran!',
             CEO:'⏳ Lagi susun briefing & kirim ke Discord…'}
           return W[c.job]||'⏳ Lagi kerja beneran…'}
         /* PRIORITAS 2 — baru selesai (≤9 dtk): rayakan dgn HASIL ASLI */
@@ -297,6 +374,7 @@ export default function KantorCeo3D() {
             CSO:()=>live&&live.cso&&!live.cso.error?`✅ Beres! ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`:'✅ Tugas selesai!',
             CMO:()=>live&&live.cmo?(live.cmo.draft?'✅ Draf TikTok baru siap — cek panel kanan!':'⚠️ Gagal bikin draf — cek panel'):'✅ Tugas selesai!',
             CFO:()=>live&&live.cfo&&!live.cfo.error?`✅ Kuota ${live.cfo.usedToday}/${live.cfo.limit} · ${String(live.cfo.status||'').trim()}`:'✅ Tugas selesai!',
+            COO:()=>live&&live.coo&&!live.coo.error?(live.coo.pending>0?`✅ Beres! ${live.coo.pending} draf nunggu ACC Bos di Ruang COO`:'✅ Beres! Antrean jualan bersih — lead besok lagi'):'✅ Tugas selesai!',
             CEO:()=>live&&live.text?(live.notifySent?'✅ Briefing terkirim ke Discord!':'⚠️ Briefing jalan — Discord gagal'):'✅ Tugas selesai!'}
           return (R[c.job]||(()=>'✅ Tugas selesai!'))()}
         if(INC.active){if(c.job==='CEO')return 'Mendengar laporan insiden dari CTO…'
@@ -338,7 +416,7 @@ export default function KantorCeo3D() {
 
       /* ---------- fokus kamera per ruangan ---------- */
       const FOCUS={on:false,pos:new THREE.Vector3(),tgt:new THREE.Vector3()}
-      const ROOMV={overview:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
+      const ROOMV={overview:[[2,9,17],[2,.8,0]],CTO:[[-11,4.6,-.8],[-11,.9,-7]],CMO:[[-2.75,4.6,-.8],[-2.75,.9,-7]],CSO:[[-11,4.6,8],[-11,.9,2]],CFO:[[-2.75,4.6,8],[-2.75,.9,2]],COO:[[10.75,4.6,-.8],[10.75,.9,-7]],rapat:[[6,3.2,1.8],[6,1.1,-6.5]]}
       const focusRoom=r=>{const P=ROOMV[r];if(!P){FOCUS.on=false;return}
         FOCUS.pos.set(...P[0]);FOCUS.tgt.set(...P[1]);FOCUS.on=true}
       focusRef.current=focusRoom
@@ -413,7 +491,7 @@ export default function KantorCeo3D() {
       ;[[-12,-8],[12,-8],[-12,9],[15,8],[3,-6],[-12,1]].forEach(p=>plant(...p))
       box(34,.03,.1,glow(PU,2),1.5,.02,11.9,scene,false);box(.1,.03,24,glow(PU,2),-15.5,.02,0,scene,false);box(.1,.03,24,glow(EM,2),18.5,.02,0,scene,false)
 
-      /* ---------- 4 KAMAR KACA — tiap tugas punya ruangan sendiri ---------- */
+      /* ---------- 5 KAMAR KACA — tiap tugas punya ruangan sendiri ---------- */
       const partH=(x1,x2,z)=>{const w=x2-x1,cx=(x1+x2)/2,g=new THREE.Group();scene.add(g)
         box(w,.95,.12,M('#dcd9e6'),cx,.475,z,g,false);box(w,1.6,.05,glassW,cx,1.75,z,g,false)
         box(w,.07,.14,M('#c8c5d4'),cx,2.58,z,g,false);return g}
@@ -424,14 +502,19 @@ export default function KantorCeo3D() {
       ;[[-15.5,-11.8],[-10.2,-3.55],[-1.95,1]].forEach(s=>{partH(s[0],s[1],-2.5);partH(s[0],s[1],-.5);partH(s[0],s[1],6.5)})
       ;[[-11.8,-10.2],[-3.55,-1.95]].forEach(gp=>{jamb(gp[0],-2.5);jamb(gp[1],-2.5);jamb(gp[0],6.5);jamb(gp[1],6.5)})
       partV(-6.5,-10,-2.5);partV(-6.5,-.5,6.5);partV(1,-10,-2.5);partV(1,-.5,6.5)
+      /* partisi Ruang COO + kusen pintu */
+      partV(8.5,-10,-2.5);partH(8.5,10.1,-2.5);partH(11.7,13.5,-2.5);jamb(10.1,-2.5);jamb(11.7,-2.5)
       const roomAcc=(x,z,col,rugC)=>{const r=new THREE.Mesh(new THREE.PlaneGeometry(4.8,4.6),M(rugC,{roughness:.9}));r.rotation.x=-PI/2;r.position.set(x,.008,z);r.receiveShadow=true;scene.add(r)
         const l=new THREE.PointLight(col,.65,9);l.position.set(x,2.3,z);scene.add(l)}
       roomAcc(-11,-6.2,'#14b8a6','#d8f2ea');roomAcc(-2.75,-6.2,'#8b5cf6','#ebe3fa')
       roomAcc(-11,3,'#ec4899','#fae1ee');roomAcc(-2.75,3,'#f59e0b','#fbf0d9')
+      roomAcc(10.75,-6.2,'#10b981','#e0f5ea')
       neon('RUANG CTO',3.3,.8,46,-11,1.95,-9.86,0,'#0d9488')
       neon('RUANG CMO',3.3,.8,46,-2.75,1.95,-9.86,0,'#7c3aed')
       neon('RUANG CSO',3.3,.8,46,-11,1.95,-.42,0,'#db2777')
       neon('RUANG CFO',3.3,.8,46,-2.75,1.95,-.42,0,'#d97706')
+      /* papan nama Ruang COO menempel di partisi kaca (dinding belakang dipakai layar LIVE raksasa) */
+      neon('RUANG COO',2.6,.62,44,8.42,1.95,-6.25,-PI/2,'#059669')
       neon('CEO SUITE',2.5,.6,40,6,1.5,-9.9,0,'#7c3aed')
 
       /* ---------- infrastruktur ---------- */
@@ -769,7 +852,7 @@ export default function KantorCeo3D() {
         frame++})
 
       setLoaded(true)
-      setTimeout(()=>showToast('🌐 luxtradee.web.id LIVE — 4 AI Agent siap'),1500)
+      setTimeout(()=>showToast('🌐 luxtradee.web.id LIVE — 5 AI Agent + CEO siap kerja'),1500)
 
       /* ---------- cleanup ---------- */
       cleanup=()=>{
@@ -797,8 +880,10 @@ export default function KantorCeo3D() {
   const OKS={marginTop:8,fontSize:11.5,color:'#059669'}
   const SEP={marginTop:8,borderTop:'1px dashed rgba(15,23,42,.15)',paddingTop:8}
   const cto=data&&data.cto,cso=data&&data.cso,cmo=data&&data.cmo,cfo=data&&data.cfo
+  const coo=data&&data.coo
+  const talk=data&&data.talk
   const autoacc=(data as any)?.autoacc
-  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['rapat','🌅 Rapat']]
+  const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['COO','💼 COO'],['rapat','🌅 Rapat']]
   const devOpen=process.env.NODE_ENV!=='production'
 
   return (
@@ -854,6 +939,12 @@ export default function KantorCeo3D() {
                 Klik laptop CEO = jalankan briefing beneran.
               </div>
             </div>
+            {coo&&(
+              <div style={CARD}><b style={{color:'#059669'}}>💼 COO — Jualan</b><br/>
+                {coo.pending>0?`${coo.pending} draf penawaran nunggu ACC ⏳`:'antrean jualan bersih ✅'}
+                {coo.approved24h>0?<span> · {coo.approved24h} terkirim 48 jam terakhir</span>:null}
+                <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang COO untuk ACC email penawaran PRO</div>
+              </div>)}
             {cto&&(
               <div style={CARD}><b style={{color:'#0d9488'}}>🖥️ CTO — IT &amp; QA</b><br/>
                 Web {cto.siteOk?'✅':'❌'} · Bug 24 jam {cto.bugs24h>=0?cto.bugs24h:'?'}
@@ -875,6 +966,23 @@ export default function KantorCeo3D() {
               <div style={CARD}><b style={{color:'#d97706'}}>💰 CFO — Kuota</b><br/>
                 {cfo.usedToday??'—'}/{cfo.limit} hari ini · {cfo.status}
               </div>)}
+            <div style={CARD}>
+              <b style={{color:'#0d9488',fontSize:13}}>📋 Struktur & Tugas Tim</b>
+              <div style={{marginTop:6,fontSize:10.8,lineHeight:1.7,maxHeight:270,overflowY:'auto',paddingRight:4}}>
+                <b style={{color:'#059669'}}>💼 Bagas — COO Jualan</b> · monetisasi<br/>
+                <span style={{opacity:.75}}>Tiap 08:00: pilih free user paling aktif 7 hari → racik email tawaran PRO personal → minta ACC Bos di sini → kirim via Resend. Anti-spam 1 lead/7 hari. Konversi dilaporkan tiap Senin.</span><br/>
+                <b style={{color:'#0d9488'}}>🖥️ Raka — CTO · IT & QA</b><br/>
+                <span style={{opacity:.75}}>Jaga situs 24/7 (watchdog 15 mnt: ping + alarm Discord kalau DOWN), hitung bug 24 jam + triage Gemini [P1-P3], QA otomatis semua fitur tiap briefing pagi.</span><br/>
+                <b style={{color:'#db2777'}}>👥 Maya — CSO · Customer Success</b><br/>
+                <span style={{opacity:.75}}>Hitung pendaftar/aktif/pasif tiap pagi, kirim email sapaan ke user pasif (3 variasi rotasi), ukur feedback siapa yang balik upload, ngobrol sama CMO cari akar masalah user males jurnal.</span><br/>
+                <b style={{color:'#7c3aed'}}>📣 Sinta — CMO · Marketing</b><br/>
+                <span style={{opacity:.75}}>Bikin 1 draf TikTok/hari meniru pola konten terbaik lo (bahan analisis di Ruang CMO), fallback Gemini→OpenRouter→templat, bikin skrip anti-churn dari hasil diskusi CSO.</span><br/>
+                <b style={{color:'#d97706'}}>💰 Putri — CFO · Kuota</b><br/>
+                <span style={{opacity:.75}}>Pantau kuota Gemini Vision (gerbang anti-429 sebelum upload user) + kuota email Resend, alarm di 80%, laporan pemakaian 7 hari.</span><br/>
+                <b style={{color:'#334155'}}>👔 Alexander — CEO</b><br/>
+                <span style={{opacity:.75}}>Kumpulin semua laporan jadi Morning Briefing 08:00 + laporan mingguan Senin 10:00 → Discord. Klik laptopnya untuk briefing manual.</span>
+              </div>
+            </div>
           </>)}
 
         {/* ============ RUANG CTO — IT & QA ============ */}
@@ -931,7 +1039,7 @@ export default function KantorCeo3D() {
         {room==='CSO'&&(
           <div style={CARD}>
             <div style={{fontSize:15,fontWeight:700,color:'#db2777',marginBottom:4}}>👥 RUANG CSO</div>
-            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Customer Success · Kelola user & email</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Customer Success · User, email retensi & riset churn</div>
             {cso?(
               <div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,textAlign:'center'}}>
@@ -977,6 +1085,49 @@ export default function KantorCeo3D() {
             </div>
             <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
               <button style={BTN} onClick={()=>call('agents&only=cso')}>🔄 Hitung Ulang</button>
+            </div>
+            <div style={SEP}>
+              <b style={{color:'#be185d'}}>💬 Diskusi CSO × CMO</b>
+              <div style={{opacity:.7,fontSize:11,marginTop:2,lineHeight:1.55}}>
+                Maya ngobrol sama Sinta (CMO) bawa data nyata: kenapa user daftar tapi males upload jurnal → langsung jadi skrip konten TikTok.
+              </div>
+              <button style={{...BTNR,width:'100%',marginTop:6,opacity:busy?.5:1}} disabled={busy}
+                onClick={async()=>{const r=await call('talk','POST'); if(r?.talkError)window.__kceo?.toast?.('⚠️ '+String(r.talkError).slice(0,90))}}>
+                🗣️ Ngobrol sama CMO & Bikin Skrip
+              </button>
+              {talk&&talk.diagnosis?(
+                <div style={{marginTop:8}}>
+                  <div style={{background:'rgba(219,39,119,.06)',borderRadius:8,padding:'6px 8px',fontSize:11,lineHeight:1.55,border:'1px solid rgba(219,39,119,.12)'}}>
+                    🔍 <b>Diagnosa:</b> {talk.diagnosis}
+                  </div>
+                  {talk.dupToday?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>udah diskusi hari ini — ini hasil terakhir (briefing 08:00 juga jalanin otomatis)</div>:null}
+                  {Array.isArray(talk.reasons)&&talk.reasons.length>0&&(
+                    <div style={{marginTop:5,fontSize:10.5,lineHeight:1.6,opacity:.85}}>
+                      <b>Alasan teratas user:</b>
+                      <ul style={{margin:'2px 0 0',paddingLeft:16}}>
+                        {talk.reasons.map((r:string,i:number)=><li key={i}>{r}</li>)}
+                      </ul>
+                    </div>)}
+                  <div style={{marginTop:6,maxHeight:230,overflowY:'auto',display:'flex',flexDirection:'column',gap:5}}>
+                    {(talk.dialog||[]).map((d:any,i:number)=>(
+                      <div key={i} style={{alignSelf:d.who==='CSO'?'flex-start':'flex-end',maxWidth:'90%',background:d.who==='CSO'?'rgba(219,39,119,.08)':'rgba(124,58,237,.08)',borderRadius:9,padding:'5px 8px',fontSize:10.8,lineHeight:1.5}}>
+                        <b style={{color:d.who==='CSO'?'#be185d':'#7c3aed',fontSize:9.5}}>{d.who==='CSO'?'👩‍💼 Maya · CSO':'📣 Sinta · CMO'}</b><br/>{d.text}
+                      </div>))}
+                  </div>
+                  {talk.script?.hook&&(
+                    <div style={{marginTop:7,border:'1px dashed rgba(124,58,237,.35)',borderRadius:9,padding:'7px 8px',fontSize:10.8,lineHeight:1.55}}>
+                      <b style={{color:'#7c3aed'}}>🎬 Skrip Konten Hasil Rapat</b><br/>
+                      <b>HOOK:</b> {talk.script.hook}<br/>
+                      <b>ISI:</b> {talk.script.body}<br/>
+                      <b>CTA:</b> {talk.script.cta}
+                      <div style={{marginTop:5,display:'flex',gap:6,alignItems:'center'}}>
+                        <button style={{...BTN,fontSize:10,padding:'4px 9px'}} onClick={async()=>{try{await navigator.clipboard.writeText(`HOOK: ${talk.script.hook}\n\nISI: ${talk.script.body}\n\nCTA: ${talk.script.cta}`);setTalkCopied(true);setTimeout(()=>setTalkCopied(false),1800)}catch{}}}>📋 Salin Skrip</button>
+                        {talkCopied?<span style={{color:'#059669',fontSize:10}}>tersalin ✅</span>:null}
+                      </div>
+                    </div>)}
+                  {talk.provider==='openrouter'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>⚡ via OpenRouter (Gemini lagi error)</div>:talk.provider==='fallback'?<div style={{opacity:.5,fontSize:9.5,marginTop:3}}>📦 templat cadangan (Gemini & OpenRouter gagal)</div>:null}
+                </div>
+              ):(<div style={{opacity:.55,fontSize:10.5,marginTop:6}}>Belum ada diskusi — klik tombol di atas. Hasil juga otomatis dibuat tiap briefing 08:00 & dikirim ke Discord.</div>)}
             </div>
           </div>)}
 
@@ -1068,6 +1219,67 @@ export default function KantorCeo3D() {
             </div>
           </div>)}
 
+        {/* ============ RUANG COO — Jualan & Monetisasi (pindahan dari /admin/ai-staff) ============ */}
+        {room==='COO'&&(
+          <div style={CARD}>
+            <div style={{fontSize:15,fontWeight:700,color:'#059669',marginBottom:4}}>💼 RUANG COO</div>
+            <div style={{opacity:.7,fontSize:11,marginBottom:8}}>Jualan &amp; Monetisasi · Hot lead → email tawaran PRO (ACC dulu, baru kirim)</div>
+            <div style={{opacity:.8,fontSize:10.5,lineHeight:1.7,background:'rgba(16,185,129,.07)',borderRadius:8,padding:'7px 9px',border:'1px solid rgba(16,185,129,.15)'}}>
+              🎯 Target: free user paling aktif 7 hari (udah ketagihan, tinggal ditawarin upgrade)<br/>
+              ⏰ Cron harian 08:00 WIB · 🛡️ Anti-spam: 1 lead maks 1× per 7 hari<br/>
+              📬 Email terkirim via Resend SETELAH Bos ACC — human-in-the-loop
+            </div>
+            {cooLoading&&cooTasks.length===0?(
+              <div style={{opacity:.6,marginTop:10,fontSize:11.5}}>⏳ Memuat antrean jualan…</div>
+            ):cooTasks.length===0?(
+              <div style={{marginTop:10,opacity:.7,fontSize:11.5,lineHeight:1.7}}>
+                ✅ Tidak ada draf yang menunggu ACC.<br/>
+                Bagas buru lead baru lagi besok pagi 08:00 — nggak ada yang perlu kamu proses sekarang.
+              </div>
+            ):(
+              <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:10,maxHeight:430,overflowY:'auto',paddingRight:2}}>
+                {cooTasks.map((t:any)=>{
+                  const draft=cooDrafts[t.id]||{subject:t.generated_content?.subject||'',body:t.generated_content?.body||''}
+                  const acting=cooActing===t.id
+                  return (
+                    <div key={t.id} style={{border:'1px solid rgba(16,185,129,.22)',borderRadius:10,padding:9,background:'rgba(16,185,129,.04)'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:7}}>
+                        <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(16,185,129,.15)',border:'1px solid rgba(16,185,129,.4)',display:'grid',placeItems:'center',fontSize:12,fontWeight:700,color:'#047857',flexShrink:0}}>
+                          {(t.context_data?.fullName||t.context_data?.email||'?').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{minWidth:0,flex:1}}>
+                          <div style={{fontSize:12,fontWeight:600,color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.context_data?.fullName||'Tanpa nama'}</div>
+                          <div style={{fontSize:10,opacity:.6,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.context_data?.email}</div>
+                        </div>
+                        <span style={{fontSize:9.5,background:'rgba(16,185,129,.14)',color:'#047857',borderRadius:99,padding:'2px 7px',whiteSpace:'nowrap',flexShrink:0}}>🔥 {t.context_data?.totalTrades??'?'} trades/7hr</span>
+                      </div>
+                      <input value={draft.subject} onChange={e=>setCooDrafts(p=>({...p,[t.id]:{...draft,subject:e.target.value}}))}
+                        placeholder="Subjek email penawaran…"
+                        style={{width:'100%',boxSizing:'border-box',marginTop:7,fontSize:11.5,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(16,185,129,.3)',background:'rgba(255,255,255,.8)',color:'#0f172a'}}/>
+                      <textarea value={draft.body} onChange={e=>setCooDrafts(p=>({...p,[t.id]:{...draft,body:e.target.value}}))}
+                        rows={6} placeholder="Isi email penawaran dari Bagas…"
+                        style={{width:'100%',boxSizing:'border-box',marginTop:6,fontSize:11,lineHeight:1.55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(16,185,129,.25)',background:'rgba(255,255,255,.8)',color:'#1e293b',resize:'vertical',fontFamily:'inherit'}}/>
+                      <div style={{opacity:.5,fontSize:9.5,textAlign:'right',marginTop:2}}>{draft.body.length} karakter · bisa diedit sebelum ACC</div>
+                      <div style={{display:'flex',gap:6,marginTop:6}}>
+                        <button style={{...BTN,flex:1,background:'rgba(16,185,129,.22)',opacity:acting?.5:1,fontWeight:600}} disabled={acting} onClick={()=>cooAct(t,'approve')}>
+                          {acting?'⏳ Mengirim…':'💸 ACC & Kirim Email'}
+                        </button>
+                        <button style={{...BTNR,opacity:acting?.5:1}} disabled={acting} onClick={()=>cooAct(t,'reject')}>✖ Tolak</button>
+                      </div>
+                    </div>
+                  )})}
+              </div>
+            )}
+            <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
+              <button style={BTN} onClick={()=>cooLoad()}>🔄 Muat Ulang Antrean</button>
+              {cooLoading?<span style={{fontSize:10,opacity:.6}}>memuat…</span>:null}
+            </div>
+            <div style={{opacity:.5,fontSize:10,marginTop:8,lineHeight:1.6}}>
+              Draf dibuat otomatis oleh Bagas (cron 08:00 WIB) — Bos bisa revisi dulu sebelum ACC.<br/>
+              Persentase konversi penawaran → PRO dilaporkan CEO tiap Senin 10:00.
+            </div>
+          </div>)}
+
         {/* ============ RUANG RAPAT — CEO Suite ============ */}
         {room==='rapat'&&(
           <div style={CARD}>
@@ -1099,10 +1311,11 @@ export default function KantorCeo3D() {
             <div style={SEP}>
               <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
               <div style={{opacity:.75,fontSize:10.5,marginTop:4,lineHeight:1.8}}>
-                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC<br/>
+                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO (akar masalah user pasif + skrip konten)<br/>
                 🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br/>
-                📊 <b>Laporan mingguan</b> Senin 10:00 WIB<br/>
-                ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.
+                📊 <b>Laporan mingguan</b> Senin 10:00 WIB — termasuk konversi jualan COO<br/>
+                ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br/>
+                🏢 Semua karyawan sekarang di kantor ini — halaman /admin/ai-staff sudah pensiun.
               </div>
             </div>
             <div style={{...SEP,opacity:.55,fontSize:10.5,lineHeight:1.5}}>

@@ -1291,3 +1291,27 @@ Stage Summary:
 - CMO sekarang punya 2 nyawa: Gemini mati → OpenRouter ambil alih otomatis, Bos nggak perlu campur tangan
 - Model default OpenRouter: zhipu/glm-4.7 flash (murah, cepat, bahasa ID oke)
 - PENDING USER: set OPENROUTER_API_KEY di Cloudflare Workers Secrets + jalankan SQL 014
+---
+Task ID: 13
+Agent: Z.ai Code (main)
+Task: COO pindah ke Ruang Kantor 3D + Ruang CSO upgrade (diskusi CSO×CMO + skrip konten) + rincian jabatan tim AI
+
+Work Log:
+- Synced sandbox: local main was 28 commits behind origin/main → fast-forwarded (CTO QA otomatis + laporan 08:00 already shipped in 7dc4d533)
+- ceo-agent route: added cooPending() (hitung draf penawaran pending/approved24h dari ai_pending_tasks, guard tabel belum ada); action agents sekarang balikin `coo` juga (+ only=coo)
+- ceo-agent route: fitur DISKUSI CSO × CMO — csoCmoTalk() kumpulkan intel nyata (total/aktif 24j/7hr, pendaftar 14 hari yang belum pernah upload, bug 7 hari + sample keluhan, feedback email csmailed) → Gemini (fallback OpenRouter → templat) susun dialog Maya(CSO)×Sinta(CMO) 6-8 giliran mencari akar masalah user males upload jurnal + 1 skrip TikTok (hook/body/CTA) yang menjawab alasan teratas
+- Actions baru: talk (dedup 1×/hari via agent_kv cso-cmo:<day>, respons dibungkus {talk}/{talkError} supaya tidak polusi data.error panel lain) + talk-last ({talk:null} jika kosong); talk otomatis jalan 1×/hari setelah briefing 08:00 → dikirim ke Discord SEBAGAI PESAN TERPISAH (talkToDiscord, max 1900 char) + disimpan di agent_kv cso-cmo:last + masuk briefing:last
+- KantorCeo3D.tsx: karyawan ke-6 "Bagas — COO Agent · Jualan" (kemeja emerald, desk [9.5,-6.5]) + kamar kaca ke-5 di sisi kanan belakang (partisi x=8.5, dinding z=-2.5 dengan pintu di x 10.1-11.7, jambs, OBST, karpet+lampu emerald, neon 'RUANG COO' menempel partisi barat karena dinding belakang dipakai layar LIVE)
+- Sprint simulasi jadi 6 fase (Follow-up Jualan/COO) — projTot /6, PHASES/PHASE_JOB/PHASE_TASK/CHLOG/T2/thought2/realStatus + COO; SPOTS +1 (Bagas lounge spot)
+- Panel Ruang COO (pindahan /admin/ai-staff): antrean draf penawaran dari /api/admin/ai-staff (Bearer token owner — requireAdmin cocok ADMIN_EMAILS), edit subjek+isi, ACC & Kirim Email / Tolak, info shift, refresh; jobsOfAction + coo-/talk mapping; toast hasil ACC/talk
+- Panel Ruang CSO: section "💬 Diskusi CSO × CMO" — tombol Ngobrol sama CMO & Bikin Skrip, bubble dialog Maya(pink)/Sinta(ungu), daftar alasan teratas, kotak skrip konten + tombol Salin Skrip, badge provider (openrouter/fallback)
+- Overview: kartu COO (pending ACC) + kartu "📋 Struktur & Tugas Tim" (jabatan+tugas lengkap 5 agen + CEO, scrollable) — buat Bos review struktur
+- /admin/ai-staff/page.tsx → redirect ke /kantor-ceo (halaman pensiun); CooEmployee3D.tsx dihapus; link AdminPanelClient → /kantor-ceo; teks notif cron ai-coo-agent → "Review & ACC di Ruang COO /kantor-ceo"; cooYesterdayLine + jadwal Ruang Rapat ikut diupdate
+- Sandbox fixes: three package hilang dari node_modules → bun install; dev server sempat hang (stale webpack cache setelah install) → rm -rf .next + restart bersih
+- Verifikasi Agent Browser: /kantor-ceo 200 + scene render 6 karakter (bubbles terkonfirmasi termasuk "Bagas · COO Agent · Jualan"), Ruang COO panel tampil + empty state, Ruang CSO tampil section diskusi, tombol talk → toast error spesifik tanpa crash (sandbox tanpa Supabase env), /admin/ai-staff → redirect /kantor-ceo; lint + tsc bersih; robots.txt 500 = sandbox-only (butuh CF binding, pre-existing)
+
+Stage Summary:
+- COO Jualan sekarang karyawan penuh di Kantor 3D: ruang kaca ke-5 + panel ACC jualan — /admin/ai-staff pensiun jadi redirect
+- CSO tidak cuma hitung user aktif: tiap hari Maya ngobrol sama Sinta bawa data nyata → akar masalah user males jurnal + skrip konten TikTok siap salin; hasil ikut dikirim Discord otomatis setelah briefing 08:00 (pesan terpisah, dedup harian)
+- Struktur tim bisa direview di kartu "Struktur & Tugas Tim" (room Semua) — detail lengkap dikirim ke Bos via chat
+- Yang perlu Bos lakukan di produksi: TIDAK ADA (migrasi 013/014 sudah lalu) — tinggal push & deploy otomatis; OPENROUTER_API_KEY opsional tetap disarankan
