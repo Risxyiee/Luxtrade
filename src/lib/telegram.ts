@@ -1,57 +1,29 @@
-const TELEGRAM_BOT_TOKEN = '8626110392:AAFgmM4TA6UJDjc2Dgl5JvYgO-WGKDvspck'
-const TELEGRAM_CHAT_ID = '1204328441'
-// Admin Telegram untuk konfirmasi pembayaran
-const ADMIN_TELEGRAM_USERNAME = '@Risxyiee'
+/**
+ * Notification helpers — now delivered via Discord webhook (see ./discord.ts).
+ *
+ * History: these used to call the Telegram Bot API with a hardcoded bot token.
+ * The token was revoked → every call returned "Unauthorized" (5x errors in CF
+ * Workers logs). Migrated to a Discord webhook which only needs
+ * DISCORD_WEBHOOK_URL. Function names kept for backward compatibility with
+ * existing call sites (admin/ai-staff, cron/ai-cs-agent, cron/ai-marketing-agent).
+ */
 
+import { sendDiscordNotification } from '@/lib/discord'
+
+/**
+ * Send an admin notification (Discord webhook).
+ * Kept the old name `sendTelegramNotification` so call sites don't change.
+ */
 export async function sendTelegramNotification(message: string) {
-  try {
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: 'HTML',
-      }),
-    })
-    const data = await res.json()
-    if (!data.ok) {
-      // Log as warn (not error) — Telegram failures are non-critical and should not
-      // pollute CF Workers error tail logs. Bot token may need rotation if persistent.
-      console.warn('[Telegram] Notification skipped:', data.description)
-    }
-    return data
-  } catch (error) {
-    console.warn('[Telegram] Notification error:', error)
-    return { ok: false }
-  }
+  return sendDiscordNotification(message)
 }
 
 /**
- * Kirim pesan langsung ke admin via username Telegram (@Risxyiee)
+ * Kirim pesan langsung ke admin (Discord webhook).
+ * Kept the old name `sendToAdmin` so call sites don't change.
  */
 export async function sendToAdmin(message: string) {
-  try {
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: ADMIN_TELEGRAM_USERNAME,
-        text: message,
-        parse_mode: 'HTML',
-      }),
-    })
-    const data = await res.json()
-    if (!data.ok) {
-      console.warn('[Telegram] Admin notification skipped:', data.description)
-    }
-    return data
-  } catch (error) {
-    console.warn('[Telegram] Admin notification error:', error)
-    return { ok: false }
-  }
+  return sendDiscordNotification(message)
 }
 
 export async function notifyReferralSignup(referrerName: string, refereeEmail: string, referralCode: string) {
@@ -72,7 +44,7 @@ export async function notifyWithdrawalRequest(fullName: string, email: string, a
 }
 
 /**
- * Notifikasi konfirmasi pembayaran PRO ke admin Telegram
+ * Notifikasi konfirmasi pembayaran PRO ke admin
  */
 export async function notifyPaymentConfirmation(data: {
   email: string
@@ -84,7 +56,7 @@ export async function notifyPaymentConfirmation(data: {
   accountHolder: string
 }) {
   const formatted = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(data.amount)
-  
+
   const msg = `💳 <b>KONFIRMASI PEMBAYARAN PRO</b>\n\n` +
     `👤 Nama: ${data.fullName || 'N/A'}\n` +
     `📧 Email: <code>${data.email}</code>\n` +
@@ -96,6 +68,6 @@ export async function notifyPaymentConfirmation(data: {
     `⏰ ${new Date().toLocaleString('id-ID')}\n\n` +
     `<i>Untuk aktivasi, login ke Admin Panel LuxTrade</i>`
 
-  // Kirim ke admin via @Risxyiee
+  // Kirim ke admin
   return sendToAdmin(msg)
 }

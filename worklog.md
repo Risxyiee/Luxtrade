@@ -966,3 +966,26 @@ Stage Summary:
 - Gemini: CF Workers env lookup added; GEMINI_API_KEY now found whether in process.env or wrangler secrets
 - Auto-journal: should now find API key on CF Workers and reach Gemini successfully
 - No secrets touched; no image assets modified
+---
+Task ID: 12
+Agent: main
+Task: Migrate admin notifications Telegram→Discord webhook, fix auto-journal JSON output, add Gemini Search-grounding calendar fallback
+
+Work Log:
+- User request: "ganti ke discord gabisa kah? sql udah kujalanin" → Telegram bot token revoked (Unauthorized x5) → switch to Discord webhook; user confirmed GRANT SQL for ai_pending_tasks already run
+- Created src/lib/discord.ts: sendDiscordNotification() reads DISCORD_WEBHOOK_URL (process.env → CF ctx.env), htmlToDiscordMarkdown() converts <b>/<i>/<code>/<br> markup, 2000-char limit, graceful warn-only failures
+- Rewrote src/lib/telegram.ts + src/lib/admin-notify.ts internals to delegate to Discord — exported function names unchanged (sendTelegramNotification, sendToAdmin, sendAdminNotification, notify*) so 5 call sites (admin/ai-staff, admin/activate, payment, cron/ai-cs-agent, cron/ai-marketing-agent) need zero changes
+- Removed revoked hardcoded Telegram bot token from source
+- Auto-journal root cause found: gemini-2.5-flash has thinking ON by default; thinking tokens count against maxOutputTokens:2048 → visible JSON text truncated/empty → "gabisa mengembalikan JSON"
+- gemini.ts: added GeminiCallOptions (responseMimeType, thinkingBudget), buildGenerationConfig() applies thinkingConfig only for gemini-2.5-* (SDK JSON.stringifies unknown fields — verified in dist)
+- auto-journal route: callGeminiWithRetry now sends responseMimeType:'application/json' + thinkingBudget:0 + maxTokens:4096; STEP 8 replaced with extractAndRepairJson() (markdown fences, trailing commas, depth-based truncation closure via closeTruncatedJson)
+- Economic calendar: deleted ~476 lines dead ZAI code (getZAI/fetchZaiCalendar/parseCalendarHtml/parseSearchSnippetsToEvents) — removes z-ai-web-dev-sdk from worker bundle
+- Added fetchGeminiCalendar(): pure REST to generativelanguage.googleapis.com with tools:[{googleSearch:{}}] grounding (CF Workers-safe, no fs/SDK) — active fallback source #2 when Faireconomy <15 events; ids gm-*, regex + diagnostics updated (zaiSdk→geminiGrounding)
+- Fixed pre-existing TS errors in gemini.ts env casts (CloudflareEnv lacks GEMINI_API_KEY) + dotAll regex flag in discord.ts (tsconfig < ES2018)
+- Verified: lint clean, tsc clean on modified files, dev server tested — /api/economic-calendar returns live fe-* events, /api/auto-journal responds proper JSON errors
+
+Stage Summary:
+- Notifications now via Discord webhook — USER ACTION NEEDED: add DISCORD_WEBHOOK_URL secret in Cloudflare dashboard (Workers & Pages → luxtradee → Settings → Variables & Secrets); until then notifications are silently skipped (warn only, no more Unauthorized errors)
+- Auto-journal: JSON output forced (responseMimeType) + thinking disabled + 4096 budget + parse repair → "json keterangan" should now return reliably
+- Calendar: new Gemini+GoogleSearch live fallback replaces dead ZAI; no more readFile crashes possible
+- No secrets touched; no image assets modified

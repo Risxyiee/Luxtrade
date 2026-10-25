@@ -30,8 +30,9 @@ async function getApiKeyAsync(): Promise<string> {
   try {
     const sym = Symbol.for('__cloudflare-context__')
     const ctx = (globalThis as any)[sym]
-    if (ctx?.env?.GEMINI_API_KEY) {
-      _cachedKey = ctx.env.GEMINI_API_KEY
+    const env = ctx?.env as Record<string, string | undefined> | undefined
+    if (env?.GEMINI_API_KEY) {
+      _cachedKey = env.GEMINI_API_KEY
       return _cachedKey
     }
   } catch {}
@@ -40,15 +41,17 @@ async function getApiKeyAsync(): Promise<string> {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     try {
       const ctx = await getCloudflareContext({ async: true })
-      if (ctx?.env?.GEMINI_API_KEY) {
-        _cachedKey = ctx.env.GEMINI_API_KEY
+      const env = ctx?.env as Record<string, string | undefined> | undefined
+      if (env?.GEMINI_API_KEY) {
+        _cachedKey = env.GEMINI_API_KEY
         return _cachedKey
       }
     } catch {}
     try {
       const ctx = getCloudflareContext()
-      if (ctx?.env?.GEMINI_API_KEY) {
-        _cachedKey = ctx.env.GEMINI_API_KEY
+      const env = ctx?.env as Record<string, string | undefined> | undefined
+      if (env?.GEMINI_API_KEY) {
+        _cachedKey = env.GEMINI_API_KEY
         return _cachedKey
       }
     } catch {}
@@ -65,7 +68,8 @@ function getApiKey(): string {
   try {
     const sym = Symbol.for('__cloudflare-context__')
     const ctx = (globalThis as any)[sym]
-    if (ctx?.env?.GEMINI_API_KEY) return ctx.env.GEMINI_API_KEY
+    const env = ctx?.env as Record<string, string | undefined> | undefined
+    if (env?.GEMINI_API_KEY) return env.GEMINI_API_KEY
   } catch {}
   return _cachedKey || ''
 }
@@ -100,18 +104,44 @@ export interface GeminiVisionPart {
   }
 }
 
+export interface GeminiCallOptions {
+  model?: string
+  temperature?: number
+  maxTokens?: number
+  systemInstruction?: string
+  timeoutMs?: number
+  /** Force JSON output (Gemini responseMimeType) — dramatically reduces JSON parse failures */
+  responseMimeType?: 'application/json' | 'text/plain'
+  /**
+   * Thinking budget for gemini-2.5-* models (only applied to 2.5; older models ignore/error).
+   * CRITICAL: 2.5-flash has thinking ON by default and thinking tokens count against
+   * maxOutputTokens — with a 2048 budget the visible text can be truncated to empty,
+   * which produced the "auto-journal tidak mengembalikan JSON" failures.
+   */
+  thinkingBudget?: number
+}
+
+/** Build generationConfig; thinkingConfig is passed through (SDK serializes unknown fields). */
+function buildGenerationConfig(modelName: string, options?: GeminiCallOptions, defaultTokens = 2048): Record<string, unknown> {
+  const genConfig: Record<string, unknown> = {
+    temperature: options?.temperature ?? 0.7,
+    maxOutputTokens: options?.maxTokens ?? defaultTokens,
+  }
+  if (options?.responseMimeType) genConfig.responseMimeType = options.responseMimeType
+  if (options?.thinkingBudget !== undefined && modelName.startsWith('gemini-2.5')) {
+    // thinkingConfig is not in the legacy SDK types yet, but the SDK JSON.stringifies
+    // the whole request so the field reaches the API (verified in dist/index.js).
+    genConfig.thinkingConfig = { thinkingBudget: options.thinkingBudget }
+  }
+  return genConfig
+}
+
 /**
  * Send a chat completion request to Gemini
  */
 export async function geminiChat(
   messages: GeminiMessage[],
-  options?: {
-    model?: string
-    temperature?: number
-    maxTokens?: number
-    systemInstruction?: string
-    timeoutMs?: number
-  }
+  options?: GeminiCallOptions
 ): Promise<GeminiResponse> {
   const genAI = await getGenerativeAI()
   const modelName = options?.model || 'gemini-2.5-flash'
@@ -137,10 +167,7 @@ export async function geminiChat(
   const resultPromise = (async () => {
     const result: GenerateContentResult = await model.generateContent({
       contents,
-      generationConfig: {
-        temperature: options?.temperature ?? 0.7,
-        maxOutputTokens: options?.maxTokens ?? 2048,
-      },
+      generationConfig: buildGenerationConfig(modelName, options, 2048) as any,
     })
 
     const text = result.response.text() || ''
@@ -190,13 +217,7 @@ export async function geminiVision(
   prompt: string,
   imageBase64: string,
   mimeType: string = 'image/png',
-  options?: {
-    model?: string
-    temperature?: number
-    maxTokens?: number
-    systemInstruction?: string
-    timeoutMs?: number
-  }
+  options?: GeminiCallOptions
 ): Promise<string> {
   const genAI = await getGenerativeAI()
   const modelName = options?.model || 'gemini-2.5-flash'
@@ -227,10 +248,7 @@ export async function geminiVision(
   const resultPromise = (async () => {
     const result: GenerateContentResult = await model.generateContent({
       contents: [{ role: 'user', parts }],
-      generationConfig: {
-        temperature: options?.temperature ?? 0.4,
-        maxOutputTokens: options?.maxTokens ?? 4096,
-      },
+      generationConfig: buildGenerationConfig(modelName, options, 4096) as any,
     })
 
     return result.response.text() || ''
