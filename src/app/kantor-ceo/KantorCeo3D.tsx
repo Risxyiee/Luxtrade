@@ -99,8 +99,9 @@ export default function KantorCeo3D() {
     if (action === 'agents') return ['CTO', 'CSO', 'CFO']
     if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'CEO']
     if (action === 'quota') return ['CFO']
-    if (action === 'acc-email') return ['CSO']
-    if (action === 'diag') return ['CTO']
+    if (action === 'acc-email' || action === 'auto-acc') return ['CSO']
+    if (action === 'diag' || action === 'watchdog') return ['CTO']
+    if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
     return []
   }
@@ -135,8 +136,8 @@ export default function KantorCeo3D() {
 
   useEffect(() => { runBriefingRef.current = () => call('briefing', 'POST') }, [call])
   useEffect(() => { pickRef.current = (r: string) => setRoom(r) }, [])
-  // Kantor dibuka: muat CTO/CSO/CFO dulu — draf TikTok CMO hanya saat diminta (hemat kuota Gemini)
-  useEffect(() => { if (gate === 'ok') call('agents&only=cto,cso,cfo') // eslint-disable-line react-hooks/exhaustive-deps
+  // Kantor dibuka: muat CTO/CSO/CFO + status AUTO-ACC — draf TikTok CMO hanya saat diminta (hemat kuota Gemini)
+  useEffect(() => { if (gate === 'ok') { call('agents&only=cto,cso,cfo'); call('auto-acc') } // eslint-disable-line react-hooks/exhaustive-deps
   }, [gate])
   useEffect(() => { focusRef.current && focusRef.current(room) }, [room])
 
@@ -747,6 +748,7 @@ export default function KantorCeo3D() {
   const OKS={marginTop:8,fontSize:11.5,color:'#059669'}
   const SEP={marginTop:8,borderTop:'1px dashed rgba(15,23,42,.15)',paddingTop:8}
   const cto=data&&data.cto,cso=data&&data.cso,cmo=data&&data.cmo,cfo=data&&data.cfo
+  const autoacc=(data as any)?.autoacc
   const ROOMS=[['overview','🏢 Semua'],['CTO','🖥️ CTO'],['CSO','👥 CSO'],['CMO','📣 CMO'],['CFO','💰 CFO'],['rapat','🌅 Rapat']]
   const devOpen=process.env.NODE_ENV!=='production'
 
@@ -846,6 +848,9 @@ export default function KantorCeo3D() {
                     ?<span style={{fontSize:18,fontWeight:700,color:cto.bugs24h>0?'#dc2626':'#059669'}}>{cto.bugs24h}</span>
                     :<span style={{color:'#dc2626'}}>gagal diambil ⚠️</span>}
                 </div>
+                {cto.upToday!==undefined&&(cto.upToday+cto.downToday)>0?(
+                  <div style={{opacity:.75,fontSize:11,marginTop:4}}>🤖 Watchdog hari ini: <b style={{color:'#059669'}}>{cto.upToday}× OK</b> · <b style={{color:cto.downToday>0?'#dc2626':'#94a3b8'}}>{cto.downToday}× gagal</b></div>
+                ):cto.upToday===0&&cto.downToday===0?(<div style={{opacity:.55,fontSize:11,marginTop:4}}>🤖 Watchdog belum jalan hari ini — set cron 15 mnt (lihat Ruang Rapat)</div>):null}
                 {cto.err?<div style={{opacity:.55,fontSize:11,marginTop:4}}>📝 {String(cto.err).slice(0,130)}</div>:null}
               </div>
             ):(<div style={{opacity:.6,marginTop:6}}>Belum ada data — klik tombol di bawah</div>)}
@@ -897,6 +902,18 @@ export default function KantorCeo3D() {
                 ?<div style={OKS}>ℹ️ ACC EMAIL sudah dicatat hari ini — besok lagi.</div>
                 :acc.ok?<div style={OKS}>✅ ACC tercatat{typeof acc.emailsSent==='number'&&acc.emailsSent>=0?` — ${acc.emailsSent} email terkirim (Resend)`:' — set RESEND_API_KEY utk kirim otomatis'}.</div>
                 :<div style={ERR}>❌ {String(acc.error||'gagal').slice(0,140)}</div>)}
+            </div>
+            <div style={SEP}>
+              <b style={{color:'#0f766e'}}>🤖 Mode Otomatis (AUTO-ACC)</b>
+              <div style={{opacity:.7,fontSize:11,marginTop:2}}>
+                {autoacc===undefined?'memuat status…':autoacc
+                  ?'AKTIF ✅ — CSO kirim email ke user pasif OTOMATIS tiap briefing 08:00. Kamu nggak perlu klik apa-apa.'
+                  :'OFF — kamu harus klik ACC EMAIL manual tiap hari. Nyalakan biar karyawan kerja sendiri.'}
+              </div>
+              <button style={{font:'inherit',fontSize:12,padding:'8px 11px',borderRadius:9,cursor:'pointer',width:'100%',marginTop:6,border:'1px solid '+(autoacc?'rgba(5,150,105,.5)':'rgba(100,116,139,.4)'),background:autoacc?'rgba(16,185,129,.15)':'rgba(100,116,139,.08)',color:autoacc?'#047857':'#475569',opacity:busy?.5:1}} disabled={busy}
+                onClick={async()=>{await call('auto-acc&on='+(autoacc?'0':'1'),'POST')}}>
+                {autoacc?'🔴 Matikan AUTO-ACC':'🟢 Nyalakan AUTO-ACC (sekali klik, permanen)'}
+              </button>
             </div>
             <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
               <button style={BTN} onClick={()=>call('agents&only=cso')}>🔄 Hitung Ulang</button>
@@ -973,10 +990,16 @@ export default function KantorCeo3D() {
               </button>
               <button style={BTN} onClick={()=>call('briefing-last')}>📜 Terakhir</button>
               <button style={BTNO} onClick={()=>call('discord-test')}>🧪 Tes Discord</button>
+              <button style={BTN} onClick={()=>call('watchdog')}>🕵️ Jalankan Watchdog</button>
+              <button style={BTNP} onClick={()=>call('weekly')}>📊 Laporan Mingguan</button>
             </div>
             {(data&&data.ok!==undefined&&!data.cto&&!data.cso)&&(
               <div style={data.ok?OKS:ERR}>
                 🧪 Tes Discord: {data.ok?'berhasil — cek channel Discord ✅':String(data.error||'gagal').slice(0,140)}
+              </div>)}
+            {data&&data.watch&&(
+              <div style={OKS}>
+                🕵️ Watchdog: situs {data.siteOk?'✅ OK':'❌ DOWN'}{data.quota?` · kuota ${data.quota}`:''} · {data.alerts&&data.alerts.length?`🔔 ${data.alerts.length} alert dikirim ke Discord`:'semua aman — tanpa alarm'}
               </div>)}
             {data&&data.text&&(
               <div style={{marginTop:8}}>
@@ -984,6 +1007,15 @@ export default function KantorCeo3D() {
                 <div style={{whiteSpace:'pre-wrap',marginTop:6,opacity:.8,fontSize:11.5,maxHeight:260,overflowY:'auto',background:'rgba(15,23,42,.04)',borderRadius:8,padding:8}}>{data.text}</div>
               </div>)}
             {data&&data.error&&data.text===undefined&&data.ok===undefined&&(<div style={ERR}>⚠️ {String(data.error).slice(0,200)}</div>)}
+            <div style={SEP}>
+              <b>⚙️ Biar Karyawan Kerja Sendiri (cron-job.org)</b>
+              <div style={{opacity:.75,fontSize:10.5,marginTop:4,lineHeight:1.8}}>
+                ✅ <b>Briefing pagi</b> 08:00 WIB — <code style={{background:'rgba(15,23,42,.06)',padding:'1px 4px',borderRadius:4}}>/api/ceo-agent?action=briefing&amp;key=CRON_SECRET</code><br/>
+                🕵️ <b>Watchdog</b> tiap 15 mnt — <code style={{background:'rgba(15,23,42,.06)',padding:'1px 4px',borderRadius:4}}>/api/ceo-agent?action=watchdog&amp;key=CRON_SECRET</code><br/>
+                📊 <b>Laporan mingguan</b> Min 20:00 — <code style={{background:'rgba(15,23,42,.06)',padding:'1px 4px',borderRadius:4}}>/api/ceo-agent?action=weekly&amp;key=CRON_SECRET</code>
+              </div>
+              <div style={{opacity:.55,fontSize:10,marginTop:4,lineHeight:1.5}}>Watchdog = CTO jaga 24/7: situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN, nggak nunggu besok pagi. AUTO-ACC nyala dari Ruang CSO.</div>
+            </div>
             <div style={{...SEP,opacity:.55,fontSize:10.5,lineHeight:1.5}}>
               <b>Cron 08:00 WIB:</b> cron-job.org → /api/ceo-agent?action=briefing&amp;key=CRON_SECRET<br/>
               <b>Akses:</b> login luxtradee@gmail.com · token JWT otomatis

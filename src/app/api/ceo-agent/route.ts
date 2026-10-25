@@ -187,7 +187,13 @@ async function ctoAgent(e: Env) {
   let bugs24h = -1
   try { bugs24h = await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24)) }
   catch (x: any) { err = err || String(x?.message || x) }
-  return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, err }
+  /* riwayat watchdog hari ini (dicatat action=watchdog tiap 15 mnt) */
+  let upToday = 0, downToday = 0
+  try {
+    upToday = parseInt((await kvGet(e, `up:${utcDay()}`)) || '0', 10)
+    downToday = parseInt((await kvGet(e, `down:${utcDay()}`)) || '0', 10)
+  } catch { /* ignore */ }
+  return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, upToday, downToday, err }
 }
 
 /* ============================================================
@@ -336,7 +342,7 @@ async function sendDiscord(e: Env, message: string): Promise<boolean> {
 }
 
 /* ---------- Morning Briefing (gabungan 4 agen) ---------- */
-function buildBriefing(cto: any, cso: any, cmo: any, cfo: any): string {
+function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', autoOn = false): string {
   const L: string[] = []
   L.push('🌅 **MORNING BRIEFING — LUXTRADE SUPER AI**')
   L.push(`📅 ${wibNow()} · 08:00 WIB`)
@@ -366,7 +372,10 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any): string {
   L.push(`• Status: ${cfo?.status || '-'}`)
   if (cfo?.err) L.push(`⚠️ CFO gagal: ${String(cfo.err).slice(0, 130)}`)
   L.push('━━━━━━━━━━━━━━━━━━')
-  L.push("Bos, klik tombol 'ACC EMAIL' di Ruang CEO (/kantor-ceo) jika ingin CSO mengirim email sapaan ke user pasif hari ini.")
+  if (autoAcc) L.push(autoAcc)
+  L.push(autoOn
+    ? '🤖 AUTO-ACC aktif — email sapaan user pasif dikirim CSO otomatis tiap pagi, Bos nggak perlu klik apa-apa.'
+    : "Bos, klik tombol 'ACC EMAIL' di Ruang CEO (/kantor-ceo) jika ingin CSO mengirim email sapaan ke user pasif hari ini.")
   return L.join('\n')
 }
 
@@ -377,7 +386,19 @@ async function runMorningBriefing(e: Env) {
     cmoAgent(e).catch((x: any) => ({ draft: '', angle: '', usedFallback: false, error: String(x?.message || x) })),
     cfoAgent(e).catch((x: any) => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error', err: String(x?.message || x) })),
   ])
-  const text = buildBriefing(cto, cso, cmo, cfo)
+  /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
+     (1×/hari, dedup via agent_kv acc_email:<tanggal>). Bos tidur, karyawan kerja. */
+  const autoOn = (await kvGet(e, 'autoacc')) === 'on'
+  let autoAcc = ''
+  if (autoOn && !(await kvGet(e, `acc_email:${utcDay()}`))) {
+    await kvSet(e, `acc_email:${utcDay()}`, new Date().toISOString())
+    if (e.RESEND_API_KEY) {
+      try { const n = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${n} email sapaan terkirim ke user pasif (otomatis)` }
+      catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
+    } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
+    try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
+  }
+  const text = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn)
   let notifySent = false, notifyErr = ''
   try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
   const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, text }
@@ -418,6 +439,123 @@ async function sendPassiveEmails(e: Env): Promise<number> {
     if (r && (r as any).ok) sent++
   }
   return sent
+}
+
+/* ============================================================
+   WATCHDOG — CTO jaga situs 24/7 (dipanggil cron tiap 15 menit)
+   Cek situs + bug + kuota. Kalau ada masalah → ALARM DISCORD INSTAN
+   (tidak nunggu briefing besok pagi). Kalau aman → diam saja,
+   cuma catat riwayat uptime ke agent_kv.
+   ============================================================ */
+async function watchdog(e: Env) {
+  const day = utcDay()
+  const alerts: string[] = []
+
+  /* 1) ping situs + hitung bug — pakai ctoAgent (sudah ada retry + abaikan 521-524) */
+  const cto = await ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) }))
+  await kvIncr(e, `${cto.siteOk ? 'up' : 'down'}:${day}`).catch(() => {}) // riwayat uptime
+
+  /* site DOWN → alarm (dedup 30 menit biar nggak spam) */
+  let lastDown = 0
+  try { lastDown = parseInt((await kvGet(e, 'wd:down:last')) || '0', 10) } catch { /* ignore */ }
+  if (!cto.siteOk && Date.now() - lastDown > 30 * 60_000) {
+    await kvSet(e, 'wd:down:last', String(Date.now()))
+    const msg = `🚨 **CTO WATCHDOG — WEBSITE DOWN!**\n• Status: ${cto.status || 'timeout'}\n• ${String(cto.err || '').slice(0, 150)}\nCek sekarang: https://luxtradee.web.id`
+    try { await sendDiscord(e, msg); alerts.push('situs-down') } catch { /* ignore */ }
+  }
+  /* site pulih → kabari sekali */
+  if (cto.siteOk && lastDown && Date.now() - lastDown < 2 * 3600_000) {
+    const rk = `wd:recovered:${day}`
+    if ((await kvGet(e, rk)) !== '1') {
+      await kvSet(e, rk, '1')
+      try { await sendDiscord(e, '✅ **CTO WATCHDOG** — Website kembali ONLINE! Semua normal.'); alerts.push('situs-pulih') } catch { /* ignore */ }
+    }
+  }
+
+  /* 2) bug baru → alarm sekali per kenaikan angka */
+  let bugsAlertedRaw: string | null = null
+  try { bugsAlertedRaw = await kvGet(e, 'wd:bugs:last') } catch { /* ignore */ }
+  if (cto.bugs24h >= 0) {
+    if (bugsAlertedRaw == null) {
+      await kvSet(e, 'wd:bugs:last', String(cto.bugs24h)) // baseline pertama, tanpa alarm
+    } else if (cto.bugs24h > parseInt(bugsAlertedRaw || '0', 10)) {
+      await kvSet(e, 'wd:bugs:last', String(cto.bugs24h))
+      const msg = `🐞 **CTO WATCHDOG — BUG BARU MASUK!**\n• Total 24 jam: ${cto.bugs24h} bug\nSegera cek tabel bug_reports di Supabase.`
+      try { await sendDiscord(e, msg); alerts.push('bug-baru') } catch { /* ignore */ }
+    }
+  }
+
+  /* 3) kuota Gemini >= 80% → alarm 1×/hari */
+  const cfo = await cfoAgent(e).catch(() => null)
+  let quota = ''
+  if (cfo && cfo.limit > 0) {
+    quota = `${cfo.usedToday}/${cfo.limit}`
+    const pct = Math.round((cfo.usedToday / cfo.limit) * 100)
+    let flagged = ''
+    try { flagged = (await kvGet(e, `wd:quota:${day}`)) || '' } catch { /* ignore */ }
+    if (pct >= 80 && flagged !== 'sent') {
+      await kvSet(e, `wd:quota:${day}`, 'sent')
+      const msg = `💰 **CFO WATCHDOG — KUOTA ${pct}% TERPAKAI**\n• ${cfo.usedToday}/${cfo.limit} request hari ini\n• Status: ${cfo.status}`
+      try { await sendDiscord(e, msg); alerts.push('kuota-80') } catch { /* ignore */ }
+    }
+  }
+
+  return { watch: true, at: new Date().toISOString(), siteOk: cto.siteOk, status: cto.status, bugs24h: cto.bugs24h, quota, alerts }
+}
+
+/* ============================================================
+   LAPORAN MINGGUAN — CEO rekap 7 hari ke Discord
+   (dipanggil cron Minggu malam, mis. 20:00 WIB)
+   ============================================================ */
+async function weeklyReport(e: Env) {
+  const L: string[] = []
+  L.push('📊 **LAPORAN MINGGUAN — LUXTRADE SUPER AI**')
+  L.push(`📅 ${wibNow()}`)
+  L.push('━━━━━━━━━━━━━━━━━━')
+
+  /* CSO — pertumbuhan user 7 hari */
+  try {
+    const since7 = isoAgo(24 * 7)
+    const total = await supaCount(e, 'profiles')
+    const baru7 = await supaCount(e, 'profiles', 'created_at=gte.' + since7)
+    const active7 = (await fetchActiveUserIds(e, since7)).size
+    L.push('👥 **CSO — Pertumbuhan 7 hari**')
+    L.push(`• Total pendaftar: ${fmtN(total)} (baru minggu ini: +${fmtN(baru7)})`)
+    L.push(`• Aktif (upload 7 hari): ${fmtN(active7)}`)
+    L.push(`• Pasif: ${fmtN(Math.max(0, total - active7))}`)
+  } catch (x: any) { L.push(`⚠️ Data user gagal diambil: ${String(x?.message || x).slice(0, 90)}`) }
+
+  /* CTO — bug & uptime */
+  let bugs7 = -1
+  try { bugs7 = await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24 * 7)) } catch { /* ignore */ }
+  L.push('🖥️ **CTO — Kualitas & Uptime 7 hari**')
+  L.push(bugs7 >= 0 ? `• Bug masuk minggu ini: ${bugs7} ${bugs7 > 0 ? '⚠️' : '✅'}` : '• Bug: gagal diambil')
+  let up = 0, down = 0
+  for (let i = 0; i < 7; i++) {
+    const d = utcDay(-i)
+    try {
+      up += parseInt((await kvGet(e, `up:${d}`)) || '0', 10)
+      down += parseInt((await kvGet(e, `down:${d}`)) || '0', 10)
+    } catch { /* ignore */ }
+  }
+  const cek = up + down
+  if (cek > 0) L.push(`• Uptime (hasil watchdog): ${Math.round((up / cek) * 100)}% — ${up}/${cek} cek OK`)
+  else L.push('• Uptime: belum ada data watchdog (set cron action=watchdog tiap 15 mnt)')
+
+  /* CFO — pemakaian kuota 7 hari */
+  let q7 = 0
+  for (let i = 0; i < 7; i++) { try { q7 += parseInt((await kvGet(e, `quota:${utcDay(-i)}`)) || '0', 10) } catch { /* ignore */ } }
+  const limit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
+  L.push('💰 **CFO — Pemakaian Kuota Gemini**')
+  L.push(`• Total 7 hari: ${fmtN(q7)} request (rata-rata ${fmtN(Math.round(q7 / 7))}/hari · limit harian ${fmtN(limit)})`)
+
+  L.push('━━━━━━━━━━━━━━━━━━')
+  L.push('🤖 Laporan otomatis dari karyawan AI — Bos tinggal baca.')
+  const text = L.join('\n')
+  let notifySent = false, notifyErr = ''
+  try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
+  await kvSet(e, 'weekly:last', JSON.stringify({ at: new Date().toISOString(), notifySent, notifyErr, text }))
+  return { weekly: true, notifySent, notifyErr, text }
 }
 
 /* ============================================================
@@ -538,6 +676,29 @@ async function handle(req: Request): Promise<Response> {
       } catch (x: any) {
         return j({ ok: false, error: String(x?.message || x) })
       }
+    case 'watchdog':
+      // CTO jaga situs 24/7 — cron-job.org tiap 15 menit:
+      // /api/ceo-agent?action=watchdog&key=CRON_SECRET
+      return j(await watchdog(e))
+    case 'weekly':
+      // Laporan mingguan — cron-job.org Minggu 20:00 WIB:
+      // /api/ceo-agent?action=weekly&key=CRON_SECRET
+      return j(await weeklyReport(e))
+    case 'auto-acc': {
+      // Toggle mode otomatis: kalau ON, CSO kirim email pasif otomatis tiap briefing pagi.
+      // GET = baca status · POST ?on=1 / ?on=0 = ubah
+      const cur = (await kvGet(e, 'autoacc')) === 'on'
+      const p = url.searchParams.get('on')
+      if (p === '1' || p === '0') {
+        await kvSet(e, 'autoacc', p === '1' ? 'on' : 'off')
+        const msg = p === '1'
+          ? '🤖 AUTO-ACC DIAKTIFKAN — CSO kirim email ke user pasif OTOMATIS tiap briefing pagi. Bos nggak perlu klik lagi.'
+          : '🤖 AUTO-ACC dimatikan — ACC EMAIL kembali manual lewat Ruang CEO.'
+        try { await sendDiscord(e, msg) } catch { /* ignore */ }
+        return j({ set: true, autoacc: p === '1' })
+      }
+      return j({ autoacc: cur })
+    }
     default:
       return j({
         app: 'Luxtrade Super AI Agent',
@@ -551,6 +712,9 @@ async function handle(req: Request): Promise<Response> {
           'action=quota-track (POST) — gerbang anti-429 sebelum Gemini Vision',
           'action=briefing-last — briefing terakhir',
           'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
+          'action=auto-acc [POST &on=1|0] — toggle kirim email pasif OTOMATIS tiap briefing pagi',
+          'action=watchdog — CTO jaga situs 24/7: DOWN/bug/kuota 80% → alarm Discord instan (cron 15 mnt)',
+          'action=weekly — laporan mingguan 7 hari ke Discord (cron Minggu 20:00)',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
