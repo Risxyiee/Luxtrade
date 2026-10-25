@@ -989,3 +989,23 @@ Stage Summary:
 - Auto-journal: JSON output forced (responseMimeType) + thinking disabled + 4096 budget + parse repair → "json keterangan" should now return reliably
 - Calendar: new Gemini+GoogleSearch live fallback replaces dead ZAI; no more readFile crashes possible
 - No secrets touched; no image assets modified
+---
+Task ID: 13
+Agent: main
+Task: Fitur baru "Ruang CEO" — /kantor-ceo page + /api/ceo-agent edge route (kode dari user), push ke GitHub
+
+Work Log:
+- User minta tambah fitur Ruang CEO dengan 2 file baru (kode API di-paste user), tanpa mengganggu kode existing, lalu push
+- Created src/app/api/ceo-agent/route.ts — Edge Runtime, 4 agen (CTO ping situs+bug24j, CSO user aktif/pasif, CMO draf TikTok via Gemini REST, CFO kuota anti-429), Morning Briefing + WA gateway (Fonnte/Wablas), flow ACC EMAIL via Resend, KV via tabel Supabase agent_kv, auth CRON_SECRET/ADMIN_SECRET
+- Adaptasi minimal (perilaku identik): fallback env SUPABASE_URL/ANON_KEY → NEXT_PUBLIC_*; SITE_URL & email from → luxtradee.web.id (domain + Resend sender terverifikasi project)
+- Created src/app/kantor-ceo/page.tsx — 'use client' + next/dynamic ssr:false + skeleton loading + sticky footer (App Router: ssr:false hanya boleh di client component)
+- Created src/app/kantor-ceo/RuangCeoDashboard.tsx — dashboard interaktif: key input (localStorage), tombol Muat 4 Agen / Jalankan Briefing+WA / Briefing Terakhir, 4 kartu agen (CTO/CSO/CMO/CFO) dengan badge status + progress kuota + copy draf, preview teks briefing; sonner toast; emerald/amber/rose (tanpa indigo/blue)
+- Created supabase-migrations/012_create_agent_kv.sql — tabel agent_kv + RLS policies utk anon (dibutuhkan route)
+- Fix bug sendiri: briefing-last ternyata butuh auth (hanya action=info yang bebas) → dashboard kini selalu kirim Bearer key
+- Verified: lint clean, tsc clean (0 error di file baru), dev server: /api/ceo-agent info OK, /kantor-ceo HTTP 200, 401 path OK
+- Committed & pushed ke origin/main
+
+Stage Summary:
+- Fitur Ruang CEO murni additive — 0 file existing diubah
+- USER ACTION: ① jalankan supabase-migrations/012_create_agent_kv.sql di Supabase SQL Editor; ② set secrets di Cloudflare: ADMIN_SECRET + CRON_SECRET (wajib), opsional TIKTOK_REFERENCE, WA_PROVIDER/WA_TOKEN/WA_TARGET, DAILY_VISION_LIMIT, RESEND_API_KEY; ③ cron-job.org 08:00 WIB → /api/ceo-agent?action=briefing&key=CRON_SECRET
+- Catatan skema: COL di route mengasumsikan tabel users (kolom last_upload_at, email) + error_logs — sesuaikan bila skema beda (mis. users→profiles)
