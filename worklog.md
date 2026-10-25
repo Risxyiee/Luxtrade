@@ -1427,3 +1427,30 @@ Stage Summary:
 - Tes privasi RLS otomatis mendeteksi kebocoran data antar-user
 - Aman untuk produksi: butuh SUPABASE_SERVICE_ROLE_KEY (sudah ada), tanpa kuota LLM
 - Catatan deploy: hasil penuh terverifikasi setelah deploy (kunci Supabase hanya di Cloudflare)
+
+---
+Task ID: 27
+Agent: Z.ai (main)
+Task: Fix jam WIB kantor 3D + perf re-render detikan + overview terlalu penuh
+
+Work Log:
+- ROOT CAUSE jam "balik ke jam 7": KantorCeo3D.tsx line ~858 — C.live hanya true
+  di jam kerja (07:15–14:45); di luar itu C.min dipaksa 411 (06:51) + tombol
+  "Cepat 1×" auto-aktif → jam simulasi jalan cepat dari ~07:00
+- FIX: C.live=true selalu (WIB Langsung default permanen), C.min=wibNow() saat load;
+  di luar jam kerja kantor tampil malam (karyawan away) + toast penjelasan
+  "kantor tutup, karyawan AI tetap kerja otomatis (cron 24/7)"
+- PERF: state clock dipindah dari level atas (re-render seluruh panel tiap 1 detik)
+  ke komponen kecil <ClockWib/> terisolasi; backdrop blur 16px→10px (.kg & CARD)
+- OVERVIEW diringkas: blok "Struktur & Tugas Tim" (8 deskripsi panjang) diganti
+  1 baris nama + tombol ke Ruang Struktur; kartu Denah ditambah info cron 24/7
+- Verifikasi Agent Browser: HUD "22:14 WIB" (waktu asli), panel "22.14.47 WIB",
+  phase "Di luar jam kerja 🌙", overview ringkas, klik Cepat 1× = simulasi jalan,
+  0 error console, lint bersih, /kantor-ceo & / = 200
+
+Stage Summary:
+- Jawaban pertanyaan Bos: karyawan AI TETAP bekerja walau kantor tidak dibuka
+  (Cloudflare cron: briefing 08:00 WIB, watchdog 15 mnt, weekly Senin 10:00) —
+  kini info ini juga tertulis di UI overview
+- Jam kantor kini jujur ikut WIB nyata; simulasi hanya lewat tombol Cepat/Lompat
+- Commit: fix jam WIB + perf + overview ringkas

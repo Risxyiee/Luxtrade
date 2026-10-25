@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 const CSS = `
-.kg{background:rgba(255,255,255,.92);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border:1px solid rgba(15,23,42,.08);border-radius:16px;box-shadow:0 8px 28px rgba(30,41,59,.12)}
+.kg{background:rgba(255,255,255,.94);backdrop-filter:blur(10px) saturate(160%);-webkit-backdrop-filter:blur(10px) saturate(160%);border:1px solid rgba(15,23,42,.08);border-radius:16px;box-shadow:0 8px 28px rgba(30,41,59,.12)}
 #kclock{position:absolute;top:16px;left:16px;padding:12px 16px;min-width:190px;color:#1f2437;font-family:system-ui,sans-serif}
 #ktime{font-size:34px;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums;color:#0f172a}
 #kphase{font-size:13px;color:#0d9488;margin-bottom:8px}
@@ -186,6 +186,20 @@ const TEAM_DETAIL = [
   },
 ]
 
+/* Jam WIB — komponen kecil TERPISAH. Interval 1 detik hanya me-render
+   komponen ini, BUKAN seluruh panel + pohon React kantor — dulu state jam
+   di level atas bikin semua re-render tiap detik → halaman terasa berat/lag. */
+function ClockWib() {
+  const [t, setT] = useState('')
+  useEffect(() => {
+    const f = () => setT(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()))
+    f()
+    const iv = setInterval(f, 1000)
+    return () => clearInterval(iv)
+  }, [])
+  return <div style={{fontSize:22,fontWeight:700,color:'#0f172a'}}>{t} <span style={{fontSize:11,opacity:.6}}>WIB</span></div>
+}
+
 export default function KantorCeo3D() {
   const mountRef = useRef(null)
   const runBriefingRef = useRef(null)
@@ -201,7 +215,6 @@ export default function KantorCeo3D() {
   const [room, setRoom] = useState('overview')
   const [acc, setAcc] = useState<any>(null)
   const [copied, setCopied] = useState(false)
-  const [clock, setClock] = useState('')
   /* Bahan analisis TikTok (Ruang CMO) */
   const [tt, setTt] = useState<any[]>([])
   const [ttUrl, setTtUrl] = useState('')
@@ -224,12 +237,6 @@ export default function KantorCeo3D() {
   const liveRef = useRef<any>(null)
   const busyRef = useRef<Record<string, number>>({})
   const doneRef = useRef<Record<string, number>>({})
-
-  /* ---------- jam WIB (panel) ---------- */
-  useEffect(() => {
-    const f = () => setClock(new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()))
-    f(); const iv = setInterval(f, 1000); return () => clearInterval(iv)
-  }, [])
 
   /* mirror data → scene 3D (tiap kali hasil agen masuk) */
   useEffect(() => { liveRef.current = data }, [data])
@@ -853,10 +860,12 @@ export default function KantorCeo3D() {
       E.forEach(S=>{const d=document.createElement('div');d.className='kbb';d.innerHTML='<b></b><i></i>';d.firstChild.textContent=S.cfg.name+' · '+S.cfg.title;bubEl.appendChild(d);S.bb=d;S.bt=0})
 
       /* ---------- jam sim ---------- */
-      const C={min:0,speed:6,brk:false,at:0,live:false},fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(Math.floor(m%60)).padStart(2,'0')
+      const C={min:0,speed:6,brk:false,at:0,live:true},fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(Math.floor(m%60)).padStart(2,'0')
       const wibNow=()=>{const w=new Date(Date.now()+25200000);return w.getUTCHours()*60+w.getUTCMinutes()+w.getUTCSeconds()/60}
-      C.live=wibNow()>=435&&wibNow()<885
-      C.min=C.live?wibNow():411
+      /* FIX JAM: WIB Langsung = default SELALU — jam kantor ikut waktu nyata.
+         Dulu: di luar jam kerja (07:15–14:45) jam dipaksa mulai 06:51 + tombol
+         'Cepat 1×' auto-aktif → jam terlihat "balik ke jam 7" lalu jalan cepat. */
+      C.min=wibNow()
       INC.next=C.min+rnd(40,90)
       let sel=null,hov=null
 
@@ -1047,6 +1056,9 @@ export default function KantorCeo3D() {
 
       setLoaded(true)
       setTimeout(()=>showToast('🌐 luxtradee.web.id LIVE — 7 AI Karyawan + CEO siap kerja'),1500)
+      const wibMin=wibNow()
+      if(wibMin<435||wibMin>=885)
+        setTimeout(()=>showToast('🌙 '+fmt(wibMin)+' WIB — kantor tutup, karyawan pulang. Karyawan AI tetap kerja otomatis (cron 24/7). Klik "Cepat 1×" untuk simulasi jam kerja.'),4200)
 
       /* ---------- cleanup ---------- */
       cleanup=()=>{
@@ -1065,7 +1077,7 @@ export default function KantorCeo3D() {
   },[])
 
   /* ---------- panel kontrol per RUANGAN ---------- */
-  const CARD={background:'rgba(255,255,255,.92)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',border:'1px solid rgba(15,23,42,.08)',borderRadius:14,padding:'14px 16px',color:'#1f2437',fontSize:12.5,lineHeight:1.55,minWidth:260,maxWidth:290}
+  const CARD={background:'rgba(255,255,255,.94)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'1px solid rgba(15,23,42,.08)',borderRadius:14,padding:'14px 16px',color:'#1f2437',fontSize:12.5,lineHeight:1.55,minWidth:260,maxWidth:290}
   const BTN={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(13,148,136,.45)',background:'rgba(16,185,129,.13)',color:'#0f766e'}
   const BTNP={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(124,58,237,.4)',background:'rgba(124,58,237,.1)',color:'#6d28d9'}
   const BTNR={font:'inherit',fontSize:12,padding:'7px 11px',borderRadius:9,cursor:'pointer',border:'1px solid rgba(219,39,119,.4)',background:'rgba(219,39,119,.1)',color:'#be185d'}
@@ -1118,7 +1130,7 @@ export default function KantorCeo3D() {
 
       <div style={{position:'absolute',top:16,right:16,zIndex:20,display:'flex',flexDirection:'column',gap:10,maxWidth:274,maxHeight:'calc(100vh - 32px)',overflowY:'auto',paddingBottom:4}}>
         <div style={CARD}>
-          <div style={{fontSize:22,fontWeight:700,color:'#0f172a'}}>{clock} <span style={{fontSize:11,opacity:.6}}>WIB</span></div>
+          <ClockWib/>
           <div style={{opacity:.7,fontSize:11,marginBottom:2,color:'#334155'}}>SUPER AI AGENT · KANTOR CEO<br/><span style={{color:'#0f766e'}}>👤 luxtradee@gmail.com</span>{busy?<span style={{color:'#0d9488'}}> · ⏳ memproses…</span>:null}</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:9}}>
             {ROOMS.map(([id,label])=>(
@@ -1130,9 +1142,11 @@ export default function KantorCeo3D() {
           <>
             <div style={CARD}>
               <b style={{color:'#0d9488',fontSize:14}}>🏢 Denah Kantor CEO</b>
-              <div style={{marginTop:6,opacity:.85,fontSize:11.5,lineHeight:1.6}}>
-                Setiap agen punya <b>ruangan sendiri</b> — klik chip atau karyawan 3D untuk masuk.<br/>
-                Klik laptop CEO = jalankan briefing beneran.
+              <div style={{marginTop:5,opacity:.85,fontSize:11,lineHeight:1.55}}>
+                Klik chip / karyawan 3D untuk masuk ruangan · klik laptop CEO = briefing.
+              </div>
+              <div style={{marginTop:6,fontSize:10.5,lineHeight:1.5,color:'#065f46',background:'rgba(16,185,129,.09)',borderRadius:8,padding:'6px 8px'}}>
+                🤖 <b>Karyawan AI tetap kerja 24/7 walau kantor ini tidak dibuka</b> — cron otomatis: briefing 08:00 WIB, watchdog tiap 15 mnt, laporan Senin 10:00. Semua hasil masuk Discord.
               </div>
             </div>
             {coo&&(
@@ -1173,26 +1187,11 @@ export default function KantorCeo3D() {
                 <div style={{opacity:.55,fontSize:10.5,marginTop:4}}>→ Buka Ruang Growth untuk rincian</div>
               </div>)}
             <div style={CARD}>
-              <b style={{color:'#0d9488',fontSize:13}}>📋 Struktur & Tugas Tim</b>
-              <div style={{marginTop:6,fontSize:10.8,lineHeight:1.7,maxHeight:270,overflowY:'auto',paddingRight:4}}>
-                <b style={{color:'#059669'}}>💼 Bagas — COO Jualan</b> · monetisasi<br/>
-                <span style={{opacity:.75}}>Tiap 08:00: pilih free user paling aktif 7 hari → racik email tawaran PRO personal → minta ACC Bos di sini → kirim via Resend. Anti-spam 1 lead/7 hari. Konversi dilaporkan tiap Senin.</span><br/>
-                <b style={{color:'#0d9488'}}>🖥️ Raka — CTO · IT & QA</b><br/>
-                <span style={{opacity:.75}}>Jaga situs 24/7 (watchdog 15 mnt: ping + alarm Discord kalau DOWN), hitung bug 24 jam + triage Qwen 2.5 Coder [P1-P3], QA otomatis semua fitur tiap briefing pagi.</span><br/>
-                <b style={{color:'#db2777'}}>👥 Maya — CSO · Customer Success</b><br/>
-                <span style={{opacity:.75}}>Hitung pendaftar/aktif/pasif tiap pagi, kirim email sapaan ke user pasif (3 variasi rotasi), ukur feedback siapa yang balik upload, ngobrol sama CMO cari akar masalah user males jurnal.</span><br/>
-                <b style={{color:'#7c3aed'}}>📣 Sinta — CMO · Marketing</b><br/>
-                <span style={{opacity:.75}}>Bikin 1 draf TikTok/hari via GLM-4.7-Flash (OpenRouter) meniru pola konten terbaik lo (bahan analisis di Ruang CMO), draf wajib menjawab alasan churn dari rapat CSO, fallback GLM-4-Flash→Gemini→templat.</span><br/>
-                <b style={{color:'#d97706'}}>💰 Putri — CFO · Kuota</b><br/>
-                <span style={{opacity:.75}}>Pantau kuota Gemini Vision (gerbang anti-429 sebelum upload user) + kuota email Resend, alarm di 80%, laporan pemakaian 7 hari.</span><br/>
-                <b style={{color:'#0891b2'}}>📊 Dewi — Data Analyst</b><br/>
-                <span style={{opacity:.75}}>Olah trades 30 hari (win rate, pair favorit, sesi & jam tersibuk) jadi insight + 3 rekomendasi mingguan — dipakai CMO & Growth Hacker. Senin 10:00 otomatis.</span><br/>
-                <b style={{color:'#ea580c'}}>🚀 Farhan — Growth Hacker</b><br/>
-                <span style={{opacity:.75}}>Ukur funnel nyata (pendaftar → aktivasi → PRO → referral), cari titik bocor, rancang 3 eksperimen/minggu + angle promo referral. Senin 10:00 otomatis.</span><br/>
-                <b style={{color:'#334155'}}>👔 Alexander — CEO</b><br/>
-                <span style={{opacity:.75}}>Kumpulin semua laporan jadi Morning Briefing 08:00 + pilih 1 Next Best Action buat lo tiap pagi + laporan mingguan Senin 10:00 → Discord. Klik laptopnya untuk briefing manual.</span>
+              <b style={{color:'#0d9488',fontSize:13}}>📋 Tim: 8 karyawan AI</b>
+              <div style={{marginTop:4,fontSize:10.5,opacity:.75,lineHeight:1.5}}>
+                Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Alexander (CEO)
               </div>
-              <button style={{...BTN,fontSize:11,marginTop:8,width:'100%'}} onClick={()=>setRoom('struktur')}>🔍 Buka Struktur & Jabatan Lengkap</button>
+              <button style={{...BTN,fontSize:11,marginTop:7,width:'100%'}} onClick={()=>setRoom('struktur')}>🔍 Buka Struktur &amp; Jabatan Lengkap</button>
             </div>
           </>)}
 
