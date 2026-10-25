@@ -216,14 +216,27 @@ async function fetchActiveUserIds(e: Env, since: string): Promise<Set<string>> {
 
 async function csoAgent(e: Env) {
   const since = isoAgo(24)
+  const activeSet = await fetchActiveUserIds(e, since)
   const total = await supaCount(e, 'profiles')
-  const active = (await fetchActiveUserIds(e, since)).size
-  const passive = Math.max(0, total - active)
-  return { title: 'CSO — Customer Success', total, active, passive }
+  const passive = Math.max(0, total - activeSet.size)
+  /* Feedback loop: user yang di-email CSO kemarin — berapa yang balik
+     upload hari ini? (ID yang di-email disimpan di agent_kv saat kirim) */
+  let emailed = 0, returned = 0
+  try {
+    const ids: string[] = JSON.parse((await kvGet(e, `csmailed:${utcDay(-1)}`)) || '[]')
+    emailed = ids.length
+    returned = ids.filter((id) => activeSet.has(id)).length
+  } catch { /* ignore */ }
+  return { title: 'CSO — Customer Success', total, active: activeSet.size, passive, emailedYesterday: emailed, returnedYesterday: returned }
 }
 
 /* ============================================================
    AGEN 3 — CMO (Marketing & Copywriter AI): Gemini native REST
+   v2: CMO menganalisis KONTEN TIKTOK ASLI dari tabel tiktok_posts
+   (migrasi 014 — link + caption + views/likes diisi Bos lewat
+   Ruang CMO) → draf meniru pola yang TERBUKTI perform di FYP.
+   Kalau tabel masih kosong → fallback ke deskripsi gaya statis
+   di env TIKTOK_REFERENCE (perilaku lama).
    ============================================================ */
 function fallbackDraft(angle: string): string {
   return [
@@ -235,18 +248,69 @@ function fallbackDraft(angle: string): string {
   ].join('\n')
 }
 
+/* 1 panggilan Gemini text. thinkingBudget: 0 — pelajaran fix
+   auto-journal: thinking memakan maxOutputTokens → teks kosong. */
+async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxTokens = 2048, temperature = 1.0): Promise<string> {
+  const model = e.GEMINI_MODEL || 'gemini-2.5-flash'
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(e.GEMINI_API_KEY || '')}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature,
+          maxOutputTokens: maxTokens,
+          ...(model.startsWith('gemini-2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
+      }),
+      signal: timeoutSignal(30_000),
+    },
+  )
+  if (res.status === 429) {
+    await kvIncr(e, `quota429:${utcDay()}`)
+    const x: any = new Error('Gemini 429 (rate limit)'); x.status = 429
+    throw x
+  }
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
+  const data: any = await res.json()
+  const text = (data?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || '').join('').trim()
+  if (!text) throw new Error('Gemini mengembalikan respons kosong')
+  return text
+}
+
+/* Top 5 konten TikTok milik Bos, urut views (tabel tiktok_posts).
+   Butuh service_role key — tabel terkunci RLS. Gagal → [] (fallback). */
+async function fetchTopTikToks(e: Env): Promise<{ url: string; caption: string; views: number; likes: number }[]> {
+  if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) return []
+  const res = await fetch(
+    `${sbUrl(e)}/rest/v1/tiktok_posts?select=url,caption,views,likes&order=views.desc&limit=5`,
+    { headers: sbHPriv(e), signal: timeoutSignal(10_000) },
+  )
+  if (!res.ok) return []
+  return (await res.json()) as { url: string; caption: string; views: number; likes: number }[]
+}
+
 async function cmoAgent(e: Env) {
   const angle = ANGLES[dayIndex() % ANGLES.length]
-  // gemini-1.5-flash sudah di-retire Google (404) — default ke 2.5 flash.
-  // PENTING (pelajaran fix auto-journal): model 2.5 default menyalakan thinking
-  // yang memakan maxOutputTokens → teks terpotong/kosong. thinkingBudget: 0.
-  const model = e.GEMINI_MODEL || 'gemini-2.5-flash'
   let history: string[] = []
   try { history = JSON.parse((await kvGet(e, 'drafts:history')) || '[]') } catch { /* ignore */ }
 
+  /* Bahan analisis: konten asli TikTok Bos (diisi lewat Ruang CMO) */
+  const posts = await fetchTopTikToks(e).catch(() => [])
+  const tiktokBlock = posts.length
+    ? `KONTEN TIKTOK ASLI milik CEO (urut views — paling atas TERBUKTI paling perform):\n` +
+      posts.map((p, i) => `${i + 1}. [${fmtN(p.views)} views · ${fmtN(p.likes)} likes] "${(p.caption || '').slice(0, 400)}"`).join('\n')
+    : ''
+
   const systemPrompt =
-    `Kamu adalah CMO Luxtrade. Analisis gaya bahasa, hook, dan struktur dari naskah TikTok milik CEO berikut ini: ${e.TIKTOK_REFERENCE} ` +
-    `Tugasmu hari ini: Buat 1 draf naskah video TikTok baru yang meniru gaya bahasa tersebut 100%. ` +
+    `Kamu adalah CMO Luxtrade. ` +
+    (posts.length
+      ? `Analisis pola dari konten berikut: hook seperti apa yang bikin FYP, topik apa yang paling banyak ditonton, struktur & gaya bahasa khasnya. TIRU pola pemenang tersebut dalam draf baru.\n\n${tiktokBlock}`
+      : `Analisis gaya bahasa, hook, dan struktur dari naskah TikTok milik CEO berikut ini: ${e.TIKTOK_REFERENCE || '(belum ada referensi — pakai gaya trader Indonesia kasual, bahasa gaul)'}`) +
+    `\nTugasmu hari ini: Buat 1 draf naskah video TikTok baru yang meniru pola/gaya tersebut 100%. ` +
     `DILARANG mengulang naskah yang sama dari hari-hari sebelumnya. ` +
     `Rotasi angle harian: pain point trader XAUUSD (SMC/ICT), kelelahan ngetik jurnal manual, atau cara menjaga max daily loss prop firm dengan evaluasi visual.`
 
@@ -257,39 +321,21 @@ async function cmoAgent(e: Env) {
       ? `\nNaskah yang SUDAH dipakai hari sebelumnya (DILARANG mengulang / mirip):\n` +
         history.map((h, i) => `— draf ${i + 1} —\n${h.slice(0, 500)}`).join('\n') + '\n'
       : '') +
+    (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
     `\nOutput: HANYA naskah TikTok baru (hook 3 detik pertama → body → CTA, durasi 30–45 detik), tanpa penjelasan tambahan.`
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(e.GEMINI_API_KEY || '')}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        generationConfig: {
-          temperature: 1.0,
-          maxOutputTokens: 2048,
-          ...(model.startsWith('gemini-2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-        },
-      }),
-      signal: timeoutSignal(30_000),
-    },
-  )
-
-  if (res.status === 429) {
-    await kvIncr(e, `quota429:${utcDay()}`)
-    return { draft: fallbackDraft(angle), angle, usedFallback: true, error: 'Gemini 429 (rate limit)' }
+  let draft: string
+  try {
+    draft = await geminiText(e, systemPrompt, userPrompt, 2048, 1.0)
+  } catch (x: any) {
+    if (x?.status === 429)
+      return { draft: fallbackDraft(angle), angle, usedFallback: true, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, error: 'Gemini 429 (rate limit)' }
+    throw x
   }
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
-
-  const data: any = await res.json()
-  const draft = (data?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || '').join('').trim()
-  if (!draft) throw new Error('Gemini mengembalikan respons kosong')
 
   history.unshift(draft)
   await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 5)))
-  return { draft, angle, usedFallback: false }
+  return { draft, angle, usedFallback: false, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length }
 }
 
 /* ============================================================
@@ -297,15 +343,23 @@ async function cmoAgent(e: Env) {
    ============================================================ */
 async function cfoAgent(e: Env) {
   const limit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
+  const emailLimit = parseInt(e.RESEND_DAILY_LIMIT || '100', 10) // Resend free: 100 email/hari
   const read = async (k: string) => parseInt((await kvGet(e, k)) || '0', 10)
   const usedToday = await read(`quota:${utcDay(0)}`)
   const usedYesterday = await read(`quota:${utcDay(-1)}`)
   const quota429 = await read(`quota429:${utcDay(-1)}`)
+  const emailToday = await read(`email:${utcDay(0)}`)
+  const emailYesterday = await read(`email:${utcDay(-1)}`)
   const pct = limit > 0 ? Math.round((usedToday / limit) * 100) : 0
+  const emailPct = emailLimit > 0 ? Math.round((emailToday / emailLimit) * 100) : 0
   return {
     title: 'CFO — API Quota Manager', limit, usedToday, usedYesterday, quota429,
+    emailLimit, emailToday, emailYesterday, emailPct,
     status: pct >= 95 ? 'KRITIS — hentikan upload sisa hari ini'
       : pct >= 80 ? 'WASPADA — kurangi frekuensi upload'
+      : 'AMAN ✅',
+    emailStatus: emailPct >= 95 ? 'KRITIS — kuota email hampir habis'
+      : emailPct >= 80 ? 'WASPADA — kuota email menipis'
       : 'AMAN ✅',
   }
 }
@@ -360,16 +414,21 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• Total pendaftar: ${fmtN(cso?.total)}`)
   L.push(`• User aktif (upload 24 jam): ${fmtN(cso?.active)}`)
   L.push(`• User pasif (>24 jam tanpa aktivitas): ${fmtN(cso?.passive)}`)
+  if (cso?.emailedYesterday > 0)
+    L.push(`• Feedback email kemarin: ${fmtN(cso.returnedYesterday)}/${fmtN(cso.emailedYesterday)} user balik upload ${cso.returnedYesterday > 0 ? '✅' : '⏳'}`)
   if (cso?.err) L.push(`⚠️ CSO gagal: ${String(cso.err).slice(0, 130)}`)
   L.push('')
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
   if (cmo?.usedFallback) L.push('_(Gemini limit — pakai draf cadangan, mohon revisi manual)_')
+  if (cmo?.basedOn === 'tiktok') L.push(`📚 Dianalisis dari ${fmtN(cmo.analyzedPosts)} konten TikTok asli lo (urut views) — pola pemenang ditiru`)
+  else if (cmo?.draft) L.push('📚 Analisis pakai referensi statis — isi "Bahan Analisis TikTok" di Ruang CMO biar makin akurat')
   L.push('')
   L.push('💰 **CFO AGENT — KUOTA API GEMINI**')
   L.push(`• Terpakai kemarin: ${fmtN(cfo?.usedYesterday)}/${fmtN(cfo?.limit)}`)
   L.push(`• Terpakai hari ini: ${fmtN(cfo?.usedToday)}/${fmtN(cfo?.limit)}`)
   L.push(`• Event 429 kemarin: ${fmtN(cfo?.quota429)}`)
+  L.push(`• Email terkirim hari ini: ${fmtN(cfo?.emailToday)}/${fmtN(cfo?.emailLimit)} (Resend — ${cfo?.emailStatus || '-'})`)
   L.push(`• Status: ${cfo?.status || '-'}`)
   if (cfo?.err) L.push(`⚠️ CFO gagal: ${String(cfo.err).slice(0, 130)}`)
   L.push('━━━━━━━━━━━━━━━━━━')
@@ -394,7 +453,7 @@ async function runMorningBriefing(e: Env) {
   if (autoOn && !(await kvGet(e, `acc_email:${utcDay()}`))) {
     await kvSet(e, `acc_email:${utcDay()}`, new Date().toISOString())
     if (e.RESEND_API_KEY) {
-      try { const n = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${n} email sapaan terkirim ke user pasif (otomatis)` }
+      try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email sapaan terkirim ke user pasif (otomatis, variasi "${r.variant}")` }
       catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
     } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
     try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
@@ -407,10 +466,29 @@ async function runMorningBriefing(e: Env) {
   return summary
 }
 
-/* ---------- flow "ACC EMAIL": email ke user pasif ---------- */
-async function sendPassiveEmails(e: Env): Promise<number> {
+/* ---------- flow "ACC EMAIL": email ke user pasif ----------
+   v2: 3 variasi pesan (rotasi harian — anti email fatigue) +
+   ID penerima dicatat di agent_kv → besok CSO hitung berapa
+   yang BALIK upload setelah di-email (feedback loop nyata). */
+const PASSIVE_VARIANTS = [
+  {
+    subject: 'Lama gak ketemu 👋',
+    text: 'Hai! Kamu belum upload screenshot jurnal trading kamu dalam 24 jam terakhir.\n\nYuk evaluasi visual hari ini di https://luxtradee.web.id — cuma 2 menit.\n\n— Tim Luxtrade',
+  },
+  {
+    subject: 'Jurnal lo masih nunggu 📈',
+    text: 'Jurnal yang kosong itu kehilangan data — trade bagus hari ini bisa jadi pelajaran besok.\n\nUpload screenshot terakhir lo, 2 menit langsung dapat evaluasi visual: https://luxtradee.web.id\n\n— Tim Luxtrade',
+  },
+  {
+    subject: 'Setup terakhir lo kapan? 🎯',
+    text: 'Trader disiplin itu yang nyatet setiap entry — bukan yang hafal.\n\nBalik lagi yuk: upload 1 screenshot, biarkan AI yang evaluasi. https://luxtradee.web.id\n\n— Tim Luxtrade',
+  },
+]
+
+async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string }> {
   const since = isoAgo(24)
   const activeIds = await fetchActiveUserIds(e, since)
+  const variant = PASSIVE_VARIANTS[dayIndex() % PASSIVE_VARIANTS.length]
 
   // kandidat: profil dengan email, terbaru dulu — maks 200 kandidat
   /* Pakai service_role key — profiles butuh bypass RLS */
@@ -419,27 +497,33 @@ async function sendPassiveEmails(e: Env): Promise<number> {
   if (!res.ok) throw new Error(`Supabase profiles HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
   const profiles = (await res.json()) as { id?: string; email?: string }[]
 
-  const emails = profiles
+  const targets = profiles
     .filter((p) => p.email && p.id && !activeIds.has(p.id))
     .slice(0, 50)
-    .map((p) => p.email as string)
 
   let sent = 0
-  for (const to of emails) {
+  const emailedIds: string[] = []
+  for (const p of targets) {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${e.RESEND_API_KEY}` },
       body: JSON.stringify({
         from: EMAIL_FROM,
-        to,
-        subject: 'Lama gak ketemu 👋',
-        text: 'Hai! Kamu belum upload screenshot jurnal trading kamu dalam 24 jam terakhir.\n\nYuk evaluasi visual hari ini di https://luxtradee.web.id — cuma 2 menit.\n\n— Tim Luxtrade',
+        to: p.email as string,
+        subject: variant.subject,
+        text: variant.text,
       }),
       signal: timeoutSignal(10_000),
     }).catch(() => null)
-    if (r && (r as any).ok) sent++
+    if (r && (r as any).ok) {
+      sent++
+      emailedIds.push(p.id as string)
+      await kvIncr(e, `email:${utcDay()}`).catch(() => {}) // CFO: pantau kuota Resend
+    }
   }
-  return sent
+  /* simpan siapa saja yang di-email hari ini → besok dihitung "balik aktif" */
+  if (emailedIds.length) await kvSet(e, `csmailed:${utcDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
+  return { sent, ids: emailedIds, variant: variant.subject }
 }
 
 /* ============================================================
@@ -481,7 +565,26 @@ async function watchdog(e: Env) {
       await kvSet(e, 'wd:bugs:last', String(cto.bugs24h)) // baseline pertama, tanpa alarm
     } else if (cto.bugs24h > parseInt(bugsAlertedRaw || '0', 10)) {
       await kvSet(e, 'wd:bugs:last', String(cto.bugs24h))
-      const msg = `🐞 **CTO WATCHDOG — BUG BARU MASUK!**\n• Total 24 jam: ${cto.bugs24h} bug\nSegera cek tabel bug_reports di Supabase.`
+      /* TRIAGE otomatis: 3 bug terakhir → Gemini ringkas jadi diagnosa
+         + prioritas P1-P3 → Bos nggak perlu buka Supabase manual.
+         Gemini hanya dipanggil SAAT bug baru masuk (bukan tiap 15 mnt). */
+      let triage = ''
+      try {
+        const bres = await fetch(`${sbUrl(e)}/rest/v1/bug_reports?select=description&order=created_at.desc&limit=3`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+        const bugs: { description?: string }[] = bres.ok ? await bres.json() : []
+        const list = bugs.map((b, i) => `${i + 1}. ${String(b.description || '').replace(/\s+/g, ' ').slice(0, 300)}`).filter((s) => s.length > 3).join('\n')
+        if (list) {
+          if (e.GEMINI_API_KEY) {
+            triage = await geminiText(
+              e,
+              'Kamu CTO Luxtradee (web app jurnal trading). Ringkas laporan bug user jadi diagnosa singkat & actionable. Format per baris: "- [P1/P2/P3] masalah → kemungkinan penyebab/lokasi". P1=kritis (situs/fitur utama mati), P2=gangguan, P3=minor. Satu baris per bug, tanpa pembuka/penutup.',
+              `Laporan bug terbaru:\n${list}`,
+              512, 0.3,
+            )
+          } else triage = list
+        }
+      } catch { /* triage opsional — gagal → kirim alarm tanpa detail */ }
+      const msg = `🐞 **CTO WATCHDOG — BUG BARU MASUK!**\n• Total 24 jam: ${cto.bugs24h} bug\n${triage ? triage.slice(0, 900) + '\n' : ''}Segera cek tabel bug_reports di Supabase.`
       try { await sendDiscord(e, msg); alerts.push('bug-baru') } catch { /* ignore */ }
     }
   }
@@ -550,6 +653,25 @@ async function weeklyReport(e: Env) {
   L.push('💰 **CFO — Pemakaian Kuota Gemini**')
   L.push(`• Total 7 hari: ${fmtN(q7)} request (rata-rata ${fmtN(Math.round(q7 / 7))}/hari · limit harian ${fmtN(limit)})`)
 
+  /* COO — konversi jualan: lead yang di-email minggu ini → sudah PRO? */
+  try {
+    const resT = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_tasks?agent_type=eq.COO&status=eq.approved&executed_at=gte.${encodeURIComponent(isoAgo(24 * 7))}&select=target_user_id`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    const rows: { target_user_id?: string }[] = resT.ok ? await resT.json() : []
+    const ids = [...new Set(rows.map((r) => r.target_user_id).filter(Boolean) as string[])]
+    if (ids.length) {
+      let pro = 0
+      const resP = await fetch(`${sbUrl(e)}/rest/v1/profiles?select=is_pro&id=in.(${ids.map((i) => `"${i}"`).join(',')})`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+      const profs: { is_pro?: boolean }[] = resP.ok ? await resP.json() : []
+      pro = profs.filter((p) => p.is_pro).length
+      L.push(`💼 **COO — Jualan 7 hari**: ${ids.length} penawaran PRO terkirim → ${pro} lead sudah PRO (${Math.round((pro / ids.length) * 100)}% konversi)${pro > 0 ? ' 🎉' : ''}`)
+    } else L.push('💼 **COO — Jualan 7 hari**: belum ada penawaran terkirim minggu ini')
+  } catch { L.push('💼 **COO — Jualan 7 hari**: data gagal diambil') }
+
+  /* Email Resend — pemakaian 7 hari (free tier ±3.000/bulan) */
+  let em7 = 0
+  for (let i = 0; i < 7; i++) { try { em7 += parseInt((await kvGet(e, `email:${utcDay(-i)}`)) || '0', 10) } catch { /* ignore */ } }
+  L.push(`📧 **Email Resend 7 hari**: ${fmtN(em7)} terkirim`)
+
   L.push('━━━━━━━━━━━━━━━━━━')
   L.push('🤖 Laporan otomatis dari karyawan AI — Bos tinggal baca.')
   const text = L.join('\n')
@@ -557,6 +679,70 @@ async function weeklyReport(e: Env) {
   try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
   await kvSet(e, 'weekly:last', JSON.stringify({ at: new Date().toISOString(), notifySent, notifyErr, text }))
   return { weekly: true, notifySent, notifyErr, text }
+}
+
+/* ============================================================
+   BAHAN ANALISIS TIKTOK — CRUD tabel tiktok_posts (migrasi 014)
+   Dipakai Ruang CMO: Bos paste link + views/likes → caption
+   diambil OTOMATIS via TikTok oEmbed (gratis, tanpa API key).
+   ============================================================ */
+async function tikTokList(e: Env) {
+  if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) throw new Error('set SUPABASE_SERVICE_ROLE_KEY dulu di Cloudflare (butuh bypass RLS)')
+  const res = await fetch(`${sbUrl(e)}/rest/v1/tiktok_posts?select=id,url,caption,thumbnail_url,views,likes,comments,posted_at&order=views.desc&limit=100`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 160)
+    throw new Error(`tiktok_posts HTTP ${res.status}${detail ? ' — ' + detail : ''}${detail.includes('does not exist') ? ' — jalankan supabase-migrations/014_create_tiktok_posts.sql dulu' : ''}`)
+  }
+  return { posts: await res.json() }
+}
+
+async function tikTokAdd(e: Env, body: { url?: string; views?: number; likes?: number; comments?: number; caption?: string }) {
+  const postUrl = String(body.url || '').trim()
+  if (!/^https:\/\/(www\.)?tiktok\.com\//.test(postUrl)) throw new Error('URL TikTok tidak valid — contoh: https://www.tiktok.com/@username/video/123456789')
+  if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) throw new Error('set SUPABASE_SERVICE_ROLE_KEY dulu di Cloudflare (butuh bypass RLS)')
+
+  /* oEmbed TikTok: gratis, tanpa API key → caption + thumbnail otomatis */
+  let caption = String(body.caption || '').trim()
+  let thumbnail = ''
+  let autoCaption = false
+  try {
+    const oe = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(postUrl)}`, { signal: timeoutSignal(10_000) })
+    if (oe.ok) {
+      const d: any = await oe.json()
+      const t = String(d?.title || '').trim()
+      if (t) { caption = caption || t; autoCaption = !body.caption }
+      thumbnail = String(d?.thumbnail_url || '')
+    }
+  } catch { /* oEmbed gagal → pakai caption manual dari Bos */ }
+
+  const row = {
+    url: postUrl,
+    caption: caption || '(caption kosong)',
+    thumbnail_url: thumbnail,
+    views: Math.max(0, Math.round(Number(body.views) || 0)),
+    likes: Math.max(0, Math.round(Number(body.likes) || 0)),
+    comments: Math.max(0, Math.round(Number(body.comments) || 0)),
+  }
+  const res = await fetch(`${sbUrl(e)}/rest/v1/tiktok_posts?on_conflict=url`, {
+    method: 'POST',
+    headers: { ...sbHPriv(e), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(row),
+    signal: timeoutSignal(10_000),
+  })
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 160)
+    throw new Error(`Simpan gagal HTTP ${res.status}${detail ? ' — ' + detail : ''}${detail.includes('does not exist') ? ' — jalankan supabase-migrations/014_create_tiktok_posts.sql dulu' : ''}`)
+  }
+  const saved: any = await res.json()
+  return { ok: true, post: Array.isArray(saved) ? saved[0] : saved, captionAuto: autoCaption }
+}
+
+async function tikTokDel(e: Env, id: string) {
+  if (!id) throw new Error('id wajib diisi')
+  if (!sbUrl(e) || !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)) throw new Error('set SUPABASE_SERVICE_ROLE_KEY dulu di Cloudflare (butuh bypass RLS)')
+  const res = await fetch(`${sbUrl(e)}/rest/v1/tiktok_posts?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+  if (!res.ok) throw new Error(`Hapus gagal HTTP ${res.status}`)
+  return { ok: true, deleted: id }
 }
 
 /* ============================================================
@@ -666,7 +852,7 @@ async function handle(req: Request): Promise<Response> {
       if (await kvGet(e, `acc_email:${day}`)) return j({ ok: true, dup: true })
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
       let emailsSent = -1
-      if (e.RESEND_API_KEY) { try { emailsSent = await sendPassiveEmails(e) } catch { /* ignore */ } }
+      if (e.RESEND_API_KEY) { try { emailsSent = (await sendPassiveEmails(e)).sent } catch { /* ignore */ } }
       const reply = emailsSent >= 0
         ? `Siap Bos! ✅ Email sapaan terkirim ke ${emailsSent} user pasif hari ini.`
         : 'Siap Bos! ✅ ACC EMAIL dicatat. Set RESEND_API_KEY agar email terkirim otomatis.'
@@ -704,6 +890,19 @@ async function handle(req: Request): Promise<Response> {
       }
       return j({ autoacc: cur })
     }
+    case 'tiktok-list':
+      // Bahan analisis TikTok untuk CMO (Ruang CMO) — list semua post
+      try { return j(await tikTokList(e)) } catch (x: any) { return j({ error: String(x?.message || x) }, 500) }
+    case 'tiktok-add':
+      // Tambah post: { url, views, likes, comments?, caption? } — caption
+      // diambil otomatis via oEmbed kalau Bos tidak isi manual
+      try {
+        const body = await req.json().catch(() => ({}) as Record<string, unknown>)
+        return j(await tikTokAdd(e, body as { url?: string; views?: number; likes?: number; comments?: number; caption?: string }))
+      } catch (x: any) { return j({ error: String(x?.message || x) }, 400) }
+    case 'tiktok-del':
+      // Hapus post bahan analisis: ?id=<uuid>
+      try { return j(await tikTokDel(e, url.searchParams.get('id') || '')) } catch (x: any) { return j({ error: String(x?.message || x) }, 400) }
     default:
       return j({
         app: 'Luxtrade Super AI Agent',
@@ -718,8 +917,11 @@ async function handle(req: Request): Promise<Response> {
           'action=briefing-last — briefing terakhir',
           'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
           'action=auto-acc [POST &on=1|0] — toggle kirim email pasif OTOMATIS tiap briefing pagi',
-          'action=watchdog — CTO jaga situs 24/7: DOWN/bug/kuota 80% → alarm Discord instan (cron 15 mnt)',
+          'action=watchdog — CTO jaga situs 24/7: DOWN/bug/kuota 80% → alarm Discord instan + triage bug otomatis (cron 15 mnt)',
           'action=weekly — laporan mingguan 7 hari ke Discord (cron Minggu 20:00)',
+          'action=tiktok-list — daftar bahan analisis TikTok (Ruang CMO)',
+          'action=tiktok-add (POST JSON {url,views,likes}) — tambah post: caption auto via oEmbed',
+          'action=tiktok-del (?id=) — hapus post bahan analisis',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
