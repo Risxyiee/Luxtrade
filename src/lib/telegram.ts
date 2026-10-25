@@ -17,11 +17,13 @@ export async function sendTelegramNotification(message: string) {
     })
     const data = await res.json()
     if (!data.ok) {
-      console.error('Telegram notification failed:', data.description)
+      // Log as warn (not error) — Telegram failures are non-critical and should not
+      // pollute CF Workers error tail logs. Bot token may need rotation if persistent.
+      console.warn('[Telegram] Notification skipped:', data.description)
     }
     return data
   } catch (error) {
-    console.error('Telegram notification error:', error)
+    console.warn('[Telegram] Notification error:', error)
     return { ok: false }
   }
 }
@@ -43,11 +45,11 @@ export async function sendToAdmin(message: string) {
     })
     const data = await res.json()
     if (!data.ok) {
-      console.error('Telegram to admin failed:', data.description)
+      console.warn('[Telegram] Admin notification skipped:', data.description)
     }
     return data
   } catch (error) {
-    console.error('Telegram to admin error:', error)
+    console.warn('[Telegram] Admin notification error:', error)
     return { ok: false }
   }
 }

@@ -6,7 +6,7 @@ import { isUserPro } from '@/lib/pro-check'
 import { uploadScreenshot } from '@/lib/extractTradeData'
 import { edgeCrypto } from '@/lib/edge-crypto'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
-import { geminiVision, isGeminiAvailable } from '@/lib/gemini'
+import { geminiVision, isGeminiAvailableAsync } from '@/lib/gemini'
 import { buildTradeAndJournalPrompt } from '@/lib/aiml-vision'
 
 // ==================== AUTH HELPER ====================
@@ -284,7 +284,7 @@ export async function POST(request: NextRequest) {
     const t2 = performance.now()
     let aiResultText: string
     try {
-      if (!isGeminiAvailable()) {
+      if (!(await isGeminiAvailableAsync())) {
         log('⛔', 'GEMINI_API_KEY not configured')
         return NextResponse.json(
           { error: 'API key AI belum dikonfigurasi (GEMINI_API_KEY). Hubungi admin.', step: 'ai_call' },

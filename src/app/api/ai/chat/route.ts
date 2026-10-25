@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { geminiChat, isGeminiAvailable } from '@/lib/gemini'
+import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 import { checkAIQuota, incrementAIQuota, getAIQuotaInfo } from '@/lib/ai-quota'
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check Gemini availability
-    if (!isGeminiAvailable()) {
+    if (!await isGeminiAvailableAsync()) {
       return NextResponse.json({ error: 'AI service not configured (GEMINI_API_KEY missing)' }, { status: 503 })
     }
 
