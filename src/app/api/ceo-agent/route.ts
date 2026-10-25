@@ -4,11 +4,12 @@
 // Auth: header "Authorization: Bearer ADMIN_SECRET" atau ?key=CRON_SECRET
 // Cron 08:00 WIB: cron-job.org → /api/ceo-agent?action=briefing&key=CRON_SECRET
 // ============================================================
-// Catatan adaptasi utk project Luxtradee (tanpa mengubah perilaku):
-//  - SUPABASE_URL / SUPABASE_ANON_KEY fallback ke NEXT_PUBLIC_* bila belum diset
-//  - SITE_URL & alamat email pakai domain produksi luxtradee.web.id
-//  - Notifikasi pakai DISCORD WEBHOOK (bukan WhatsApp Fonnte/Wablas) —
-//    konsisten dgn seluruh notifikasi admin Luxtradee yang sudah migrasi ke Discord
+// Tabel Supabase yang dipakai (skema produksi Luxtradee — lihat
+// prisma/schema.prisma):
+//  profiles    → data user (email, created_at, is_pro, …)
+//  trades      → upload jurnal trading (user_id, created_at) — basis "user aktif"
+//  bug_reports → laporan bug dari user (created_at, status) — basis CTO
+//  agent_kv    → KV internal (supabase-migrations/012_create_agent_kv.sql)
 // ============================================================
 // NOTE: No runtime = 'edge' — OpenNext limitation for API routes.
 // Seluruh app sudah berjalan di Cloudflare Workers (edge) via OpenNext,
@@ -18,12 +19,6 @@ export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
 
-/* ---------- konfigurasi kolom — SESUAIKAN dgn skema Supabase-mu ---------- */
-const COL = {
-  errorTime: 'created_at',        // tabel error_logs → kolom waktu error
-  userActivity: 'last_upload_at', // tabel users      → kolom upload terakhir
-  userEmail: 'email',             // tabel users      → kolom email
-}
 const SITE_URL = 'https://luxtradee.web.id'
 const EMAIL_FROM = 'LuxTradee <noreply@luxtradee.web.id>'
 const ANGLES = [
@@ -95,33 +90,65 @@ async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
 }
 
 /* ============================================================
-   AGEN 1 — CTO (IT & QA): ping situs + bug 24 jam
+   AGEN 1 — CTO (IT & QA): ping situs + bug report 24 jam
    ============================================================ */
+function siteStatusNote(status: number): string {
+  // 521/522/523/524 = error edge Cloudflare (origin tidak terjangkau).
+  // Pada self-ping ini biasanya TRANSIEN (mis. saat worker sedang redeploy).
+  if ([521, 522, 523, 524].includes(status))
+    return `${status} — error edge Cloudflare, biasanya transien saat redeploy; coba lagi`
+  return String(status)
+}
+
 async function ctoAgent(e: Env) {
-  const t0 = Date.now()
-  let status = 0, siteOk = false, err = ''
-  try {
-    const res = await fetch(SITE_URL, { method: 'GET', redirect: 'follow', signal: timeoutSignal(15_000) })
-    status = res.status; siteOk = res.ok
-  } catch (x: any) { err = String(x?.message || x) }
-  const latencyMs = Date.now() - t0
+  const ping = async () => {
+    const t0 = Date.now()
+    try {
+      const res = await fetch(SITE_URL, { method: 'GET', redirect: 'follow', signal: timeoutSignal(15_000) })
+      return { status: res.status, siteOk: res.ok, latencyMs: Date.now() - t0, err: '' }
+    } catch (x: any) {
+      return { status: 0, siteOk: false, latencyMs: Date.now() - t0, err: String(x?.message || x) }
+    }
+  }
+
+  let site = await ping()
+  if (!site.siteOk) {
+    // self-ping ke domain publik kadang gagal sesaat (redeploy/edge hiccup) — retry 1x
+    await new Promise((r) => setTimeout(r, 1500))
+    const retry = await ping()
+    if (retry.siteOk || !site.err) site = retry
+    if (!site.siteOk && [521, 522, 523, 524].includes(site.status))
+      site.err = siteStatusNote(site.status)
+  }
 
   let bugs24h = -1
-  try { bugs24h = await supaCount(e, 'error_logs', `${COL.errorTime}=gte.${isoAgo(24)}`) }
+  let err = site.err
+  try { bugs24h = await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24)) }
   catch (x: any) { err = err || String(x?.message || x) }
-  return { title: 'CTO — IT & QA', siteOk, status, latencyMs, bugs24h, err }
+  return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, err }
 }
 
 /* ============================================================
    AGEN 2 — CSO (Customer Success): pendaftar / aktif / pasif
+   Basis data: profiles (total) + trades 24 jam (aktivitas upload).
+   Tidak ada kolom last_upload_at di skema ini — "user aktif" =
+   pemilik user_id yang muncul di trades dalam 24 jam terakhir.
    ============================================================ */
+async function fetchActiveUserIds(e: Env, since: string): Promise<Set<string>> {
+  const res = await fetch(
+    `${sbUrl(e)}/rest/v1/trades?select=user_id&created_at=gte.${encodeURIComponent(since)}&limit=1000`,
+    { headers: sbH(e), signal: timeoutSignal(10_000) },
+  )
+  if (!res.ok) throw new Error(`Supabase trades HTTP ${res.status}`)
+  const rows = (await res.json()) as { user_id?: string }[]
+  return new Set(rows.map((r) => r.user_id).filter(Boolean) as string[])
+}
+
 async function csoAgent(e: Env) {
   const since = isoAgo(24)
-  const [total, active, passive] = await Promise.all([
-    supaCount(e, 'users'),
-    supaCount(e, 'users', `${COL.userActivity}=gte.${since}`),
-    supaCount(e, 'users', `or=(${COL.userActivity}.is.null,${COL.userActivity}.lt.${since})`),
-  ])
+  const total = await supaCount(e, 'profiles')
+  const active = (await fetchActiveUserIds(e, since)).size
+  const passive = Math.max(0, total - active)
   return { title: 'CSO — Customer Success', total, active, passive }
 }
 
@@ -140,7 +167,10 @@ function fallbackDraft(angle: string): string {
 
 async function cmoAgent(e: Env) {
   const angle = ANGLES[dayIndex() % ANGLES.length]
-  const model = e.GEMINI_MODEL || 'gemini-1.5-flash'
+  // gemini-1.5-flash sudah di-retire Google (404) — default ke 2.5 flash.
+  // PENTING (pelajaran fix auto-journal): model 2.5 default menyalakan thinking
+  // yang memakan maxOutputTokens → teks terpotong/kosong. thinkingBudget: 0.
+  const model = e.GEMINI_MODEL || 'gemini-2.5-flash'
   let history: string[] = []
   try { history = JSON.parse((await kvGet(e, 'drafts:history')) || '[]') } catch { /* ignore */ }
 
@@ -167,7 +197,11 @@ async function cmoAgent(e: Env) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        generationConfig: { temperature: 1.0, maxOutputTokens: 1024 },
+        generationConfig: {
+          temperature: 1.0,
+          maxOutputTokens: 2048,
+          ...(model.startsWith('gemini-2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
       }),
       signal: timeoutSignal(30_000),
     },
@@ -289,11 +323,19 @@ async function runMorningBriefing(e: Env) {
 /* ---------- flow "ACC EMAIL": email ke user pasif ---------- */
 async function sendPassiveEmails(e: Env): Promise<number> {
   const since = isoAgo(24)
-  const url = `${sbUrl(e)}/rest/v1/users?select=${COL.userEmail}&or=(${COL.userActivity}.is.null,${COL.userActivity}.lt.${since})&limit=50`
+  const activeIds = await fetchActiveUserIds(e, since)
+
+  // kandidat: profil dengan email, terbaru dulu — maks 200 kandidat
+  const url = `${sbUrl(e)}/rest/v1/profiles?select=id,email&email=not.is.null&order=created_at.desc&limit=200`
   const res = await fetch(url, { headers: sbH(e), signal: timeoutSignal(10_000) })
-  if (!res.ok) throw new Error(`Supabase users HTTP ${res.status}`)
-  const rows: any[] = await res.json()
-  const emails = rows.map((r) => r?.[COL.userEmail]).filter(Boolean)
+  if (!res.ok) throw new Error(`Supabase profiles HTTP ${res.status}`)
+  const profiles = (await res.json()) as { id?: string; email?: string }[]
+
+  const emails = profiles
+    .filter((p) => p.email && p.id && !activeIds.has(p.id))
+    .slice(0, 50)
+    .map((p) => p.email as string)
+
   let sent = 0
   for (const to of emails) {
     const r = await fetch('https://api.resend.com/emails', {

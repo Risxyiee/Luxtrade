@@ -3,10 +3,11 @@
 /**
  * RuangCeoDashboard — dashboard interaktif Ruang CEO.
  * Dimuat via next/dynamic ssr:false dari page.tsx (client-only).
- * Sumber data: /api/ceo-agent (Edge Runtime).
+ * Sumber data: /api/ceo-agent (Cloudflare Workers via OpenNext).
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { motion, type Variants } from 'framer-motion'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,20 @@ interface BriefingSummary extends AgentsPayload {
 }
 
 const KEY_STORAGE = 'ruangCeoKey'
+
+/* ---------- animasi (framer-motion) ---------- */
+const stagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+}
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'easeOut' } },
+}
+const fadeIn: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { duration: 0.5 } },
+}
 
 async function callAgent(action: string, key: string): Promise<Record<string, unknown>> {
   const res = await fetch(`/api/ceo-agent?action=${encodeURIComponent(action)}`, {
@@ -177,23 +192,35 @@ export default function RuangCeoDashboard() {
     : 0
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
+    <motion.div
+      className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10"
+      variants={stagger}
+      initial="hidden"
+      animate="show"
+    >
       {/* ── Header ── */}
-      <header className="mb-8">
+      <motion.header className="mb-8" variants={fadeIn}>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow transition-transform duration-300 hover:scale-105 hover:rotate-3">
             <Bot className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Ruang CEO</h1>
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
+              Ruang CEO
+              <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
+            </h1>
             <p className="text-sm text-muted-foreground">
               LuxTradee Super AI Agent — CTO · CSO · CMO · CFO dalam satu dasbor
             </p>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* ── Auth + Aksi ── */}
+      <motion.div variants={fadeUp} whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
       <Card className="mb-6">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -248,11 +275,13 @@ export default function RuangCeoDashboard() {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* ── 4 Kartu Agen ── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* CTO */}
-        <Card>
+        <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+        <Card className="h-full">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2"><Server className="h-4 w-4" aria-hidden="true" /> CTO — IT &amp; QA</span>
@@ -276,9 +305,11 @@ export default function RuangCeoDashboard() {
             ) : <p className="text-muted-foreground">Belum ada data — klik “Muat Data 4 Agen”.</p>}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* CSO */}
-        <Card>
+        <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+        <Card className="h-full">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4" aria-hidden="true" /> CSO — Customer Success
@@ -307,9 +338,11 @@ export default function RuangCeoDashboard() {
             ) : <p className="text-muted-foreground">Belum ada data.</p>}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* CMO */}
-        <Card>
+        <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+        <Card className="h-full">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2"><Megaphone className="h-4 w-4" aria-hidden="true" /> CMO — Draf TikTok</span>
@@ -339,9 +372,11 @@ export default function RuangCeoDashboard() {
               : <p className="text-sm text-muted-foreground">Belum ada data.</p>}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* CFO */}
-        <Card>
+        <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+        <Card className="h-full">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <DollarSign className="h-4 w-4" aria-hidden="true" /> CFO — Kuota API Gemini
@@ -351,7 +386,14 @@ export default function RuangCeoDashboard() {
           <CardContent className="space-y-3 text-sm">
             {cfo ? (
               <>
-                <Progress value={quotaPct} aria-label={`Kuota terpakai ${quotaPct}%`} />
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                  style={{ transformOrigin: 'left' }}
+                >
+                  <Progress value={quotaPct} aria-label={`Kuota terpakai ${quotaPct}%`} />
+                </motion.div>
                 <p>Terpakai hari ini: <strong>{fmtN(cfo.usedToday)}</strong> / {fmtN(cfo.limit)}</p>
                 <p>Kemarin: <strong>{fmtN(cfo.usedYesterday)}</strong> · Event 429 kemarin: <strong>{fmtN(cfo.quota429)}</strong></p>
                 <p className={cfo.status?.startsWith('KRITIS') ? 'font-semibold text-rose-600' : cfo.status?.startsWith('WASPADA') ? 'font-semibold text-amber-600' : 'font-semibold text-emerald-700'}>
@@ -362,11 +404,18 @@ export default function RuangCeoDashboard() {
             ) : <p className="text-muted-foreground">Belum ada data.</p>}
           </CardContent>
         </Card>
+        </motion.div>
       </div>
 
       {/* ── Briefing ── */}
       {briefing?.text && (
-        <Card className="mt-6">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="mt-6"
+        >
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Morning Briefing</CardTitle>
             <CardDescription>
@@ -386,7 +435,8 @@ export default function RuangCeoDashboard() {
             </Button>
           </CardContent>
         </Card>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   )
 }
