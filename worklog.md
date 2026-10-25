@@ -1073,3 +1073,29 @@ Stage Summary:
 - Tidak perlu SQL tambahan (bug_reports & profiles sudah ada, agent_kv sudah dijalankan user)
 - Klarifikasi ke user: kode page.tsx yang "dikirim" dulu tidak pernah masuk —
   yang diterima hanya route.ts; dashboard dibangun sendiri dan kini diberi animasi
+
+---
+Task ID: 16
+Agent: main (Z.ai Code)
+Task: Pasang UI 3D kantor virtual user (Three.js) di /kantor-ceo — file upload Pasted Content_1792916030875.txt
+
+Work Log:
+- User upload kode asli page.tsx-nya (kantor 3D Three.js, 644 baris)
+- Install three@0.186.1; verifikasi OrbitControls path ada
+- Tulis src/app/kantor-ceo/KantorCeo3D.tsx (kode user + perbaikan):
+  * fix korupsi paste: "liveTex=akeLive(),..." → liveTex=[makeLive()x3]
+  * fix ternary S.wp korup: branch akhir :[[8,.8],[sx,.8],[sx,seatZ]]
+  * WA→Discord: tombol "+ Discord", panel data.notifySent/notifyErr, CHLOG
+  * domain luxtrade.web.id → luxtradee.web.id (bubble/PHASE_TASK/drawSite/toast)
+  * thought bubble "error_logs" → bug_reports
+- page.tsx = wrapper next/dynamic ssr:false (requirement user terpenuhi)
+- Hapus RuangCeoDashboard.tsx (dashboard 2D kubangun sebelumnya — digantikan)
+- bun run lint OK; dev compile /kantor-ceo OK (1127 modules, 200)
+- Commit d7ae8f4d → push origin/main (CF auto-deploy)
+
+Stage Summary:
+- /kantor-ceo sekarang kantor virtual 3D full sesuai kode asli user
+- Token input pakai localStorage key lux_admin_secret (kode user) —
+  ADMIN_SECRET/CRON_SECRET tetap dipakai utk auth API
+- Klik laptop CEO = POST briefing (beneran kirim Discord)
+- three.js lazy-load client-only, tidak membebani SSR/prerender
