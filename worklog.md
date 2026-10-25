@@ -1510,3 +1510,23 @@ Stage Summary:
 - Commit 4f4aab30 pushed ke main → Cloudflare auto-deploy ±2-3 menit.
 - Wujud standby kini benar-benar hanya 1 pill "CEO Command Center | 23.11.08 WIB" — kanvas 3D tidak tertutup panel apa pun.
 - Catatan: HUD jam kantor (#kclock) + tombol simulasi tetap di KIRI atas (bagian scene 3D, bukan panel kanan); banner "Mode dev" hanya tampil saat dev.
+
+---
+Task ID: 27
+Agent: Z (main)
+Task: Implementasi "Bisa ditambah" — upgrade kemampuan nyata 5 karyawan AI sesuai keterangan di Struktur Tim
+
+Work Log:
+- Riset: baca route.ts (2094 baris) — struktur csoAgent/cmoAgent/cfoAgent/analystAgent/QA_ROUTES/buildBriefing; cek kolom `emotion` ada di tabel trades (auto-journal menulisnya); harga PRO = 49.000 (seed-plans).
+- CFO Putri: cfoAgent kini hitung proCount (is_pro) × proPrice (env PRO_PRICE_IDR default 49rb) = estMRR + target (env MRR_TARGET_IDR default 10jt) → baris baru di briefing + kartu pendapatan hijau + progress bar target di Ruang CFO.
+- CSO Maya: churnRisk = user pernah upload 30 hari tapi diam 3 hari (2 query agregat) → baris briefing + kartu amber di Ruang CSO + dock "⚠️ churn N".
+- DA Dewi: fetchTrades30 kini ambil kolom emotion; computeTradeStats hitung WR per emosi (min 5 sampel) → best/worst emotion di dataText LLM, fallback patterns, panel DA, dan pesan Discord mingguan.
+- CTO Raka: QA_ROUTES 12→15 — tambah /api/trades, /api/analyze-screenshot, /api/chat (expect 401/405 = hidup & terjaga).
+- CMO Sinta: 1 panggilan model → 3 draf (split ===DRAF-2===/===DRAF-3===, maxTokens 3000, pad bila kurang) → chips "Draf 1/2/3" di Ruang CMO + tombol salin per draf; draft[0] tetap kompatibel ke briefing.
+- TEAM_DETAIL: item terimplementasi pindah ke Tugas (⭐), "Bisa ditambah" diperbarui jujur (sisa: butuh webhook Resend / API billing / Discord bot / browser di Workers).
+- Verifikasi: lint bersih; dev server restart (sempat stuck CPU 109%); agent-browser 390x844 — sheet + ruang CFO/CSO/struktur render tanpa crash walau data undefined (null-safety terbukti).
+
+Stage Summary:
+- Commit 18aba79c pushed → Cloudflare deploy otomatis ±2-3 menit.
+- 5 dari 8 karyawan dapat kemampuan baru yang sungguhan; 3 lainnya (Bagas follow-up open-rate, Farhan A/B otomatis, Alexander Discord bot/TTS) sengaja tidak diimplement — butuh infrastruktur eksternal (Resend webhook, mesin A/B, Discord Gateway) — didokumentasikan jujur di kolom ide.
+- Env baru opsional: PRO_PRICE_IDR, MRR_TARGET_IDR (default 49rb / 10jt).
