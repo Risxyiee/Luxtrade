@@ -19,6 +19,11 @@ export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
 
+/* Nilai secret dari dashboard kadang ke-paste dgn tanda kutip/spasi → 401.
+   Bersihkan dulu sebelum dipakai. */
+const cleanEnv = (v: string | undefined) =>
+  (v || '').trim().replace(/^["']+|["']+$/g, '')
+
 const SITE_URL = 'https://luxtradee.web.id'
 const EMAIL_FROM = 'LuxTradee <noreply@luxtradee.web.id>'
 const ANGLES = [
@@ -43,13 +48,29 @@ const wibNow = () =>
 const env = () => process.env as Env
 
 function sbUrl(e: Env) {
-  return (e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
+  // URL project DIPATOK (env atau fallback yang sama dgn src/lib/api-auth.ts)
+  // — tidak boleh bisa diganti dari luar, kalau tidak email-gate bisa dipalsukan
+  return cleanEnv(e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL).replace(/\/$/, '') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
 }
 function sbAnonKey(e: Env) {
-  return e.SUPABASE_ANON_KEY || e.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  return cleanEnv(e.SUPABASE_ANON_KEY || e.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
-function sbH(e: Env) {
-  return { apikey: sbAnonKey(e), Authorization: `Bearer ${sbAnonKey(e)}` }
+function ownerEmail(e: Env) {
+  return (cleanEnv(e.OWNER_EMAIL) || 'luxtradee@gmail.com').toLowerCase()
+}
+/* ---------- verifikasi token login Supabase (email-gate CEO) ----------
+   Token Bearer dari sesi login user → GET /auth/v1/user → cocokkan email. */
+async function verifyOwnerToken(e: Env, token: string): Promise<boolean> {
+  if (!sbUrl(e) || !sbAnonKey(e) || !token) return false
+  try {
+    const res = await fetch(`${sbUrl(e)}/auth/v1/user`, {
+      headers: { apikey: sbAnonKey(e), Authorization: `Bearer ${token}` },
+      signal: timeoutSignal(10_000),
+    })
+    if (!res.ok) return false
+    const user = (await res.json()) as { email?: string }
+    return (user?.email || '').toLowerCase().trim() === ownerEmail(e)
+  } catch { return false }
 }
 
 /* ---------- KV berbasis tabel Supabase "agent_kv" ----------
@@ -79,10 +100,20 @@ async function kvIncr(e: Env, key: string): Promise<number> {
 }
 
 /* ---------- hitung baris Supabase tanpa mengunduh data ---------- */
+function sbH(e: Env) {
+  return { apikey: sbAnonKey(e), Authorization: `Bearer ${sbAnonKey(e)}` }
+}
 async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
   const url = `${sbUrl(e)}/rest/v1/${table}?select=*&limit=1${filters ? '&' + filters : ''}`
   const res = await fetch(url, { headers: { ...sbH(e), Prefer: 'count=exact' }, signal: timeoutSignal(10_000) })
-  if (!res.ok) throw new Error(`Supabase ${table} HTTP ${res.status}`)
+  if (!res.ok) {
+    const hint = res.status === 401
+      ? ' — SUPABASE_ANON_KEY salah/expired (cek Cloudflare Secrets: tanpa kutip & spasi, copy dari Supabase → Settings → API → anon public)'
+      : res.status === 404
+        ? ` — tabel "${table}" tidak ada`
+        : ''
+    throw new Error(`Supabase ${table} HTTP ${res.status}${hint}`)
+  }
   const cr = res.headers.get('content-range') || '' // "0-0/1240" atau "*/0"
   const total = parseInt(cr.split('/')[1] || '', 10)
   if (!Number.isFinite(total)) throw new Error(`content-range tidak terbaca: "${cr}"`)
@@ -93,12 +124,9 @@ async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
    AGEN 1 — CTO (IT & QA): ping situs + bug report 24 jam
    ============================================================ */
 function siteStatusNote(status: number): string {
-  // 521/522/523/524 = error edge Cloudflare (origin tidak terjangkau).
-  // Pada self-ping ini biasanya TRANSIEN (mis. saat worker sedang redeploy).
-  if ([521, 522, 523, 524].includes(status))
-    return `${status} — error edge Cloudflare, biasanya transien saat redeploy; coba lagi`
   return String(status)
 }
+void siteStatusNote
 
 async function ctoAgent(e: Env) {
   const ping = async () => {
@@ -117,12 +145,18 @@ async function ctoAgent(e: Env) {
     await new Promise((r) => setTimeout(r, 1500))
     const retry = await ping()
     if (retry.siteOk || !site.err) site = retry
-    if (!site.siteOk && [521, 522, 523, 524].includes(site.status))
-      site.err = siteStatusNote(site.status)
+  }
+
+  // 521-524 = Cloudflare edge gagal hubungi "origin". Padahal route ini EKSEKUSI
+  // DI DALAM Worker yang sama → kalau kita bisa jalan, situs pasti hidup.
+  // Self-ping CF 5xx = false negative yang dikenal → anggap OK.
+  let err = site.err
+  if (!site.siteOk && [521, 522, 523, 524].includes(site.status)) {
+    site.siteOk = true
+    err = `${site.status} (self-ping CF diabaikan — Worker aktif, situs LIVE)`
   }
 
   let bugs24h = -1
-  let err = site.err
   try { bugs24h = await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24)) }
   catch (x: any) { err = err || String(x?.message || x) }
   return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, err }
@@ -244,7 +278,7 @@ async function cfoAgent(e: Env) {
    Hanya butuh 1 secret: DISCORD_WEBHOOK_URL (sudah diset di Cloudflare).
    Pesan memakai markdown Discord (**bold**), max 2000 char. */
 async function sendDiscord(e: Env, message: string): Promise<boolean> {
-  let webhookUrl = e.DISCORD_WEBHOOK_URL || ''
+  let webhookUrl = cleanEnv(e.DISCORD_WEBHOOK_URL)
   if (!webhookUrl) {
     // fallback: binding env CF Workers (OpenNext context)
     try {
@@ -369,8 +403,24 @@ async function handle(req: Request): Promise<Response> {
   const isCron = !!e.CRON_SECRET && key === e.CRON_SECRET
   const isAdmin = !!e.ADMIN_SECRET && (auth === `Bearer ${e.ADMIN_SECRET}` || key === e.ADMIN_SECRET)
 
-  if (action !== 'info' && !(isCron || isAdmin))
-    return j({ error: 'unauthorized — tambahkan ?key=CRON_SECRET/ADMIN_SECRET atau header Authorization: Bearer <ADMIN_SECRET>' }, 401)
+  /* Browser mengirim anon key PUBLIK miliknya (yang terbukti jalan — dipakai
+     seluruh situs). Env SUPABASE_ANON_KEY yang salah di Cloudflare tertimpa
+     di sini, jadi query data & verifikasi email tetap hidup. Anon key memang
+     publik — keamanan tetap di email-gate JWT di bawah. */
+  const hKey = cleanEnv(req.headers.get('x-sb-key') || '')
+  if (hKey.length > 20) (e as Record<string, string>).SUPABASE_ANON_KEY = hKey
+
+  /* Email-gate: Bearer token = sesi login Supabase user.
+     Cukup email owner (default luxtradee@gmail.com) — tanpa perlu secret apa pun. */
+  let isOwner = false
+  if (!isAdmin && auth.startsWith('Bearer ')) {
+    const tok = auth.slice(7).trim()
+    if (tok && tok !== e.ADMIN_SECRET && tok !== e.CRON_SECRET)
+      isOwner = await verifyOwnerToken(e, tok)
+  }
+
+  if (action !== 'info' && !(isCron || isAdmin || isOwner))
+    return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
   if (action !== 'info' && action !== 'quota' && action !== 'briefing-last') {
     const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(k => (k === 'SUPABASE_URL' && !sbUrl(e)) || (k === 'SUPABASE_ANON_KEY' && !sbAnonKey(e)))
@@ -405,8 +455,7 @@ async function handle(req: Request): Promise<Response> {
       return j({ allowed: true, usedToday: used + 1, remaining: limit - used - 1, limit })
     }
     case 'acc-email': {
-      // Flow "ACC EMAIL" — dipicu tombol di dashboard /kantor-ceo
-      // (pengganti reply "ACC EMAIL" via WhatsApp Fonnte yang sudah dimatikan)
+      // Flow "ACC EMAIL" — dipicu tombol di dashboard CEO (owner login)
       const day = utcDay()
       if (await kvGet(e, `acc_email:${day}`)) return j({ ok: true, dup: true })
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
@@ -418,10 +467,19 @@ async function handle(req: Request): Promise<Response> {
       try { await sendDiscord(e, reply) } catch { /* ignore */ }
       return j({ ok: true, accEmail: true, emailsSent })
     }
+    case 'discord-test':
+      // Diagnosa: kirim pesan tes ke Discord, laporkan hasil mentahnya
+      try {
+        await sendDiscord(e, '🧪 Tes Ruang CEO — koneksi Discord webhook OK ✅')
+        return j({ ok: true, message: 'tes terkirim — cek channel Discord' })
+      } catch (x: any) {
+        return j({ ok: false, error: String(x?.message || x) })
+      }
     default:
       return j({
         app: 'Luxtrade Super AI Agent',
         notify: 'Discord webhook (DISCORD_WEBHOOK_URL)',
+        owner: ownerEmail(e),
         actions: [
           'action=briefing (POST/GET) — jalankan 4 agen + kirim laporan ke Discord',
           'action=agents — data 4 agen tanpa kirim',
@@ -429,6 +487,7 @@ async function handle(req: Request): Promise<Response> {
           'action=quota-track (POST) — gerbang anti-429 sebelum Gemini Vision',
           'action=briefing-last — briefing terakhir',
           'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
+          'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
   }
