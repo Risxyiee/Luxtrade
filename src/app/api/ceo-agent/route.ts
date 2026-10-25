@@ -281,6 +281,40 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
   return text
 }
 
+/* 1 panggilan OpenRouter (format OpenAI — cadangan Gemini CMO).
+   Butuh OPENROUTER_API_KEY. Model default: zhipu/glm-4.7 flash
+   (murah, cepat, bahasa Indonesia lumayan). */
+async function openRouterText(e: Env, systemPrompt: string, userPrompt: string, maxTokens = 2048): Promise<string> {
+  const orKey = cleanEnv(e.OPENROUTER_API_KEY)
+  if (!orKey) throw new Error('OPENROUTER_API_KEY belum diset — tambah di Cloudflare Workers Secrets')
+  const model = e.OPENROUTER_MODEL || 'zhipu/glm-4.7 flash'
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${orKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: maxTokens,
+    }),
+    signal: timeoutSignal(30_000),
+  })
+  if (res.status === 429) {
+    const x: any = new Error('OpenRouter 429 (rate limit)'); x.status = 429
+    throw x
+  }
+  if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
+  const data: any = await res.json()
+  const text = (data?.choices?.[0]?.message?.content || '').trim()
+  if (!text) throw new Error('OpenRouter mengembalikan respons kosong')
+  return text
+}
+
 /* Top 5 konten TikTok milik Bos, urut views (tabel tiktok_posts).
    Butuh service_role key — tabel terkunci RLS. Gagal → [] (fallback). */
 async function fetchTopTikToks(e: Env): Promise<{ url: string; caption: string; views: number; likes: number }[]> {
@@ -324,18 +358,33 @@ async function cmoAgent(e: Env) {
     (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
     `\nOutput: HANYA naskah TikTok baru (hook 3 detik pertama → body → CTA, durasi 30–45 detik), tanpa penjelasan tambahan.`
 
+  /* ═══════ AUTO-FALLBACK: Gemini → OpenRouter → fallbackDraft ═══════
+     1) Gemini (API utama — gratis, kualitas bagus)
+     2) OpenRouter (cadangan — kalau Gemini 429/error, otomatis pindah)
+     3) fallbackDraft (fail-safe terakhir — teks statis) */
   let draft: string
+  let provider: 'gemini' | 'openrouter' | 'fallback' = 'fallback'
+  let usedFallback = false
+  let fallbackError = ''
+
   try {
     draft = await geminiText(e, systemPrompt, userPrompt, 2048, 1.0)
-  } catch (x: any) {
-    if (x?.status === 429)
-      return { draft: fallbackDraft(angle), angle, usedFallback: true, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, error: 'Gemini 429 (rate limit)' }
-    throw x
+    provider = 'gemini'
+  } catch (geminiErr: any) {
+    fallbackError = String(geminiErr?.message || geminiErr).slice(0, 120)
+    try {
+      draft = await openRouterText(e, systemPrompt, userPrompt, 2048)
+      provider = 'openrouter'
+    } catch (orErr: any) {
+      fallbackError += ' | OR: ' + String(orErr?.message || orErr).slice(0, 80)
+      draft = fallbackDraft(angle)
+      usedFallback = true
+    }
   }
 
   history.unshift(draft)
   await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 5)))
-  return { draft, angle, usedFallback: false, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length }
+  return { draft, angle, usedFallback, provider, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
 }
 
 /* ============================================================
@@ -420,7 +469,8 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push('')
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
-  if (cmo?.usedFallback) L.push('_(Gemini limit — pakai draf cadangan, mohon revisi manual)_')
+  if (cmo?.usedFallback) L.push('_(Gemini + OpenRouter gagal — pakai draf cadangan, mohon revisi manual)_')
+  else if (cmo?.provider === 'openrouter') L.push('_(Gemini gagal — otomatis pakai OpenRouter sebagai cadangan ✅)_')
   if (cmo?.basedOn === 'tiktok') L.push(`📚 Dianalisis dari ${fmtN(cmo.analyzedPosts)} konten TikTok asli lo (urut views) — pola pemenang ditiru`)
   else if (cmo?.draft) L.push('📚 Analisis pakai referensi statis — isi "Bahan Analisis TikTok" di Ruang CMO biar makin akurat')
   L.push('')
