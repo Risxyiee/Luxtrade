@@ -29,6 +29,19 @@ interface Env { [k: string]: string | undefined }
 const cleanEnv = (v: string | undefined) =>
   (v || '').trim().replace(/^["']+|["']+$/g, '')
 
+/* Baca secret dari process.env dulu, lalu fallback binding CF Workers
+   (OpenNext context) — kadang secret dashboard tidak masuk process.env
+   tapi tetap tersedia di env Worker. Dipakai diag & email-test. */
+function cfSecret(e: Env, name: string): string {
+  const v = cleanEnv((e as Record<string, string | undefined>)[name])
+  if (v) return v
+  try {
+    const sym = Symbol.for('__cloudflare-context__')
+    const ctx = (globalThis as Record<symbol, unknown>)[sym] as { env?: Record<string, string> } | undefined
+    return cleanEnv(ctx?.env?.[name]) || ''
+  } catch { return '' }
+}
+
 /* PENTING (fix briefing cron "—"/gagal diambil): NEXT_PUBLIC_* direferensikan
    LANGSUNG di sini supaya Next.js meng-inline nilainya saat BUILD. Akses
    dinamis process.env[...] di Cloudflare Workers hanya membaca runtime
@@ -713,14 +726,23 @@ async function runMorningBriefing(e: Env) {
     try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
   }
   /* AKUNTABILITAS NBA — Alexander ingatkan prioritas KEMARIN dulu.
-     Bos jadi punya jejak: dilakukan atau harus ada alasan ganti. */
+     Bos jadi punya jejak: dilakukan atau harus ada alasan ganti.
+     ⭐ Baru: Bos bisa jawab oke/not-oke (tombol Ruang Rapat / slash command
+     Discord /nba-oke · /nba-not) — jawaban dicatat & briefing menghormati itu. */
   let nbaLine = ''
   try {
     const raw = await kvGet(e, 'nba:last')
     if (raw) {
       const p = JSON.parse(raw) as { at?: string; text?: string }
-      if (p?.text && String(p.at || '').slice(0, 10) && String(p.at).slice(0, 10) < utcDay())
-        nbaLine = `🎯 **PRIORITAS KEMARIN**: ${p.text}\n→ Bos, dilakukan? Kalau belum: jadikan prioritas utama hari ini, atau bilang Alexander kenapa diganti.`
+      if (p?.text && String(p.at || '').slice(0, 10) && String(p.at).slice(0, 10) < utcDay()) {
+        const verdict = await kvGet(e, `nba-verdict:${String(p.at).slice(0, 10)}`)
+        if (verdict === 'oke')
+          nbaLine = `🎯 **PRIORITAS KEMARIN**: ${p.text}\n→ ✅ Bos sudah konfirmasi OKE — dicatat ke Memori Kantor. Kalau sudah tuntas, kabari Alexander buat update status.`
+        else if (verdict === 'not')
+          nbaLine = `🎯 **PRIORITAS KEMARIN**: ${p.text}\n→ ❌ Bos jawab NOT OKE — prioritas diganti tanpa rasa bersalah. Prioritas baru dipilih di bawah.`
+        else
+          nbaLine = `🎯 **PRIORITAS KEMARIN**: ${p.text}\n→ Bos, dilakukan? Kalau belum: jadikan prioritas utama hari ini, atau bilang Alexander kenapa diganti.`
+      }
     }
   } catch { /* ignore */ }
 
@@ -1063,6 +1085,23 @@ async function weeklyReport(e: Env) {
       L.push(`💼 **COO — Jualan 7 hari**: ${ids.length} penawaran PRO terkirim → ${pro} lead sudah PRO (${Math.round((pro / ids.length) * 100)}% konversi)${pro > 0 ? ' 🎉' : ''}`)
     } else L.push('💼 **COO — Jualan 7 hari**: belum ada penawaran terkirim minggu ini')
   } catch { L.push('💼 **COO — Jualan 7 hari**: data gagal diambil') }
+
+  /* 🧪 A/B CTA Landing — eksperimen otomatis Farhan (7 hari) */
+  try {
+    const ab = await abSnapshot(e)
+    L.push(`🧪 **GH — A/B CTA Landing (7 hari)**: A ${ab.A.views} lihat · ${ab.A.clicks} klik (${ab.A.cr}%) | B ${ab.B.views} lihat · ${ab.B.clicks} klik (${ab.B.cr}%) → ${ab.winner}`)
+  } catch { /* A/B opsional — laporan tetap jalan */ }
+
+  /* 📬 Open-rate email (webhook Resend) — mata Bagas */
+  try {
+    let opens7 = 0, clicks7 = 0
+    for (let i = 0; i < 7; i++) {
+      const d = utcDay(-i)
+      opens7 += parseInt((await kvGet(e, `opens:${d}`)) || '0', 10) || 0
+      clicks7 += parseInt((await kvGet(e, `clicks:${d}`)) || '0', 10) || 0
+    }
+    L.push(`📬 **Email open-rate 7 hari** (webhook Resend): ${fmtN(opens7)} kali dibuka · ${fmtN(clicks7)} klik link${(opens7 || clicks7) ? '' : ' — pasang webhook: resend.com → Webhooks → /api/webhooks/resend'}`)
+  } catch { /* opsional */ }
 
   /* Email Resend — pemakaian 7 hari (free tier ±3.000/bulan) */
   let em7 = 0
@@ -1664,13 +1703,35 @@ function daToDiscord(d: DaInsight): string {
    Synch dengan Dewi: insight DA dipakai sebagai bahan.
    ============================================================ */
 interface GhExperiment { name: string; how: string; metric: string; effort: string }
+interface AbVariantStat { views: number; clicks: number; cr: number }
 interface GhInsight {
   at: string
   provider: 'gemini' | 'openrouter' | 'fallback'
   insight: string
   experiments: GhExperiment[]
   funnel: { total: number; pro: number; baru7: number; referred: number; onboarded: number; activated7: number }
+  ab?: { A: AbVariantStat; B: AbVariantStat; winner: string }
   dupToday?: boolean
+}
+
+/* ---------- 🧪 A/B CTA Landing — eksperimen otomatis Farhan ----------
+   Landing membagi pengunjung 50/50 (localStorage bucket) → view/click
+   dicatat route /api/ab-track ke agent_kv: ab:view|click:{A|B}:{tanggal}.
+   Fungsi ini baca rekap 7 hari — dipakai ghAgent, weekly, & Ruang Growth. */
+async function abSnapshot(e: Env): Promise<{ A: AbVariantStat; B: AbVariantStat; winner: string }> {
+  const zero = (): AbVariantStat => ({ views: 0, clicks: 0, cr: 0 })
+  const out: Record<'A' | 'B', AbVariantStat> = { A: zero(), B: zero() }
+  for (let i = 0; i < 7; i++) {
+    const d = utcDay(-i)
+    for (const v of ['A', 'B'] as const) {
+      out[v].views += parseInt((await kvGet(e, `ab:view:${v}:${d}`)) || '0', 10) || 0
+      out[v].clicks += parseInt((await kvGet(e, `ab:click:${v}:${d}`)) || '0', 10) || 0
+    }
+  }
+  for (const v of ['A', 'B'] as const) out[v].cr = out[v].views ? Math.round((out[v].clicks / out[v].views) * 1000) / 10 : 0
+  const winner = (out.A.views < 20 && out.B.views < 20) ? 'belum cukup data (<20 lihat/varian)'
+    : out.B.cr > out.A.cr ? 'B 🏆' : out.A.cr > out.B.cr ? 'A 🏆' : 'imbang'
+  return { A: out.A, B: out.B, winner }
 }
 
 async function growthAgent(e: Env): Promise<GhInsight> {
@@ -1707,6 +1768,14 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   let daLine = ''
   try { const d = JSON.parse((await kvGet(e, 'da:last')) || 'null'); if (d?.insight) daLine = `\nINSIGHT DATA ANALYST (Dewi) TERBARU: "${String(d.insight).slice(0, 220)}"` } catch { /* ignore */ }
 
+  /* Hasil A/B CTA landing — Farhan harus tahu eksperimen yang sedang jalan */
+  let ab: GhInsight['ab'] = null
+  let abLine = ''
+  try {
+    ab = await abSnapshot(e)
+    abLine = `\nHASIL A/B CTA LANDING 7 HARI (eksperimen otomatis milikmu): varian A ${ab.A.views} lihat · ${ab.A.clicks} klik (${ab.A.cr}%) | varian B ${ab.B.views} lihat · ${ab.B.clicks} klik (${ab.B.cr}%) → pemenang sementara: ${ab.winner}`
+  } catch { /* A/B opsional */ }
+
   const funnelText =
     `FUNNEL LUXTRADEE (nyata):\n` +
     `- Total pendaftar: ${total} · User PRO: ${pro} (${total ? Math.round((pro / total) * 100) : 0}%)\n` +
@@ -1722,7 +1791,7 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   let raw = ''
   try {
     /* SOP Multi-Agent — FARHAN (GH) rancang eksperimen pakai modelnya sendiri → Gemini cadangan */
-    const brain = await agentBrain(e, 'gh', systemPrompt, funnelText + daLine + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
+    const brain = await agentBrain(e, 'gh', systemPrompt, funnelText + abLine + daLine + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
     raw = brain.text
     provider = brain.provider
   } catch { raw = '' }
@@ -1751,7 +1820,7 @@ async function growthAgent(e: Env): Promise<GhInsight> {
       { name: 'Reward referral 2 arah', how: `Benefit PRO untuk pengundang & diundang. Saat ini baru ${referred} user dari referral — potensi gratis belum digarap.`, metric: 'Pendaftar dari referral mingguan naik', effort: 'sedang' },
     ]
   }
-  const out: GhInsight = { ...base, provider, insight, experiments }
+  const out: GhInsight = { ...base, provider, insight, experiments, ab: ab || undefined }
   await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
   if (insight) await memAdd(e, 'GH Farhan', `Funnel (${funnel.total} pendaftar, PRO ${funnel.pro}): ${insight}`)
   return out
@@ -1939,7 +2008,7 @@ async function handle(req: Request): Promise<Response> {
     }
     case 'diag': {
       // Diagnostik sistem untuk Ruang CTO — periksa env + tes tiap query
-      const has = (k: string) => !!cleanEnv(e[k])
+      const has = (k: string) => !!cfSecret(e, k)
       const out: Record<string, unknown> = {
         at: new Date().toISOString(),
         sbUrl: sbUrl(e),
@@ -1951,9 +2020,19 @@ async function handle(req: Request): Promise<Response> {
           OPENROUTER_MODEL: has('OPENROUTER_MODEL'),
           RESEND_API_KEY: has('RESEND_API_KEY'),
           DISCORD_WEBHOOK_URL: has('DISCORD_WEBHOOK_URL'),
+          RESEND_WEBHOOK_SECRET: has('RESEND_WEBHOOK_SECRET'),
+          DISCORD_BOT_TOKEN: has('DISCORD_BOT_TOKEN'),
+          DISCORD_PUBLIC_KEY: has('DISCORD_PUBLIC_KEY'),
+          DISCORD_APP_ID: has('DISCORD_APP_ID'),
           CRON_SECRET: has('CRON_SECRET'),
           ADMIN_SECRET: has('ADMIN_SECRET'),
           OWNER_EMAIL: has('OWNER_EMAIL'),
+        },
+        setup: {
+          RESEND_API_KEY: 'Cloudflare → Workers & Pages → luxtradee → Settings → Variables & Secrets → Add: RESEND_API_KEY (re_...) Encrypt → Deploy. Lalu tes: tombol 🧪 Tes Email di Ruang Rapat.',
+          DISCORD_WEBHOOK_URL: 'Cloudflare → Variables & Secrets → Add: DISCORD_WEBHOOK_URL (discord.com/api/webhooks/...) Encrypt → Deploy. Lalu tes: tombol 🧪 Tes Discord.',
+          RESEND_WEBHOOK_SECRET: 'Opsional tapi disarankan: resend.com → Webhooks → copy Signing Secret → secret RESEND_WEBHOOK_SECRET (verifikasi event email.opened).',
+          DISCORD_BOT_TOKEN: 'Butuh chat 2 arah di Discord: discord.com/developers → Bot → Reset Token → secret DISCORD_BOT_TOKEN (+ DISCORD_APP_ID & DISCORD_PUBLIC_KEY) → klik 🤖 Daftarkan /bos.',
         },
       }
       const t = async (name: string, fn: () => Promise<unknown>) => {
@@ -1998,6 +2077,115 @@ async function handle(req: Request): Promise<Response> {
       } catch (x: any) {
         return j({ ok: false, error: String(x?.message || x) })
       }
+    case 'nba-verdict': {
+      // ⭐ Bos jawab prioritas NBA hari ini: oke (eksekusi) / not (ganti).
+      // Dipicu tombol di Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not.
+      const v = (url.searchParams.get('verdict') || '').toLowerCase()
+      if (v !== 'oke' && v !== 'not') return j({ ok: false, error: 'verdict harus oke atau not' }, 400)
+      const day = utcDay()
+      await kvSet(e, `nba-verdict:${day}`, v)
+      const raw = await kvGet(e, 'nba:last').catch(() => null)
+      let snippet = ''
+      try { snippet = String(JSON.parse(raw || '{}')?.text || '').slice(0, 90) } catch { /* ignore */ }
+      await memAdd(e, 'CEO Alexander', v === 'oke'
+        ? `Bos konfirmasi OKE untuk NBA hari ini: "${snippet}…" — dieksekusi`
+        : `Bos jawab NOT OKE untuk NBA hari ini: "${snippet}…" — prioritas diganti`)
+      try { await sendDiscord(e, v === 'oke' ? `✅ Bos: **OKE** — NBA hari ini dieksekusi: ${snippet}` : `❌ Bos: **NOT OKE** — NBA hari ini diganti: ${snippet}`) } catch { /* ignore */ }
+      return j({ ok: true, verdict: v, note: v === 'oke' ? 'NBA hari ini dicatat OKE — besok Alexander cek tuntasnya' : 'NBA diganti — Alexander pilih prioritas baru besok pagi' })
+    }
+    case 'nba-verdict-last':
+      return j({ verdict: (await kvGet(e, `nba-verdict:${utcDay()}`)) || null })
+    case 'email-test': {
+      // ⭐ Diagnosa Resend: kirim email tes ke Bos (OWNER_EMAIL), laporkan
+      // hasil mentahnya — biar kelihatan salah di mana (key/domain/kuota).
+      let apiKey = cleanEnv(e.RESEND_API_KEY)
+      if (!apiKey) {
+        try {
+          const sym = Symbol.for('__cloudflare-context__')
+          const ctx = (globalThis as Record<symbol, unknown>)[sym] as { env?: Record<string, string> } | undefined
+          apiKey = cleanEnv(ctx?.env?.RESEND_API_KEY) || ''
+        } catch { /* ignore */ }
+      }
+      if (!apiKey)
+        return j({
+          ok: false,
+          error: 'RESEND_API_KEY belum terbaca dari Worker',
+          setup: [
+            '1. Cloudflare → Workers & Pages → luxtradee → Settings → Variables & Secrets',
+            '2. Add variable → Name: RESEND_API_KEY · Value: re_... · pilih Encrypt (Secret)',
+            '3. Centang Production & Preview → Deploy',
+            '4. Tunggu deploy selesai (±2-3 mnt) → coba lagi',
+          ],
+        })
+      const to = ownerEmail(e)
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            from: EMAIL_FROM,
+            to,
+            subject: '🧪 Tes Ruang CEO — koneksi Resend OK',
+            text: `Tes koneksi Resend dari Ruang CEO Luxtradee.\n\nWaktu: ${wibNow()}\n\nKalau email ini masuk, RESEND_API_KEY sudah terpasang benar — karyawan AI (Maya CSO, Bagas COO) bisa kirim email.\n\nSatu langkah lagi biar fitur follow-up jalan: pasang webhook\nresend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend`,
+          }),
+          signal: timeoutSignal(15_000),
+        })
+        const data = (await res.json().catch(() => null)) as { id?: string; message?: string; name?: string } | null
+        if (!res.ok) {
+          const msg = String(data?.message || `HTTP ${res.status}`)
+          const hint = res.status === 401 ? 'API key salah/kadaluarsa — buat ulang di resend.com/api-keys lalu update secret RESEND_API_KEY'
+            : /not verified|domain/i.test(msg) ? `Domain belum diverifikasi di Resend — buka resend.com/domains → Add Domain luxtradee.web.id → pasang DNS record (${msg})`
+            : res.status === 422 ? `${msg} — kalau soal "testing emails", verifikasi domain dulu di resend.com/domains`
+            : msg
+          return j({ ok: false, status: res.status, error: hint })
+        }
+        return j({ ok: true, message: `tes terkirim ke ${to} — cek inbox (atau folder spam)`, id: data?.id })
+      } catch (x: any) {
+        return j({ ok: false, error: String(x?.message || x) })
+      }
+    }
+    case 'discord-setup': {
+      // ⭐ Daftarkan slash command bot Alexander (/bos, /nba-oke, /nba-not)
+      // ke Discord — dipanggil 1× setelah 3 secret dipasang.
+      const appId = cleanEnv(e.DISCORD_APP_ID)
+      const botToken = cleanEnv(e.DISCORD_BOT_TOKEN)
+      if (!appId || !botToken)
+        return j({
+          ok: false,
+          error: 'DISCORD_APP_ID & DISCORD_BOT_TOKEN belum diset',
+          setup: [
+            '1. discord.com/developers → New Application → copy APPLICATION ID → secret DISCORD_APP_ID',
+            '2. Tab Bot → Reset Token → copy → secret DISCORD_BOT_TOKEN',
+            '3. Tab General Information → copy PUBLIC KEY → secret DISCORD_PUBLIC_KEY',
+            '4. Interactions Endpoint URL: https://luxtradee.web.id/api/discord-interactions',
+            '5. OAuth2 → URL Generator → scope bot+applications.commands → invite ke server',
+            '6. Klik tombol ini lagi untuk daftarkan perintah /bos',
+          ],
+        })
+      try {
+        const res = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bot ${botToken}` },
+          body: JSON.stringify([
+            {
+              name: 'bos', description: 'Ngobrol langsung dengan Alexander (CEO AI Luxtradee)',
+              options: [{ name: 'pesan', description: 'Apa yang mau kamu tanyakan?', type: 3, required: true }],
+            },
+            { name: 'nba-oke', description: 'Jawab OKE untuk prioritas NBA hari ini (dieksekusi)' },
+            { name: 'nba-not', description: 'Jawab NOT OKE — minta Alexander ganti prioritas' },
+          ]),
+          signal: timeoutSignal(15_000),
+        })
+        const data = (await res.json().catch(() => null)) as unknown
+        if (!res.ok) {
+          const m = JSON.stringify(data).slice(0, 160)
+          return j({ ok: false, error: `Discord HTTP ${res.status} — ${m}` })
+        }
+        return j({ ok: true, message: 'Perintah /bos · /nba-oke · /nba-not terdaftar — coba di channel Discord (mungkin perlu restart Discord)' })
+      } catch (x: any) {
+        return j({ ok: false, error: String(x?.message || x) })
+      }
+    }
     case 'watchdog':
       // CTO jaga situs 24/7 — Cloudflare cron tiap 15 menit (worker-entry.ts):
       // /api/ceo-agent?action=watchdog&key=CRON_SECRET

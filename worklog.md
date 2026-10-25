@@ -1530,3 +1530,22 @@ Stage Summary:
 - Commit 18aba79c pushed → Cloudflare deploy otomatis ±2-3 menit.
 - 5 dari 8 karyawan dapat kemampuan baru yang sungguhan; 3 lainnya (Bagas follow-up open-rate, Farhan A/B otomatis, Alexander Discord bot/TTS) sengaja tidak diimplement — butuh infrastruktur eksternal (Resend webhook, mesin A/B, Discord Gateway) — didokumentasikan jujur di kolom ide.
 - Env baru opsional: PRO_PRICE_IDR, MRR_TARGET_IDR (default 49rb / 10jt).
+
+---
+Task ID: 28
+Agent: Z (main)
+Task: Implementasi 3 kemampuan yang sempat "sengaja tidak" di Task 27 — Bagas follow-up open-rate, Farhan A/B otomatis, Alexander chat 2 arah + TTS (+ bonus diagnostik email-test & hint setup)
+
+Work Log:
+- Bagas COO (open-rate): route baru `/api/webhooks/resend` (receiver webhook Resend: email.opened/clicked/bounced/delivered → agent_kv `open:{email}` + `opens:{tanggal}`; verifikasi svix HMAC opsional via RESEND_WEBHOOK_SECRET). Cron `/api/cron/ai-coo-agent` dapat PASS FOLLOW-UP: lead yang approved-nya diemail, buka email (KV) tapi masih FREE → draf follow-up otomatis dengan kupon diskon terkontrol (env COUPON_PERCENT default 20 → kode DISKON20), anti-spam 1×/7 hari (KV followup:{email}), maks 2/hari, bounce di-skip. Badge "🔄 FOLLOW-UP · buka email · kupon" di Ruang COO.
+- Farhan GH (A/B): route baru `/api/ab-track` (POST view/click per varian, GET rekap 7 hari + pemenang). Landing FinalCTA kini pakai useAbVariant: bucket 50/50 localStorage, view 1×/sesi, klik terkirim keepalive; varian A "Daftar Gratis Sekarang" vs B "Mulai Gratis — Bangun Edge Tradingmu". ceo-agent: abSnapshot() → masuk ghAgent (context LLM + out.ab), laporan mingguan (baris 🧪 A/B + 📬 open-rate 7 hari), kartu A/B di Ruang Growth.
+- Alexander CEO: action `nba-verdict` (tombol ✅ Oke / ❌ Not oke di kartu NBA Ruang Rapat → KV nba-verdict:{day} + memori + Discord; briefing besok menghormati verdict), route baru `/api/discord-interactions` (chat 2 arah TANPA Gateway: verifikasi Ed25519 DISCORD_PUBLIC_KEY, /bos → jawaban Llama 3.1 8B via OpenRouter→Gemini dengan konteks briefing, deferred type 5 + PATCH @original via REST bot; /nba-oke /nba-not juga didukung), action `discord-setup` (daftarkan 3 slash command via REST), TTS briefing: tombol 🔊 Bacakan Briefing (speechSynthesis id-ID, strip markdown, 100% browser).
+- Bonus diagnostik (kelanjutan pertanyaan "apikey resend & webhook discord masih gabisa?"): helper cfSecret (process.env → fallback CF context), action `email-test` (kirim email tes ke OWNER_EMAIL, error mentah + hint: key salah/domain belum verifikasi/testing email), diag kini cek RESEND_WEBHOOK_SECRET/DISCORD_BOT_TOKEN/DISCORD_PUBLIC_KEY/DISCORD_APP_ID + tampilkan panduan setup per key yang hilang; tombol 🧪 Tes Email & 🤖 Daftarkan /bos di Ruang Rapat.
+- TEAM_DETAIL (Ruang Struktur): Bagas/Farhan/Alexander tugas⭐ + batas + ide diperbarui jujur sesuai fitur baru.
+- Verifikasi: lint bersih; endpoint diuji (ab-track POST/GET OK, resend webhook POST OK, discord-interactions 401 tanpa signature ✅, email-test tampil di UI); agent-browser: varian A/B landing ganti sesuai bucket (A & B dicek manual), klik CTA → POST /api/ab-track 200, Ruang Rapat tampil tombol baru, Ruang Struktur menampilkan 4 teks kemampuan baru, mobile 390×844 render, tanpa error console baru.
+
+Stage Summary:
+- Semua item 💡 yang kemarin "butuh infrastruktur eksternal" kini TERIMPLEMENT + bonus NBA verdict & TTS.
+- Setup yang perlu Bos lakukan (sekali): (1) resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend (+ secret RESEND_WEBHOOK_SECRET opsional); (2) khusus chat Discord: 3 secret DISCORD_APP_ID/DISCORD_BOT_TOKEN/DISCORD_PUBLIC_KEY + Interactions Endpoint URL → klik 🤖 Daftarkan /bos.
+- Env baru opsional: COUPON_PERCENT (default 20).
+- Commit: feat: kemampuan baru Bagas/Farhan/Alexander — follow-up open-rate, A/B CTA, chat Discord 2 arah, TTS, verdict NBA

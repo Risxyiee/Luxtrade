@@ -118,7 +118,7 @@ export default function KantorCeo3D() {
     if (action.startsWith('growth')) return ['GH']
     if (action === 'diag' || action === 'watchdog' || action === 'qa' || action === 'e2e' || action === 'e2e-last') return ['CTO']
     if (action === 'weekly') return ['CEO']
-    if (action === 'discord-test' || action === 'briefing-last') return ['CEO']
+    if (action === 'discord-test' || action === 'briefing-last' || action === 'email-test' || action === 'discord-setup' || action.startsWith('nba-verdict')) return ['CEO']
     return []
   }
   const call = useCallback(async (action: string, method = 'GET') => {

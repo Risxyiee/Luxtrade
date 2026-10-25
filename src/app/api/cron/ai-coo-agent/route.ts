@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
 import { callLLM, extractJson, getLLMProviderName, type LLMResult } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
@@ -35,6 +36,15 @@ export const dynamic = 'force-dynamic'
 
 const MAX_LEADS_PER_RUN = 3
 const RECONTACT_COOLDOWN_DAYS = 7
+
+/* ⭐ FOLLOW-UP "yang buka email" — butuh webhook Resend aktif
+   (resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend).
+   Webhook itu menulis agent_kv: open:{email} → lead yang BUKA email
+   penawaran tapi belum jadi PRO mendapat 1 email follow-up berisi
+   kupon diskon terkontrol. Anti-spam: 1× per 7 hari per lead,
+   maks 2 follow-up per hari. */
+const FOLLOWUP_MAX_PER_RUN = 2
+const FOLLOWUP_COOLDOWN_DAYS = 7
 
 interface CooLead {
   id: string
@@ -185,6 +195,148 @@ async function generateCooDraft(l: CooLead): Promise<CooDraft> {
   return buildTemplateDraft(l)
 }
 
+// ─── KV kecil di tabel agent_kv (dibaca juga oleh route webhook Resend) ────
+async function kvAgentGet(admin: SupabaseClient, key: string): Promise<string | null> {
+  try {
+    const { data } = await admin.from('agent_kv').select('value').eq('key', key).maybeSingle()
+    return (data as { value?: string } | null)?.value ?? null
+  } catch { return null }
+}
+async function kvAgentSet(admin: SupabaseClient, key: string, value: string): Promise<void> {
+  try { await admin.from('agent_kv').upsert({ key, value }, { onConflict: 'key' }) } catch { /* non-kritis */ }
+}
+
+// ─── ⭐ FOLLOW-UP: lead yang BUKA email tapi belum PRO ─────────────────────
+const COO_FOLLOWUP_SYSTEM_PROMPT =
+  `Kamu Bagas, COO Luxtradee (jurnal trading XAUUSD) yang jago closing. KONTEKS: lead ini sudah MEMBUKA email penawaran PRO sebelumnya tapi belum upgrade — dia tertarik tapi ragu. TUGAS: tulis 1 email follow-up singkat (maks 150 kata) yang ramah bukan nagih: (1) akui dia buka email kemarin, (2) tawarkan bantuan menjawab keraguan, (3) sebut kupon diskon terkontrol dengan kode yang diberikan (berlaku terbatas), (4) 1 ajakan jelas klik link upgrade. Jangan Janji berlebihan. Output JSON murni {"subject": "...", "body": "..."} — body plain text.`
+
+function buildFollowupUserPrompt(l: CooLead, openedAt: string, coupon: string, percent: number): string {
+  const firstName = (l.fullName || l.email.split('@')[0] || 'Trader').split(' ')[0]
+  const tgl = openedAt ? new Date(openedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'beberapa hari lalu'
+  return `Data lead:
+- Nama: ${firstName}
+- Email: ${l.email}
+- Status akun: FREE (belum PRO)
+- Aktivitas terakhir: ${l.trades7d} trades dalam 7 hari
+- Membuka email penawaran pada: ${tgl}
+- Kupon yang boleh ditawarkan: kode ${coupon} (diskon ${percent}% paket PRO bulanan)
+
+Tulis 1 email follow-up sekarang. Output JSON murni {"subject": "...", "body": "..."}.`
+}
+
+function buildFollowupTemplate(l: CooLead, coupon: string, percent: number): CooDraft {
+  const firstName = (l.fullName || l.email.split('@')[0] || 'Trader').split(' ')[0]
+  return {
+    subject: `${firstName}, kupon ${coupon} khusus buat kamu ⏳`,
+    body: `Yo ${firstName}!
+
+Aku lihat kamu sempat buka email penawaran PRO kemarin — tapi belum jalan. Rumit atau ragu? Wajar banget.
+
+Biar makin ringan: pakai kode <b>${coupon}</b> — diskon ${percent}% paket PRO bulanan. Berlaku terbatas, cuma buat lead yang beneran serius kayak kamu.
+
+PRO = semua jurnal kamu dianalisa otomatis: pola entry terbaik, RR konsisten, jam killzone paling untung. Upgrade 2 menit 👇
+${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/#pricing
+
+Balas email ini kalau ada yang mau ditanya dulu — aku jawab langsung.
+
+Bagas,
+COO Luxtradee`,
+    provider: 'template',
+    generatedAt: new Date().toISOString(),
+  }
+}
+
+async function generateFollowupDraft(l: CooLead, openedAt: string, coupon: string, percent: number): Promise<CooDraft> {
+  const llm = (await callBagas(COO_FOLLOWUP_SYSTEM_PROMPT, buildFollowupUserPrompt(l, openedAt, coupon, percent), 600))
+    ?? (await callLLM(COO_FOLLOWUP_SYSTEM_PROMPT, buildFollowupUserPrompt(l, openedAt, coupon, percent), 600))
+  if (llm) {
+    const parsed = extractJson<{ subject?: string; body?: string }>(llm.text)
+    if (parsed?.subject && parsed?.body) {
+      return {
+        subject: String(parsed.subject).substring(0, 150),
+        body: String(parsed.body),
+        provider: llm.provider,
+        model: llm.model,
+        generatedAt: new Date().toISOString(),
+      }
+    }
+  }
+  return buildFollowupTemplate(l, coupon, percent)
+}
+
+type FollowupResult = { email: string; name: string; subject: string; openedAt: string }
+
+/** Pass 2: cari lead yang buka email penawaran (webhook Resend → agent_kv
+ *  open:{email}) tapi masih FREE → buat draf follow-up (PENDING, ACC Bos).
+ *  Anti-spam: kupon kupon:{email} cooldown 7 hari; bounce → jangan email lagi. */
+async function runFollowUpPass(
+  admin: SupabaseClient,
+  profiles: Array<{ id: string; email: string | null; is_pro?: boolean | null; full_name?: string | null }>,
+): Promise<FollowupResult[]> {
+  const percent = parseInt((await getEnvVar('COUPON_PERCENT')) || process.env.COUPON_PERCENT || '20', 10) || 20
+  const coupon = `DISKON${percent}`
+  const since = new Date(Date.now() - 14 * 24 * 3600_000).toISOString()
+
+  // 1. Email penawaran yang terkirim 14 hari ke belakang
+  const { data: sentTasks } = await admin
+    .from('ai_pending_tasks')
+    .select('target_user_id, context_data, executed_at')
+    .eq('agent_type', 'COO')
+    .eq('status', 'approved')
+    .gte('executed_at', since)
+    .limit(150)
+  if (!sentTasks?.length) return []
+
+  const byId = new Map(profiles.map(p => [p.id, p]))
+  const seen = new Set<string>()
+  const results: FollowupResult[] = []
+
+  for (const t of sentTasks as Array<{ target_user_id: string | null; context_data: { email?: string; fullName?: string; totalTrades?: number } | null; executed_at: string | null }>) {
+    if (results.length >= FOLLOWUP_MAX_PER_RUN) break
+    const email = (t.context_data?.email || '').toLowerCase().trim()
+    if (!email || seen.has(email)) continue
+    seen.add(email)
+
+    const prof = t.target_user_id ? byId.get(t.target_user_id) : undefined
+    if (prof?.is_pro) continue // sudah PRO → selamat, bukan target follow-up
+
+    const stat = JSON.parse((await kvAgentGet(admin, `open:${email}`)) || '{}') as { count?: number; clicks?: number; bounced?: boolean }
+    if (stat.bounced) continue // alamat bounce — jangan ganggu lagi
+    if (!(stat.count || 0) && !(stat.clicks || 0)) continue // belum buka → bukan kandidat follow-up
+
+    // Anti-spam: 1 follow-up per 7 hari
+    const lastFu = await kvAgentGet(admin, `followup:${email}`)
+    if (lastFu && Date.now() - new Date(lastFu).getTime() < FOLLOWUP_COOLDOWN_DAYS * 24 * 3600_000) continue
+
+    const lead: CooLead = {
+      id: t.target_user_id || '',
+      email,
+      fullName: prof?.full_name || t.context_data?.fullName || '',
+      createdAt: '',
+      trades7d: t.context_data?.totalTrades || 0,
+    }
+    const draft = await generateFollowupDraft(lead, t.executed_at || stat.last || '', coupon, percent)
+
+    const { error: insErr } = await admin.from('ai_pending_tasks').insert({
+      agent_type: 'COO',
+      target_user_id: t.target_user_id,
+      context_data: {
+        email, fullName: lead.fullName, totalTrades: lead.trades7d,
+        followup: true, openedAt: t.executed_at || stat.last || '', coupon,
+      },
+      generated_content: draft,
+      status: 'pending',
+    })
+    if (insErr) {
+      console.error('[ai-coo-agent] Insert followup gagal:', insErr.message)
+      continue
+    }
+    await kvAgentSet(admin, `followup:${email}`, new Date().toISOString())
+    results.push({ email, name: lead.fullName, subject: draft.subject, openedAt: t.executed_at || stat.last || '' })
+  }
+  return results
+}
+
 // ─── Main handler ───────────────────────────────────────────────────────────
 async function handleRequest(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -331,13 +483,24 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Gagal insert draft: ' + m }, { status: 500 })
   }
 
-  // 6. Notif Telegram ke Bos — draf jualan nunggu ACC
+  // 5b. ⭐ FOLLOW-UP PASS — lead yang BUKA email (webhook Resend) tapi belum PRO
+  let followups: FollowupResult[] = []
+  try {
+    followups = await runFollowUpPass(admin, profiles)
+  } catch (err: any) {
+    console.error('[ai-coo-agent] Follow-up pass gagal (non-fatal):', err?.message)
+  }
+
+  // 6. Notif Telegram ke Bos — draf jualan + follow-up nunggu ACC
   const draftList = drafts
     .map(d => `• ${d.lead.fullName || d.lead.email} (${d.lead.trades7d} trades/7hr) → "${d.draft.subject}"`)
     .join('\n')
   const provs = [...new Set(drafts.map(d => d.draft.provider))].join(', ') || await getLLMProviderName()
+  const fuList = followups
+    .map(f => `• 🔄 FOLLOW-UP ${f.name || f.email} (buka email) → "${f.subject}"`)
+    .join('\n')
   await sendTelegramNotification(
-    `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provs}</b>\n\n${draftList}\n\n👉 Review & ACC di Ruang COO: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/kantor-ceo`
+    `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provs}</b>\n\n${draftList}${fuList ? `\n\n📬 ${followups.length} FOLLOW-UP lead yang buka email tapi belum PRO:\n${fuList}` : ''}\n\n👉 Review & ACC di Ruang COO: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/kantor-ceo`
   )
 
   return NextResponse.json({
@@ -345,6 +508,7 @@ async function handleRequest(request: NextRequest) {
     created: inserted?.length ?? rows.length,
     llmProvider: [...new Set(drafts.map(d => d.draft.provider))].join(', '),
     drafts: drafts.map(d => ({ email: d.lead.email, trades7d: d.lead.trades7d, subject: d.draft.subject, provider: d.draft.provider })),
+    followups,
     errors: drafts.filter(d => d.error).map(d => ({ email: d.lead.email, error: d.error })),
   })
 }

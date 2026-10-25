@@ -32,14 +32,15 @@ const TEAM_DETAIL = [
       'Racik email penawaran PRO personal via model resminya: Llama 3.1 8B (OpenRouter) → Groq/Gemini cadangan → templat',
       'Simpan draf sebagai task PENDING → tunggu ACC Bos di Ruang COO (human-in-the-loop)',
       'Setelah ACC: email terkirim via Resend, status dicatat untuk pengukuran konversi',
+      '⭐ FOLLOW-UP OPEN-RATE: lead yang BUKA email tapi belum PRO (deteksi via webhook Resend /api/webhooks/resend) otomatis dapat draf follow-up berisi kupon diskon terkontrol (env COUPON_PERCENT, default 20%) — anti-spam 1×/7 hari, bounce tidak di-email lagi',
     ],
-    lapor: 'Ringkasan 24 jam di briefing 08:00 · % konversi penawaran→PRO di laporan mingguan Senin 10:00',
+    lapor: 'Ringkasan 24 jam di briefing 08:00 · % konversi penawaran→PRO & open-rate email di laporan mingguan Senin 10:00',
     batas: [
       'Maks 3 lead/hari & 1 lead cuma dikontak 1× per 7 hari (anti-spam)',
       'Tidak bisa membalas reply dari lead — itu tetap tangan Bos',
-      'Belum ada A/B test subjek email, penawaran diskon, atau hitung open-rate',
+      'Open-rate cuma terlihat setelah webhook dipasang: resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend',
     ],
-    ide: 'Follow-up otomatis lead yang buka email tapi belum PRO · kupon diskon terkontrol · integrasi open-rate',
+    ide: 'A/B subject email otomatis (butuh volume pengiriman lebih besar) · skor lead dari jumlah klik · diskon bertingkat per tingkat ketertarikan',
   },
   {
     id: 'CTO', emoji: '🖥️', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488',
@@ -140,17 +141,18 @@ const TEAM_DETAIL = [
     baca: 'Funnel profiles: pendaftar, PRO, pendaftar 7 hari, user dari referral (referred_by_code), onboarding selesai, aktivasi (upload trade) + insight Dewi (DA)',
     tugas: [
       'Ukur funnel nyata: pendaftar → aktivasi (upload trade pertama) → PRO → referral',
+      '⭐ A/B TEST CTA LANDING OTOMATIS: pengunjung dibagi 50/50 ke 2 varian teks tombol CTA (localStorage bucket), view & klik terukur via /api/ab-track → pemenang mingguan dilaporkan CEO & tampil di panel ini',
       'Temukan titik bocor terbesar (mis. aktivasi rendah, referral sepi)',
       'Usulkan 3 eksperimen minggu ini: nama, langkah konkret, metrik keberhasilan, estimasi effort',
       'Selipkan angle promosi program affiliate/referral ke eksperimennya',
     ],
-    lapor: 'Pesan Discord terpisah tiap Senin 10:00 WIB + panel Ruang Growth',
+    lapor: 'Pesan Discord terpisah tiap Senin 10:00 WIB + panel Ruang Growth (funnel + hasil A/B live)',
     batas: [
-      'Belum bisa menjalankan A/B test otomatis — eksperimen masih usulan yang Bos eksekusi',
-      'Metrik terbatas data yang ada (belum ada open-rate email / analitik landing detail)',
+      'A/B cuma 2 varian teks CTA di landing — varian baru = edit kode (keputusan tetap lewat ACC Bos)',
+      'Metrik terbatas data yang ada (open-rate email di sisi Bagas; belum ada analitik landing mendetail)',
       'Tidak mengubah landing/harga sendiri — semua lewat ACC Bos',
     ],
-    ide: 'A/B test CTA landing otomatis · program reward referral 2 arah · notifikasi win-back',
+    ide: 'Integrasi analitik landing lengkap (butuh analytics engine) · A/B di halaman lain (pricing, blog) · program reward referral 2 arah · notifikasi win-back',
   },
   {
     id: 'CEO', emoji: '👔', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
@@ -160,16 +162,20 @@ const TEAM_DETAIL = [
       'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Llama 3.1 8B via OpenRouter) → kirim ke Discord 08:00',
       'Pilih 1 NEXT BEST ACTION tiap pagi pakai modelnya sendiri — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
       'Ingatkan PRIORITAS KEMARIN di briefing — akuntabilitas: dilakukan, atau ganti dengan alasan jelas',
+      '⭐ NBA OKE/NOT OKE: Bos jawab prioritas hari ini via tombol Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not → dicatat ke memori & briefing besok menghormati jawaban itu',
+      '⭐ CHAT 2 ARAH Discord: Bos ketik /bos <pesan> → Alexander jawab langsung (route /api/discord-interactions, mode Interactions — bukan Gateway, kompatibel Workers) dengan konteks briefing terakhir',
+      '⭐ RINGKASAN SUARA: tombol 🔊 Bacakan Briefing di Ruang Rapat — laporan pagi dibacakan suara browser (TTS lokal, tanpa API key)',
       'Catat keputusan & kesimpulan penting ke 🧠 Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
       'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya · laporan mingguan tiap Senin',
     ],
-    lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca · memori bisa dibaca di Ruang Rapat',
+    lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca · memori bisa dibaca di Ruang Rapat · chat balik via /bos di Discord',
     batas: [
       'Cuma bisa LAPOR & SARAN — keputusan besar (harga, fitur, anggaran) tetap di tangan Bos',
       'Briefing tidak dikirim ulang otomatis kalau Discord gagal — harus klik manual',
-      'NBA adalah saran otomatis — kualitasnya tergantung data briefing hari itu',
+      'Chat /bos jalan setelah 3 secret dipasang (DISCORD_APP_ID, DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY) + Interactions Endpoint URL diisi di Discord Developer Portal',
+      'TTS pakai suara bawaan browser (kualitas tergantung perangkat) — bukan suara natural API',
     ],
-    ide: 'Chat 2 arah Bos ↔ karyawan via bot Discord · ringkasan briefing bentuk suara (TTS) · oke/not oke otomatis eksekusi NBA',
+    ide: 'TTS suara natural via API (butuh provider berbayar) · bot Discord jawab semua karyawan (bukan cuma CEO) · eksekusi NBA penuh otomatis (butuh izin aksi langsung)',
   },
 ]
 
@@ -195,6 +201,21 @@ function ClockWib() {
       <span className="text-[8.5px] font-medium text-white/45">WIB</span>
     </div>
   )
+}
+
+/* ============================================================
+   🔊 TTS BRIEFING — ringkasan laporan bentuk suara (bonus Alexander).
+   100% browser (Web Speech API) — tanpa API key, tanpa kuota.
+   ============================================================ */
+function stripMarkdownForSpeech(t: string): string {
+  return t
+    .replace(/[*_`#>]/g, '')
+    .replace(/━━+/g, '. ')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, '. ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 }
 
 /* ---------- kelas utilitas dark-glass ---------- */
@@ -250,7 +271,22 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const { room, setRoom, busy, data, call } = P
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [cmoVar, setCmoVar] = useState(0)
+  const [speaking, setSpeaking] = useState(false)
   const dockRef = useRef<HTMLDivElement>(null)
+
+  /* 🔊 Bacakan/berhentikan briefing (suara browser, lang id-ID) */
+  const toggleSpeak = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return }
+    const u = new SpeechSynthesisUtterance(stripMarkdownForSpeech(String(data?.text || '')).slice(0, 3200))
+    u.lang = 'id-ID'
+    u.rate = 1.05
+    u.onend = () => setSpeaking(false)
+    u.onerror = () => setSpeaking(false)
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(u)
+    setSpeaking(true)
+  }
 
   /* Jembatan: klik karakter 3D → KantorCeo3D panggil window.__kceo.openSheet()
      supaya sheet ikut terbuka saat Bos menyentuh karyawan di kantor virtual */
@@ -371,12 +407,22 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 <button className={BTN} disabled={busy} onClick={() => call('briefing', 'POST')}>{busy ? '⏳ Jalan…' : '🌅 Briefing + Discord'}</button>
                 <button className={BTN} onClick={() => call('briefing-last')}>📜 Terakhir</button>
                 <button className={BTNO} onClick={() => call('discord-test')}>🧪 Tes Discord</button>
+                <button className={BTNO} onClick={() => call('email-test')}>🧪 Tes Email</button>
                 <button className={BTN} onClick={() => call('watchdog')}>🕵️ Jalankan Watchdog</button>
                 <button className={BTNP} onClick={() => call('weekly')}>📊 Laporan Mingguan</button>
+                <button className={BTNP} onClick={() => call('discord-setup', 'POST')}>🤖 Daftarkan /bos</button>
               </div>
               {(data && data.ok !== undefined && !data.cto && !data.cso) && (
                 <div className={data.ok ? OKS : ERR}>
-                  🧪 Tes Discord: {data.ok ? 'berhasil — cek channel Discord ✅' : String(data.error || 'gagal').slice(0, 140)}
+                  {String(data.message || '').startsWith('Perintah')
+                    ? <>🤖 Discord Bot: {data.message}</>
+                    : data.id
+                      ? <>📬 Tes Email: {data.message} ✅</>
+                      : <>🧪 Tes Discord: {data.ok ? 'berhasil — cek channel Discord ✅' : String(data.error || 'gagal').slice(0, 140)}</>}
+                  {data.error && Array.isArray(data.setup) && data.setup.length > 0 && (
+                    <div className="mt-1 text-[10px] text-white/55 leading-relaxed">
+                      {data.setup.map((s: string, i: number) => <div key={i}>{s}</div>)}
+                    </div>)}
                 </div>)}
               {data?.watch && (
                 <div className={OKS}>
@@ -385,6 +431,11 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               {data?.nba?.text && (
                 <div className="mt-3 rounded-xl bg-violet-400/10 border border-violet-300/20 px-2.5 py-2 text-[11.5px] leading-relaxed">
                   <b className="text-violet-200">🎯 Next Best Action hari ini — pilihan Alexander:</b><br />{data.nba.text}
+                  <div className="flex gap-1.5 mt-2">
+                    <button className={BTN} onClick={() => call('nba-verdict&verdict=oke', 'POST')}>✅ Oke, dieksekusi</button>
+                    <button className={BTNR} onClick={() => call('nba-verdict&verdict=not', 'POST')}>❌ Not oke — ganti</button>
+                  </div>
+                  {data.verdict ? <div className="text-white/50 text-[10px] mt-1">Jawaban Bos hari ini: {data.verdict === 'oke' ? '✅ OKE — dicatat ke memori & Discord' : '❌ NOT OKE — besok Alexander pilih prioritas baru'}</div> : null}
                 </div>)}
               {Array.isArray(data?.mem) && data.mem.length > 0 && (
                 <div className="mt-3 rounded-xl bg-cyan-400/10 border border-cyan-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
@@ -399,7 +450,10 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 </div>)}
               {data?.text && (
                 <div className="mt-3">
-                  <b>Discord:</b> {data.notifySent ? '✅ terkirim' : `❌ ${data.notifyErr || 'gagal — klik 🧪 Tes Discord'}`}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <b>Discord:</b> {data.notifySent ? '✅ terkirim' : `❌ ${data.notifyErr || 'gagal — klik 🧪 Tes Discord'}`}
+                    <button className={BTNP + ' ml-auto'} onClick={toggleSpeak}>{speaking ? '⏹ Berhenti' : '🔊 Bacakan Briefing'}</button>
+                  </div>
                   <div className="whitespace-pre-wrap mt-1.5 text-white/75 text-[11.5px] max-h-52 overflow-y-auto kscroll rounded-lg bg-white/5 border border-white/10 p-2">{data.text}</div>
                 </div>)}
               {data?.error && data.text === undefined && data.ok === undefined && <div className={ERR}>⚠️ {String(data.error).slice(0, 200)}</div>}
@@ -476,6 +530,14 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {['profiles', 'trades', 'bug_reports', 'agent_kv'].map(k => { const r = data[k] || {}; return (
                     <div key={k}>{r.ok ? '✅' : '❌'} <b>{k}</b>{r.ok ? '' : <span className="text-red-300"> — {String(r.error || '').slice(0, 90)}</span>}</div>) })}
                   <div className="text-white/40 mt-1">{Object.entries(data.env).map(([k, v]: any) => `${k} ${v ? '✅' : '❌'}`).join(' · ')}</div>
+                  {data.setup && (
+                    <div className="mt-2 rounded-lg bg-amber-400/10 border border-amber-300/20 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90 max-h-40 overflow-y-auto kscroll">
+                      <b>🔧 Cara memasang yang belum ada:</b>
+                      {Object.entries(data.setup).map(([k, v]: any) => (!data.env?.[k]
+                        ? <div key={k} className="mt-1">• <b className="text-amber-200">{k}</b> — {v}</div>
+                        : null))}
+                    </div>)}
+                  <div className="text-white/40 mt-1">Tes kirim beneran: tombol 🧪 Tes Discord &amp; 🧪 Tes Email di Ruang Rapat.</div>
                 </div>)}
             </div>
           ) : room === 'CSO' ? (
@@ -697,7 +759,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
                 🎯 Target: free user paling aktif 7 hari (udah ketagihan, tinggal ditawarin upgrade)<br />
                 ⏰ Cron harian 08:00 WIB · 🛡️ Anti-spam: 1 lead maks 1× per 7 hari<br />
-                📬 Email terkirim via Resend SETELAH Bos ACC — human-in-the-loop
+                📬 Email terkirim via Resend SETELAH Bos ACC — human-in-the-loop<br />
+                🔄 FOLLOW-UP: lead yang BUKA email (webhook Resend) tapi belum PRO → otomatis dapat draf follow-up + kupon diskon terkontrol
               </div>
               {P.cooLoading && P.cooTasks.length === 0 ? (
                 <div className="text-white/55 mt-2.5 text-[11.5px]">⏳ Memuat antrean jualan…</div>
@@ -721,7 +784,11 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                             <div className="text-[12px] font-semibold text-white whitespace-nowrap overflow-hidden text-ellipsis">{t.context_data?.fullName || 'Tanpa nama'}</div>
                             <div className="text-[10px] text-white/50 whitespace-nowrap overflow-hidden text-ellipsis">{t.context_data?.email}</div>
                           </div>
-                          <span className="text-[9.5px] bg-emerald-400/15 text-emerald-200 rounded-full px-1.5 py-0.5 whitespace-nowrap shrink-0">🔥 {t.context_data?.totalTrades ?? '?'} trades/7hr</span>
+                          <span className="text-[9.5px] bg-emerald-400/15 text-emerald-200 rounded-full px-1.5 py-0.5 whitespace-nowrap shrink-0">
+                            {t.context_data?.followup
+                              ? `🔄 FOLLOW-UP · buka email${t.context_data?.coupon ? ` · ${t.context_data.coupon}` : ''}`
+                              : `🔥 ${t.context_data?.totalTrades ?? '?'} trades/7hr`}
+                          </span>
                         </div>
                         <input value={draft.subject} onChange={e => P.setCooDrafts(p => ({ ...p, [t.id]: { ...draft, subject: e.target.value } }))}
                           placeholder="Subjek email penawaran…"
@@ -828,6 +895,12 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {gh.funnel && (
                     <div className="text-white/60 text-[10px] mt-1.5 leading-relaxed">
                       {gh.funnel.activated7 ?? 0}/{gh.funnel.baru7 ?? 0} pendaftar baru aktif upload · {gh.funnel.referred ?? 0} user dari referral · {gh.funnel.onboarded ?? 0} selesai onboarding
+                    </div>)}
+                  {gh.ab && (
+                    <div className="mt-2 rounded-xl bg-orange-400/10 border border-orange-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed">
+                      <b className="text-orange-200">🧪 A/B CTA Landing — eksperimen otomatis (7 hari):</b><br />
+                      A: {gh.ab.A?.views ?? 0} lihat · {gh.ab.A?.clicks ?? 0} klik ({gh.ab.A?.cr ?? 0}%) · B: {gh.ab.B?.views ?? 0} lihat · {gh.ab.B?.clicks ?? 0} klik ({gh.ab.B?.cr ?? 0}%)<br />
+                      🏆 Pemenang sementara: <b>{gh.ab.winner}</b>
                     </div>)}
                   <div className="mt-2 rounded-xl bg-orange-400/10 border border-orange-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
                     🔍 {gh.insight}
