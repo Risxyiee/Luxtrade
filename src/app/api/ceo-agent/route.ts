@@ -541,7 +541,21 @@ async function runMorningBriefing(e: Env) {
     }
   } catch { /* talk opsional — briefing utama tetap sah */ }
 
-  const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, talk, talkSent, text }
+  /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
+     (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */
+  let nba: { at: string; text: string } | null = null
+  try {
+    if (!(await kvGet(e, `nba:${utcDay()}`))) {
+      await kvSet(e, `nba:${utcDay()}`, new Date().toISOString())
+      const t = await nextBestAction(e, text)
+      if (t) nba = { at: new Date().toISOString(), text: t }
+    } else {
+      const raw = await kvGet(e, 'nba:last')
+      if (raw) nba = JSON.parse(raw) as { at: string; text: string }
+    }
+  } catch { /* opsional */ }
+
+  const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, talk, talkSent, nba, text }
   await kvSet(e, 'briefing:last', JSON.stringify(summary))
   return summary
 }
@@ -908,12 +922,22 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
     `- MAYA (CSO, cewek, peduli user, bicara pake data)\n` +
     `- SINTA (CMO, copywriter TikTok, bahasa gaul kreatif)\n\n` +
     `TOPIK: cari akar masalah KENAPA user mendaftar tapi nggak mau/males pakai jurnal trading (upload screenshot). Maya bawa data, Sinta menduga-duga penyebab psikologis (malas, bingung mulai, ngerasa ribet, belum yakin manfaat) dan mengusulkan angle konten.\n` +
-    `Akhi: Sinta membuat 1 skrip video TikTok (hook 3 detik → isi → CTA, 30-45 dtk) yang MENJAWAB alasan teratas — target trader XAUUSD Indonesia.\n\n` +
+    `Akhi: Sinta membuat 1 skrip video TikTok (hook 3 detik → isi → CTA, 30-45 dtk) yang MENJAWAB alasan teratas — target trader XAUUSD Indonesia.\n` +
+    `Kalau ada hasil diskusi sebelumnya di bawah: JANGAN mengulang kesimpulan yang sama persis — verifikasi dengan data terbaru, gali akar yang belum dibahas, atau nyatakan pola baru.\n\n` +
     `OUTPUT HANYA JSON valid (tanpa markdown, tanpa penjelasan):\n` +
     `{"diagnosis":"1-2 kalimat inti masalah","reasons":["alasan 1","alasan 2","alasan 3"],"dialog":[{"who":"CSO","text":"..."},{"who":"CMO","text":"..."}],"script":{"hook":"...","body":"...","cta":"..."}}\n` +
     `Aturan: dialog 6-8 giliran pergantian, tiap teks maks 200 karakter, bahasa Indonesia santai, sebutkan angka data yang nyata.`
 
-  const userPrompt = `${intelText}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
+  /* Learning loop: baca kesimpulan diskusi sebelumnya → Maya & Sinta
+     tidak mengulang verbatim — mereka verifikasi/memperdalam. */
+  let prevTalk = ''
+  try {
+    const p = JSON.parse((await kvGet(e, 'cso-cmo:last')) || 'null')
+    if (p?.diagnosis)
+      prevTalk = `\nHASIL DISKUSI KALIAN SEBELUMNYA (${String(p.at || '').slice(0, 10)}): diagnosis "${String(p.diagnosis).slice(0, 200)}"${Array.isArray(p.reasons) && p.reasons.length ? ' — alasan: ' + p.reasons.slice(0, 3).join('; ') : ''}`
+  } catch { /* ignore */ }
+
+  const userPrompt = `${intelText}${prevTalk}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
 
   let provider: CsoCmoTalk['provider'] = 'fallback'
   let parsed: Omit<CsoCmoTalk, 'at' | 'provider' | 'intel' | 'raw'> | null = null
@@ -996,6 +1020,272 @@ function talkToDiscord(t: CsoCmoTalk): string {
   }
   L.push('_(Diskusi otomatis CSO × CMO — skrip lengkap ada di Ruang CSO /kantor-ceo)_')
   return L.join('\n').slice(0, 1900)
+}
+
+/* ============================================================
+   AGEN 6 — DEWI (DATA ANALYST): pola trading user dari trades
+   Kueri NYATA 30 hari (maks 1000 trade terbaru): win rate,
+   pair favorit, sesi & jam tersibuk → Gemini jadikan insight +
+   3 rekomendasi. Learning loop: insight minggu lalu ikut dibaca
+   → Dewi evaluasi rekomendasinya sendiri, bukan analisis amnesia.
+   ============================================================ */
+interface DaInsight {
+  at: string
+  provider: 'gemini' | 'openrouter' | 'fallback'
+  insight: string
+  patterns: string[]
+  recommendations: string[]
+  stats: { uploads30: number; uploads7: number; traders30: number; winRate: number; topSymbol: string; topSession: string; bestHour: string }
+  dupToday?: boolean
+}
+
+async function fetchTrades30(e: Env) {
+  const res = await fetch(
+    `${sbUrl(e)}/rest/v1/trades?select=symbol,profit_loss,session,user_id,created_at&created_at=gte.${encodeURIComponent(isoAgo(24 * 30))}&order=created_at.desc&limit=1000`,
+    { headers: sbHPriv(e), signal: timeoutSignal(10_000) },
+  )
+  if (!res.ok) throw new Error(`Supabase trades HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
+  return (await res.json()) as { symbol?: string; profit_loss?: number; session?: string | null; user_id?: string; created_at?: string }[]
+}
+
+function computeTradeStats(rows: { symbol?: string; profit_loss?: number; session?: string | null; user_id?: string; created_at?: string }[]) {
+  const traders = new Set<string>()
+  const sym: Record<string, number> = {}
+  const ses: Record<string, number> = {}
+  const hour: Record<number, number> = {}
+  let wins = 0, up7 = 0
+  const since7 = Date.now() - 24 * 7 * 3600_000
+  for (const r of rows) {
+    if (r.user_id) traders.add(r.user_id)
+    if (r.symbol) sym[r.symbol] = (sym[r.symbol] || 0) + 1
+    if (r.session) ses[r.session] = (ses[r.session] || 0) + 1
+    if (r.created_at) {
+      if (new Date(r.created_at).getTime() >= since7) up7++
+      const h = (new Date(r.created_at).getUTCHours() + 7) % 24 // konversi ke WIB
+      hour[h] = (hour[h] || 0) + 1
+    }
+    if ((r.profit_loss || 0) > 0) wins++
+  }
+  const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
+  const bh = Object.entries(hour).sort((a, b) => b[1] - a[1])[0]?.[0]
+  return {
+    uploads30: rows.length,
+    uploads7: up7,
+    traders30: traders.size,
+    winRate: rows.length ? Math.round((wins / rows.length) * 100) : 0,
+    topSymbol: top(sym),
+    topSession: top(ses),
+    bestHour: bh !== undefined ? `${bh}:00 WIB` : '—',
+  }
+}
+
+async function analystAgent(e: Env): Promise<DaInsight> {
+  const rows = await fetchTrades30(e)
+  const stats = computeTradeStats(rows)
+  const base = { at: new Date().toISOString(), stats }
+
+  if (!rows.length) {
+    const out: DaInsight = { ...base, provider: 'fallback',
+      insight: 'Belum ada trade dalam 30 hari terakhir — insight otomatis muncul begitu user mulai upload jurnal.',
+      patterns: [], recommendations: ['Fokus aktivasi user baru dulu (cek Ruang Growth) — tanpa data trade, analisis tidak bisa jalan'] }
+    await kvSet(e, 'da:last', JSON.stringify(out)).catch(() => {})
+    return out
+  }
+
+  /* Learning loop: baca insight sendiri sebelumnya → evaluasi, jangan mengulang */
+  let prev = ''
+  try {
+    const p = JSON.parse((await kvGet(e, 'da:last')) || 'null')
+    if (p?.insight)
+      prev = `\nINSIGHT KAMU SEBELUMNYA (${String(p.at || '').slice(0, 10)}): "${String(p.insight).slice(0, 220)}"${Array.isArray(p.recommendations) && p.recommendations.length ? '\nRekomendasi kemarin: ' + p.recommendations.slice(0, 3).join(' | ').slice(0, 220) : ''}\nCek angka di atas: apakah rekomendasi kemarin mulai terlihat efeknya? Jangan ulangi verbatim — perdalam atau ganti fokus.`
+  } catch { /* ignore */ }
+
+  const dataText =
+    `DATA TRADES 30 HARI TERAKHIR (nyata, dari database Luxtradee):\n` +
+    `- Total upload jurnal: ${stats.uploads30} (${stats.uploads7} dalam 7 hari terakhir)\n` +
+    `- Trader aktif unik: ${stats.traders30} (rata-rata ${stats.traders30 ? (stats.uploads30 / stats.traders30).toFixed(1) : 0} trade/trader)\n` +
+    `- Win rate agregat: ${stats.winRate}%\n` +
+    `- Pair paling sering: ${stats.topSymbol} · Sesi tersibuk: ${stats.topSession} · Jam paling ramai: ${stats.bestHour}`
+
+  const systemPrompt =
+    `Kamu Dewi, Data Analyst Luxtradee (web app jurnal trading XAUUSD — user upload screenshot/record trade, AI evaluasi visual). ` +
+    `Analisis angka nyata, temukan pola yang tidak terlihat kasat mata, kasih rekomendasi konkret yang bisa dieksekusi Bos minggu ini (produk, konten, atau retensi). ` +
+    `OUTPUT HANYA JSON valid (tanpa markdown): {"insight":"maks 2 kalimat","patterns":["pola 1","pola 2","pola 3"],"recommendations":["rekomendasi 1","rekomendasi 2","rekomendasi 3"]} — bahasa Indonesia santai-profesional, sebut angka nyata.`
+
+  let provider: DaInsight['provider'] = 'fallback'
+  let insight = '', patterns: string[] = [], recommendations: string[] = []
+  let raw = ''
+  try {
+    raw = await geminiText(e, systemPrompt, dataText + prev + `\nTanggal: ${wibNow()}`, 1024, 0.5)
+    provider = 'gemini'
+  } catch {
+    try { raw = await openRouterText(e, systemPrompt, dataText + prev, 1024); provider = 'openrouter' } catch { raw = '' }
+  }
+  if (raw) {
+    try {
+      const j2 = JSON.parse(extractJsonLoose(raw) || raw)
+      insight = String(j2.insight || '').slice(0, 400)
+      patterns = Array.isArray(j2.patterns) ? j2.patterns.map((x: unknown) => String(x).slice(0, 180)).slice(0, 4) : []
+      recommendations = Array.isArray(j2.recommendations) ? j2.recommendations.map((x: unknown) => String(x).slice(0, 180)).slice(0, 4) : []
+    } catch { raw = '' }
+  }
+  if (!insight) {
+    /* Fallback TANPA LLM — tetap dari angka nyata */
+    provider = 'fallback'
+    insight = `${stats.uploads30} upload dari ${stats.traders30} trader dalam 30 hari — win rate agregat ${stats.winRate}%. Pair favorit ${stats.topSymbol}, sesi tersibuk ${stats.topSession} (puncak ${stats.bestHour}).`
+    patterns = [
+      `Pair teraktif: ${stats.topSymbol}`,
+      `Sesi tersibuk: ${stats.topSession}, puncak jam ${stats.bestHour}`,
+      `Rata-rata ${stats.traders30 ? (stats.uploads30 / stats.traders30).toFixed(1) : 0} trade per trader · 7 hari terakhir ${stats.uploads7} upload`,
+    ]
+    recommendations = [
+      stats.winRate < 45 ? 'Win rate di bawah 45% — konten edukasi "evaluasi sebelum entry" sangat relevan buat mayoritas user' : 'Win rate sehat — dorong user membagikan hasilnya ke komunitas (social proof)',
+      `Jadwalkan posting TikTok menjelang ${stats.bestHour} — itulah jam trader paling aktif online`,
+      `Sorot pair ${stats.topSymbol} & sesi ${stats.topSession} di konten CMO biar relevan dengan mayoritas user`,
+    ]
+  }
+
+  const out: DaInsight = { ...base, provider, insight, patterns, recommendations }
+  await kvSet(e, 'da:last', JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+function daToDiscord(d: DaInsight): string {
+  const L = ['📊 **DATA ANALYST — INSIGHT MINGGUAN (Dewi)**', `🔍 ${d.insight}`]
+  if (d.patterns?.length) { L.push('📈 Pola 30 hari:'); d.patterns.slice(0, 3).forEach((p) => L.push(`• ${p}`)) }
+  if (d.recommendations?.length) { L.push('💡 Rekomendasi minggu ini:'); d.recommendations.slice(0, 3).forEach((r, i) => L.push(`${i + 1}. ${r}`)) }
+  L.push('_(analisis otomatis tiap Senin 10:00 WIB — detail di Ruang Data Analyst /kantor-ceo)_')
+  return L.join('\n').slice(0, 1900)
+}
+
+/* ============================================================
+   AGEN 7 — FARHAN (GROWTH HACKER): funnel nyata + eksperimen
+   Ukur pendaftar → aktivasi (upload trade pertama) → PRO →
+   referral, cari titik bocor terbesar, usulkan 3 eksperimen.
+   Synch dengan Dewi: insight DA dipakai sebagai bahan.
+   ============================================================ */
+interface GhExperiment { name: string; how: string; metric: string; effort: string }
+interface GhInsight {
+  at: string
+  provider: 'gemini' | 'openrouter' | 'fallback'
+  insight: string
+  experiments: GhExperiment[]
+  funnel: { total: number; pro: number; baru7: number; referred: number; onboarded: number; activated7: number }
+  dupToday?: boolean
+}
+
+async function growthAgent(e: Env): Promise<GhInsight> {
+  let total = 0, pro = 0, baru7 = 0, referred = 0, onboarded = 0
+  try {
+    ;[total, pro, baru7, referred, onboarded] = await Promise.all([
+      supaCount(e, 'profiles'),
+      supaCount(e, 'profiles', 'is_pro=eq.true'),
+      supaCount(e, 'profiles', 'created_at=gte.' + isoAgo(24 * 7)),
+      supaCount(e, 'profiles', 'referred_by_code=not.is.null'),
+      supaCount(e, 'profiles', 'onboarding_completed=eq.true'),
+    ])
+  } catch (x: any) { throw new Error(String(x?.message || x)) }
+
+  /* Aktivasi: pendaftar baru 7 hari yang sudah upload trade */
+  let activated7 = 0
+  try {
+    const res = await fetch(`${sbUrl(e)}/rest/v1/profiles?select=id&created_at=gte.${encodeURIComponent(isoAgo(24 * 7))}&limit=300`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    const ids = res.ok ? ((await res.json()) as { id?: string }[]).map((r) => r.id).filter(Boolean) as string[] : []
+    if (ids.length) {
+      const active7 = await fetchActiveUserIds(e, isoAgo(24 * 7))
+      activated7 = ids.filter((id) => active7.has(id)).length
+    }
+  } catch { /* opsional — aktivasi 0 kalau gagal */ }
+
+  const funnel = { total, pro, baru7, referred, onboarded, activated7 }
+  const base = { at: new Date().toISOString(), funnel }
+  if (!total) {
+    const out: GhInsight = { ...base, provider: 'fallback', insight: 'Belum ada pendaftar — fokus pertama: distribusi konten (TikTok CMO) sebelum eksperimen funnel.', experiments: [] }
+    await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
+    return out
+  }
+
+  let daLine = ''
+  try { const d = JSON.parse((await kvGet(e, 'da:last')) || 'null'); if (d?.insight) daLine = `\nINSIGHT DATA ANALYST (Dewi) TERBARU: "${String(d.insight).slice(0, 220)}"` } catch { /* ignore */ }
+
+  const funnelText =
+    `FUNNEL LUXTRADEE (nyata):\n` +
+    `- Total pendaftar: ${total} · User PRO: ${pro} (${total ? Math.round((pro / total) * 100) : 0}%)\n` +
+    `- Pendaftar baru 7 hari: ${baru7} — ${activated7} di antaranya sudah upload trade (aktivasi ${baru7 ? Math.round((activated7 / baru7) * 100) : 0}%)\n` +
+    `- User datang dari referral: ${referred} · Selesai onboarding: ${onboarded}`
+
+  const systemPrompt =
+    `Kamu Farhan, Growth Hacker Luxtradee (jurnal trading XAUUSD). Usulkan 3 EKSPERIMEN pertumbuhan yang bisa dieksekusi minggu ini — prioritas dampak besar dengan effort rendah. ` +
+    `OUTPUT HANYA JSON valid (tanpa markdown): {"insight":"maks 2 kalimat soal titik bocor funnel terbesar","experiments":[{"name":"nama singkat","how":"langkah konkret 1-2 kalimat","metric":"metrik keberhasilan terukur","effort":"rendah|sedang|tinggi"}]} — bahasa Indonesia.`
+
+  let provider: GhInsight['provider'] = 'fallback'
+  let insight = '', experiments: GhExperiment[] = []
+  let raw = ''
+  try {
+    raw = await geminiText(e, systemPrompt, funnelText + daLine + `\nTanggal: ${wibNow()}`, 1024, 0.6)
+    provider = 'gemini'
+  } catch {
+    try { raw = await openRouterText(e, systemPrompt, funnelText + daLine, 1024); provider = 'openrouter' } catch { raw = '' }
+  }
+  if (raw) {
+    try {
+      const j2 = JSON.parse(extractJsonLoose(raw) || raw)
+      insight = String(j2.insight || '').slice(0, 400)
+      experiments = Array.isArray(j2.experiments)
+        ? j2.experiments.slice(0, 3).map((x: any) => ({
+            name: String(x?.name || '').slice(0, 120),
+            how: String(x?.how || '').slice(0, 260),
+            metric: String(x?.metric || '').slice(0, 120),
+            effort: String(x?.effort || 'sedang').slice(0, 20),
+          })).filter((x: GhExperiment) => x.name)
+        : []
+    } catch { raw = '' }
+  }
+  if (!insight || !experiments.length) {
+    /* Fallback TANPA LLM — tetap dari funnel nyata */
+    provider = 'fallback'
+    const akt = baru7 ? Math.round((activated7 / baru7) * 100) : 0
+    insight = `Titik bocor terbesar: aktivasi pendaftar baru cuma ${akt}% (${activated7}/${baru7}) dan konversi PRO ${total ? Math.round((pro / total) * 100) : 0}%.`
+    experiments = [
+      { name: 'Email aktivasi 24 jam', how: 'Pendaftar baru yang belum upload dalam 24 jam dapat 1 email: "upload 1 screenshot, evaluasi AI jalan dalam 2 menit".', metric: 'Aktivasi pendaftar baru naik ke >30%', effort: 'rendah' },
+      { name: 'Social proof di landing', how: 'Tampilkan jumlah trade ter-evaluasi & win rate agregat (data Dewi) di landing page.', metric: 'Konversi kunjungan → daftar naik', effort: 'sedang' },
+      { name: 'Reward referral 2 arah', how: `Benefit PRO untuk pengundang & diundang. Saat ini baru ${referred} user dari referral — potensi gratis belum digarap.`, metric: 'Pendaftar dari referral mingguan naik', effort: 'sedang' },
+    ]
+  }
+  const out: GhInsight = { ...base, provider, insight, experiments }
+  await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+function ghToDiscord(g: GhInsight): string {
+  const L = ['🚀 **GROWTH HACKER — RANCANGAN EKSPERIMEN (Farhan)**', `🔍 ${g.insight}`]
+  if (g.funnel) L.push(`📉 Funnel: ${fmtN(g.funnel.total)} pendaftar · ${fmtN(g.funnel.pro)} PRO · aktivasi baru 7 hr ${g.funnel.baru7 ? Math.round((g.funnel.activated7 / g.funnel.baru7) * 100) : 0}% · ${fmtN(g.funnel.referred)} dari referral`)
+  if (g.experiments?.length) {
+    L.push('🧪 Eksperimen prioritas:')
+    g.experiments.slice(0, 3).forEach((x, i) => L.push(`${i + 1}. **${x.name}** (effort ${x.effort}) → ${x.metric}\n   ${x.how}`))
+  }
+  L.push('_(rancangan otomatis tiap Senin 10:00 WIB — detail di Ruang Growth /kantor-ceo)_')
+  return L.join('\n').slice(0, 1900)
+}
+
+/* ---------- NEXT BEST ACTION (CEO pintar): 1 prioritas/hari ----------
+   Setelah briefing tersusun, Alexander pilih SATU aksi terpenting yang
+   HANYA Bos yang bisa kerjakan hari ini → dikirim ke Discord sebagai
+   pesan terpisah + tampil di Ruang Rapat. 1 panggilan Gemini/hari. */
+async function nextBestAction(e: Env, briefingText: string): Promise<string> {
+  if (!e.GEMINI_API_KEY) return ''
+  try {
+    const nba = await geminiText(
+      e,
+      'Kamu wakil CEO Luxtradee (jurnal trading XAUUSD). Dari briefing pagi di bawah, tentukan SATU aksi prioritas tertinggi yang Bos harus kerjakan HARI INI — yang paling berdampak ke pertumbuhan atau paling urgent, dan HANYA Bos yang bisa (bukan yang bisa dikerjakan karyawan AI). Format jawaban HANYA: "🎯 <aksi konkret> — <alasan 1 kalimat>". Maks 200 karakter, bahasa Indonesia.',
+      briefingText.slice(0, 1600), 200, 0.4,
+    )
+    const text = nba.split('\n').filter((s) => s.trim()).slice(0, 2).join(' ').trim().slice(0, 300)
+    if (!text) return ''
+    await kvSet(e, 'nba:last', JSON.stringify({ at: new Date().toISOString(), text })).catch(() => {})
+    try { await sendDiscord(e, `${text}\n_(dipilih otomatis dari briefing pagi — 1 prioritas saja, biar fokus)_`) } catch { /* ignore */ }
+    return text
+  } catch { return '' }
 }
 
 /* ============================================================
@@ -1100,7 +1390,7 @@ async function handle(req: Request): Promise<Response> {
   if (action !== 'info' && !(isCron || isAdmin || isOwner || noSecrets))
     return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
-  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last') {
+  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'analyst-last' && action !== 'growth-last') {
     const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(k => (k === 'SUPABASE_URL' && !sbUrl(e)) || (k === 'SUPABASE_ANON_KEY' && !sbAnonKey(e)))
     if (missing.length) return j({ error: 'ENV belum diset: ' + missing.join(', ') }, 500)
   }
@@ -1247,6 +1537,50 @@ async function handle(req: Request): Promise<Response> {
         return last ? j({ talk: JSON.parse(last) }) : j({ talk: null })
       } catch { return j({ talk: null }) }
     }
+    case 'analyst': {
+      // Dewi (Data Analyst) — analisis trades 30 hari → insight + rekomendasi.
+      // Dedup per hari; kirim Discord (pesan terpisah) tiap hasil baru.
+      try {
+        const dk = `da:${utcDay()}`
+        if (await kvGet(e, dk)) {
+          const last = await kvGet(e, 'da:last')
+          return last ? j({ da: { ...JSON.parse(last), dupToday: true } }) : j({ da: await analystAgent(e) })
+        }
+        await kvSet(e, dk, new Date().toISOString())
+        const da = await analystAgent(e)
+        try { await sendDiscord(e, daToDiscord(da)) } catch { /* ignore */ }
+        return j({ da })
+      } catch (x: any) { return j({ daError: String(x?.message || x).slice(0, 160) }, 200) }
+    }
+    case 'analyst-last': {
+      // Hasil analisis Dewi terakhir (panel Ruang Data Analyst saat dibuka)
+      try {
+        const last = await kvGet(e, 'da:last')
+        return last ? j({ da: JSON.parse(last) }) : j({ da: null })
+      } catch { return j({ da: null }) }
+    }
+    case 'growth': {
+      // Farhan (Growth Hacker) — funnel nyata + 3 eksperimen minggu ini.
+      // Dedup per hari; kirim Discord (pesan terpisah) tiap hasil baru.
+      try {
+        const gk = `gh:${utcDay()}`
+        if (await kvGet(e, gk)) {
+          const last = await kvGet(e, 'gh:last')
+          return last ? j({ gh: { ...JSON.parse(last), dupToday: true } }) : j({ gh: await growthAgent(e) })
+        }
+        await kvSet(e, gk, new Date().toISOString())
+        const gh = await growthAgent(e)
+        try { await sendDiscord(e, ghToDiscord(gh)) } catch { /* ignore */ }
+        return j({ gh })
+      } catch (x: any) { return j({ ghError: String(x?.message || x).slice(0, 160) }, 200) }
+    }
+    case 'growth-last': {
+      // Hasil rancangan Farhan terakhir (panel Ruang Growth saat dibuka)
+      try {
+        const last = await kvGet(e, 'gh:last')
+        return last ? j({ gh: JSON.parse(last) }) : j({ gh: null })
+      } catch { return j({ gh: null }) }
+    }
     default:
       return j({
         app: 'Luxtrade Super AI Agent',
@@ -1269,6 +1603,10 @@ async function handle(req: Request): Promise<Response> {
           'action=tiktok-del (?id=) — hapus post bahan analisis',
           'action=talk — diskusi harian CSO × CMO: akar masalah user pasif + skrip konten (Ruang CSO)',
           'action=talk-last — hasil diskusi CSO × CMO terakhir',
+          'action=analyst — Dewi (Data Analyst): trades 30 hari → insight + 3 rekomendasi (Ruang DA, cron Senin)',
+          'action=analyst-last — hasil analisis Dewi terakhir',
+          'action=growth — Farhan (Growth Hacker): funnel + 3 eksperimen growth (Ruang GH, cron Senin)',
+          'action=growth-last — hasil rancangan Farhan terakhir',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
