@@ -80,7 +80,7 @@ const TEAM_DETAIL = [
     baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
     tugas: [
       'Hitung pendaftar / aktif 24 jam / pasif tiap pagi — tampil di briefing & panel Ruang CSO',
-      'Kirim email sapaan ke maks 50 user pasif (3 variasi rotasi harian — anti email fatigue) via Resend',
+      'Kirim EMAIL PERSONAL ke maks 50 user pasif: pembuka sesuai data masing-masing (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload) + 3 variasi rotasi harian',
       'Ukur feedback: besoknya hitung berapa dari yang di-email yang balik upload (dilaporkan di briefing)',
       'Bawa data nyata ke meja rapat sama Sinta (CMO): kenapa user daftar tapi males upload jurnal → jadi skrip konten',
     ],
@@ -90,7 +90,7 @@ const TEAM_DETAIL = [
       'Email cuma ke 50 pendaftar terbaru yang pasif per hari (sisa nunggu besok)',
       'Tidak bisa survey user langsung / membalas chat user (itu tugas CS bot /api/chat)',
     ],
-    ide: 'Survey 1-klik "kenapa berhenti" di dashboard · segmen email beda (baru vs lama) · win-back khusus mantan user aktif',
+    ide: 'Skor risiko churn per user (siapa mau berhenti diprediksi) · A/B subject email otomatis · win-back khusus mantan user aktif',
   },
   {
     id: 'CMO', emoji: '📣', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed', bg: 'rgba(124,58,237,.05)', border: 'rgba(124,58,237,.25)',
@@ -166,19 +166,21 @@ const TEAM_DETAIL = [
   {
     id: 'CEO', emoji: '👔', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#334155', bg: 'rgba(51,65,85,.04)', border: 'rgba(51,65,85,.22)',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
-    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC',
+    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + 🧠 Memori Kantor',
     tugas: [
       'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → kirim ke Discord 08:00',
-      'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya',
-      'Susun laporan mingguan (pertumbuhan user, uptime, kuota, konversi COO) tiap Senin',
-      'Pintu kontrol manual di Ruang Rapat: briefing, watchdog, tes Discord, laporan mingguan',
+      'Pilih 1 NEXT BEST ACTION tiap pagi — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
+      'Ingatkan PRIORITAS KEMARIN di briefing — akuntabilitas: dilakukan, atau ganti dengan alasan jelas',
+      'Catat keputusan & kesimpulan penting ke 🧠 Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
+      'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya · laporan mingguan tiap Senin',
     ],
-    lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca',
+    lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca · memori bisa dibaca di Ruang Rapat',
     batas: [
-      'Cuma bisa LAPOR — keputusan besar (harga, fitur, anggaran) tetap di tangan Bos',
+      'Cuma bisa LAPOR & SARAN — keputusan besar (harga, fitur, anggaran) tetap di tangan Bos',
       'Briefing tidak dikirim ulang otomatis kalau Discord gagal — harus klik manual',
+      'NBA adalah saran otomatis — kualitasnya tergantung data briefing hari itu',
     ],
-    ide: '1 "Next Best Action" tiap pagi: prioritas tunggal apa yang Bos harus kerjakan hari ini',
+    ide: 'Chat 2 arah Bos ↔ karyawan via bot Discord · ringkasan briefing bentuk suara (TTS) · oke/not oke otomatis eksekusi NBA',
   },
 ]
 
@@ -421,6 +423,7 @@ export default function KantorCeo3D() {
     if (room === 'CMO') ttLoad()
     if (room === 'COO') cooLoad()
     if (room === 'CSO') call('talk-last')
+    if (room === 'rapat') call('mem-last')
     if (room === 'DA') call('analyst-last')
     if (room === 'GH') call('growth-last')
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -1657,6 +1660,17 @@ export default function KantorCeo3D() {
               <div style={{marginTop:8,background:'rgba(124,58,237,.07)',border:'1px solid rgba(124,58,237,.22)',borderRadius:9,padding:'8px 10px',fontSize:11.5,lineHeight:1.55}}>
                 <b style={{color:'#6d28d9'}}>🎯 Next Best Action hari ini — pilihan Alexander:</b><br/>{data.nba.text}
               </div>)}
+            {Array.isArray(data?.mem)&&data.mem.length>0&&(
+              <div style={{marginTop:8,background:'rgba(6,182,212,.06)',border:'1px solid rgba(6,182,212,.22)',borderRadius:9,padding:'8px 10px',fontSize:11,lineHeight:1.55}}>
+                <b style={{color:'#0e7490'}}>🧠 Memori Kantor — {data.mem.length} catatan terakhir</b>
+                <div style={{marginTop:4,maxHeight:170,overflowY:'auto'}}>
+                  {data.mem.map((m:any,i:number)=>(
+                    <div key={i} style={{marginBottom:3,paddingLeft:8,borderLeft:'2px solid rgba(6,182,212,.25)'}}>
+                      <span style={{opacity:.55}}>[{String(m.at||'').slice(5,10)}] <b>{m.who}</b>:</span> {m.text}
+                    </div>))}
+                </div>
+                <div style={{opacity:.5,fontSize:9.5,marginTop:4}}>Semua karyawan membaca memori ini di tugas berikutnya — tim belajar bersama, bukan kerja amnesia.</div>
+              </div>)}
             {data&&data.text&&(
               <div style={{marginTop:8}}>
                 <b>Discord:</b> {data.notifySent?'✅ terkirim':`❌ ${data.notifyErr||'gagal — klik 🧪 Tes Discord'}`}
@@ -1666,7 +1680,7 @@ export default function KantorCeo3D() {
             <div style={SEP}>
               <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
               <div style={{opacity:.75,fontSize:10.5,marginTop:4,lineHeight:1.8}}>
-                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO + 🎯 Next Best Action buat Bos<br/>
+                🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — CTO QA semua fitur + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO + 🎯 Next Best Action + akuntabilitas prioritas kemarin<br/>
                 🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br/>
                 📊 <b>Laporan mingguan Senin 10:00 WIB</b> — laporan CEO + 📊 Dewi analisis trades (insight & rekomendasi) + 🚀 Farhan eksperimen growth — 3 pesan Discord terpisah<br/>
                 ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br/>
