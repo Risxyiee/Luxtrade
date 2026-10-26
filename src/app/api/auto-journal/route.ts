@@ -91,8 +91,11 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
 
 // ==================== AI CALL WITH RETRY + MODEL FALLBACK ====================
 
-/** Fallback chain: 2.5-flash (best quality) → 2.0-flash (separate quota) → 1.5-flash (oldest, most quota). */
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+/** Fallback chain: 2.5-flash (best quality) → 2.0-flash (separate quota)
+ *  → 2.5-flash-lite (bucket lagi, ringan) → 1.5-flash (oldest, most quota).
+ *  Tiap model punya bucket kuota gratis sendiri — makin banyak model di
+ *  chain, makin kecil peluang "Kuota AI penuh" (429) di auto-jurnal. */
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash']
 
 function isRetryableAIError(err: any): boolean {
   const msg = String(err?.message || '').toLowerCase()
@@ -251,7 +254,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!pro) {
+    /* Akun pemilik (OWNER_EMAIL, default luxtradee@gmail.com) selalu boleh —
+       Bos harus bisa tes produk sendiri tanpa harus jadi PRO. */
+    const ownerEmail = (process.env.OWNER_EMAIL || 'luxtradee@gmail.com').toLowerCase().trim()
+    const isOwner = String(user.email || '').toLowerCase().trim() === ownerEmail
+
+    if (!pro && !isOwner) {
       log('⛔', `User is NOT PRO`)
       return NextResponse.json(
         {

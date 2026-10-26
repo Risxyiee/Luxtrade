@@ -166,12 +166,12 @@ const TEAM_DETAIL = [
       '⭐ CHAT 2 ARAH Discord: Bos ketik /bos <pesan> → Alexander jawab langsung (route /api/discord-interactions, mode Interactions — bukan Gateway, kompatibel Workers) dengan konteks briefing terakhir',
       '⭐ RINGKASAN SUARA: tombol 🔊 Bacakan Briefing di Ruang Rapat — laporan pagi dibacakan suara browser (TTS lokal, tanpa API key)',
       'Catat keputusan & kesimpulan penting ke 🧠 Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
-      'Jalankan AUTO-ACC email CSO otomatis kalau Bos sudah menyalakannya · laporan mingguan tiap Senin',
+      'Jalankan AUTO-ACC email CSO otomatis tiap pagi (default ON — toggle AUTO-ACC untuk mematikan) · Dewi & Farhan lapor HARIAN jam 08:00 (dulu cuma Senin)',
     ],
     lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca · memori bisa dibaca di Ruang Rapat · chat balik via /bos di Discord',
     batas: [
       'Cuma bisa LAPOR & SARAN — keputusan besar (harga, fitur, anggaran) tetap di tangan Bos',
-      'Briefing tidak dikirim ulang otomatis kalau Discord gagal — harus klik manual',
+      'Briefing gagal kirim ke Discord → dicoba ulang OTOMATIS oleh watchdog (self-heal) + dikirim email cadangan ke Bos',
       'Chat /bos jalan setelah 3 secret dipasang (DISCORD_APP_ID, DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY) + Interactions Endpoint URL diisi di Discord Developer Portal',
       'TTS pakai suara bawaan browser (kualitas tergantung perangkat) — bukan suara natural API',
     ],
@@ -461,8 +461,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
                 <div className="text-white/60 text-[10.5px] mt-1 leading-relaxed">
                   🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — QA + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO + 🎯 NBA + akuntabilitas prioritas kemarin<br />
+                  📊 <b>Dewi & Farhan lapor HARIAN</b> 08:00 WIB — analisis trades + eksperimen growth, pesan Discord terpisah<br />
                   🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br />
-                  📊 <b>Laporan mingguan Senin 10:00 WIB</b> — CEO + 📊 Dewi analisis trades + 🚀 Farhan eksperimen growth — 3 pesan Discord terpisah<br />
+                  📈 <b>Laporan mingguan Senin 10:00 WIB</b> — rekap 7 hari versi CEO — pesan Discord terpisah<br />
                   ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br />
                   🏢 Semua karyawan sekarang di kantor ini — halaman /admin/ai-staff sudah pensiun.
                 </div>
