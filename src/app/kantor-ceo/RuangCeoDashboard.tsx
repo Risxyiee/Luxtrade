@@ -638,7 +638,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                           {P.talkCopied ? <span className="text-emerald-300 text-[10px]">tersalin ✅</span> : null}
                         </div>
                       </div>)}
-                    {talk.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">⚡ via OpenRouter (model resmi Maya)</div> : talk.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">📦 templat cadangan (semua model gagal)</div> : talk.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">✅ via Gemini (cadangan)</div> : null}
+                    {talk.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">⚡ via OpenRouter (model resmi Maya)</div> : talk.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">😔 Maaf Bos, server staf AI sedang sibuk. Laporan riil sudah ditarik, tapi AI gagal merangkai kata. Coba beberapa saat lagi.</div> : talk.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">✅ via Gemini (cadangan)</div> : null}
                   </div>
                 ) : <div className="text-white/45 text-[10.5px] mt-1.5">Belum ada diskusi — klik tombol di atas. Hasil juga otomatis dibuat tiap briefing 08:00 &amp; dikirim ke Discord.</div>}
               </div>
@@ -661,7 +661,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     </div>
                   ) : null}
                   <div className="rounded-xl bg-violet-400/10 border border-violet-300/20 p-2.5 whitespace-pre-wrap text-[12px] max-h-52 overflow-y-auto kscroll leading-relaxed text-white/90">{cmoCur || cmo.error || '—'}</div>
-                  {cmo.usedFallback ? <div className="text-white/40 mt-1 text-[11px]">(fallback — semua model gagal, revisi manual)</div> : null}
+                  {cmo.usedFallback ? <div className="text-white/40 mt-1 text-[11px]">(server AI sedang sibuk — pakai draf cadangan dari data riil, mohon revisi manual)</div> : null}
                   {cmo.provider === 'openrouter' ? <div className="text-amber-300 mt-1 text-[11px]">⚡ OpenRouter — model resmi Sinta{cmo.model ? `: ${cmo.model}` : ' (GLM-4.7-Flash)'}</div> : null}
                   {cmo.provider === 'gemini' ? <div className="text-white/40 mt-0.5 text-[10.5px]">✅ Gemini (cadangan terakhir)</div> : null}
                   {cmo.basedOn === 'tiktok' ? <div className="text-violet-300 text-[10.5px] mt-0.5">📚 Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div> : null}

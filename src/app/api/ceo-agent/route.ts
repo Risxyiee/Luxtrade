@@ -493,6 +493,11 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
       lastErr = `${model} → ${String(x?.message || x).slice(0, 120)}`
     }
   }
+  /* Task 33 (permintaan Bos): error ASLI OpenRouter wajib tercetak di log
+     server (Cloudflare `wrangler tail`) — dulu ditelan diam-diam sehingga
+     saat dashboard jatuh ke templat cadangan, penyebabnya (429 kuota?
+     500 server? timeout?) tidak bisa didiagnosa. */
+  console.error('[OpenRouter] Semua model gagal - error asli terakhir:', lastErr || '(tanpa detail)')
   throw new Error(lastErr || 'OpenRouter: semua model gagal')
 }
 
@@ -511,13 +516,20 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
   try {
     const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature)
     return { ...r, provider: 'openrouter' }
-  } catch (x: any) { err = String(x?.message || x).slice(0, 140) }
+  } catch (x: any) {
+    err = String(x?.message || x).slice(0, 140)
+    /* Task 33: jejak log server — agen mana yang gagal & penyebabnya */
+    console.error(`[agentBrain:${agent}] OpenRouter gagal, mencoba jalur cadangan:`, err)
+  }
   if (cleanEnv(e.LLM_GEMINI_FALLBACK) === '1') {
     if (cleanEnv(e.GEMINI_API_KEY)) {
       try {
         const text = await geminiText(e, systemPrompt, userPrompt, maxTokens, temperature)
         return { text, provider: 'gemini', model: e.GEMINI_MODEL || 'gemini-2.5-flash' }
-      } catch (x: any) { err += ' | Gemini: ' + String(x?.message || x).slice(0, 80) }
+      } catch (x: any) {
+        err += ' | Gemini: ' + String(x?.message || x).slice(0, 80)
+        console.error(`[agentBrain:${agent}] fallback Gemini juga gagal:`, String(x?.message || x).slice(0, 140))
+      }
     }
   } else if (cleanEnv(e.GEMINI_API_KEY)) {
     err += ' | fallback Gemini dilewati (lindungi kuota auto-jurnal — set LLM_GEMINI_FALLBACK=1 untuk aktifkan)'
