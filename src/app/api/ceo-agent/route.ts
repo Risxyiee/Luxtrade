@@ -66,6 +66,30 @@ function timeoutSignal(ms: number): AbortSignal {
   setTimeout(() => c.abort(), ms)
   return c.signal
 }
+
+/* Tugas lanjutan SETELAH response dikirim (fase 2 briefing) — di CF Workers
+   dipasang ke waitUntil supaya tidak dibatalkan saat response selesai;
+   di luar CF (dev lokal) promise jalan apa adanya (fire-and-forget). */
+function cfWaitUntil(p: Promise<unknown>): boolean {
+  try {
+    const sym = Symbol.for('__cloudflare-context__')
+    const c = (globalThis as Record<symbol, unknown>)[sym] as
+      | { ctx?: { waitUntil?: (x: Promise<unknown>) => void } }
+      | undefined
+    if (c?.ctx?.waitUntil) { c.ctx.waitUntil(p); return true }
+  } catch { /* ignore */ }
+  return false
+}
+
+/* Batas waktu keras 1 langkah via Promise.race — langkah yang lambat tidak
+   lagi ditunggu (dipakai compose Alexander biar briefing tidak menumpuk
+   timeout cron 120 dtk). */
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T | null): Promise<T | null> {
+  return new Promise<T | null>((resolve) => {
+    const t = setTimeout(() => resolve(fallback), ms)
+    p.then((v) => { clearTimeout(t); resolve(v) }).catch(() => { clearTimeout(t); resolve(fallback) })
+  })
+}
 const isoAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString()
 const utcDay = (off = 0) => new Date(Date.now() + off * 86400_000).toISOString().slice(0, 10)
 const dayIndex = () => Math.floor(Date.now() / 86400_000)
@@ -691,43 +715,46 @@ async function ceoComposeBriefing(e: Env, templateText: string): Promise<{ text:
   return { text: text.slice(0, 1950), model: brain.model }
 }
 
+/* Email cadangan — kalau laporan utama GAGAL kirim ke Discord, Bos tetap
+   harus tahu hasil kerja karyawan AI: briefing dikirim ke email owner via
+   Resend. Gagal di sini diabaikan (non-kritis). */
+async function briefingFailEmail(e: Env, discordErr: string, briefingText: string): Promise<void> {
+  const rKey = cfSecret(e, 'RESEND_API_KEY')
+  if (!rKey) return
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${rKey}` },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to: ownerEmail(e),
+      subject: '⚠️ Laporan pagi gagal kirim ke Discord — cek DISCORD_WEBHOOK_URL',
+      text: `${briefingText}\n\n━━━━━━━━━━━━━━━━━━\nError Discord: ${discordErr}\nWaktu: ${new Date().toISOString()}`,
+    }),
+    signal: timeoutSignal(10_000),
+  }).catch(() => {})
+}
+
 async function runMorningBriefing(e: Env) {
-  const [cto, cso, cmo, cfo, qa, cooLine, e2e] = await Promise.all([
+  /* FASE 1 — LAPORAN INTI, DIKIRIM SECEPAT MUNGKIN.
+     Riwayat insiden: dulu QA sweep + E2E login + AUTO-ACC (±50 email
+     berurutan) dijalankan SEBELUM laporan dikirim → total sering >120 dtk →
+     fetch dari cron Cloudflare kena timeout 120 dtk → laporan TIDAK PERNAH
+     SAMPAI Discord (hilang seharian, tanpa alarm). Kini laporan inti
+     (CTO/CSO/CMO/CFO + penawaran COO + prioritas kemarin) dikirim dulu
+     <~60 dtk; QA/E2E/AUTO-ACC/diskusi CSO×CMO/NBA jadi FASE 2 — pesan
+     terpisah SETELAH laporan utama aman. */
+  const day = utcDay()
+  const [cto, cso, cmo, cfo, cooLine] = await Promise.all([
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
     csoAgent(e).catch((x: any) => ({ total: -1, active: -1, passive: -1, err: String(x?.message || x) })),
     cmoAgent(e).catch((x: any) => ({ draft: '', angle: '', usedFallback: false, error: String(x?.message || x) })),
     cfoAgent(e).catch((x: any) => ({ limit: 0, usedToday: 0, usedYesterday: 0, quota429: 0, status: 'error', err: String(x?.message || x) })),
-    qaAgent(e).catch((x: any) => ({ total: 0, ok: 0, fails: [], avgMs: 0, err: String(x?.message || x) })),
     cooYesterdayLine(e).catch(() => ''),
-    /* E2E AUTO-TEST — Raka login beneran + tes fitur satu-satu.
-       1×/hari di briefing (dedup e2e:auto:<tgl>) — jalan manual bebas. */
-    (async (): Promise<any> => {
-      try {
-        const dup = `e2e:auto:${utcDay()}`
-        if (await kvGet(e, dup)) {
-          const raw = await kvGet(e, 'e2e:last')
-          return raw ? JSON.parse(raw) : null
-        }
-        await kvSet(e, dup, new Date().toISOString()).catch(() => {})
-      } catch { /* ignore */ }
-      return await e2eAgent(e).catch((x: any) => ({ e2eTotal: 0, e2eFailed: 1, e2eSteps: [], e2eVerdict: String(x?.message || x) }))
-    })(),
   ])
-  /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
-     (1×/hari, dedup via agent_kv acc_email:<tanggal>). Bos tidur, karyawan kerja. */
-  const autoOn = (await kvGet(e, 'autoacc')) === 'on'
-  let autoAcc = ''
-  if (autoOn && !(await kvGet(e, `acc_email:${utcDay()}`))) {
-    await kvSet(e, `acc_email:${utcDay()}`, new Date().toISOString())
-    if (e.RESEND_API_KEY) {
-      try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke user pasif (variasi "${r.variant}"; ${r.personalized} pakai data trading asli penerima; draf Maya via ${r.emailProvider === 'template' ? 'templat statis' : r.emailModel || r.emailProvider})` }
-      catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
-    } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
-    try { if (autoAcc) await sendDiscord(e, autoAcc) } catch { /* ignore */ }
-  }
+
   /* AKUNTABILITAS NBA — Alexander ingatkan prioritas KEMARIN dulu.
      Bos jadi punya jejak: dilakukan atau harus ada alasan ganti.
-     ⭐ Baru: Bos bisa jawab oke/not-oke (tombol Ruang Rapat / slash command
+     ⭐ Bos bisa jawab oke/not-oke (tombol Ruang Rapat / slash command
      Discord /nba-oke · /nba-not) — jawaban dicatat & briefing menghormati itu. */
   let nbaLine = ''
   try {
@@ -746,55 +773,134 @@ async function runMorningBriefing(e: Env) {
     }
   } catch { /* ignore */ }
 
-  /* ALEXANDER (CEO) yang merangkai — kalau modelnya gagal, templat
-     buildBriefing tetap dipakai (sistem tidak pernah tanpa laporan). */
-  const templateText = buildBriefing(cto, cso, cmo, cfo, autoAcc, autoOn, qa, cooLine, nbaLine, e2e)
+  const autoOn = (await kvGet(e, 'autoacc').catch(() => null)) === 'on'
+  const templateText = buildBriefing(cto, cso, cmo, cfo, '', autoOn, null, cooLine, nbaLine, null)
+
+  /* ALEXANDER (CEO) merangkai — dibatasi keras 30 dtk (dulu LLM lambat ikut
+     mendorong total briefing melewati timeout cron 120 dtk). Gagal/lewat
+     waktu → templat buildBriefing tetap dipakai (sistem tidak pernah tanpa
+     laporan). */
   let text = templateText
   try {
-    const composed = await ceoComposeBriefing(e, templateText)
-    text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
-    await memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`)
+    const composed = await withTimeout(ceoComposeBriefing(e, templateText), 30_000, null)
+    if (composed?.text) {
+      text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
+      cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))
+    }
   } catch { /* templat tetap dipakai */ }
+
+  /* Kirim laporan utama — 2 percobaan (Discord kadang 429/ngambek). */
   let notifySent = false, notifyErr = ''
-  try { await sendDiscord(e, text); notifySent = true } catch (x: any) { notifyErr = String(x?.message || x) }
-
-  /* DISKUSI HARIAN CSO × CMO — 1×/hari, otomatis setelah briefing utama.
-     Maya laporkan akar masalah user pasif + Sinta bikin skrip konten.
-     Hasilnya dikirim ke Discord SEBAGAI PESAN TERPISAH (briefing utama
-     sudah hampir penuh 2000 char) + disimpan buat panel Ruang CSO.
-     Kalau Bos sudah jalankan manual hari ini → skip (no duplikat). */
-  let talk: CsoCmoTalk | null = null
-  let talkSent = false
-  try {
-    if (!(await kvGet(e, `cso-cmo:${utcDay()}`))) {
-      await kvSet(e, `cso-cmo:${utcDay()}`, new Date().toISOString())
-      talk = await csoCmoTalk(e)
-      try { await sendDiscord(e, talkToDiscord(talk)); talkSent = true } catch { /* ignore */ }
-    } else {
-      const raw = await kvGet(e, 'cso-cmo:last')
-      if (raw) talk = JSON.parse(raw) as CsoCmoTalk
+  for (let attempt = 0; attempt < 2 && !notifySent; attempt++) {
+    try { await sendDiscord(e, text); notifySent = true; notifyErr = '' }
+    catch (x: any) {
+      notifyErr = String(x?.message || x)
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 2500))
     }
-  } catch { /* talk opsional — briefing utama tetap sah */ }
+  }
 
-  /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
-     (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */
-  let nba: { at: string; text: string } | null = null
-  try {
-    if (!(await kvGet(e, `nba:${utcDay()}`))) {
-      await kvSet(e, `nba:${utcDay()}`, new Date().toISOString())
-      const t = await nextBestAction(e, text)
-      if (t) nba = { at: new Date().toISOString(), text: t }
-    } else {
-      const raw = await kvGet(e, 'nba:last')
-      if (raw) nba = JSON.parse(raw) as { at: string; text: string }
-    }
-  } catch { /* opsional */ }
+  /* Tandai briefing hari ini SUDAH DICOBA — watchdog pakai ini untuk
+     self-heal: kalau key ini belum "1" lewat jam 08:20 WIB, briefing
+     dipicu ulang otomatis (maks 2×/hari). */
+  await kvSet(e, `briefing:done:${day}`, notifySent ? '1' : '0').catch(() => {})
+  if (!notifySent) cfWaitUntil(briefingFailEmail(e, notifyErr, text).catch(() => {}))
 
-  const summary = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, talk, talkSent, nba, text }
-  await kvSet(e, 'briefing:last', JSON.stringify(summary))
+  const summary: Record<string, unknown> = { at: new Date().toISOString(), notifySent, notifyErr, cto, cso, cmo, cfo, talk: null, talkSent: false, nba: null, text, partial: true }
+  await kvSet(e, 'briefing:last', JSON.stringify(summary)).catch(() => {})
+
+  /* FASE 2 — lampiran & ekstra TIDAK BLOKIR response: auto-acc email,
+     QA + E2E, diskusi CSO×CMO, NBA. cfWaitUntil → tetap jalan di Worker
+     setelah response dikirim (kalau waitUntil tak tersedia → tetap dicoba). */
+  cfWaitUntil(briefingExtras(e, { day, autoOn, briefingText: text, summary }).catch(() => {}))
+
   return summary
 }
 
+/* FASE 2 briefing — pekerjaan lambat SETELAH laporan utama aman di Discord.
+   Semua hasil dikirim sebagai PESAN DISCORD TERPISAH + briefing:last
+   di-merge supaya dashboard Ruang CEO tetap lengkap. */
+async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; briefingText: string; summary: Record<string, unknown> }): Promise<void> {
+  const { day, autoOn, briefingText, summary } = ctx
+
+  /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
+     (1×/hari, dedup via agent_kv acc_email:<tanggal>). Bos tidur, karyawan kerja.
+     ±50 email berurutan itu LAMA — dulu bikin briefing lewat timeout cron. */
+  try {
+    if (autoOn && !(await kvGet(e, `acc_email:${day}`))) {
+      await kvSet(e, `acc_email:${day}`, new Date().toISOString())
+      let autoAcc = ''
+      if (cfSecret(e, 'RESEND_API_KEY')) {
+        try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke user pasif (variasi "${r.variant}"; ${r.personalized} pakai data trading asli penerima; draf Maya via ${r.emailProvider === 'template' ? 'templat statis' : r.emailModel || r.emailProvider})` }
+        catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
+      } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
+      try { await sendDiscord(e, autoAcc) } catch { /* ignore */ }
+      summary.autoAcc = autoAcc
+    }
+  } catch { /* opsional */ }
+
+  /* QA + E2E — Raka sweep semua fitur (lama) → hasil jadi LAMPIRAN terpisah.
+     Dedup per hari supaya self-heal/manual re-run tidak dobel kirim. */
+  try {
+    if (!(await kvGet(e, `lamp:qa:${day}`))) {
+      await kvSet(e, `lamp:qa:${day}`, new Date().toISOString())
+      const [qa, e2e] = await Promise.all([
+        qaAgent(e).catch((x: any) => ({ total: 0, ok: 0, fails: [], avgMs: 0, err: String(x?.message || x) })),
+        e2eAgent(e).catch((x: any) => ({ e2eTotal: 0, e2eFailed: 1, e2eSteps: [], e2eVerdict: String(x?.message || x) } as any)),
+      ])
+      const L: string[] = []
+      if (qa?.total > 0) {
+        L.push(qa.fails?.length
+          ? `• QA ${qa.total} fitur dashboard: ${qa.ok} OK, ${qa.fails.length} MASALAH ⚠️`
+          : `• QA otomatis ${qa.total} fitur dashboard: SEMUA OK ✅ (rata-rata ${qa.avgMs} ms)`)
+        for (const f of (qa.fails || []).slice(0, 6))
+          L.push(`   ↳ ${f.path} → ${f.status || 'timeout'}${f.err ? ' — ' + f.err : ''}`)
+      }
+      if (e2e?.e2eTotal > 0) {
+        L.push(e2e.e2eFailed
+          ? `• E2E LOGIN + tes fitur satu-satu: ${e2e.e2ePassed}/${e2e.e2eTotal} lolos ⚠️`
+          : `• E2E LOGIN + tes fitur satu-satu (${e2e.e2eTotal} langkah): SEMUA OK ✅ (${(e2e.e2eDurMs / 1000).toFixed(1)}s)`)
+        for (const f of (e2e.e2eSteps || []).filter((s: any) => !s.ok).slice(0, 5))
+          L.push(`   ↳ ${f.label}: ${String(f.detail || 'gagal').slice(0, 90)}`)
+      }
+      if (L.length) { try { await sendDiscord(e, `📎 **LAMPIRAN QA CTO (Raka)**\n${L.join('\n')}`) } catch { /* ignore */ } }
+      summary.qa = qa
+      summary.e2e = e2e
+    }
+  } catch { /* opsional */ }
+
+  /* DISKUSI HARIAN CSO × CMO — 1×/hari. Pesan Discord terpisah + panel
+     Ruang CSO. Kalau Bos sudah jalankan manual hari ini → skip (no duplikat). */
+  try {
+    if (!(await kvGet(e, `cso-cmo:${day}`))) {
+      await kvSet(e, `cso-cmo:${day}`, new Date().toISOString())
+      const talk = await csoCmoTalk(e)
+      summary.talk = talk
+      try { await sendDiscord(e, talkToDiscord(talk)); summary.talkSent = true } catch { /* ignore */ }
+    } else {
+      const raw = await kvGet(e, 'cso-cmo:last')
+      if (raw) summary.talk = JSON.parse(raw)
+    }
+  } catch { /* talk opsional */ }
+
+  /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
+     (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */
+  try {
+    if (!(await kvGet(e, `nba:${day}`))) {
+      await kvSet(e, `nba:${day}`, new Date().toISOString())
+      const t = await nextBestAction(e, briefingText)
+      if (t) summary.nba = { at: new Date().toISOString(), text: t }
+    } else {
+      const raw = await kvGet(e, 'nba:last')
+      if (raw) summary.nba = JSON.parse(raw)
+    }
+  } catch { /* opsional */ }
+
+  /* Merge hasil fase 2 ke briefing:last (dashboard Ruang CEO lengkap). */
+  try {
+    summary.partial = false
+    await kvSet(e, 'briefing:last', JSON.stringify(summary))
+  } catch { /* ignore */ }
+}
 /* ---------- flow "ACC EMAIL": email ke user pasif ----------
    v3: EMAIL PERSONAL per user — Maya baca data trading ASLI tiap
    penerima (jumlah trade, pair favorit, berapa hari lalu terakhir
@@ -1022,6 +1128,24 @@ async function watchdog(e: Env) {
       try { await sendDiscord(e, msg); alerts.push('kuota-80') } catch { /* ignore */ }
     }
   }
+
+  /* 4) SELF-HEAL BRIEFING — kalau sudah lewat 08:20 WIB tapi laporan pagi
+     belum terkirim hari ini (cron 08:00 timeout/gagal/401), watchdog picu
+     briefing ulang otomatis. Maks 2×/hari biar tidak spam. Bos tidur,
+     laporan tetap sampai. */
+  try {
+    const done = await kvGet(e, `briefing:done:${day}`)
+    if (done !== '1') {
+      const hm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+      const hh = parseInt(hm.slice(0, 2), 10)
+      const mm = parseInt(hm.slice(3, 5), 10)
+      if ((hh > 8 || (hh === 8 && mm >= 20)) && parseInt((await kvGet(e, `briefing:heal:${day}`)) || '0', 10) < 2) {
+        await kvIncr(e, `briefing:heal:${day}`).catch(() => {})
+        const heal = await runMorningBriefing(e)
+        alerts.push(heal.notifySent ? 'briefing-self-heal' : 'briefing-heal-gagal')
+      }
+    }
+  } catch { /* self-heal opsional */ }
 
   return { watch: true, at: new Date().toISOString(), siteOk: cto.siteOk, status: cto.status, bugs24h: cto.bugs24h, quota, alerts }
 }
@@ -1769,7 +1893,7 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   try { const d = JSON.parse((await kvGet(e, 'da:last')) || 'null'); if (d?.insight) daLine = `\nINSIGHT DATA ANALYST (Dewi) TERBARU: "${String(d.insight).slice(0, 220)}"` } catch { /* ignore */ }
 
   /* Hasil A/B CTA landing — Farhan harus tahu eksperimen yang sedang jalan */
-  let ab: GhInsight['ab'] = null
+  let ab: GhInsight['ab'] | null = null
   let abLine = ''
   try {
     ab = await abSnapshot(e)
@@ -2320,7 +2444,7 @@ async function handle(req: Request): Promise<Response> {
         notify: 'Discord webhook (DISCORD_WEBHOOK_URL)',
         owner: ownerEmail(e),
         actions: [
-          'action=briefing (POST/GET) — jalankan 4 agen + kirim laporan ke Discord',
+          'action=briefing (POST/GET) — laporan harian ke Discord: inti dulu (<60 dtk), lampiran QA/E2E + diskusi + NBA menyusul sebagai pesan terpisah',
           'action=agents[&only=cto,cso,cfo] — data agen (subset via only)',
           'action=diag — diagnostik env & tes query Supabase (Ruang CTO)',
           'action=quota — laporan kuota (CFO)',
