@@ -78,10 +78,14 @@ export default {
         (async () => {
           try {
             const isCeo = ceoRoute(route)
-            // ceo-agent otentikasi via ?key=CRON_SECRET — tambahkan jika ada.
+            // ceo-agent otentikasi via ?key=CRON_SECRET (isCron) ATAU
+            // ?key=ADMIN_SECRET (isAdmin). Fallback ke ADMIN_SECRET kalau
+            // CRON_SECRET belum diset — cron laporan 08:00 tidak lagi
+            // gagal 401 secara senyap.
+            const ceoKey = env.CRON_SECRET || env.ADMIN_SECRET
             let path = route
-            if (isCeo && env.CRON_SECRET)
-              path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(env.CRON_SECRET)
+            if (isCeo && ceoKey)
+              path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(ceoKey)
 
             const headers = { 'Content-Type': 'application/json' }
             if (cronSecret) headers['Authorization'] = `Bearer ${cronSecret}`
