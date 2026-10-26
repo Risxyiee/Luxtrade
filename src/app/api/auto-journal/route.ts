@@ -92,10 +92,15 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
 // ==================== AI CALL WITH RETRY + MODEL FALLBACK ====================
 
 /** Fallback chain: 2.5-flash (best quality) → 2.0-flash (separate quota)
- *  → 2.5-flash-lite (bucket lagi, ringan) → 1.5-flash (oldest, most quota).
+ *  → 2.5-flash-lite (bucket lagi, ringan) → 1.5-flash-8b → 1.5-flash-latest.
  *  Tiap model punya bucket kuota gratis sendiri — makin banyak model di
- *  chain, makin kecil peluang "Kuota AI penuh" (429) di auto-jurnal. */
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash']
+ *  chain, makin kecil peluang "Kuota AI penuh" (429) di auto-jurnal.
+ *  NOTE 404 (fix Task 31): `gemini-1.5-flash` polos sudah DIPENSIUNKAN
+ *  Google → 404 Not Found di v1beta. Diganti `gemini-1.5-flash-8b`, dan
+ *  alias `gemini-1.5-flash-latest` jadi jaring pengaman kalau 8b gagal
+ *  (SOP Bos: "ubah ke 1.5-flash-8b, atau 1.5-flash-latest jika pertama gagal"
+ *  — rantai fallback ini otomatis mencoba keduanya berurutan). */
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-latest']
 
 function isRetryableAIError(err: any): boolean {
   const msg = String(err?.message || '').toLowerCase()
@@ -369,7 +374,31 @@ export async function POST(request: NextRequest) {
     } catch (err: any) {
       log('⛔', `AI call FAILED after ${(performance.now() - t2).toFixed(0)}ms: ${err.message}`)
       const errMsg = String(err?.message || '').toLowerCase()
-      const isRateLimit = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('rate')
+      /* Fix Task 31: 404 = model Google TIDAK ADA / sudah dipensiunkan
+         (mis. gemini-1.5-flash lama) — BUKAN kuota. Wajib dilaporkan dengan
+         pesan ASLI Google, jangan ditutupi "Kuota penuh" yang bikin salah
+         diagnosa (Bos sempat dikira kuota habis padahal modelnya 404). */
+      const isModelNotFound =
+        errMsg.includes('404') ||
+        errMsg.includes('not found') ||
+        errMsg.includes('is not supported for generatecontent') ||
+        errMsg.includes('not found for api version')
+      const isRateLimit =
+        !isModelNotFound &&
+        (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('rate'))
+      if (isModelNotFound) {
+        return NextResponse.json(
+          {
+            error: `Model AI tidak tersedia (404 Not Found). Pesan asli Google: ${err.message}`,
+            code: 'MODEL_NOT_FOUND',
+            detail: err.message,
+            details: err.message,
+            hint: 'Model AI Google tidak ditemukan (kemungkinan dipensiunkan). Daftar model auto-jurnal sudah diperbarui otomatis — coba lagi setelah deploy.',
+            step: 'ai_call',
+          },
+          { status: 404 }
+        )
+      }
       return NextResponse.json(
         {
           error: isRateLimit
