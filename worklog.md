@@ -1644,3 +1644,19 @@ Stage Summary:
 - Auto-jurnal kini 3 lapis: 5 model hidup (5 bucket kuota) → discovery dinamis ListModels → error rangkuman jujur per model.
 - Tidak ada lagi model mayat di chain; deprecations Google berikutnya otomatis tertangani discovery.
 - Commit b8589b0b pushed (sekalian membawa commit dev.pid 2cc17e3c yang tertinggal) → Cloudflare auto-deploy ±2-3 menit. Bos tinggal test ulang auto-jurnal setelah deploy.
+
+---
+Task ID: 33
+Agent: Z (main)
+Task: Permintaan Bos — dashboard menampilkan "📦 templat cadangan (semua model gagal)" saat agen AI dieksekusi. Tambahkan console.error pesan error asli OpenRouter (429/500) di log server + ganti teks fallback jadi natural untuk UI.
+
+Work Log:
+- TRACE: teks itu caption UI di src/app/kantor-ceo/RuangCeoDashboard.tsx (muncul saat provider === 'fallback'); sumbernya src/app/api/ceo-agent/route.ts — openRouterChat melempar error TANPA pernah di-log, agentBrain menelan error di catch (err=... tanpa console.error), caller menelan lagi (catch { raw = '' }) → penyebab fallback (429 kuota? 500? timeout?) tak pernah terlihat di log Cloudflare.
+- console.error DITAMBAHKAN DI 3 TITIK: (1) openRouterChat sebelum throw — "[OpenRouter] Semua model gagal - error asli terakhir:" + lastErr yang berisi "model → HTTP <status>: <body OpenRouter>"; (2) agentBrain catch pertama — "[agentBrain:<agent>] OpenRouter gagal, mencoba jalur cadangan:" (tahu agen mana yang gagal); (3) agentBrain catch fallback Gemini — "[agentBrain:<agent>] fallback Gemini juga gagal:".
+- TEKS UI DIGANTI (permintaan persis Bos): caption fallback jadi "😔 Maaf Bos, server staf AI sedang sibuk. Laporan riil sudah ditarik, tapi AI gagal merangkai kata. Coba beberapa saat lagi."; caption draf CMO "(fallback — semua model gagal, revisi manual)" jadi "(server AI sedang sibuk — pakai draf cadangan dari data riil, mohon revisi manual)".
+- TEST: lint bersih; dev server direstart (wrapper dev.sh sempat mati karena health check GET / 500 — isu env sandbox lokal, bukan kode; next dev langsung OK); action=info HTTP 200 dengan alokasi model lengkap; action=coo lokal berhenti di guard SUPABASE_ANON_KEY (env lokal memang tidak ada — di Cloudflare flow mencapai LLM sehingga console.error aktif dengan error asli).
+- CATATAN: sementara itu auto-jurnal Terkonfirmasi JALAN lagi di produksi (laporan Bos: "hasil test berhasil").
+
+Stage Summary:
+- Saat semua model OpenRouter gagal: laporan tetap terkirim (templat dari data riil), dashboard kini bilang dengan bahasa manusia, dan log server Cloudflare (`wrangler tail`) berisi error asli OpenRouter lengkap dengan HTTP status + body → 429/500 langsung ketahuan.
+- Commit pushed → Cloudflare auto-deploy ±2-3 menit.
