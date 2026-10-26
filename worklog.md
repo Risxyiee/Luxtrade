@@ -1568,3 +1568,22 @@ Stage Summary:
 - Laporan 08:00 kini JAMINAN SAMPAI: inti cepat dulu, retry, email cadangan, self-heal watchdog — gagal satu jalur tidak lagi menghilangkan laporan seharian.
 - Pesan Discord pagi kini: 1) LAPORAN KERJA PAGI (inti), 2) 📎 LAMPIRAN QA CTO (QA+E2E), 3) diskusi CSO×CMO, 4) AUTO-ACC (jika on), 5) 🎯 NBA — lebih terbaca daripada 1 pesan gemuk.
 - Kalau sampai gagal kirim Discord, Bos dapat EMAIL cadangan berisi briefing + error Discord.
+
+---
+Task ID: 30
+Agent: Z (main)
+Task: "Semua karyawan AI belum kerja otomatis — harus diklik; Farhan klik dulu baru lapor Discord; auto-jurnal gabisa, limit token juga"
+
+Work Log:
+- Pemetaan otomatisasi: Bagas/Raka/Maya/Sinta/Putri/Alexander sudah otomatis harian via cron; DEWI & FARHAN cuma Senin 10:00 (makanya Bos harus klik kalau mau harian); AUTO-ACC email Maya default OFF (harus toggle dulu); Telegram di telegram.ts/admin-notify.ts ternyata sudah alias Discord (Bagas tetap lapor).
+- Dewi & Farhan → HARIAN: worker-entry CRON_ROUTES '0 1 * * *' += /api/ceo-agent?action=analyst + ?action=growth (dedup harian da:/gh: cegah dobel); Senin 10:00 tinggal weekly-summary + weekly.
+- AUTO-ACC default ON: briefing `autoOn = kvGet('autoacc') !== 'off'` (missing = ON), case auto-acc ikut disesuaikan (GET kembalikan {autoacc, default:true}), toggle Ruang CSO tetap bisa mematikan. Maya kirim email pasif tiap pagi TANPA diklik.
+- LIMIT TOKEN / kuota: akar masalah = agentBrain fallback otomatis ke GEMINI_API_KEY → kerjaan cron makan kuota yang sama dengan evaluasi jurnal user → auto-jurnal 429 "Kuota AI penuh". Fix: fallback Gemini DINONAKTIFKAN default (kerja karyawan AI = OpenRouter free → templat statis; laporan tetap terkirim); env LLM_GEMINI_FALLBACK=1 untuk aktifkan sengaja. Auto-journal GEMINI_MODELS += gemini-2.5-flash-lite (bucket kuota ke-4). Bypass PRO untuk OWNER_EMAIL (default luxtradee@gmail.com) di /api/auto-journal — Bos bisa tes produk sendiri.
+- UI: teks jadwal kerja Ruang Rapat (Dewi/Farhan harian, AUTO-ACC default ON), batas Alexander diperbarui (self-heal + email cadangan, bukan lagi "harus klik manual").
+- Verifikasi: eslint bersih; tsc --noEmit bersih (semua file terubah); dev server restart via .zscripts/dev.sh (sandbox suka reap proses lama).
+- Commit 54c5fdf9 pushed → Cloudflare auto-deploy ±2-3 mnt.
+
+Stage Summary:
+- 8/8 karyawan kini 100% otomatis tanpa klik: 08:00 harian = Alexander(briefing+NBA) + Raka(QA/E2E lampiran + watchdog 15 mnt) + Maya(stats+email pasif AUTO-ACC ON) + Sinta(draf TikTok) + Putri(kuota/MRR) + Bagas(hot-lead+follow-up) + Dewi(analisis trades) + Farhan(eksperimen growth) — semua ke Discord.
+- Kuota Gemini kini 100% milik fitur user (auto-jurnal) — cron tidak akan menggerus lagi; auto-jurnal punya 4 bucket model.
+- Env baru opsional: LLM_GEMINI_FALLBACK=1 (aktifkan fallback Gemini untuk cron), OWNER_EMAIL (bypass PRO auto-jurnal).
