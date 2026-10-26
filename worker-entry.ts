@@ -21,19 +21,23 @@
 //                 (dulu cuma Senin — Bos harus klik manual kalau mau harian)
 //   0 3 * * 1  → laporan mingguan Senin 10:00 WIB
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
+//               + SWEEP proposal agen otonom (Task 34: 7 agen deteksi trigger
+//                 → INSERT ai_pending_actions → CEO ACC di Antrean Eksekusi)
 const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep'],
 }
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
    dan bisa jalan lama (briefing = 1 panggilan Gemini + kirim ±50 email
-   berurutan) — makanya timeout-nya 120 dtk, bukan 30 dtk. */
+   berurutan) — makanya timeout-nya 120 dtk, bukan 30 dtk.
+   Task 34: /api/agent-proposals?run=sweep ikut pola yang sama (detektor
+   bisa memanggil LLM utk menyusun draf proposal → butuh timeout panjang). */
 const CEO_TIMEOUT_MS = 120_000
 const DEFAULT_TIMEOUT_MS = 30_000
-const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent')
+const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
 
 export default {
   async fetch(request, env, ctx) {

@@ -361,6 +361,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── STEP 2b: FEATURE FLAG "TOGGLE_FREE_FEATURES" (Task 34 — Putri CFO) ──
+    // Human-in-the-Loop: Putri mengusulkan disable saat kuota AI kritis →
+    // CEO ACC di Antrean Eksekusi → flag agent_kv 'feature:auto_journal:disabled'
+    // → free user ditolak sopan DI SINI (efek nyata), PRO tetap jalan penuh.
+    try {
+      const sbUrl2 = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
+      const anon2 = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+      if (sbUrl2 && anon2 && !pro) {
+        const fRes = await fetch(
+          `${sbUrl2}/rest/v1/agent_kv?select=value&key=eq.${encodeURIComponent('feature:auto_journal:disabled')}&limit=1`,
+          { headers: { apikey: anon2, Authorization: `Bearer ${anon2}` }, signal: AbortSignal.timeout(5000) }
+        )
+        if (fRes.ok) {
+          const fRows = (await fRes.json()) as { value?: string }[]
+          if (String(fRows?.[0]?.value || '') === '1') {
+            log('⛔', 'Feature flag aktif: auto-jurnal gratis dinonaktifkan (kuota) — Putri CFO + ACC CEO')
+            return NextResponse.json(
+              {
+                error: 'Fitur auto-jurnal gratis sedang dinonaktifkan sementara (kuota AI terbatas). Coba lagi nanti, atau upgrade ke PRO untuk akses penuh.',
+                code: 'FEATURE_DISABLED',
+                hint: 'Keputusan resmi: usulan Putri (CFO) telah di-ACC CEO lewat Antrean Eksekusi.',
+                step: 'feature_flag',
+              },
+              { status: 503 }
+            )
+          }
+        }
+      }
+    } catch { /* flag tidak boleh menjatuhkan auto-jurnal */ }
+
     /* Akun pemilik (OWNER_EMAIL, default luxtradee@gmail.com) selalu boleh —
        Bos harus bisa tes produk sendiri tanpa harus jadi PRO. */
     const ownerEmail = (process.env.OWNER_EMAIL || 'luxtradee@gmail.com').toLowerCase().trim()
