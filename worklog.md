@@ -1605,3 +1605,24 @@ Stage Summary:
 - Auto-jurnal tidak lagi menutup percobaan dengan 404: chain kini 2.5-flash → 2.0-flash → 2.5-flash-lite → 1.5-flash-8b → 1.5-flash-latest (2 bucket 1.5 yang masih hidup).
 - Error 404 (model pensiun/tidak ada) kini TAMPIL APA ADANYA di toast user (pesan asli Google) — tidak lagi disamarkan jadi "Kuota Penuh"; pesan kuota hanya untuk 429 asli.
 - Kalau Google nanti memensiunkan model lain, error yang muncul akan jujur menyebut nama modelnya → gampang didiagnosa tanpa tebak-tebakan.
+
+---
+Task ID: 32
+Agent: Z (main)
+Task: 2 pembaruan arsitektur kritis — (1) fix 404 auto-jurnal (library + model chain), (2) hentikan halusinasi agen: integrasi data nyata Maya/Putri/Sinta/Raka/Bagas + Meta Graph API
+
+Work Log:
+- Dikerjakan BERTAHAP sesuai SOP Bos: Tugas 1 → test → push (commit 14084069), lalu Tugas 2 → test → push (commit 820e8ef1).
+- TUGAS 1: audit npm → `@google/generative-ai@0.24.1` yang terpasang SUDAH versi paling latest (Google freeze SDK legacy ini; penerus resminya @google/genai) → dipin exact "0.24.1" di package.json. Model chain auto-journal dirapikan: `gemini-1.5-flash-latest` DIHAPUS, fallback 1.5 pakai `gemini-1.5-flash-8b` (opsi yang diizinkan Bos) — `gemini-1.5-flash` polos TIDAK dipakai karena persis model yang 404 (diagnosa Task 31: dipensiunkan Google). Test: lint bersih, route 401 (hidup+auth), debug endpoint OK.
+- TUGAS 2 — AUDIT DULU: ternyata sebagian besar agen SUDAH grounded: Raka (native fetch SITE_URL=https://luxtradee.web.id + latency + bug Supabase → template briefing), Maya (count profiles + trades aktif + churn + email personal pakai data trade asli per penerima), Bagas (leads DB + open-rate KV webhook Resend), rapat Maya×Sinta (intel Supabase + sampel bug). Yang BENAR-BENAR belum ada: PnL trades (Putri), Meta/IG auto-posting (Sinta), data user di prompt Sinta, aturan anti-halusinasi eksplisit.
+- PUTRI CFO: helper `computePnl()` — query Supabase trades (profit_loss,symbol, close_time ≥ periode) → matematika MURNI Next.js: sum PnL, jumlah trade, win rate, pair teratas, best/worst. Ditambah ke cfoAgent (pnl24 + pnl7) & baris briefing "💹 PnL komunitas 24 jam" + rekap 7 hari. Tanpa LLM = mustahil halusinasi; gagal koneksi → status jujur "gagal dihitung".
+- SINTA CMO: lib BARU `src/lib/meta-post.ts` — Meta Graph API v21.0: Instagram (POST /{ig-user-id}/media → media_publish, caption ≤2200, butuh image_url publik, default ikon 1024px situs) + Facebook Page feed (teks polos). Baca secret INSTAGRAM_ACCESS_TOKEN/INSTAGRAM_USER_ID/FACEBOOK_PAGE_TOKEN/FACEBOOK_PAGE_ID/INSTAGRAM_DEFAULT_IMAGE_URL (process.env + CF context). ATURAN JUJUR: tanpa token → posted:false + alasan jelas, TIDAK pernah simulasi sukses. Wiring: auto-post 1×/hari di briefingExtras (FASE 2 non-blocking — sengaja BUKAN di cmoAgent agar Fase 1 tetap <60 dtk, pelajaran Task 29) + dedup KV cmo:posted:<hari> + toggle kv cmo:autopost (default ON) + action baru `cmo-post` (?force=1 repost) + `cmo-autopost` (?set=on|off) + tombol 🚀 Post IG/FB + status posting di Ruang CMO.
+- PROMPT GROUNDED: data user real (total/aktif24j/pasif) disuntik ke prompt draf Sinta; const REAL_DATA_RULE (anti-halusinasi: angka HANYA dari blok DATA NYATA, dilarang mengarang) ditempel ke prompt Sinta (draf), rapat Maya×Sinta, email Maya, Dewi (DA), dan ceoComposeBriefing (Alexander: "persis laporan mentah, dilarang ubah angka").
+- TEST: lint bersih; tsc 0 error di 3 file diedit; action=info tampilkan 2 action baru; unit test lib meta-post via bun: tanpa token → honest fail ✅; token palsu → Graph API ASLI merespons "HTTP 400 Invalid OAuth access token" (bukti request sampai ke server Meta dengan format benar) ✅; GET /kantor-ceo 200 + compiled bersih.
+- CATATAN: Bos menulis "luxtrade.web.id" (1 e) — kode memakai domain benar `luxtradee.web.id` (SITE_URL sudah demikian sejak awal). Agent LLM yang dipakai tetap OpenRouter sesuai alokasi model; data nyata kini SELALU ditarik dulu sebelum LLM dipanggil.
+
+Stage Summary:
+- Auto-jurnal: chain final 2.5-flash → 2.0-flash → 2.5-flash-lite → 1.5-flash-8b (semua model valid); SDK dipin latest 0.24.1.
+- Semua agen kini berangkat dari DATA NYATA: Putri PnL trades nyata (math murni), Sinta prompt berisi angka user real + auto-post IG/FB nyata via Graph API, aturan anti-halusinasi di 5 titik prompt. Raka/Maya/Bagas terverifikasi sudah grounded.
+- Setup sekali oleh Bos (opsional, untuk posting Sinta): Cloudflare Secrets INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID (IG Business) ATAU FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID; opsional INSTAGRAM_DEFAULT_IMAGE_URL. Tanpa token → dashboard/Discord menampilkan alasan jujur, tidak ada simulasi.
+- Commit: 14084069 (Tugas 1) + 820e8ef1 (Tugas 2) → Cloudflare auto-deploy ±2-3 mnt.
