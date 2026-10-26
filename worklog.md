@@ -1549,3 +1549,22 @@ Stage Summary:
 - Setup yang perlu Bos lakukan (sekali): (1) resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend (+ secret RESEND_WEBHOOK_SECRET opsional); (2) khusus chat Discord: 3 secret DISCORD_APP_ID/DISCORD_BOT_TOKEN/DISCORD_PUBLIC_KEY + Interactions Endpoint URL → klik 🤖 Daftarkan /bos.
 - Env baru opsional: COUPON_PERCENT (default 20).
 - Commit: feat: kemampuan baru Bagas/Farhan/Alexander — follow-up open-rate, A/B CTA, chat Discord 2 arah, TTS, verdict NBA
+
+---
+Task ID: 29
+Agent: Z (main)
+Task: Laporan hasil kerja karyawan AI jam 08:00 tidak muncul di Discord — diagnosa & fix permanen
+
+Work Log:
+- Diagnosa root cause: cron CF `0 1 * * *` (=08:00 WIB) → `/api/ceo-agent?action=briefing` — dulu laporan Discord baru DIKIRIM SETELAH semua pekerjaan selesai (4 agen + QA sweep 15+ route + E2E login + AUTO-ACC ±50 email berurutan + compose LLM) → total sering >120 dtk → fetch cron kena CEO_TIMEOUT_MS=120s → abort → laporan TIDAK PERNAH SAMPAI, tanpa alarm/retry/self-heal. Faktor lain: 401 senyap kalau CRON_SECRET tidak kebaca di Worker (worker-entry hanya append key kalau env.CRON_SECRET ada).
+- Refactor runMorningBriefing jadi 2 FASE: Fase 1 = laporan inti (CTO/CSO/CMO/CFO + penawaran COO + prioritas kemarin + compose Alexander dibatasi keras 30 dtk via withTimeout) dikirim ke Discord <~60 dtk dengan RETRY 2×; Fase 2 = briefingExtras() via cfWaitUntil (waitUntil CF) SETELAH laporan aman: AUTO-ACC email, QA+E2E → pesan "📎 LAMPIRAN QA CTO" terpisah, diskusi CSO×CMO, NBA — semua dedup harian (acc_email:, lamp:qa:, cso-cmo:, nba:) + merge ke KV briefing:last (dashboard tetap lengkap, field baru partial/qa/e2e/autoAcc).
+- Safety net baru: (1) KV `briefing:done:<tgl>` dicatat tiap percobaan; (2) kalau Discord gagal 2× → briefingFailEmail() kirim briefing mentah ke OWNER_EMAIL via Resend; (3) SELF-HEAL di watchdog (cron 15 mnt): lewat 08:20 WIB & briefing:done != '1' → picu runMorningBriefing ulang, maks 2×/hari (briefing:heal:<tgl>).
+- worker-entry.ts: ceoRoute sekarang fallback key CRON_SECRET → ADMIN_SECRET (ceo-agent isAdmin menerima key=ADMIN_SECRET) — cron tidak lagi 401 senyap kalau CRON_SECRET belum diset.
+- Fix 3 error TS: tipe e2e di briefingExtras (cast as any pada fallback catch), pre-existing `let ab: GhInsight['ab'] = null` → `| null` (warisan commit A/B).
+- Verifikasi: eslint bersih; tsc --noEmit bersih utk file yang diedit; route termuat & action=info OK di dev server lokal (dev server sempat hang → restart via .zscripts/dev.sh); briefing lokal diblok ENV check Supabase (by design, keys hanya di CF) — verifikasi end-to-end otomatis di production: watchdog self-heal akan memicu briefing hari ini sendiri ≤15 mnt setelah deploy (briefing:done hari ini belum ada).
+- Commit f51233bd pushed → Cloudflare auto-deploy ±2-3 mnt.
+
+Stage Summary:
+- Laporan 08:00 kini JAMINAN SAMPAI: inti cepat dulu, retry, email cadangan, self-heal watchdog — gagal satu jalur tidak lagi menghilangkan laporan seharian.
+- Pesan Discord pagi kini: 1) LAPORAN KERJA PAGI (inti), 2) 📎 LAMPIRAN QA CTO (QA+E2E), 3) diskusi CSO×CMO, 4) AUTO-ACC (jika on), 5) 🎯 NBA — lebih terbaca daripada 1 pesan gemuk.
+- Kalau sampai gagal kirim Discord, Bos dapat EMAIL cadangan berisi briefing + error Discord.
