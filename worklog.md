@@ -1680,3 +1680,20 @@ Stage Summary:
 - LANGKAH WAJIB BOS (sekali): jalankan supabase-migrations/015_create_ai_pending_actions.sql di Supabase SQL Editor → setelah itu sweep cron otomatis mengisi antrean, dan card akan muncul di Dashboard Alexander saat ada trigger.
 - Opsional: set agent_kv 'maya:discount_code' bila ingin email winback Maya menyertakan kode diskon.
 - Commit 1814d863 pushed → Cloudflare auto-deploy ±2-3 menit.
+
+---
+Task ID: 34-b
+Agent: Z (main)
+Task: FASE 2 bertahap — verifikasi kode agentic existing + perbaiki mismatch skema DB akibat SQL manual yang dijalankan Bos (kolom beda dengan migration 015)
+
+Work Log:
+- Audit full-stack Task 34 yang sudah dibangun sebelumnya (commit 1814d863): src/lib/agent-proposals.ts (7 detektor data riil + kontrak JSON {laporan, proposed_action} + dedup), /api/agent-proposals (GET antrean + POST ?run=sweep), /api/execute-action (6 switch-case eksekusi nyata), PendingActionsQueue.tsx, worker-entry cron */15 menit → sweep. Semua konsisten & lengkap.
+- KETEMU BUG SILENT: Bos menjalankan SQL manual di session ini yang skemanya BEDA dari migration 015 — tabel punya resolved_at/resolved_by/reason + status ENUM, TAPI TANPA executed_at & executed_result (dipakai decideAction saat CEO ACC) dan TANPA tabel blog_posts (target eksekusi PUBLISH_CONTENT blog). Akibatnya: PATCH status gagal HTTP 400 → row tetap 'pending' → CEO bisa eksekusi dobel; blog publish gagal 404.
+- RLS manual juga terlalu terbuka: policy auth_insert_pending + auth_update_status membolehkan user biasa insert/update antrean langsung (bypass keputusan CEO) → ditutup di 015b.
+- Buat supabase-migrations/015b_reconcile_ai_pending_actions.sql (idempotent, tanpa hapus data): ADD COLUMN executed_at/executed_result, konversi status ENUM→TEXT + DROP TYPE action_status, CREATE blog_posts + agent_kv IF NOT EXISTS, DROP policy INSERT/UPDATE authenticated, GRANT service_role (pelajaran migration 011), query verifikasi kolom di akhir.
+- Verifikasi: lint bersih; dev server /kantor-ceo 200; GET /api/agent-proposals tanpa auth → 401; POST /api/execute-action tanpa auth → 401; dev.log tanpa error.
+- Commit 7a88e648 pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- Kode FASE 2-4 TIDAK perlu diubah — yang kurang hanya alignment skema DB. Setelah Bos jalankan 015b, seluruh rantai agentic aktif: cron 15 menit → detektor (data riil) → INSERT ai_pending_actions → card di Dashboard Alexander → ACC/Tolak → eksekusi nyata (Resend/Meta/blog/Discord/flag) → audit executed_result.
+- Sisa langkah Bos: jalankan 015b di Supabase SQL Editor (sekali). Kolom reason/resolved_at/resolved_by sengaja dipertahankan (audit, tidak mengganggu).
