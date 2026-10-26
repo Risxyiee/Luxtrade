@@ -1697,3 +1697,21 @@ Work Log:
 Stage Summary:
 - Kode FASE 2-4 TIDAK perlu diubah — yang kurang hanya alignment skema DB. Setelah Bos jalankan 015b, seluruh rantai agentic aktif: cron 15 menit → detektor (data riil) → INSERT ai_pending_actions → card di Dashboard Alexander → ACC/Tolak → eksekusi nyata (Resend/Meta/blog/Discord/flag) → audit executed_result.
 - Sisa langkah Bos: jalankan 015b di Supabase SQL Editor (sekali). Kolom reason/resolved_at/resolved_by sengaja dipertahankan (audit, tidak mengganggu).
+
+---
+Task ID: 34-c
+Agent: Z (main)
+Task: FASE 3 (UI Antrean Eksekusi) — verifikasi browser penuh + upgrade transparansi error sesuai SOP Bos ("kalau error tampilin errornya")
+
+Work Log:
+- Audit wiring: PendingActionsQueue terpasang di Ruang Overview RuangCeoDashboard (line 402), fetch GET /api/agent-proposals + auto-refresh 60 dtk — sudah benar.
+- Ketemu 3 kelemahan transparansi di komponen lama: (1) GET gagal non-401 → DIAM (UI pura-pura "tidak ada proposal"), (2) tidak ada sweep manual, (3) hasil sweep per-agen tak pernah tampil.
+- Upgrade PendingActionsQueue.tsx: tombol [🧹 Sweep 7 Agen] (POST ?run=sweep, spinner "Menyapu…"), panel hasil sweep per-agen dengan ikon status (🆕 proposal baru / ♻️ dedup / ✅ tenang / ❌ error merah + TABLE_MISSING → arahkan 015b), load() kini tampil error jujur utk semua kegagalan (HTTP non-200, jaringan, tableReady false), state authDenied khusus (401 → panel "Belum login sebagai CEO — antrean tidak bisa dimuat (bukan berarti kosong)", TIDAK lagi digabung dengan empty-state menyesatkan).
+- ROOT CAUSE lokal (bukan kode): dev.log ditulis ke .zscripts/ (folder ter-watch) → watcher compile-loop ~350ms tanpa henti → chunk 3D (Three.js) tak pernah ter-serve → halaman stuck "MEMUAT KANTOR 3D" + client exception saat server mati antar perintah. FIX: log dev server ke /tmp (luar project). Setelah itu 3D + dashboard mount dalam 10 detik.
+- Verifikasi agent-browser E2E: /kantor-ceo mount, window.__kceo.openSheet() jalan, komponen terlihat ("Antrean Eksekusi | 🧹 Sweep 7 Agen | 🔐 login prompt | 🔐 authDenied panel"), klik Sweep → notice error jujur muncul, screenshot /tmp/antrean-2.png. Lint bersih.
+- Commit 0a6efdf2 pushed → Cloudflare auto-deploy.
+
+Stage Summary:
+- FASE 3 selesai & terverifikasi di browser lokal. UI kini 100% jujur: semua error (401/jaringan/HTTP/tabel hilang) TAMPIL, tidak ada fake empty-state, sweep manual + status per-agen (error agen merah).
+- Temuan penting utk sesi lokal berikutnya: SELALU tulis dev.log ke /tmp (bukan .zscripts/) supaya tidak compile-loop.
+- Menyusul FASE 4 verifikasi: /api/execute-action sudah ada & 401-guard teruji; eksekusi nyata (Resend/Meta/blog) hanya bisa diuji di production (env hanya di Cloudflare).
