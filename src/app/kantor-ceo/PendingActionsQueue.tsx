@@ -8,6 +8,12 @@
 //   [✅ ACC & Eksekusi] → POST /api/execute-action {decision:'approve'}
 //   [❌ Tolak]          → POST /api/execute-action {decision:'reject'}
 // Eksekusi native dilakukan server (Resend/Meta/blog/Discord/flag).
+//
+// Task 34-c (FASE 3) — transparansi error total:
+//   - GAGAL MEMUAT antrean → error TAMPIL (tidak pernah pura-pura
+//     "tidak ada proposal" — itu bohong yang berbahaya).
+//   - Tombol [🧹 Sweep 7 Agen]: jalankan semua detektor SEKARANG
+//     + tampilkan status per-agen (kerja/trigger/error) secara jujur.
 // ============================================================
 import { useCallback, useEffect, useState } from 'react'
 import { Check, RefreshCw, X, Zap } from 'lucide-react'
@@ -100,12 +106,17 @@ function wibTime(iso: string): string {
   } catch { return iso }
 }
 
+interface SweepStep { agent: string; actionType: string; triggered: boolean; inserted?: boolean; note?: string }
+
 export default function PendingActionsQueue() {
   const [items, setItems] = useState<PendingAction[]>([])
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ ok: boolean; msg: string } | null>(null)
   const [tableReady, setTableReady] = useState(true)
+  const [sweeping, setSweeping] = useState(false)
+  const [sweepSteps, setSweepSteps] = useState<SweepStep[] | null>(null)
+  const [authDenied, setAuthDenied] = useState(false)
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     try {
@@ -125,12 +136,54 @@ export default function PendingActionsQueue() {
       if (res.ok && data?.ok) {
         setItems(Array.isArray(data.actions) ? data.actions : [])
         setTableReady(data.tableReady !== false)
+        setAuthDenied(false)
+        if (!silent) setNotice(null)
       } else if (res.status === 401) {
-        setNotice({ ok: false, msg: 'Antrean khusus CEO — login sebagai Bos untuk melihat.' })
+        setAuthDenied(true)
+        setItems([])
+        setNotice({ ok: false, msg: '🔐 Antrean khusus CEO — login sebagai Bos (alexander@luxtradee) untuk melihat & menyetujui.' })
+      } else if (data?.tableReady === false) {
+        // tabel belum ada — jujur, arahkan ke migration
+        setTableReady(false)
+        setItems([])
+        setAuthDenied(false)
+      } else {
+        // GAGAL MEMUAT → WAJIB tampil, tidak boleh pura-pura kosong (SOP Bos)
+        setNotice({ ok: false, msg: `⚠️ Gagal memuat antrean: ${data?.error || `HTTP ${res.status}`} — coba muat ulang.` })
       }
-    } catch { /* jaringan — biarkan data lama */ }
-    finally { setLoading(false) }
+    } catch (x: any) {
+      if (!silent) setNotice({ ok: false, msg: `⚠️ Gagal memuat antrean (jaringan): ${String(x?.message || x)}` })
+    } finally { setLoading(false) }
   }, [authHeaders])
+
+  /** Jalankan semua detektor agen SEKARANG — status per-agen tampil jujur. */
+  const sweep = async () => {
+    setSweeping(true)
+    setNotice(null)
+    try {
+      const headers = await authHeaders()
+      const res = await fetch('/api/agent-proposals?run=sweep', { method: 'POST', headers })
+      const data = await res.json()
+      if (res.ok && data?.ok) {
+        setSweepSteps(Array.isArray(data.steps) ? data.steps : [])
+        if ((data.created || 0) > 0) load(true) // ada proposal baru → refresh list
+      } else if (res.status === 401) {
+        setNotice({ ok: false, msg: '🔐 Sweep khusus CEO — login sebagai Bos.' })
+      } else {
+        setNotice({ ok: false, msg: `⚠️ Sweep gagal: ${data?.error || `HTTP ${res.status}`}` })
+      }
+    } catch (x: any) {
+      setNotice({ ok: false, msg: `⚠️ Sweep gagal (jaringan): ${String(x?.message || x)}` })
+    } finally { setSweeping(false) }
+  }
+
+  /** Format 1 langkah sweep jadi baris status manusiawi. */
+  function stepLine(s: SweepStep): { icon: string; text: string; bad?: boolean } {
+    if (s.note?.startsWith('error')) return { icon: '❌', text: `${s.agent}: ${String(s.note).slice(0, 110)}`, bad: true }
+    if (s.inserted) return { icon: '🆕', text: `${s.agent}: proposal BARU masuk antrean (${TYPE_LABEL[s.actionType] || s.actionType})` }
+    if (s.triggered) return { icon: '♻️', text: `${s.agent}: sudah ada di antrean (dedup — tidak dobel)` }
+    return { icon: '✅', text: `${s.agent}: ${s.note || 'tidak ada trigger'}${s.note?.includes('TABLE_MISSING') ? ' — jalankan migration 015b!' : ''}` }
+  }
 
   useEffect(() => {
     load()
@@ -169,19 +222,48 @@ export default function PendingActionsQueue() {
             <span className="shrink-0 rounded-full bg-amber-300/20 border border-amber-300/30 px-1.5 py-0.5 text-[9.5px] text-amber-100">{items.length} menunggu</span>
           )}
         </div>
-        <button
-          onClick={() => load()}
-          className="shrink-0 rounded-lg border border-white/10 bg-white/5 p-1.5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-          aria-label="Muat ulang antrean"
-          title="Muat ulang"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={sweep}
+            disabled={sweeping || loading}
+            className="shrink-0 rounded-lg border border-amber-300/25 bg-amber-300/10 hover:bg-amber-300/20 disabled:opacity-50 px-2 py-1.5 text-amber-200 text-[10px] font-medium inline-flex items-center gap-1 transition-colors"
+            aria-label="Jalankan sweep semua agen sekarang"
+            title="Jalankan semua detektor agen SEKARANG (biasanya otomatis tiap 15 menit)"
+          >
+            🧹 {sweeping ? 'Menyapu…' : 'Sweep 7 Agen'}
+          </button>
+          <button
+            onClick={() => load()}
+            className="shrink-0 rounded-lg border border-white/10 bg-white/5 p-1.5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Muat ulang antrean"
+            title="Muat ulang"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {notice && (
         <div className={`rounded-xl px-2.5 py-2 text-[10.5px] leading-relaxed border ${notice.ok ? 'bg-emerald-400/10 border-emerald-300/20 text-emerald-100' : 'bg-rose-400/10 border-rose-300/20 text-rose-100'}`}>
           {notice.msg}
+        </div>
+      )}
+
+      {/* hasil sweep per-agen — status kerja & ERROR tampil jujur */}
+      {sweepSteps && (
+        <div className="rounded-xl bg-white/[0.03] border border-white/10 px-2.5 py-2 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <b className="text-[10px] text-white/70">🧹 Hasil sweep 7 agen (baru saja):</b>
+            <button onClick={() => setSweepSteps(null)} className="text-white/35 hover:text-white/80 text-[10px]" aria-label="Tutup hasil sweep">✕</button>
+          </div>
+          {sweepSteps.map((s, i) => {
+            const l = stepLine(s)
+            return (
+              <div key={i} className={`text-[9.5px] leading-relaxed ${l.bad ? 'text-rose-200' : 'text-white/55'}`}>
+                {l.icon} {l.text}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -194,6 +276,10 @@ export default function PendingActionsQueue() {
         <div className="rounded-xl bg-white/[0.03] border border-white/10 px-2.5 py-3 text-[10.5px] text-white/55 leading-relaxed">
           Tabel <code className="text-white/80">ai_pending_actions</code> belum ada di Supabase. Jalankan{' '}
           <code className="text-white/80">supabase-migrations/015_create_ai_pending_actions.sql</code> di SQL Editor, lalu muat ulang.
+        </div>
+      ) : authDenied ? (
+        <div className="rounded-xl bg-amber-400/10 border border-amber-300/20 px-2.5 py-3 text-[10.5px] leading-relaxed text-amber-100/90">
+          🔐 <b>Belum login sebagai CEO.</b> Antrean tidak bisa dimuat (bukan berarti kosong) — login dengan akun Bos (alexander@luxtradee) untuk melihat proposal & menyetujui eksekusi karyawan AI.
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl bg-white/[0.03] border border-white/10 px-2.5 py-3 text-[10.5px] text-white/45 leading-relaxed">
