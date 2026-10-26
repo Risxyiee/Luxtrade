@@ -1587,3 +1587,21 @@ Stage Summary:
 - 8/8 karyawan kini 100% otomatis tanpa klik: 08:00 harian = Alexander(briefing+NBA) + Raka(QA/E2E lampiran + watchdog 15 mnt) + Maya(stats+email pasif AUTO-ACC ON) + Sinta(draf TikTok) + Putri(kuota/MRR) + Bagas(hot-lead+follow-up) + Dewi(analisis trades) + Farhan(eksperimen growth) — semua ke Discord.
 - Kuota Gemini kini 100% milik fitur user (auto-jurnal) — cron tidak akan menggerus lagi; auto-jurnal punya 4 bucket model.
 - Env baru opsional: LLM_GEMINI_FALLBACK=1 (aktifkan fallback Gemini untuk cron), OWNER_EMAIL (bypass PRO auto-jurnal).
+
+---
+Task ID: 31
+Agent: Z (main)
+Task: Auto-jurnal error 404 Not Found untuk model gemini-1.5-flash — ganti model + perbaiki klasifikasi error "Kuota Penuh"
+
+Work Log:
+- Diagnosa: GEMINI_MODELS di /api/auto-journal masih memuat `gemini-1.5-flash` polos — model ini sudah DIPENSIUNKAN Google (404 Not Found di v1beta generateContent). Posisinya penyelamat TERAKHIR di fallback chain → saat kuota 3 model lain habis, percobaan ditutup dengan 404, bukan pesan kuota yang jujur.
+- Fix model chain (route.ts): 'gemini-1.5-flash' diganti 'gemini-1.5-flash-8b' + tambah alias 'gemini-1.5-flash-latest' di ujung chain (SOP Bos: "ubah ke 1.5-flash-8b, atau 1.5-flash-latest jika pertama gagal" — fallback chain otomatis mencoba keduanya berurutan; 404 tidak di-retry, langsung lompat model berikut via isRetryableAIError).
+- Fix klasifikasi error backend (step 7 catch): cabang baru isModelNotFound (404 / not found / not found for api version / not supported for generateContent) → HTTP 404 + code MODEL_NOT_FOUND + error "Model AI tidak tersedia (404 Not Found). Pesan asli Google: <raw>" — pesan asli Google tidak ditutupi lagi. isRateLimit kini eksplisit !isModelNotFound (429/quota/rate tetap → 429 "Kuota AI sedang penuh").
+- Fix frontend TradeWizardForm.tsx (!res.ok branch): deteksi isModelNotFound (status 404 / code MODEL_NOT_FOUND / detail mengandung 404|not found) → toast menampilkan pesan ASLI Google apa adanya; label "Kuota AI penuh" HANYA muncul untuk 429/quota asli (isQuota = !isModelNotFound && (429|quota|rate limit)). Branch lama "semua error → hint umum" dihapus; 401/403/HEIC tetap ada. Bonus: aman juga kalau backend lama (belum deploy) melempar 404 via detail — frontend tetap kenal dari isi pesan.
+- Verifikasi: eslint bersih; tsc --noEmit 0 error di kedua file yang diedit (28 error tersisa pre-existing di file lain: tradeHandlers/CandlestickChart/signed-urls dll).
+- Commit + push → Cloudflare auto-deploy ±2-3 mnt.
+
+Stage Summary:
+- Auto-jurnal tidak lagi menutup percobaan dengan 404: chain kini 2.5-flash → 2.0-flash → 2.5-flash-lite → 1.5-flash-8b → 1.5-flash-latest (2 bucket 1.5 yang masih hidup).
+- Error 404 (model pensiun/tidak ada) kini TAMPIL APA ADANYA di toast user (pesan asli Google) — tidak lagi disamarkan jadi "Kuota Penuh"; pesan kuota hanya untuk 429 asli.
+- Kalau Google nanti memensiunkan model lain, error yang muncul akan jujur menyebut nama modelnya → gampang didiagnosa tanpa tebak-tebakan.

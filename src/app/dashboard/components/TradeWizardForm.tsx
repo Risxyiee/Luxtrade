@@ -442,11 +442,30 @@ export default function TradeWizardForm({
         if (!res.ok) {
           const errorMessage = data.error || data.details || `HTTP Error ${res.status}`
           const errorCode = data.code || ''
+          const rawDetail = String(data.details || data.detail || '')
+          const rawLower = rawDetail.toLowerCase()
+          /* Fix Task 31: 404 = model AI Google tidak ada / dipensiunkan —
+             BUKAN kuota. Tampilkan pesan ASLI Google apa adanya; label
+             "Kuota penuh" HANYA untuk error 429/quota yang beneran. */
+          const isModelNotFound =
+            res.status === 404 || errorCode === 'MODEL_NOT_FOUND' ||
+            rawLower.includes('404') || rawLower.includes('not found')
+          const isQuota = !isModelNotFound && (res.status === 429 ||
+            rawLower.includes('429') || rawLower.includes('quota') || rawLower.includes('rate limit'))
           let hint = ''
-          if (res.status === 401) hint = ' — Session expired. Coba logout lalu login ulang.'
-          else if (res.status === 403) hint = ' — Fitur PRO. Gunakan kode promo untuk upgrade.'
-          else if (res.status === 400 && errorCode === 'HEIC_NOT_SUPPORTED') hint = ' — Export sebagai JPEG/PNG dulu.'
-          else if (data.details) hint = ` — ${data.details}`
+          if (isModelNotFound) {
+            hint = rawDetail ? ` — ${rawDetail}` : ' — Model AI tidak tersedia, coba lagi nanti atau hubungi admin.'
+          } else if (res.status === 401) {
+            hint = ' — Session expired. Coba logout lalu login ulang.'
+          } else if (res.status === 403) {
+            hint = ' — Fitur PRO. Gunakan kode promo untuk upgrade.'
+          } else if (res.status === 400 && errorCode === 'HEIC_NOT_SUPPORTED') {
+            hint = ' — Export sebagai JPEG/PNG dulu.'
+          } else if (isQuota) {
+            hint = ' — Kuota AI penuh, tunggu 1-2 menit lalu coba lagi.'
+          } else if (rawDetail) {
+            hint = ` — ${rawDetail}`
+          }
           throw new Error(`${errorMessage}${hint}`)
         }
 
