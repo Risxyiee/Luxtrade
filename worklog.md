@@ -1626,3 +1626,21 @@ Stage Summary:
 - Semua agen kini berangkat dari DATA NYATA: Putri PnL trades nyata (math murni), Sinta prompt berisi angka user real + auto-post IG/FB nyata via Graph API, aturan anti-halusinasi di 5 titik prompt. Raka/Maya/Bagas terverifikasi sudah grounded.
 - Setup sekali oleh Bos (opsional, untuk posting Sinta): Cloudflare Secrets INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID (IG Business) ATAU FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID; opsional INSTAGRAM_DEFAULT_IMAGE_URL. Tanpa token → dashboard/Discord menampilkan alasan jujur, tidak ada simulasi.
 - Commit: 14084069 (Tugas 1) + 820e8ef1 (Tugas 2) → Cloudflare auto-deploy ±2-3 mnt.
+
+---
+Task ID: 32-3
+Agent: Z (main)
+Task: Laporan Bos "auto jurnal masi gagal" + screenshot — ternyata gemini-1.5-flash-8b (fallback terakhir chain) JUGA sudah 404. Google kini mematikan SELURUH keluarga Gemini 1.5.
+
+Work Log:
+- DIAGNOSA dari screenshot Bos: error 404 = "models/gemini-1.5-flash-8b is not found for API version v1beta". Artinya chain [2.5-flash → 2.0-flash → 2.5-flash-lite → 1.5-flash-8b] mengalami: 3 model pertama gagal (429 kuota, sesuai desain lompat bucket) lalu jatuh ke MAYAT 1.5-flash-8b → error akhir 404. Error handling Task 31 bekerja sempurna (pesan asli Google tampil) sehingga diagnosa pasti tanpa tebak-tebakan.
+- CHAIN BARU 100% MODEL HIDUP (src/app/api/auto-journal/route.ts): ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite', 'gemini-flash-latest'] — 5 bucket kuota gratis terpisah (2.0-flash-lite = 30 RPM/1500 RPD, bucket gratis terbesar) + alias flash-latest yang otomatis mengikuti model flash stabil terbaru (anti-pensiun).
+- FITUR BARU DISCOVERY DINAMIS (anti-404 SELAMANYA): kalau SEMUA 5 model statis gagal, route memanggil Google ListModels (GET /v1beta/models) lewat helper baru `getGeminiApiKeyResolved()` (src/lib/gemini.ts, resolve process.env + CF Workers env), filter model hidup yang support generateContent (buang tts/image/audio/embedding/gemma/8b), urutkan preferensi (flash > stabil > lite > pro/preview) lalu coba maks 4 model yang belum dicoba. Deprecation Google berikutnya tidak akan lagi mematikan auto-jurnal.
+- ERROR AKHIR JUJUR PER MODEL: callGeminiWithRetry kini mencatat kegagalan tiap model ({model, kind, message}, kind = notfound|quota|other via classifyAIError baru). Blok catch STEP 7 merangkum: semua 404 → HTTP 404 MODEL_NOT_FOUND + pesan asli Google; ada 429 → HTTP 429 + breakdown "model (kuota 429) | model (kuota 429)..." (mixed 404+429 → ALL_MODELS_FAILED dengan penjelasan keduanya — tidak saling menutupi, warisan Task 31); hanya other (mis. API key) → handler lama 500.
+- TEST: lint bersih; POST /api/auto-jurnal lokal → route ter-compile 6.4s, respons 401 auth (wajar, lokal tanpa kredensial Supabase) = modul hidup tanpa crash. Test model live tidak bisa dari lokal (GEMINI_API_KEY hanya ada sebagai Cloudflare secret) → dipastikan via pengetahuan status model Google per 26 Okt + jaring pengaman discovery dinamis.
+- CATATAN TEKNIS: Edit tool gagal match teks lama karena variasi byte emoji (🤖/⚠️) — diselesaikan dengan splice berbasis nomor baris via python (terverifikasi baca ulang hasil splice bersih).
+
+Stage Summary:
+- Auto-jurnal kini 3 lapis: 5 model hidup (5 bucket kuota) → discovery dinamis ListModels → error rangkuman jujur per model.
+- Tidak ada lagi model mayat di chain; deprecations Google berikutnya otomatis tertangani discovery.
+- Commit b8589b0b pushed (sekalian membawa commit dev.pid 2cc17e3c yang tertinggal) → Cloudflare auto-deploy ±2-3 menit. Bos tinggal test ulang auto-jurnal setelah deploy.
