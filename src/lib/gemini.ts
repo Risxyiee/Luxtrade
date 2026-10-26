@@ -282,3 +282,13 @@ export async function isGeminiAvailableAsync(): Promise<boolean> {
   _cachedKey = null // Reset for next request
   return !!key
 }
+
+/**
+ * Task 32b — resolved API key untuk panggilan REST langsung (ListModels
+ * discovery di auto-journal): mencakup process.env + CF Workers env.
+ */
+export async function getGeminiApiKeyResolved(): Promise<string> {
+  const key = await getApiKeyAsync()
+  _cachedKey = null // Reset for next request (stateless worker isolates)
+  return key || ''
+}

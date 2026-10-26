@@ -91,15 +91,23 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
 
 // ==================== AI CALL WITH RETRY + MODEL FALLBACK ====================
 
-/** Fallback chain: 2.5-flash (best quality) → 2.0-flash (separate quota)
- *  → 2.5-flash-lite (bucket lagi, ringan) → 1.5-flash-8b (final fallback).
- *  Tiap model punya bucket kuota gratis sendiri — makin banyak model di
- *  chain, makin kecil peluang "Kuota AI penuh" (429) di auto-jurnal.
- *  Task 32 (permintaan Bos): `gemini-1.5-flash-latest` DIHAPUS dari chain,
- *  fallback 1.5 pakai `gemini-1.5-flash-8b`. `gemini-1.5-flash` polos TIDAK
- *  BISA dipakai — itu persis model yang 404 Not Found karena sudah
- *  dipensiunkan Google dari v1beta (diagnosa Task 31). */
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash-8b']
+/** Fallback chain — Task 32b (laporan Bos 26 Okt): screenshot 404 membuktikan
+ *  Google kini mematikan SELURUH keluarga Gemini 1.5 (1.5-flash polos,
+ *  1.5-flash-8b, 1.5-flash-latest — semua "not found for API version v1beta").
+ *  Chain lama masih memuat mayat `1.5-flash-8b` → saat 3 bucket pertama kena
+ *  429, request jatuh ke model mati dan errornya 404.
+ *  Chain baru 100% model hidup + alias `gemini-flash-latest` yang otomatis
+ *  menunjuk model flash stabil terbaru (anti-pensiun). Bucket kuota gratis
+ *  per model: 2.5-flash 10RPM/250RPD · 2.0-flash 15/200 · 2.5-flash-lite
+ *  15/1000 · 2.0-flash-lite 30/1500 · flash-latest mengikuti model yang
+ *  ditunjuk. Lapis terakhir: discovery dinamis ListModels (lihat bawah). */
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash-lite',
+  'gemini-flash-latest',
+]
 
 function isRetryableAIError(err: any): boolean {
   const msg = String(err?.message || '').toLowerCase()
@@ -111,11 +119,77 @@ function isRetryableAIError(err: any): boolean {
   )
 }
 
+type AIErrorKind = 'notfound' | 'quota' | 'other'
+
+/** Klasifikasi error per model — dipakai untuk policy retry DAN supaya
+ *  error akhir jujur: 404 model mati tidak boleh ditutupi label kuota. */
+function classifyAIError(err: any): AIErrorKind {
+  const msg = String(err?.message || '').toLowerCase()
+  if (
+    msg.includes('404') ||
+    msg.includes('not found') ||
+    msg.includes('is not supported for generatecontent') ||
+    msg.includes('not found for api version')
+  ) {
+    return 'notfound'
+  }
+  if (msg.includes('429') || msg.includes('quota') || msg.includes('rate')) return 'quota'
+  return 'other'
+}
+
+interface ModelFailure { model: string; kind: AIErrorKind; message: string }
+
 /**
- * Call Gemini vision with per-model retry + cross-model fallback.
- * Fixes the production fast-500: quota (429) / transient Google errors fail in
- * ~300ms — a short backoff retry and a second model (different quota bucket)
- * rescue most failures without user-visible flakiness.
+ * Task 32b — peluru terakhir anti-404 selamanya: kalau SEMUA model statis
+ * gagal, Google ditanya langsung "model mana yang masih hidup?" via
+ * ListModels, lalu model hidup yang belum dicoba dicoba otomatis.
+ * Deprecation berikutnya tidak akan lagi mematikan auto-jurnal.
+ */
+async function discoverLiveGeminiModels(
+  log: (emoji: string, msg: string) => void
+): Promise<string[]> {
+  try {
+    const { getGeminiApiKeyResolved } = await import('@/lib/gemini')
+    const key = await getGeminiApiKeyResolved()
+    if (!key) return []
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=${key}`,
+      { signal: AbortSignal.timeout(8000) }
+    )
+    if (!res.ok) {
+      log('⚠️', `ListModels discovery gagal: HTTP ${res.status}`)
+      return []
+    }
+    const data: any = await res.json()
+    const names: string[] = (data?.models || [])
+      .filter((m: any) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m: any) => String(m.name || '').replace(/^models\//, ''))
+      .filter((n: string) => /^gemini-/.test(n))
+      // buang model non-teks (image/tts/audio/embedding dll) + keluarga mati 8b
+      .filter((n: string) => !/(tts|image|audio|embedding|aqa|learnlm|gemma|veo|imagen|live|-8b)/.test(n))
+    // Preferensi: flash dulu, versi stabil dulu, lite sesudahnya, pro belakangan
+    const score = (n: string) => {
+      let s = 0
+      if (!n.includes('flash')) s += 20
+      if (/preview|exp|\d{2}-\d{2}/.test(n)) s += 10
+      if (n.includes('lite')) s += 4
+      if (n.includes('latest')) s -= 2
+      return s
+    }
+    return names.sort((a, b) => score(a) - score(b)).slice(0, 4)
+  } catch (e: any) {
+    log('⚠️', `ListModels discovery error: ${e?.message || e}`)
+    return []
+  }
+}
+
+/**
+ * Call Gemini vision with per-model retry + cross-model fallback + dynamic
+ * discovery. Fixes the production fast-500: quota (429) / transient Google
+ * errors fail in ~300ms — a short backoff retry, a second model (different
+ * quota bucket) and finally ListModels discovery rescue most failures.
+ * Setiap kegagalan dicatat (model + jenis) supaya error akhir JUJUR:
+ * 429 kuota vs 404 model mati tidak lagi saling menutupi (Task 31/32b).
  */
 async function callGeminiWithRetry(
   prompt: string,
@@ -123,33 +197,62 @@ async function callGeminiWithRetry(
   mimeType: string,
   log: (emoji: string, msg: string) => void
 ): Promise<string> {
-  let lastErr: any = null
-  for (const model of GEMINI_MODELS) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        log('🤖', `Gemini vision call: model=${model} attempt=${attempt}`)
-        return await geminiVision(prompt, base64Image, mimeType, {
-          model,
-          temperature: 0.1,
-          maxTokens: 4096,
-          // FORCE valid JSON output + disable thinking:
-          // gemini-2.5-flash has thinking ON by default; thinking tokens count
-          // against maxOutputTokens and were truncating/emptying the JSON text
-          // (root cause of "auto-journal tidak mengembalikan JSON").
-          responseMimeType: 'application/json',
-          thinkingBudget: 0,
-          timeoutMs: attempt === 1 ? 40000 : 30000,
-        })
-      } catch (err: any) {
-        lastErr = err
-        const retryable = isRetryableAIError(err)
-        log('⚠️', `Gemini ${model} attempt ${attempt} FAILED: ${err.message} (retryable=${retryable})`)
-        if (!retryable) break // non-retryable (e.g. bad key) → jump to next model
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1500))
+  const failures: ModelFailure[] = []
+
+  const tryModels = async (models: string[], maxAttempts: number): Promise<string | null> => {
+    for (const model of models) {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          log('🤖', `Gemini vision call: model=${model} attempt=${attempt}`)
+          return await geminiVision(prompt, base64Image, mimeType, {
+            model,
+            temperature: 0.1,
+            maxTokens: 4096,
+            // FORCE valid JSON output + disable thinking:
+            // gemini-2.5-flash has thinking ON by default; thinking tokens count
+            // against maxOutputTokens and were truncating/emptying the JSON text
+            // (root cause of "auto-jurnal tidak mengembalikan JSON").
+            responseMimeType: 'application/json',
+            thinkingBudget: 0,
+            timeoutMs: attempt === 1 ? 40000 : 30000,
+          })
+        } catch (err: any) {
+          const kind = classifyAIError(err)
+          const retryable = isRetryableAIError(err)
+          log('⚠️', `Gemini ${model} attempt ${attempt} FAILED (${kind}): ${err.message} (retryable=${retryable})`)
+          failures.push({ model, kind, message: String(err?.message || String(err)) })
+          if (!retryable) break // model mati (404) / error permanen → model berikutnya
+          if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 1500))
+        }
       }
     }
+    return null
   }
-  throw lastErr
+
+  // 1) Chain statis — 100% model hidup (lihat GEMINI_MODELS di atas)
+  const staticResult = await tryModels(GEMINI_MODELS, 2)
+  if (staticResult !== null) return staticResult
+
+  // 2) Discovery dinamis — tanya Google model hidup yang belum dicoba
+  log('🔎', `Semua ${GEMINI_MODELS.length} model statis gagal — minta daftar model hidup via ListModels...`)
+  const discovered = (await discoverLiveGeminiModels(log)).filter(m => !GEMINI_MODELS.includes(m))
+  if (discovered.length) {
+    log('🧬', `Model hidup tambahan ditemukan: ${discovered.join(', ')} — mencoba...`)
+    const dynamicResult = await tryModels(discovered, 1)
+    if (dynamicResult !== null) return dynamicResult
+  }
+
+  // 3) Semua gagal → lempar error rangkuman jujur per model
+  const last = failures[failures.length - 1]
+  const summary = failures
+    .map(f => `${f.model} [${f.kind === 'quota' ? 'kuota 429' : f.kind === 'notfound' ? 'mati 404' : f.kind}]`)
+    .join(', ')
+  const summaryErr: any = new Error(
+    `Semua model AI gagal dicoba (${summary}). Pesan terakhir Google: ${last?.message ?? 'unknown'}`
+  )
+  summaryErr.code = 'ALL_MODELS_FAILED'
+  summaryErr.failures = failures
+  throw summaryErr
 }
 
 /**
@@ -372,6 +475,49 @@ export async function POST(request: NextRequest) {
       )
     } catch (err: any) {
       log('⛔', `AI call FAILED after ${(performance.now() - t2).toFixed(0)}ms: ${err.message}`)
+      /* Task 32b: callGeminiWithRetry mencatat kegagalan tiap model
+         (err.failures). Rangkuman jujur: 429 = kuota sementara, 404 = model
+         dipensiunkan - keduanya tidak saling menutupi (warisan Task 31). */
+      const failures: ModelFailure[] | undefined = err?.failures
+      if (failures && failures.length > 0) {
+        const kinds = new Set(failures.map(f => f.kind))
+        const hasQuota = kinds.has('quota')
+        const hasNotFound = kinds.has('notfound')
+        const breakdown = failures
+          .map(f => `${f.model} (${f.kind === 'quota' ? 'kuota 429' : f.kind === 'notfound' ? 'model mati 404' : f.message.slice(0, 100)})`)
+          .join(' | ')
+        if (hasNotFound && !hasQuota) {
+          // Semua model yang dicoba 404 - JANGAN disamarkan sebagai kuota
+          return NextResponse.json(
+            {
+              error: `Model AI tidak tersedia (404 Not Found). Pesan asli Google: ${failures[failures.length - 1].message}`,
+              code: 'MODEL_NOT_FOUND',
+              detail: breakdown,
+              details: breakdown,
+              hint: 'Semua model di daftar sudah tidak ada di Google dan discovery otomatis gagal. Coba lagi nanti.',
+              step: 'ai_call',
+            },
+            { status: 404 }
+          )
+        }
+        if (hasQuota) {
+          const mixed = hasNotFound
+          return NextResponse.json(
+            {
+              error: mixed
+                ? `Semua model AI sudah dicoba - ${breakdown}. Yang 429 berarti kuota sementara habis; yang 404 modelnya sudah dipensiunkan Google.`
+                : 'Kuota AI sedang penuh. Tunggu 1-2 menit lalu coba lagi.',
+              code: mixed ? 'ALL_MODELS_FAILED' : 'QUOTA_EXHAUSTED',
+              detail: breakdown,
+              details: breakdown,
+              hint: 'Coba lagi dalam 1-2 menit (batas per menit) atau besok (batas harian).',
+              step: 'ai_call',
+            },
+            { status: 429 }
+          )
+        }
+        // hanya error 'other' (mis. API key invalid) -> jatuh ke handler lama di bawah
+      }
       const errMsg = String(err?.message || '').toLowerCase()
       /* Fix Task 31: 404 = model Google TIDAK ADA / sudah dipensiunkan
          (mis. gemini-1.5-flash lama) — BUKAN kuota. Wajib dilaporkan dengan
