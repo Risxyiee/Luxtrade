@@ -92,15 +92,14 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
 // ==================== AI CALL WITH RETRY + MODEL FALLBACK ====================
 
 /** Fallback chain: 2.5-flash (best quality) → 2.0-flash (separate quota)
- *  → 2.5-flash-lite (bucket lagi, ringan) → 1.5-flash-8b → 1.5-flash-latest.
+ *  → 2.5-flash-lite (bucket lagi, ringan) → 1.5-flash-8b (final fallback).
  *  Tiap model punya bucket kuota gratis sendiri — makin banyak model di
  *  chain, makin kecil peluang "Kuota AI penuh" (429) di auto-jurnal.
- *  NOTE 404 (fix Task 31): `gemini-1.5-flash` polos sudah DIPENSIUNKAN
- *  Google → 404 Not Found di v1beta. Diganti `gemini-1.5-flash-8b`, dan
- *  alias `gemini-1.5-flash-latest` jadi jaring pengaman kalau 8b gagal
- *  (SOP Bos: "ubah ke 1.5-flash-8b, atau 1.5-flash-latest jika pertama gagal"
- *  — rantai fallback ini otomatis mencoba keduanya berurutan). */
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-latest']
+ *  Task 32 (permintaan Bos): `gemini-1.5-flash-latest` DIHAPUS dari chain,
+ *  fallback 1.5 pakai `gemini-1.5-flash-8b`. `gemini-1.5-flash` polos TIDAK
+ *  BISA dipakai — itu persis model yang 404 Not Found karena sudah
+ *  dipensiunkan Google dari v1beta (diagnosa Task 31). */
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash-8b']
 
 function isRetryableAIError(err: any): boolean {
   const msg = String(err?.message || '').toLowerCase()
