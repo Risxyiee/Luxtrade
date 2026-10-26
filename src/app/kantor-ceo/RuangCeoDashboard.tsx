@@ -665,11 +665,15 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {cmo.provider === 'openrouter' ? <div className="text-amber-300 mt-1 text-[11px]">⚡ OpenRouter — model resmi Sinta{cmo.model ? `: ${cmo.model}` : ' (GLM-4.7-Flash)'}</div> : null}
                   {cmo.provider === 'gemini' ? <div className="text-white/40 mt-0.5 text-[10.5px]">✅ Gemini (cadangan terakhir)</div> : null}
                   {cmo.basedOn === 'tiktok' ? <div className="text-violet-300 text-[10.5px] mt-0.5">📚 Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div> : null}
+                  {cmo.posted ? (cmo.posted.posted
+                    ? <div className="text-emerald-300 text-[10.5px] mt-0.5">🚀 NYATA tayang di {cmo.posted.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API) ✅</div>
+                    : <div className="text-amber-300/80 text-[10.5px] mt-0.5" title="Set token di Cloudflare Secrets: INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID, atau FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID">🚀 Auto-post belum jalan: {String(cmo.posted.reason || '').slice(0, 80)}</div>) : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada draf — klik ✍️ untuk generate</div>}
               <div className="mt-3 flex flex-wrap gap-1.5 items-center">
                 <button className={BTNP} onClick={() => call('agents&only=cmo')}>✍️ Buat 3 Draf Baru</button>
                 <button className={BTN} disabled={!cmoCur} onClick={async () => { try { await navigator.clipboard.writeText(cmoCur); P.setCopied(true); setTimeout(() => P.setCopied(false), 1800) } catch { } }}>📋 Salin Draf Ini</button>
+                <button className={BTN} title="Posting NYATA draf utama hari ini ke Instagram/Facebook via Meta Graph API" onClick={() => call('cmo-post')}>🚀 Post IG/FB</button>
                 {P.copied ? <span className="text-emerald-300 text-[11px]">tersalin ✅</span> : null}
               </div>
               <div className="mt-3 pt-3 border-t border-violet-300/15">

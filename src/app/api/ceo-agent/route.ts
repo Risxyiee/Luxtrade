@@ -20,6 +20,7 @@
 // Seluruh app sudah berjalan di Cloudflare Workers (edge) via OpenNext,
 // route ini pun otomatis jalan di Worker yang sama. Semua API yang dipakai
 // (fetch, AbortController, Intl) Workers-compatible.
+import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
@@ -188,6 +189,62 @@ async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
   const total = parseInt(cr.split('/')[1] || '', 10)
   if (!Number.isFinite(total)) throw new Error(`content-range tidak terbaca: "${cr}"`)
   return total
+}
+
+/* Task 32 — ATURAN ANTI-HALUSINASI (SOP Bos): semua agen WAJIB berangkat
+   dari DATA NYATA yang disuntikkan ke prompt; angka di luar blok data
+   dilarang keras. Prompt agen kini selalu diawali query data → LLM. */
+const REAL_DATA_RULE = 'ATURAN ANTI-HALUSINASI WAJIB: semua angka/fakta HANYA boleh diambil dari blok "DATA NYATA" di prompt ini — DILARANG mengarang/menebak angka, nama, atau status. Kalau data tidak tersedia, katakan datanya tidak tersedia.'
+
+/* ============================================================
+   PUTRI (CFO) — PnL NYATA dari tabel trades (Task 32 SOP Bos):
+   query Supabase DULU → matematika MURNI di Next.js (sum, win rate,
+   pair teratas, best/worst). TANPA LLM = mustahil halusinasi angka.
+   Gagal koneksi → err terisi, angka TIDAK dikarang.
+   ============================================================ */
+interface PnlStats { trades: number; pnl: number; wins: number; winRatePct: number; topPair: string; best: number; worst: number; err: string }
+
+async function computePnl(e: Env, sinceIso: string): Promise<PnlStats> {
+  const empty: PnlStats = { trades: 0, pnl: 0, wins: 0, winRatePct: 0, topPair: '', best: 0, worst: 0, err: '' }
+  try {
+    const url = `${sbUrl(e)}/rest/v1/trades?select=profit_loss,symbol&close_time=gte.${encodeURIComponent(sinceIso)}&order=close_time.desc&limit=2000`
+    const res = await fetch(url, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    if (!res.ok) return { ...empty, err: `trades HTTP ${res.status}` }
+    const rows = (await res.json()) as { profit_loss?: number | null; symbol?: string | null }[]
+    let pnl = 0, wins = 0, best = 0, worst = 0, counted = 0
+    const sym: Record<string, number> = {}
+    for (const r of rows) {
+      const pl = typeof r.profit_loss === 'number' ? r.profit_loss : null
+      if (pl === null) continue
+      counted++
+      pnl += pl
+      if (pl > 0) wins++
+      if (pl > best) best = pl
+      if (pl < worst) worst = pl
+      const s = String(r.symbol || '').toUpperCase().trim()
+      if (s) sym[s] = (sym[s] || 0) + 1
+    }
+    if (!counted) return empty
+    const topPair = Object.entries(sym).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
+    return {
+      trades: counted,
+      pnl: Math.round(pnl * 100) / 100,
+      wins,
+      winRatePct: Math.round((wins / counted) * 100),
+      topPair,
+      best: Math.round(best * 100) / 100,
+      worst: Math.round(worst * 100) / 100,
+      err: '',
+    }
+  } catch (x: any) {
+    return { ...empty, err: String(x?.message || x).slice(0, 100) }
+  }
+}
+
+function pnlLine(p: PnlStats | null | undefined): string {
+  if (!p || p.err) return '• 💹 PnL komunitas: gagal dihitung ⚠️'
+  if (!p.trades) return '• 💹 PnL komunitas 24 jam: belum ada trade yang ditutup'
+  return `• 💹 PnL komunitas 24 jam: ${p.pnl >= 0 ? '+' : ''}${p.pnl} dari ${fmtN(p.trades)} trade (win rate ${p.winRatePct}%${p.topPair ? ` · pair teratas ${p.topPair}` : ''})`
 }
 
 /* ============================================================
@@ -496,6 +553,25 @@ async function cmoAgent(e: Env) {
 
   /* Bahan analisis: konten asli TikTok Bos (diisi lewat Ruang CMO) */
   const posts = await fetchTopTikToks(e).catch(() => [])
+
+  /* Task 32 (SOP Bos): DATA NYATA USER ditarik DULU sebelum panggil LLM —
+     konten Sinta berangkat dari fakta funnel, bukan karangan. */
+  let realUsers = { total: -1, active24: -1, passive: -1 }
+  try {
+    const [a24, tot] = await Promise.all([
+      fetchActiveUserIds(e, isoAgo(24)),
+      supaCount(e, 'profiles'),
+    ])
+    realUsers = { total: tot, active24: a24.size, passive: Math.max(0, tot - a24.size) }
+  } catch { /* data gagal → prompt bilang tidak tersedia (anti-halusinasi) */ }
+  const realDataBlock =
+    `\nDATA NYATA Luxtradee (sumber: Supabase, diambil barusan):
+` +
+    (realUsers.total >= 0
+      ? `- Total pendaftar: ${fmtN(realUsers.total)} · aktif 24 jam: ${fmtN(realUsers.active24)} · pasif: ${fmtN(realUsers.passive)}
+`
+      : `- (data user sedang tidak tersedia — DILARANG menyebut angka user)
+`)
   const tiktokBlock = posts.length
     ? `KONTEN TIKTOK ASLI milik CEO (urut views — paling atas TERBUKTI paling perform):\n` +
       posts.map((p, i) => `${i + 1}. [${fmtN(p.views)} views · ${fmtN(p.likes)} likes] "${(p.caption || '').slice(0, 400)}"`).join('\n')
@@ -521,11 +597,13 @@ async function cmoAgent(e: Env) {
       : `Analisis gaya bahasa, hook, dan struktur dari naskah TikTok milik CEO berikut ini: ${e.TIKTOK_REFERENCE || '(belum ada referensi — pakai gaya trader Indonesia kasual, bahasa gaul)'}`) +
     `\nTugasmu hari ini: Buat 3 draf naskah video TikTok baru yang meniru pola/gaya tersebut 100% — SAME angle, TIGA pendekatan berbeda (beda hook, beda struktur, beda gaya buka) supaya Bos bisa PILIH yang paling pas. ` +
     `DILARANG mengulang naskah yang sama dari hari-hari sebelumnya. ` +
-    `Rotasi angle harian: pain point trader XAUUSD (SMC/ICT), kelelahan ngetik jurnal manual, atau cara menjaga max daily loss prop firm dengan evaluasi visual.`
+    `Rotasi angle harian: pain point trader XAUUSD (SMC/ICT), kelelahan ngetik jurnal manual, atau cara menjaga max daily loss prop firm dengan evaluasi visual.` +
+    `\n\n` + REAL_DATA_RULE
 
   const userPrompt =
     `Tanggal hari ini: ${wibNow()}.\n` +
     `ANGLE HARI INI (WAJIB dipakai): ${angle}\n` +
+    realDataBlock +
     churnLine +
     (history.length
       ? `\nNaskah yang SUDAH dipakai hari sebelumnya (DILARANG mengulang / mirip):\n` +
@@ -598,10 +676,14 @@ async function cfoAgent(e: Env) {
   try { proCount = await supaCount(e, 'profiles', 'is_pro=eq.true') } catch { proCount = -1 }
   const proPrice = parseInt(e.PRO_PRICE_IDR || '49000', 10)
   const mrrTarget = parseInt(e.MRR_TARGET_IDR || '10000000', 10)
+  /* Task 32 (SOP Bos): PnL NYATA — query trades dulu → matematika murni
+     Next.js. Angka profit/loss berasal 100% dari database, bukan LLM. */
+  const [pnl24, pnl7] = await Promise.all([computePnl(e, isoAgo(24)), computePnl(e, isoAgo(24 * 7))])
   return {
     title: 'CFO — API Quota Manager', limit, usedToday, usedYesterday, quota429,
     emailLimit, emailToday, emailYesterday, emailPct,
     proCount, proPrice, mrrTarget, estMRR: proCount > 0 ? proCount * proPrice : 0,
+    pnl24, pnl7,
     status: pct >= 95 ? 'KRITIS — hentikan upload sisa hari ini'
       : pct >= 80 ? 'WASPADA — kurangi frekuensi upload'
       : 'AMAN ✅',
@@ -698,6 +780,10 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• Status: ${cfo?.status || '-'}`)
   if (cfo?.proCount !== undefined && cfo.proCount >= 0)
     L.push(`• 💵 Pendapatan (estimasi): ${fmtN(cfo.proCount)} user PRO × Rp${fmtN(cfo.proPrice)} ≈ **Rp${fmtN(cfo.estMRR)}/bulan MRR**${cfo.mrrTarget > 0 ? ` (${Math.round(((cfo.estMRR || 0) / cfo.mrrTarget) * 100)}% dari target Rp${fmtN(cfo.mrrTarget)})` : ''}`)
+  /* Task 32: PnL NYATA dari tabel trades (matematika murni Putri) */
+  if (cfo?.pnl24) L.push(pnlLine(cfo.pnl24))
+  if (cfo?.pnl7 && cfo.pnl7.trades > 0)
+    L.push(`   ↳ Rekap 7 hari: ${cfo.pnl7.pnl >= 0 ? '+' : ''}${cfo.pnl7.pnl} dari ${fmtN(cfo.pnl7.trades)} trade (win rate ${cfo.pnl7.winRatePct}%)`)
   if (cfo?.err) L.push(`⚠️ CFO gagal: ${String(cfo.err).slice(0, 130)}`)
   if (cooLine) L.push(cooLine)
   L.push('━━━━━━━━━━━━━━━━━━')
@@ -716,7 +802,7 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
 async function ceoComposeBriefing(e: Env, templateText: string): Promise<{ text: string; model: string }> {
   const brain = await agentBrain(
     e, 'ceo',
-    'Kamu Alexander, wakil CEO Luxtradee (jurnal trading XAUUSD). Tugas pagi ini: merangkai LAPORAN MENTAH dari karyawan AI jadi SATU Morning Briefing rapi untuk Discord Bos. ATURAN WAJIB: (1) pertahankan SEMUA angka & status penting (website, bug, user aktif/pasif, kuota, penawaran COO, email CSO); (2) format markdown Discord, mulai dengan baris "🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**" lalu baris tanggal; (3) seksi dipisah ━━━━ dengan judul 🖥️ CTO / 👥 CSO / 📣 CMO / 💰 CFO; (4) maksimal 1800 karakter; (5) bahasa Indonesia, profesional tapi santai. Output HANYA isi briefing-nya, tanpa komentar pembuka/penutup.',
+    'Kamu Alexander, wakil CEO Luxtradee (jurnal trading XAUUSD). Tugas pagi ini: merangkai LAPORAN MENTAH dari karyawan AI jadi SATU Morning Briefing rapi untuk Discord Bos. ATURAN WAJIB: (1) pertahankan SEMUA angka & status penting PERSIS seperti laporan mentah — DILARANG mengubah/menambah/mengurangi angka (anti-halusinasi); (2) format markdown Discord, mulai dengan baris "🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**" lalu baris tanggal; (3) seksi dipisah ━━━━ dengan judul 🖥️ CTO / 👥 CSO / 📣 CMO / 💰 CFO; (4) maksimal 1800 karakter; (5) bahasa Indonesia, profesional tapi santai. Output HANYA isi briefing-nya, tanpa komentar pembuka/penutup.',
     `LAPORAN MENTAH KARYAWAN:\n${templateText}`,
     900, 0.4,
   )
@@ -896,6 +982,30 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
     }
   } catch { /* talk opsional */ }
 
+  /* AUTO-POSTING NYATA SINTA (Task 32 SOP Bos) — draf utama hari ini
+     diposting ke Instagram/Facebook via Meta Graph API (token kredensial),
+     1×/hari (dedup KV), toggle cmo:autopost. Sengaja di FASE 2 ini (bukan
+     di cmoAgent) supaya Fase 1 laporan tetap <60 dtk — pelajaran Task 29.
+     Tanpa token → status JUJUR "belum diset", tidak ada simulasi sukses. */
+  try {
+    if (!(await kvGet(e, `cmo:posted:${day}`)) && (await kvGet(e, 'cmo:autopost')) !== 'off') {
+      let draftText = ''
+      try { draftText = String(JSON.parse((await kvGet(e, `cmo:${day}`)) || 'null')?.draft || '') } catch { /* ignore */ }
+      if (draftText) {
+        const post: MetaPostResult = await metaAutoPost(draftText)
+        summary.cmoPost = post
+        if (post.posted) {
+          await kvSet(e, `cmo:posted:${day}`, JSON.stringify(post)).catch(() => {})
+          await memAdd(e, 'CMO Sinta', `Draf hari ini NYATA diposting ke ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API id ${String(post.id).slice(0, 18)})`).catch(() => {})
+        }
+        const line = post.posted
+          ? `🚀 AUTO-POST SINTA: draf hari ini NYATA tayang di ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API) ✅`
+          : `🚀 AUTO-POST SINTA belum jalan: ${String(post.reason || '').slice(0, 140)}`
+        try { await sendDiscord(e, line) } catch { /* ignore */ }
+      }
+    }
+  } catch { /* auto-post opsional — jangan ganggu fase 2 lain */ }
+
   /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
      (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */
   try {
@@ -1014,8 +1124,9 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
       e, 'cso',
       'Kamu Maya, CSO Luxtradee — web app jurnal trading XAUUSD (upload screenshot → evaluasi AI). Tulis 1 email sapaan hangat untuk user pasif (tidak upload jurnal >24 jam). Gaya: bahasa Indonesia santai & hangat, maksimal 80 kata, TANPA link/URL apa pun (sistem menambahkan link & tanda tangan otomatis), TANPA markdown, TANPA sapaan nama (sistem menambahkan sapaan personal per penerima). ' +
       `Nada variasi hari ini: ${CSO_EMAIL_TONES[variantIdx]}. ` +
-      'OUTPUT HANYA JSON valid: {"subject":"maks 60 karakter, boleh 1 emoji","body":"isi email tanpa sapaan nama"}',
-      `Konteks: ${targets.length} user pasif akan dikontak hari ini. Tanggal: ${wibNow()}.`,
+      'OUTPUT HANYA JSON valid: {"subject":"maks 60 karakter, boleh 1 emoji","body":"isi email tanpa sapaan nama"} ' +
+      REAL_DATA_RULE,
+      `Konteks nyata: ${targets.length} user pasif akan dikontak hari ini (dari database). Tanggal: ${wibNow()}.`,
       400, 0.8,
     )
     const parsed = JSON.parse(extractJsonLoose(brain.text) || '{}') as { subject?: string; body?: string }
@@ -1575,7 +1686,7 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
     `Kalau ada hasil diskusi sebelumnya di bawah: JANGAN mengulang kesimpulan yang sama persis — verifikasi dengan data terbaru, gali akar yang belum dibahas, atau nyatakan pola baru.\n\n` +
     `OUTPUT HANYA JSON valid (tanpa markdown, tanpa penjelasan):\n` +
     `{"diagnosis":"1-2 kalimat inti masalah","reasons":["alasan 1","alasan 2","alasan 3"],"dialog":[{"who":"CSO","text":"..."},{"who":"CMO","text":"..."}],"script":{"hook":"...","body":"...","cta":"..."}}\n` +
-    `Aturan: dialog 6-8 giliran pergantian, tiap teks maks 200 karakter, bahasa Indonesia santai, sebutkan angka data yang nyata.`
+    `Aturan: dialog 6-8 giliran pergantian, tiap teks maks 200 karakter, bahasa Indonesia santai, sebutkan angka data yang nyata.` + ' ' + REAL_DATA_RULE
 
   /* Learning loop: baca kesimpulan diskusi sebelumnya → Maya & Sinta
      tidak mengulang verbatim — mereka verifikasi/memperdalam. */
@@ -1782,7 +1893,7 @@ async function analystAgent(e: Env): Promise<DaInsight> {
   const systemPrompt =
     `Kamu Dewi, Data Analyst Luxtradee (web app jurnal trading XAUUSD — user upload screenshot/record trade, AI evaluasi visual). ` +
     `Analisis angka nyata, temukan pola yang tidak terlihat kasat mata, kasih rekomendasi konkret yang bisa dieksekusi Bos minggu ini (produk, konten, atau retensi). ` +
-    `OUTPUT HANYA JSON valid (tanpa markdown): {"insight":"maks 2 kalimat","patterns":["pola 1","pola 2","pola 3"],"recommendations":["rekomendasi 1","rekomendasi 2","rekomendasi 3"]} — bahasa Indonesia santai-profesional, sebut angka nyata.`
+    `OUTPUT HANYA JSON valid (tanpa markdown): {"insight":"maks 2 kalimat","patterns":["pola 1","pola 2","pola 3"],"recommendations":["rekomendasi 1","rekomendasi 2","rekomendasi 3"]} — bahasa Indonesia santai-profesional, sebut angka nyata.` + ' ' + REAL_DATA_RULE
 
   let provider: DaInsight['provider'] = 'fallback'
   let insight = '', patterns: string[] = [], recommendations: string[] = []
@@ -2373,6 +2484,35 @@ async function handle(req: Request): Promise<Response> {
     case 'tiktok-del':
       // Hapus post bahan analisis: ?id=<uuid>
       try { return j(await tikTokDel(e, url.searchParams.get('id') || '')) } catch (x: any) { return j({ error: String(x?.message || x) }, 400) }
+    case 'cmo-post': {
+      // Task 32 — Post NYATA draf utama hari ini ke Instagram/Facebook via
+      // Meta Graph API (Sinta). ?force=1 lewati dedup harian (repost manual).
+      // Status SELALU jujur: posted:true hanya kalau Graph API konfirmasi.
+      try {
+        let draftText = ''
+        try { draftText = String(JSON.parse((await kvGet(e, `cmo:${utcDay()}`)) || 'null')?.draft || '') } catch { /* ignore */ }
+        if (!draftText) return j({ error: 'belum ada draf hari ini — jalankan agen CMO dulu (✍️ Buat 3 Draf)' }, 404)
+        const force = url.searchParams.get('force') === '1'
+        if (!force) {
+          const prev = await kvGet(e, `cmo:posted:${utcDay()}`)
+          if (prev) { try { return j({ alreadyPosted: true, result: JSON.parse(prev) }) } catch { /* repost */ } }
+        }
+        const result: MetaPostResult = await metaAutoPost(draftText)
+        if (result.posted) await kvSet(e, `cmo:posted:${utcDay()}`, JSON.stringify(result)).catch(() => {})
+        return j({ result, diag: metaDiag() })
+      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'cmo-autopost': {
+      // Task 32 — Status/toggle auto-posting Sinta: GET status,
+      // ?set=on|off untuk ubah. Menampilkan kredensial Meta yang terdeteksi.
+      try {
+        const set = url.searchParams.get('set')
+        if (set === 'on' || set === 'off') await kvSet(e, 'cmo:autopost', set)
+        const state = (await kvGet(e, 'cmo:autopost')) || 'on'
+        const postedRaw = await kvGet(e, `cmo:posted:${utcDay()}`)
+        return j({ autopost: state, postedToday: postedRaw ? JSON.parse(postedRaw) : null, diag: metaDiag() })
+      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
     case 'talk':
       // Diskusi CSO × CMO (Ruang CSO): akar masalah user pasif + skrip konten.
       // Dedup per hari — kalau sudah jalan pagi ini, balikin hasil yang tersimpan.
@@ -2473,6 +2613,8 @@ async function handle(req: Request): Promise<Response> {
           'action=tiktok-list — daftar bahan analisis TikTok (Ruang CMO)',
           'action=tiktok-add (POST JSON {url,views,likes}) — tambah post: caption auto via oEmbed',
           'action=tiktok-del (?id=) — hapus post bahan analisis',
+          'action=cmo-post [?force=1] — Sinta posting NYATA draf hari ini ke Instagram/Facebook via Meta Graph API (butuh token; status jujur)',
+          'action=cmo-autopost [?set=on|off] — status/toggle auto-posting Sinta 1×/hari (default ON, posting di fase 2 briefing)',
           'action=talk — diskusi harian CSO × CMO: akar masalah user pasif + skrip konten (Ruang CSO)',
           'action=talk-last — hasil diskusi CSO × CMO terakhir',
           'action=mem-last — 🧠 Memori Kantor: kesimpulan bersama semua karyawan AI (Ruang Rapat)',
