@@ -15,6 +15,7 @@
 // ============================================================
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles, X } from 'lucide-react'
+import PendingActionsQueue from './PendingActionsQueue'
 
 /* ============================================================
    STRUKTUR & JABATAN TIM AI — data lengkap untuk Ruang Struktur.
@@ -397,6 +398,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 🤖 <b>Karyawan AI tetap kerja 24/7 walau kantor ini tidak dibuka</b> — cron otomatis: briefing 08:00 WIB, watchdog tiap 15 mnt, laporan Senin 10:00. Semua hasil masuk Discord.
               </div>
               <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Alexander (CEO)</div>
+              {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
+              <PendingActionsQueue />
             </div>
           ) : room === 'rapat' ? (
             /* ============ RUANG RAPAT — CEO Suite ============ */
