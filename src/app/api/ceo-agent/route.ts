@@ -439,20 +439,31 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
   throw new Error(lastErr || 'OpenRouter: semua model gagal')
 }
 
-/* Otak Multi-Agent: model resmi karyawan (OpenRouter) dulu →
-   Gemini sebagai nyawa cadangan terakhir → kalau dua-duanya mati,
-   caller wajib pakai templat statis (sistem tidak pernah crash). */
+/* Otak Multi-Agent: model resmi karyawan (OpenRouter) → kalau mati semua,
+   caller wajib pakai templat statis (sistem tidak pernah crash).
+
+   ⚠️ PENTING (lindungi kuota auto-jurnal): Gemini TIDAK lagi jadi fallback
+   otomatis kerjaan karyawan AI. Seluruh kuota GEMINI_API_KEY disisakan untuk
+   fitur user-facing (auto-jurnal/evaluasi screenshot) — dulu kerjaan cron
+   ikut makan kuota yang sama → auto-jurnal user kena 429 "Kuota AI penuh".
+   Kalau OpenRouter mati total → laporan tetap terkirim pakai templat statis.
+   Set LLM_GEMINI_FALLBACK=1 di Cloudflare untuk mengaktifkan kembali
+   fallback Gemini secara sengaja. */
 async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'openrouter' | 'gemini'; model: string }> {
   let err = ''
   try {
     const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature)
     return { ...r, provider: 'openrouter' }
   } catch (x: any) { err = String(x?.message || x).slice(0, 140) }
-  if (cleanEnv(e.GEMINI_API_KEY)) {
-    try {
-      const text = await geminiText(e, systemPrompt, userPrompt, maxTokens, temperature)
-      return { text, provider: 'gemini', model: e.GEMINI_MODEL || 'gemini-2.5-flash' }
-    } catch (x: any) { err += ' | Gemini: ' + String(x?.message || x).slice(0, 80) }
+  if (cleanEnv(e.LLM_GEMINI_FALLBACK) === '1') {
+    if (cleanEnv(e.GEMINI_API_KEY)) {
+      try {
+        const text = await geminiText(e, systemPrompt, userPrompt, maxTokens, temperature)
+        return { text, provider: 'gemini', model: e.GEMINI_MODEL || 'gemini-2.5-flash' }
+      } catch (x: any) { err += ' | Gemini: ' + String(x?.message || x).slice(0, 80) }
+    }
+  } else if (cleanEnv(e.GEMINI_API_KEY)) {
+    err += ' | fallback Gemini dilewati (lindungi kuota auto-jurnal — set LLM_GEMINI_FALLBACK=1 untuk aktifkan)'
   }
   throw new Error(err || 'semua LLM gagal')
 }
@@ -773,7 +784,10 @@ async function runMorningBriefing(e: Env) {
     }
   } catch { /* ignore */ }
 
-  const autoOn = (await kvGet(e, 'autoacc').catch(() => null)) === 'on'
+  /* AUTO-ACC default ON — Maya kirim email pasif OTOMATIS tiap pagi tanpa
+     diklik (Bos tidur, karyawan kerja). Untuk mematikan: toggle AUTO-ACC
+     di Ruang CSO (diset eksplisit ke 'off'). */
+  const autoOn = (await kvGet(e, 'autoacc').catch(() => null)) !== 'off'
   const templateText = buildBriefing(cto, cso, cmo, cfo, '', autoOn, null, cooLine, nbaLine, null)
 
   /* ALEXANDER (CEO) merangkai — dibatasi keras 30 dtk (dulu LLM lambat ikut
@@ -2332,8 +2346,9 @@ async function handle(req: Request): Promise<Response> {
       return j(await weeklyReport(e))
     case 'auto-acc': {
       // Toggle mode otomatis: kalau ON, CSO kirim email pasif otomatis tiap briefing pagi.
+      // DEFAULT = ON (tanpa klik apa pun) — set eksplisit 'off' untuk mematikan.
       // GET = baca status · POST ?on=1 / ?on=0 = ubah
-      const cur = (await kvGet(e, 'autoacc')) === 'on'
+      const cur = (await kvGet(e, 'autoacc')) !== 'off'
       const p = url.searchParams.get('on')
       if (p === '1' || p === '0') {
         await kvSet(e, 'autoacc', p === '1' ? 'on' : 'off')
@@ -2343,7 +2358,7 @@ async function handle(req: Request): Promise<Response> {
         try { await sendDiscord(e, msg) } catch { /* ignore */ }
         return j({ set: true, autoacc: p === '1' })
       }
-      return j({ autoacc: cur })
+      return j({ autoacc: cur, default: true })
     }
     case 'tiktok-list':
       // Bahan analisis TikTok untuk CMO (Ruang CMO) — list semua post
@@ -2451,7 +2466,7 @@ async function handle(req: Request): Promise<Response> {
           'action=quota-track (POST) — gerbang anti-429 sebelum Gemini Vision',
           'action=briefing-last — briefing terakhir',
           'action=acc-email (POST/GET) — flow "ACC EMAIL": email sapaan ke user pasif (Resend)',
-          'action=auto-acc [POST &on=1|0] — toggle kirim email pasif OTOMATIS tiap briefing pagi',
+          'action=auto-acc [POST &on=1|0] — toggle kirim email pasif OTOMATIS tiap briefing pagi (default ON)',
           'action=watchdog — CTO jaga situs 24/7: DOWN/bug/kuota 80% → alarm Discord instan + triage bug otomatis (cron 15 mnt)',
           'action=qa — CTO tes semua fitur dashboard (15 route: halaman + endpoint kritis API) → hasil ikut laporan 08:00',
           'action=weekly — laporan mingguan 7 hari ke Discord (cron Minggu 20:00)',
