@@ -1790,3 +1790,22 @@ Stage Summary:
 - Tidak ada bug baru — hanya salah paham istilah: $100 = batas belanja key, saldo akun = $0 (free-tier). Panel diag sekarang menjelaskan sendiri bedanya, Bos tidak akan tanya lagi.
 - State OpenRouter Bos: key valid & terpasang ✅, Nemotron Ultra 550B hidup ✅ (workhorse), circuit breaker Task 35-c aktif (model 429 di-skip 10 mnt), tombol ♻️ Reset Kerjaan AI siap.
 - Opsinya: (a) biarkan free-tier — breaker sudah menghemat, Nemotron jalan; (b) top up $10 SEKALI di openrouter.ai/credits → 1000 req/hari, 429 Gemma 4/Xing praktis hilang. TIDAK perlu set limit $100 di key — lebih aman set kecil ($5) supaya kalau key bocor kerugiannya terbatas.
+
+---
+Task ID: 35-e
+Agent: Z (main)
+Task: Bos laporkan toast ♻️ Reset "proposal: Supabase ai_pending_actions HTTP 401 — key salah/expired" + keberatan cerdas "kalau key salah dashboard utama pasti mati" — buktikan key sehat, perbaiki pemilih kunci + kejujuran reset
+
+Work Log:
+- ROOT CAUSE (Bos BENAR): reset-work COUNT ai_pending_actions via supaCount → usePriv list tidak memuat ai_pending_actions → pakai sbH (ANON) → tabel sistem ini TANPA policy anon (by design — semua akses lewat service_role, bukti: lib/agent-proposals.ts sbHeadersPriv dan antrean proposal JALAN NORMAL di production) → PostgREST 401 → pesan hint saya salah tuduh "ANON/SERVICE_ROLE salah/expired". Dashboard utama tetap jalan = key sehat, persis dugaan Bos.
+- FIX 1 — supaCount: ai_pending_actions masuk usePriv (service_role) → COUNT reset-work kini lewat pintu yang sama dengan antrean proposal yang terbukti jalan.
+- FIX 2 — hint 401 dibedakan per jalur: priv + service key kosong → "service_role belum diset..."; priv + key ada → "service_role DITOLAK Supabase (key salah/di-rotasi — cek Settings → API)"; anon → "anon ditolak tabel ini (RLS tanpa policy / key salah) — tabel sistem wajib service_role". Tidak ada lagi tuduhan generik yang menyesatkan.
+- FIX 3 — kvDel JUJUR (SOP Bos): dulu void + catch diam → reset-work selalu lapor "7 dibersihkan" palsu. Kini DELETE dengan Prefer: return=representation & select=key → return jumlah baris BENAR-BENAR terhapus → toast "X/7 cache terhapus" (0 = memang tidak ada/gagal).
+- FIX 4 — error DELETE proposal kini sertakan body Supabase (90 char) untuk diagnosis langsung.
+- Verifikasi lokal: lint bersih; dummy Supabase env + curl reset-work → {clearedReal: 0, removedPending: -1, text "0/7 cache kerjaan hari ini terhapus · proposal: fetch failed"} — JUJUR, tidak ada lagi sukses palsu. .env dipulihkan.
+- Commit 7de071ca pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- 401 reset-work BUKAN key bermasalah — kode salah pilih kunci utk tabel sistem; sudah dibetulkan ke service_role (pintu yang terbukti hidup). Pesan error kini akurat per jalur.
+- Kejujuran reset naik level: jumlah cache terhapus = angka nyata dari Supabase, bukan asumsi.
+- Setelah deploy Bos klik ♻️ Reset lagi → harusnya "X/7 cache terhapus · N proposal lama dihapus" tanpa 401 → lanjut 🌅 Briefing + 🧹 Sweep + ✍️ Draf → badge 🤖 Draf AI = bukti otak jalan (usage $ di OpenRouter memang tidak bergerak utk model :free — gratis tidak pernah ditagih).
