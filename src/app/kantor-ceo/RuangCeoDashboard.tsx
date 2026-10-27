@@ -534,6 +534,25 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {['profiles', 'trades', 'bug_reports', 'agent_kv'].map(k => { const r = data[k] || {}; return (
                     <div key={k}>{r.ok ? '✅' : '❌'} <b>{k}</b>{r.ok ? '' : <span className="text-red-300"> — {String(r.error || '').slice(0, 90)}</span>}</div>) })}
                   <div className="text-white/40 mt-1">{Object.entries(data.env).map(([k, v]: any) => `${k} ${v ? '✅' : '❌'}`).join(' · ')}</div>
+                  {(() => { const or = data.openrouter?.data || data.openrouter; if (!or) return null; const bad = or.ok === false || String(or.verdict || '').startsWith('❌') || or.keyCheck?.ok === false; return (
+                    <div className={`mt-2 rounded-lg border px-2 py-1.5 text-[10.5px] leading-relaxed ${bad ? 'bg-red-400/10 border-red-300/25 text-red-100/90' : 'bg-emerald-400/10 border-emerald-300/25 text-emerald-100/90'}`}>
+                      <b>🧠 Tes Otak Karyawan AI (OpenRouter) — {bad ? 'ADA MASALAH ⚠️' : 'HIDUP ✅'}</b>
+                      {or.ok === false ? (
+                        <div className="mt-1">❌ {String(or.error || '').slice(0, 220)}</div>
+                      ) : (<>
+                        <div className="mt-1">
+                          {or.keyCheck?.ok
+                            ? <>🔑 Key valid{or.keyCheck.label ? <b> ({String(or.keyCheck.label).slice(0, 30)})</b> : null} · terpakai ${Number(or.keyCheck.usage || 0).toFixed(3)}{or.keyCheck.limit != null ? <> / limit ${Number(or.keyCheck.limit).toFixed(2)}</> : ' · tanpa batas kredit'}{or.keyCheck.isFreeTier ? <span className="text-amber-200"> · ⚠️ free-tier (20 req/mnt · 50 req/hari)</span> : null}</>
+                            : <>🔑 <b>Key bermasalah:</b> {or.keyCheck?.hint || or.keyCheck?.error || `HTTP ${or.keyCheck?.status}`}</>}
+                        </div>
+                        <div className="mt-1 max-h-32 overflow-y-auto kscroll">
+                          {(or.chain || []).map((m: any) => (
+                            <div key={m.model}>{m.ok ? '✅' : '❌'} <b>{m.model}</b> — {m.ok ? <>hidup ({m.ms} ms{m.reply ? ` · balas: "${m.reply}"` : ''})</> : <>HTTP {m.status ?? '—'} · {String(m.hint || m.error || m.body || '').slice(0, 150)}</>}</div>
+                          ))}
+                        </div>
+                        <div className="mt-1 font-semibold">{or.verdict}</div>
+                      </>)}
+                    </div>) })()}
                   {data.setup && (
                     <div className="mt-2 rounded-lg bg-amber-400/10 border border-amber-300/20 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90 max-h-40 overflow-y-auto kscroll">
                       <b>🔧 Cara memasang yang belum ada:</b>

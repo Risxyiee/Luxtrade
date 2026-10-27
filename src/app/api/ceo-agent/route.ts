@@ -381,7 +381,7 @@ async function csoAgent(e: Env) {
    ============================================================ */
 function fallbackDraft(angle: string): string {
   return [
-    '[DRAF CADANGAN — Gemini limit/error, revisi manual]',
+    '[DRAF CADANGAN — model AI gagal/error (bukan hasil AI), revisi manual]',
     'HOOK: "Trader XAUUSD, stop scroll 3 detik. Ini alasan akun lo bocor tiap minggu."',
     `ISI: ${angle}`,
     'SOLUSI: upload screenshot chart lo — biarkan evaluasi visualnya yang nuduhin kesalahan lo.',
@@ -473,7 +473,10 @@ function orChain(e: Env, agent: AgentKey): string[] {
    Coba model satu per satu sesuai chain; parsing standar OpenAI:
    result.choices?.[0]?.message?.content?.trim() */
 async function openRouterChat(e: Env, chain: string[], systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature?: number): Promise<{ text: string; model: string }> {
-  const orKey = cleanEnv(e.OPENROUTER_API_KEY)
+  /* cfSecret: process.env dulu → fallback binding CF Workers (secret yang
+     diset via dashboard kadang tidak masuk process.env — kalau cuma baca
+     e.OPENROUTER_API_KEY, LLM gagal "belum diset" padahal key terpasang). */
+  const orKey = cfSecret(e, 'OPENROUTER_API_KEY')
   if (!orKey) throw new Error('OPENROUTER_API_KEY belum diset — tambah di Cloudflare Workers Secrets')
   let lastErr = ''
   for (const model of chain) {
@@ -549,6 +552,92 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
     err += ' | fallback Gemini dilewati (lindungi kuota auto-jurnal — set LLM_GEMINI_FALLBACK=1 untuk aktifkan)'
   }
   throw new Error(err || 'semua LLM gagal')
+}
+
+/* ============================================================
+   Task 35b — DIAGNOSTIK OPENROUTER AKTIF (tombol 🩺 Diagnostik)
+   Dulu diag cuma cek "env ada/tidak" → Bos tetap nebak-nebak kenapa
+   karyawan AI jatuh ke templat. Sekarang diag BENAR-BENAR memanggil:
+   1) GET /api/v1/key  → validitas key + pemakaian/batas kredit
+   2) Tes hidup TIAP model di chain (prompt 16 token) → HTTP status
+      asli + potongan body error + saran perbaikan bahasa manusia.
+   Target: masalah OpenRouter KELIHATAN dalam 1 klik, tanpa wrangler tail.
+   ============================================================ */
+const OR_HINTS: Record<number, string> = {
+  401: 'API Key TIDAK VALID / sudah dihapus — buat key baru di openrouter.ai/keys → update secret OPENROUTER_API_KEY di Cloudflare (Workers → Settings → Variables & Secrets) → Deploy',
+  402: 'Kredit OpenRouter habis — isi kredit ATAU pastikan hanya pakai model :free',
+  403: 'Request diblokir kebijakan OpenRouter — cek status akun / moderasi konten',
+  404: 'Model ID tidak ada di katalog OpenRouter (katalog sering dikurasi ulang) — ganti ke model hidup lain',
+  408: 'Model terlalu lama merespons (timeout) — coba lagi / ganti model',
+  429: 'Rate limit! Free tier: 20 req/menit · 50 req/hari (akun tanpa kredit) — top up $10 → jadi 1000 req/hari, ATAU tunggu kuota reset',
+  500: 'Server OpenRouter error internal — coba lagi nanti / ganti model',
+  502: 'Upstream provider model error — pakai model cadangan',
+  503: 'Model sedang penuh kapasitas — coba model lain dulu',
+}
+
+async function orDiag(e: Env): Promise<Record<string, unknown>> {
+  const key = cfSecret(e, 'OPENROUTER_API_KEY')
+  if (!key) {
+    return { ok: false, reason: 'no-key', error: 'OPENROUTER_API_KEY belum diset — Cloudflare → Workers & Pages → luxtradee → Settings → Variables & Secrets → Add OPENROUTER_API_KEY (sk-or-...) → Encrypt → Deploy' }
+  }
+  const out: Record<string, unknown> = { ok: true, keyPresent: true }
+
+  /* 1) Validitas & kuota key (endpoint khusus pemilik key, murah — bukan chat) */
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/key', {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: timeoutSignal(15_000),
+    })
+    const body: any = await res.json().catch(() => null)
+    if (!res.ok) {
+      out.keyCheck = { ok: false, status: res.status, hint: OR_HINTS[res.status] || `HTTP ${res.status}`, body: JSON.stringify(body).slice(0, 140) }
+    } else {
+      const d = body?.data || {}
+      out.keyCheck = {
+        ok: true,
+        label: d.label || '',
+        usage: typeof d.usage === 'number' ? d.usage : undefined,
+        limit: d.limit === null ? undefined : d.limit,
+        isFreeTier: !!d.is_free_tier,
+        note: d.is_free_tier ? 'akun free-tier — batas 20 req/menit · 50 req/hari (1000/hari bila pernah top up $10)' : 'akun ber-kredit',
+      }
+    }
+  } catch (x: any) {
+    out.keyCheck = { ok: false, error: String(x?.message || x).slice(0, 120) }
+  }
+
+  /* 2) Tes hidup tiap model chain CEO — prompt 16 token, cepat & hemat */
+  const chain = orChain(e, 'ceo')
+  const tested: Record<string, unknown>[] = []
+  for (const model of chain) {
+    const t0 = Date.now()
+    try {
+      const res = await fetch(OR_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Balas persis satu kata: OK' }], max_tokens: 16 }),
+        signal: timeoutSignal(25_000),
+      })
+      const ms = Date.now() - t0
+      if (!res.ok) {
+        const txt = (await res.text().catch(() => '')).slice(0, 140)
+        tested.push({ model, ok: false, status: res.status, ms, hint: OR_HINTS[res.status] || `HTTP ${res.status}`, body: txt })
+      } else {
+        const data: any = await res.json()
+        const text = data?.choices?.[0]?.message?.content?.trim()
+        tested.push({ model, ok: !!text, status: 200, ms, reply: String(text || '').slice(0, 40) })
+      }
+    } catch (x: any) {
+      tested.push({ model, ok: false, status: 0, ms: Date.now() - t0, hint: 'Timeout / jaringan terputus dari Workers', error: String(x?.message || x).slice(0, 120) })
+    }
+  }
+  const alive = tested.filter((t) => t.ok)
+  out.chain = tested
+  out.aliveCount = alive.length
+  out.verdict = alive.length
+    ? `✅ ${alive.length}/${tested.length} model hidup — otak karyawan SEHARUSNYA bekerja. Kalau dashboard masih templat, itu cache lama — klik agen manual atau tunggu reset harian.`
+    : '❌ SEMUA model gagal — INILAH penyebab karyawan AI jatuh ke templat. Ikuti hint di atas (paling sering: 401 key mati / 429 kuota free-tier).'
+  return out
 }
 
 /* Top 5 konten TikTok milik Bos, urut views (tabel tiktok_posts).
@@ -912,8 +1001,14 @@ async function runMorningBriefing(e: Env) {
     if (composed?.text) {
       text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
       cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))
+    } else {
+      /* Task 35b: JANGAN diam-diam pakai templat — Bos harus tahu ini bukan
+         rangkuman AI. Penyebab lengkap: klik 🩺 Diagnostik di Ruang CTO. */
+      text = `⚠️ **OTAK ALEXANDER OFFLINE** — laporan di bawah hasil TEMPLAT, bukan rangkuman AI (model gagal merespons). Cek 🩺 Diagnostik di Ruang CTO untuk penyebab persisnya.\n\n${templateText}`
     }
-  } catch { /* templat tetap dipakai */ }
+  } catch (x: any) {
+    text = `⚠️ **OTAK ALEXANDER OFFLINE** — penyebab: ${String(x?.message || x).slice(0, 200)}\nLaporan di bawah hasil TEMPLAT. Cek 🩺 Diagnostik di Ruang CTO.\n\n${templateText}`
+  }
 
   /* Kirim laporan utama — 2 percobaan (Discord kadang 429/ngambek). */
   let notifySent = false, notifyErr = ''
@@ -2317,6 +2412,10 @@ async function handle(req: Request): Promise<Response> {
       await t('trades', async () => ({ active24h: (await fetchActiveUserIds(e, isoAgo(24))).size }))
       await t('bug_reports', async () => ({ total24h: await supaCount(e, 'bug_reports', 'created_at=gte.' + isoAgo(24)) }))
       await t('agent_kv', async () => ({ briefingLastTersimpan: !!(await kvGet(e, 'briefing:last')) }))
+      /* Task 35b: tes OTAK karyawan — panggil OpenRouter beneran (validitas
+         key + hidup/matinya tiap model chain). Di sinilah penyebab "karyawan
+         jatuh ke templat" akhirnya terlihat tanpa wrangler tail. */
+      await t('openrouter', async () => orDiag(e))
       return j(out)
     }
     case 'quota':
