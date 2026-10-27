@@ -1715,3 +1715,21 @@ Stage Summary:
 - FASE 3 selesai & terverifikasi di browser lokal. UI kini 100% jujur: semua error (401/jaringan/HTTP/tabel hilang) TAMPIL, tidak ada fake empty-state, sweep manual + status per-agen (error agen merah).
 - Temuan penting utk sesi lokal berikutnya: SELALU tulis dev.log ke /tmp (bukan .zscripts/) supaya tidak compile-loop.
 - Menyusul FASE 4 verifikasi: /api/execute-action sudah ada & 401-guard teruji; eksekusi nyata (Resend/Meta/blog) hanya bisa diuji di production (env hanya di Cloudflare).
+
+---
+Task ID: 35
+Agent: Z (main)
+Task: Keluhan Bos — "karyawan AI gagal memanggil API OpenRouter jadi templat semua kerjaannya, bukan murni dia mikir" — diagnosis akar masalah + hidupkan kembali LLM semua karyawan
+
+Work Log:
+- DIAGNOSIS: query katalog publik OpenRouter (GET /api/v1/models, tanpa key) → katalog dikurasi ulang: tinggal 16 model gratis. Model yang dipakai seluruh kode MATI (404): meta-llama/llama-3.1-8b-instruct:free (CEO/COO/GH/Bagas), qwen/qwen-2.5-coder-7b-instruct:free (CTO), google/gemma-2-9b-it:free (CSO/DA/Maya), zhipu/glm-4.7-flash (CMO/Sinta + proposals), zhipu/glm-4-flash (fallback tim). Chain lama hanya 2 model = primary mati + fallback mati → SEMUA panggilan LLM gagal → semua output templat. Gemini fallback sengaja OFF (proteksi kuota auto-jurnal, env LLM_GEMINI_FALLBACK) → jatuh langsung ke templat.
+- FIX MODEL (4 file, diverifikasi hidup dari katalog): ceo-agent/route.ts AGENT_MODELS (7 agen: Gemma 4 31B utk CEO/Sinta/Dewi, Gemma 4 26B MoE utk COO/CSO, Nemotron 3.5 Lightning utk CTO/GH) + OR_TEAM_FALLBACK (1 mati) → OR_TEAM_FALLBACKS array 3 model hidup (Nemotron Ultra 550B, Inkling, Xing 4.0) → chain per agen kini 4 model; ai-coo-agent/route.ts BAGAS_MODEL + BAGAS_FALLBACK_MODELS[3]; discord-interactions/route.ts chain bot /bos 4 model hidup; agent-proposals.ts OR_LIVE_CHAIN[4].
+- FIX TRANSPARANSI (SOP Bos "kalau error tampilin errornya"): orJson() kini (1) key hilang → TIDAK diam lagi, log + ai_error tercatat; (2) coba chain 4 model, tiap kegagalan ter-log; (3) sukses → ai_model tercatat; (4) gagal total → ai_error "Semua model OpenRouter gagal — <detail terakhir>". Caller Sinta/Maya/Bagas menulis ai_source ("llm:<model>" | "template") + ai_error ke action_payload → TERSIMPAN di DB.
+- UI: PendingActionsQueue badge baru di tiap card proposal: 🤖 Draf AI (violet, hover = nama model) vs ⚠️ Templat (AI gagal) (rose, hover = alasan) + baris "💬 Alasan AI gagal: <detail>".
+- Komentar JSDoc usang dirapikan (CMO rantai, Maya, Raka). Lint bersih; smoke: /kantor-ceo 200, guard 401, dev.log bersih.
+- Commit 13a7a17b pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- Akar masalah = OpenRouter memensiunkan katalog model gratis lama (bukan bug kode kita — pola sama dgn kematian Gemini 1.5 di Task 32-3). Sekarang semua karyawan ber-LLM (7 agen + bot Discord + proposals) pakai model hidup dengan chain 4-5 model + fallback tim.
+- CATATAN LIMIT PENTING utk Bos: tier gratis OpenRouter = 20 req/menit; 50 req/HARI tanpa kredit, 1000 req/hari kalau saldo akun ≥ $10. Dgn cron 15 menit + briefing + sweep, 50/hari kemungkinan kurang → rekomendasi: top-up $10 sekali (buka 1000/hari) ATAU set LLM_GEMINI_FALLBACK=1 (darurat, tapi makan kuota auto-jurnal).
+- Verifikasi Bos di production: Dashboard Alexander → [🧹 Sweep 7 Agen] → proposal baru harusnya berbadge 🤖 Draf AI. Kalau muncul ⚠️ Templat → alasan lengkap tampil di card (bukan misteri lagi).
