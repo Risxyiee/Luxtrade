@@ -1733,3 +1733,23 @@ Stage Summary:
 - Akar masalah = OpenRouter memensiunkan katalog model gratis lama (bukan bug kode kita — pola sama dgn kematian Gemini 1.5 di Task 32-3). Sekarang semua karyawan ber-LLM (7 agen + bot Discord + proposals) pakai model hidup dengan chain 4-5 model + fallback tim.
 - CATATAN LIMIT PENTING utk Bos: tier gratis OpenRouter = 20 req/menit; 50 req/HARI tanpa kredit, 1000 req/hari kalau saldo akun ≥ $10. Dgn cron 15 menit + briefing + sweep, 50/hari kemungkinan kurang → rekomendasi: top-up $10 sekali (buka 1000/hari) ATAU set LLM_GEMINI_FALLBACK=1 (darurat, tapi makan kuota auto-jurnal).
 - Verifikasi Bos di production: Dashboard Alexander → [🧹 Sweep 7 Agen] → proposal baru harusnya berbadge 🤖 Draf AI. Kalau muncul ⚠️ Templat → alasan lengkap tampil di card (bukan misteri lagi).
+
+---
+Task ID: 35-b
+Agent: Z (main)
+Task: Lanjutan keluhan Bos "masih gagal coba cek lagi karyawan ainya" — verifikasi model Task 35 + buat alat diagnosis akar masalah yang terlihat (tanpa wrangler tail)
+
+Work Log:
+- Verifikasi katalog OpenRouter ASLI (GET /api/v1/models): 463 model, 16 gratis — SEMUA model Task 35 (Gemma 4 31B/26B, Nemotron 3.5 Lightning/Ultra, Inkling, Xing 4.0) MASIH HIDUP. Jadi penyebab "masih gagal" BUKAN model ID lagi → tersisa: 401 key mati / 429 kuota free-tier / key tak terpasang. Tidak bisa dipastikan dari lokal (key hanya di Cloudflare) → buat alat diagnosis.
+- AUDIT pemakaian kuota: cron watchdog 15 mnt TIDAK panggil LLM (hanya saat bug baru), ctoAgent/csoAgent murni data, CMO cache harian, talk cache harian, email pasif HANYA 1 panggilan LLM/hari (bukan per user) → total ±6-10 panggilan/hari, jauh di bawah 50. Kuota kecil kemungkinan penyebab → mencurigai 401.
+- FIX 1 — orDiag() di ceo-agent/route.ts: (1) GET /api/v1/key = validitas key + usage/limit + is_free_tier; (2) tes hidup TIAP model di chain CEO (prompt 16 token) → status HTTP asli + potongan body error + hint bahasa manusia per kode (401/402/403/404/408/429/500/502/503); (3) verdict: berapa model hidup + artinya. Dituabkan ke case diag via t('openrouter', ...).
+- FIX 2 — UI Ruang CTO: blok baru "🧠 Tes Otak Karyawan AI (OpenRouter)" di hasil 🩺 Diagnostik — hijau bila hidup, merah bila bermasalah, key status + per-model status + hint + verdict. Wrapper .data||root aman utk dua bentuk hasil t().
+- FIX 3 — kejujuran briefing: runMorningBriefing yang dulu DIAM-dIAM jatuh ke templat sekarang menembak header "⚠️ OTAK ALEXANDER OFFLINE — ... TEMPLAT, bukan rangkuman AI" + penyebab (error asli) di atas laporan. Copy fallbackDraft CMO diperbaiki (dulu menyebut "Gemini limit" padahal jalur sudah OpenRouter).
+- FIX 4 — openRouterChat kini baca key via cfSecret(e,'OPENROUTER_API_KEY') (process.env → fallback binding CF Workers) — secret yang diset via dashboard kadang tak masuk process.env; orDiag pakai cfSecret juga supaya hasil diag konsisten dgn jalur LLM asli.
+- Verifikasi lokal: probe error shape OpenRouter dengan key bogus (401 {"error":{"message":...,"code":401}}); dev server + suntik key bogus → /api/ceo-agent?action=diag → JSON lengkap (keyCheck 401+hint, 4 model 401+hint, verdict ❌); agent-browser E2E /kantor-ceo → openSheet → ruangan Raka → 🩺 Diagnostik → blok "🧠 Tes Otak Karyawan AI — ADA MASALAH ⚠️ / 🔑 Key bermasalah: API Key TIDAK VALID..." tampil (innerText diverifikasi + screenshot). Lint bersih. .env lokal dipulihkan (DATABASE_URL saja — key bogus & supabase dummy dihapus).
+- Commit 4186c57d pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- Model Task 35 terbukti valid — "masih gagal" hampir pasti di API KEY (mati/terhapus/tak terpasang) atau 429. Mulai sekarang Bos TIDAK PERLU nebak: buka kantor-ceo → ruangan Raka → 🩺 Diagnostik → blok 🧠 menunjukkan status key + tiap model + saran perbaikan dalam 1 klik.
+- Langkah Bos di production (setelah deploy): login luxtradee@gmail.com → Kantor CEO → masuk ruangan Raka → 🩺 Diagnostik → baca blok 🧠. 401 → buat key baru openrouter.ai/keys → update secret OPENROUTER_API_KEY di Cloudflare → Deploy. 429 → top-up $10 (1000 req/hari) atau tunggu reset.
+- Briefing templat sekarang jujur ditandai OTAK OFFLINE + penyebab — Bos takkan lagi mengira templat = hasil AI.
