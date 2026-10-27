@@ -409,6 +409,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className="flex flex-wrap gap-1.5">
                 <button className={BTN} disabled={busy} onClick={() => call('briefing', 'POST')}>{busy ? '⏳ Jalan…' : '🌅 Briefing + Discord'}</button>
                 <button className={BTN} onClick={() => call('briefing-last')}>📜 Terakhir</button>
+                <button className={BTNR} onClick={async () => { const r = await call('reset-work'); (window as any).__kceo?.toast?.(r?.text ? '♻️ ' + String(r.text).slice(0, 130) : '♻️ Reset dijalankan') }}>♻️ Reset Kerjaan AI</button>
                 <button className={BTNO} onClick={() => call('discord-test')}>🧪 Tes Discord</button>
                 <button className={BTNO} onClick={() => call('email-test')}>🧪 Tes Email</button>
                 <button className={BTN} onClick={() => call('watchdog')}>🕵️ Jalankan Watchdog</button>

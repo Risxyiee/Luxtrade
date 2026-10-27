@@ -159,6 +159,15 @@ async function kvIncr(e: Env, key: string): Promise<number> {
   await kvSet(e, key, String(cur + 1))
   return cur + 1
 }
+/* Hapus kunci kv (service_role — RLS anon biasanya tidak punya DELETE).
+   Gagal → diam (pemanggil reset-work tetap lapor daftar kunci yang dicoba). */
+async function kvDel(e: Env, key: string): Promise<void> {
+  try {
+    await fetch(`${sbUrl(e)}/rest/v1/agent_kv?key=eq.${encodeURIComponent(key)}`, {
+      method: 'DELETE', headers: sbHPriv(e), signal: timeoutSignal(10_000),
+    })
+  } catch { /* abaikan */ }
+}
 
 /* ---------- Supabase headers ---------- */
 /* sbH = anon key — untuk tabel yang punya RLS policy SELECT untuk anon (agent_kv, dll) */
@@ -453,14 +462,44 @@ const AGENT_MODELS: Record<AgentKey, string> = {
   da: 'google/gemma-4-31b-it:free',
   gh: 'nvidia/nemotron-3.5-lightning:free',
 }
-/* Cadangan resmi seluruh tim (Task 35): kalau model utama 404/429,
-   chain turun ke Nemotron Ultra 550B → Inkling → Xing 4.0 — semuanya
-   model gratis hidup. Dulu cuma 1 fallback (glm-4-flash) yang ikut mati. */
+/* Cadangan resmi seluruh tim (Task 35c — disaring dari data diag LIVE Bos):
+   thinkingmachines/inkling:free DIBUANG — HTTP 403 (diblokir kebijakan
+   OpenRouter, tidak pernah bisa dipakai). Xing 4.0 masih dicadangkan walau
+   kadang 429 (kapasitas shared), Nemotron Ultra 550B terbukti paling sehat
+   (333 ms di diag Bos). Kalau model utama 404/429 → chain turun ke sini. */
 const OR_TEAM_FALLBACKS = [
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'thinkingmachines/inkling:free',
   'xingchen-agi/xing4.0-29b-a4b:free',
 ]
+
+/* ---------- Circuit breaker OpenRouter (Task 35c) ----------
+   Model :free itu SHARED — Gemma 4 & Xing sering 429 karena kapasitas
+   pemakaian BERSAMA semua user OpenRouter (bukan salah key/kita). Tanpa
+   breaker, tiap agen tetap mencoba model yang lagi sakit → respons lambat
+   & tim risiko jatuh ke templat. Solusi: model yang gagal 429/403/5xx
+   ditandai "sick" di agent_kv selama 10 menit → di-skip (kecuali satu-
+   satunya pilihan). Kunci kesehatan DIPAKAI BERSAMA semua layanan
+   (agent-proposals orJson pakai konvensi kunci sama) → satu agen kena 429,
+   seluruh tim langsung melompat ke model hidup. */
+const OR_SICK_MS = 10 * 60_000
+const orSickKey = (model: string) => `or:sick:${model}`
+
+async function orSickMap(e: Env, models: string[]): Promise<Record<string, boolean>> {
+  const entries = await Promise.all(models.map(async (m) => {
+    try {
+      const raw = await kvGet(e, orSickKey(m))
+      const t = parseInt(raw || '0', 10)
+      return [m, !!t && Date.now() - t < OR_SICK_MS] as const
+    } catch { return [m, false] as const }
+  }))
+  return Object.fromEntries(entries)
+}
+async function orMarkSick(e: Env, model: string): Promise<void> {
+  try { await kvSet(e, orSickKey(model), String(Date.now())) } catch { /* opsional — gagal breaker abaikan */ }
+}
+async function orMarkHealthy(e: Env, model: string): Promise<void> {
+  try { await kvSet(e, orSickKey(model), '0') } catch { /* opsional */ }
+}
 
 function orChain(e: Env, agent: AgentKey): string[] {
   const override = cleanEnv(e[`OR_MODEL_${agent.toUpperCase()}`])
@@ -478,8 +517,12 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
      e.OPENROUTER_API_KEY, LLM gagal "belum diset" padahal key terpasang). */
   const orKey = cfSecret(e, 'OPENROUTER_API_KEY')
   if (!orKey) throw new Error('OPENROUTER_API_KEY belum diset — tambah di Cloudflare Workers Secrets')
+  /* Circuit breaker: model sakit (429/403/5xx ≤10 mnt) di-skip — kalau SEMUA
+     sakit, coba tetap semuanya (lebih baik mencoba daripada menyerah). */
+  const sick = await orSickMap(e, chain)
+  const order = chain.some((m) => sick[m]) && chain.some((m) => !sick[m]) ? chain.filter((m) => !sick[m]) : chain
   let lastErr = ''
-  for (const model of chain) {
+  for (const model of order) {
     try {
       const res = await fetch(OR_URL, {
         method: 'POST',
@@ -500,11 +543,15 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
       })
       if (!res.ok) {
         lastErr = `${model} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 120)}`
+        /* 429/403/5xx = model/shared-capacity sakit → tandai biar agen lain
+           langsung melompat ke model hidup (hemat waktu & percobaan) */
+        if ([429, 403, 500, 502, 503].includes(res.status)) await orMarkSick(e, model)
         continue
       }
       const result: any = await res.json()
       const text = result?.choices?.[0]?.message?.content?.trim()
       if (!text) { lastErr = `${model} → respons kosong`; continue }
+      await orMarkHealthy(e, model)
       return { text, model }
     } catch (x: any) {
       lastErr = `${model} → ${String(x?.message || x).slice(0, 120)}`
@@ -606,8 +653,10 @@ async function orDiag(e: Env): Promise<Record<string, unknown>> {
     out.keyCheck = { ok: false, error: String(x?.message || x).slice(0, 120) }
   }
 
-  /* 2) Tes hidup tiap model chain CEO — prompt 16 token, cepat & hemat */
-  const chain = orChain(e, 'ceo')
+  /* 2) Tes hidup TIAP model unik milik SELURUH tim (bukan cuma chain CEO)
+     — prompt 16 token. Hasilnya sekaligus jadi input circuit breaker:
+     model yang 429/403 langsung ditandai sakit → agen lain tak buang waktu. */
+  const chain = [...new Set([...(Object.values(AGENT_MODELS) as string[]), ...OR_TEAM_FALLBACKS])]
   const tested: Record<string, unknown>[] = []
   for (const model of chain) {
     const t0 = Date.now()
@@ -621,10 +670,12 @@ async function orDiag(e: Env): Promise<Record<string, unknown>> {
       const ms = Date.now() - t0
       if (!res.ok) {
         const txt = (await res.text().catch(() => '')).slice(0, 140)
+        if ([429, 403, 500, 502, 503].includes(res.status)) await orMarkSick(e, model)
         tested.push({ model, ok: false, status: res.status, ms, hint: OR_HINTS[res.status] || `HTTP ${res.status}`, body: txt })
       } else {
         const data: any = await res.json()
         const text = data?.choices?.[0]?.message?.content?.trim()
+        await orMarkHealthy(e, model)
         tested.push({ model, ok: !!text, status: 200, ms, reply: String(text || '').slice(0, 40) })
       }
     } catch (x: any) {
@@ -2441,6 +2492,35 @@ async function handle(req: Request): Promise<Response> {
         : 'Siap Bos! ✅ ACC EMAIL dicatat. Set RESEND_API_KEY agar email terkirim otomatis.'
       try { await sendDiscord(e, reply) } catch { /* ignore */ }
       return j({ ok: true, accEmail: true, emailsSent })
+    }
+    case 'reset-work': {
+      /* ♻️ Task 35c — tombol Bos "Reset Kerjaan AI": bersihkan cache kerjaan
+         HARI INI + proposal templat lama (masa otak mati) supaya tim
+         generate ulang SEMUA dengan AI beneran.
+         DIHAPUS: draf Sinta, diskusi CSO×CMO, NBA, briefing terakhir,
+         laporan Dewi & Farhan (semua agent_kv) + ai_pending_actions status
+         pending/rejected 24 jam terakhir (dedup menghitung SEMUA status —
+         kalau tak dihapus, sweep menolak mengusulkan ulang).
+         TIDAK disentuh: riwayat ACC/eksekusi (status approved), cmo:posted,
+         memori kantor, dedup email harian. */
+      const day = utcDay()
+      const keys = [`cmo:${day}`, `cso-cmo:${day}`, 'cso-cmo:last', 'nba:last', 'briefing:last', 'da:last', 'gh:last']
+      for (const k of keys) await kvDel(e, k)
+      let removedPending = -1, pendErr = ''
+      try {
+        const since = isoAgo(24)
+        removedPending = await supaCount(e, 'ai_pending_actions', `created_at=gte.${encodeURIComponent(since)}&status=in.(pending,rejected)`)
+        if (removedPending > 0) {
+          const del = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_actions?created_at=gte.${encodeURIComponent(since)}&status=in.(pending,rejected)`, {
+            method: 'DELETE', headers: { ...sbHPriv(e), Prefer: 'return=minimal' }, signal: timeoutSignal(15_000),
+          })
+          if (!del.ok) { pendErr = `DELETE HTTP ${del.status}`; removedPending = -1 }
+        }
+      } catch (x: any) { pendErr = String(x?.message || x).slice(0, 100); removedPending = -1 }
+      const text = `♻️ Reset selesai — ${keys.length} cache kerjaan hari ini dibersihkan` +
+        (removedPending >= 0 ? ` · ${removedPending} proposal lama dihapus` : pendErr ? ` · proposal: ${pendErr}` : '') +
+        `. Lanjutan: 🌅 Briefing + 🧹 Sweep 7 Agen + ✍️ Buat 3 Draf — tim kerja ulang dengan AI beneran.`
+      return j({ ok: true, cleared: keys, removedPending, text })
     }
     case 'discord-test':
       // Diagnosa: kirim pesan tes ke Discord, laporkan hasil mentahnya

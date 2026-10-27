@@ -174,13 +174,28 @@ export interface OrJsonResult { laporan?: string; proposed_action?: any; ai_mode
  * Gagal total → { ai_error: "alasan jujur" } (caller tandai templat,
  * BOS LIHAT ALASANNYA di dashboard — tidak ada error yang ditelan).
  */
-export async function orJson(systemPrompt: string, userPrompt: string, model: string, agentTag: string, maxTokens = 800): Promise<OrJsonResult> {
+export async function orJson(systemPrompt: string, userPrompt: string, model: string, agentTag: string, maxTokens = 800, cfg?: SbConfig): Promise<OrJsonResult> {
   const key = envGet('OPENROUTER_API_KEY')
   if (!key) {
     console.error(`[agent-proposals:${agentTag}] OPENROUTER_API_KEY tidak tersedia — proposal pakai templat data riil`)
     return { ai_error: 'OPENROUTER_API_KEY tidak tersedia di server' }
   }
-  const chain = [...new Set([model, ...OR_LIVE_CHAIN])].filter(Boolean)
+  let chain = [...new Set([model, ...OR_LIVE_CHAIN])].filter(Boolean)
+  /* Circuit breaker (Task 35c) — konvensi kunci `or:sick:<model>` SAMA dengan
+     ceo-agent/route.ts → kesehatan model dibagi lintas layanan. Butuh cfg
+     (Supabase) — tanpa cfg, breaker dilewati (chain tetap jalan normal). */
+  const canKv = !!(cfg && cfg.url && cfg.service)
+  if (canKv) {
+    const SICK_MS = 10 * 60_000
+    const sickFlags = await Promise.all(chain.map(async (m) => {
+      try {
+        const t = parseInt((await kvGetKey(cfg as SbConfig, `or:sick:${m}`)) || '0', 10)
+        return !!t && Date.now() - t < SICK_MS
+      } catch { return false }
+    }))
+    const healthy = chain.filter((_, i) => !sickFlags[i])
+    if (healthy.length && healthy.length < chain.length) chain = healthy // semua sakit → coba tetap
+  }
   let lastErr = ''
   for (const m of chain) {
     try {
@@ -201,6 +216,9 @@ export async function orJson(systemPrompt: string, userPrompt: string, model: st
       if (!res.ok) {
         lastErr = `${m} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 100)}`
         console.error(`[agent-proposals:${agentTag}] ${lastErr} — coba model berikutnya`)
+        if (canKv && [429, 403, 500, 502, 503].includes(res.status)) {
+          try { await kvSetKey(cfg as SbConfig, `or:sick:${m}`, String(Date.now())) } catch { /* opsional */ }
+        }
         continue
       }
       const raw = String((await res.json() as any)?.choices?.[0]?.message?.content || '').trim()
@@ -208,6 +226,7 @@ export async function orJson(systemPrompt: string, userPrompt: string, model: st
       const start = cleaned.indexOf('{')
       const end = cleaned.lastIndexOf('}')
       if (start < 0 || end <= start) { lastErr = `${m} → JSON tidak ditemukan di respons`; continue }
+      if (canKv) { try { await kvSetKey(cfg as SbConfig, `or:sick:${m}`, '0') } catch { /* opsional */ } }
       return { ...(JSON.parse(cleaned.slice(start, end + 1)) as OrJsonResult), ai_model: m }
     } catch (x: any) {
       lastErr = `${m} → ${String(x?.message || x).slice(0, 100)}`
@@ -343,6 +362,7 @@ export async function sintaMarketProposal(cfg: SbConfig): Promise<DetectedPropos
     `${dataRiil}\nBuat konten ${arah === 'DROP' ? 'menangkap peluang momentum turun (edukasi risiko + peluang)' : 'mengingatkan disiplin saat harga naik (FOMO control)'}.`,
     'google/gemma-4-31b-it:free',
     'Sinta',
+    cfg,
   )
   const action = j?.proposed_action || {}
   const payload = {
@@ -379,6 +399,7 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
     `${dataRiil}\nBuat 1 subjek + 1 body email winback. ${discount ? `Sebut kode diskon: ${discount}.` : 'JANGAN menyebut diskon/kode apapun.'}`,
     'google/gemma-4-26b-a4b-it:free',
     'Maya',
+    cfg,
   )
   const action = j?.proposed_action || {}
   const subject = String(action.subject || 'Kangen lihat jurnalmu kosong — balik yuk?')
@@ -432,6 +453,7 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
     `${dataRiil}\nEmail targets: ${hot.map(h => String(h.prof.email)).join(', ')}. Buat 1 personalized_message (maks 120 kata) yang menyebut aktivitas mereka secara umum (sering upload jurnal minggu ini) + manfaat PRO (evaluasi AI tanpa batas).`,
     'nvidia/nemotron-3.5-lightning:free',
     'Bagas',
+    cfg,
   )
   const action = j?.proposed_action || {}
   const message = String(action.personalized_message || `Halo trader aktif! 👋 Minggu ini kamu salah satu yang paling rajin upload jurnal di LuxTradee. Versi PRO membuka evaluasi AI tanpa batas + laporan mendalam — pas banget buat ritme trading kamu. Cek: https://luxtradee.web.id`)
