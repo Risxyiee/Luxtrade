@@ -1772,3 +1772,21 @@ Stage Summary:
 - Sistem kini TAHAN 429: model free yang kehabisan kapasitas shared otomatis ditinggalkan 10 menit, tim lompat ke yang hidup (Nemotron Ultra 550B workhorse saat ini). Inkling (403 permanen) keluar dari semua chain.
 - Bos bisa REGENERATE semua kerjaan tim dengan 1 klik setelah otak hidup: Ruang Rapat → ♻️ Reset Kerjaan AI → lalu 🌅 Briefing + 🧹 Sweep 7 Agen + ✍️ Buat 3 Draf → semua output baru = AI beneran (badge 🤖 di proposal).
 - Catatan kuota tetap: free-tier 50 req/hari (1000 bila top-up $10) — dengan breaker menghemat percobaan, pemakaian efisien; kalau Bos top-up $10, 429 Gemma 4 langsung jarang.
+
+---
+Task ID: 35-d
+Agent: Z (main)
+Task: Pertanyaan Bos "limit aja 100$ kok saya cek di openrouter" — salah paham limit key vs saldo akun; perjelas output diag biar tidak membingungkan lagi
+
+Work Log:
+- ROOT CAUSE kebingungan: /api/v1/key OpenRouter mengembalikan `limit` = batas BELANJA key (spend limit yang diisi saat membuat key di openrouter.ai/keys), BUKAN saldo akun. Bos set $100 saat bikin key → diag tampil "terpakai $0.000 / limit $100.00" → terkesan seperti saldo. Status free-tier ditentukan SALDO akun (belum pernah top up) → model :free tetap 20 req/menit · 50 req/hari.
+- FIX backend (ceo-agent/route.ts orDiag): keyCheck.note kini menjelaskan eksplisit — free-tier: "akun FREE-TIER (saldo kosong) — model :free dibatasi 20 req/menit · 50 req/hari; top up $10 SEKALI → langsung 1000 req/hari"; ber-kredit: "kuota longgar 1000 req/hari"; + bila limit ada: "\"limit $X\" = batas belanja KEY ini (diset saat bikin key), BUKAN saldo akun".
+- FIX UI (RuangCeoDashboard.tsx blok 🧠): label " / limit $X" → " / batas belanja key $X"; badge free-tier → "⚠️ free-tier (saldo kosong → 20 req/mnt · 50 req/hari)"; baris baru 💡 {note} di bawah status key.
+- Verifikasi browser E2E lokal (key bogus + dummy Supabase env): blok 🧠 render utuh — keyCheck 401 + hint, 5 model tim (union chain: Gemma-26B/31B, Nemotron Lightning/Ultra, Xing 4.0) semua dites + hint per model, verdict ❌ SEMUA model gagal tampil. Baris 💡 terbukti tidak muncul saat key 401 (by design — hanya utk key valid; diverifikasi production nanti). PELAJARAN TOOLING: snapshot agent-browser -i hanya berisi elemen interaktif — verifikasi TEKS hasil HARUS via eval document.body.innerText (kebingungan 30 menit karena grep teks di snapshot -i selalu kosong). PELAJARAN UI: tombol 🩺 Diagnostik ada di dock Ruang CTO; hasil render di dock yang sama di bawah tombol — bukan tab terpisah.
+- .env lokal dipulihkan (DATABASE_URL saja). Lint bersih.
+- Commit bedc3911 pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- Tidak ada bug baru — hanya salah paham istilah: $100 = batas belanja key, saldo akun = $0 (free-tier). Panel diag sekarang menjelaskan sendiri bedanya, Bos tidak akan tanya lagi.
+- State OpenRouter Bos: key valid & terpasang ✅, Nemotron Ultra 550B hidup ✅ (workhorse), circuit breaker Task 35-c aktif (model 429 di-skip 10 mnt), tombol ♻️ Reset Kerjaan AI siap.
+- Opsinya: (a) biarkan free-tier — breaker sudah menghemat, Nemotron jalan; (b) top up $10 SEKALI di openrouter.ai/credits → 1000 req/hari, 429 Gemma 4/Xing praktis hilang. TIDAK perlu set limit $100 di key — lebih aman set kecil ($5) supaya kalau key bocor kerugiannya terbatas.
