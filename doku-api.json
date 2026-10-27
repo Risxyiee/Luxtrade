@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://developers.doku.com/get-started-with-doku-api/signature-component/non-snap/signature-component-from-request-header",
+    "name": "Signature Component from Request Header | API Reference",
+    "snippet": "To generate a Signature in request header, merchant need to prepare these components:",
+    "host_name": "developers.doku.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.fiserv.com/product/SnapPay/docs/whats-needed.md",
+    "name": "SnapPay Documentation | Developer Studio - Fiserv",
+    "snippet": "Create HMAC signature from API Authentication Code which is converted to base 64 string. string requestSignatureBase64String = string.Empty; using (HMACSHA256 ...",
+    "host_name": "developer.fiserv.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.fiserv.dev/public/docs/payments-generate-a-hash",
+    "name": "Generate a Message Signature / Hash - Overview",
+    "snippet": "Combine your api key and some request data into a single string · Hash the string using the HMAC SHA256 method and your secret key · Add the hash to your request.",
+    "host_name": "docs.fiserv.dev",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.cybersource.com/docs/cybs/en-us/platform/developer/all/rest/rest-getting-started/restgs-http-message-intro/restgs-http-message-conf-intro/restgs-http-message-conf-signature.html",
+    "name": "Step 3C: Signature Hash Calculation - Cybersource Developer Center",
+    "snippet": "To generate the signature hash value, you must use a Base64-encoded HMAC SHA-256 hash of the signature fields and their values.",
+    "host_name": "developer.cybersource.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.lime-pay.com/api-documentation/deposits-api/technical-and-security-aspects/calculating-the-signature",
+    "name": "Calculating the Signature - LimePay API Docs",
+    "snippet": "Learn how to calculate and send the Signature header value ・ to generate and encrypt a hash. It has to be created using HMAC-SHA-256 (RFC 2104 ...",
+    "host_name": "docs.lime-pay.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]
