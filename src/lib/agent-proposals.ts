@@ -66,8 +66,10 @@ function sbHeadersPriv(cfg: SbConfig): Record<string, string> {
 export function isoAgo(hours: number): string {
   return new Date(Date.now() - hours * 3600_000).toISOString()
 }
-export function utcDay(): string {
-  return new Date().toISOString().slice(0, 10)
+/* Task 35g: WIB (UTC+7) — dulu UTC: jam 00:00–06:59 WIB key harian masih "kemarin",
+   hitungan kuota CFO Putri & resend_sent terbaca salah key (taku utama ceo-agent route). */
+export function wibDay(): string {
+  return new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
 }
 
 /* ================= SUPABASE REST CORE ================= */
@@ -520,8 +522,8 @@ export async function dewiPatternProposal(cfg: SbConfig): Promise<DetectedPropos
 
 /* ---------- PUTRI (CFO — 100% hardcoded, tanpa LLM): kuota API ≥95% ---------- */
 export async function putriQuotaProposal(cfg: SbConfig): Promise<DetectedProposal | null> {
-  const gem429 = parseInt((await kvGetKey(cfg, `quota429:${utcDay()}`)) || '0', 10)
-  const resend = parseInt((await kvGetKey(cfg, `resend_sent:${utcDay()}`)) || '0', 10)
+  const gem429 = parseInt((await kvGetKey(cfg, `quota429:${wibDay()}`)) || '0', 10)
+  const resend = parseInt((await kvGetKey(cfg, `resend_sent:${wibDay()}`)) || '0', 10)
   const alreadyOff = (await kvGetKey(cfg, 'feature:auto_journal:disabled')) === '1'
   if (alreadyOff) return null
   // Ambang: Gemini free ≈ 429 bertubi = kuota generik habis; Resend free = 100 email/hari → 90 = 90%

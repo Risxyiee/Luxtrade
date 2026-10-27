@@ -28,7 +28,7 @@ import { sendEmail } from '@/lib/email'
 import { metaAutoPost } from '@/lib/meta-post'
 import {
   envGet, sbConfig, ownerEmail, getActionById, decideAction, kvSetKey, kvIncrKey,
-  fetchAllUserEmails, utcDay,
+  fetchAllUserEmails, wibDay,
 } from '@/lib/agent-proposals'
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -77,7 +77,7 @@ async function executePayload(actionType: string, payload: Record<string, any>):
           ? String(payload.html_body || simpleHtml('Jurnal tradingmu menunggu. Upload 1 screenshot di https://luxtradee.web.id — AI evaluasi dalam 2 menit.'))
           : simpleHtml(String(payload.personalized_message || 'Versi PRO membuka evaluasi AI tanpa batas: https://luxtradee.web.id'))
         const r = await sendEmail({ to, subject, html })
-        if (r.success) { okCount++; await kvIncrKey(sbConfig(), `resend_sent:${utcDay()}`) } else { failCount++; errs.push(`${to}: ${r.error || '?'}`) }
+        if (r.success) { okCount++; await kvIncrKey(sbConfig(), `resend_sent:${wibDay()}`) } else { failCount++; errs.push(`${to}: ${r.error || '?'}`) }
         await sleep(250) // throttle Resend free tier (2 req/detik)
       }
       if (okCount === 0) return { ok: false, detail: `Semua pengiriman gagal (${failCount}): ${errs.slice(0, 3).join(' | ')}` }
@@ -131,7 +131,7 @@ async function executePayload(actionType: string, payload: Record<string, any>):
       let okCount = 0, failCount = 0
       for (const to of emails) {
         const r = await sendEmail({ to, subject, html: simpleHtml(body) })
-        if (r.success) { okCount++; await kvIncrKey(cfg, `resend_sent:${utcDay()}`) } else { failCount++ }
+        if (r.success) { okCount++; await kvIncrKey(cfg, `resend_sent:${wibDay()}`) } else { failCount++ }
         await sleep(300)
       }
       if (okCount === 0) return { ok: false, detail: `Broadcast gagal total (${failCount} user)` }
