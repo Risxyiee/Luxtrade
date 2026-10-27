@@ -1753,3 +1753,22 @@ Stage Summary:
 - Model Task 35 terbukti valid — "masih gagal" hampir pasti di API KEY (mati/terhapus/tak terpasang) atau 429. Mulai sekarang Bos TIDAK PERLU nebak: buka kantor-ceo → ruangan Raka → 🩺 Diagnostik → blok 🧠 menunjukkan status key + tiap model + saran perbaikan dalam 1 klik.
 - Langkah Bos di production (setelah deploy): login luxtradee@gmail.com → Kantor CEO → masuk ruangan Raka → 🩺 Diagnostik → baca blok 🧠. 401 → buat key baru openrouter.ai/keys → update secret OPENROUTER_API_KEY di Cloudflare → Deploy. 429 → top-up $10 (1000 req/hari) atau tunggu reset.
 - Briefing templat sekarang jujur ditandai OTAK OFFLINE + penyebab — Bos takkan lagi mengira templat = hasil AI.
+
+---
+Task ID: 35-c
+Agent: Z (main)
+Task: Hasil diag LIVE Bos — key valid, Nemotron Ultra 550B hidup (1/4), Gemma 4 & Xing 429, Inkling 403; dashboard masih tampil "tugas lama" — buat sistem tahan 429 + tombol regenerate kerjaan tim
+
+Work Log:
+- Analisis hasil diag Bos: key TERPASANG & valid ($0/$100, free-tier) → pemakaian OpenRouter sebelumnya 0 KARENA key memang belum terpasang (error sebelum fetch). Sekarang chain hidup via fallback Nemotron Ultra 550B (333 ms).
+- CIRCUIT BREAKER (Task 35c): model yang gagal 429/403/5xx ditandai "sick" di agent_kv (`or:sick:<model>` = timestamp) selama 10 menit → di-skip oleh SEMUA pemanggil (kecuali satu-satunya pilihan). Implementasi ganda dengan konvensi kunci SAMA: openRouterChat (ceo-agent, via kvGet/kvSet) + orJson (agent-proposals, param cfg baru opsional — 3 call site Sinta/Maya/Bagas kirim cfg). Diag juga menulis status breaker (hasil diag langsung menghangatkan peta kesehatan).
+- CHAIN BERSIH: thinkingmachines/inkling:free DIBUANG dari semua file (ceo-agent OR_TEAM_FALLBACKS, ai-coo-agent BAGAS_FALLBACK_MODELS, discord-interactions chain) — HTTP 403 policy-blocked permanen, useless. Diganti Nemotron Ultra 550B (terbukti hidup).
+- DIAG diperluas: tes TIAP model unik milik SELURUH tim (union AGENT_MODELS + fallbacks = 5 model), bukan cuma chain CEO — Lightning/Gemma-26B yang belum pernah dites kini kelihatan statusnya.
+- TOMBOL ♻️ Reset Kerjaan AI (Ruang Rapat): action `reset-work` (owner-auth) → hapus agent_kv cache hari ini (cmo:<day>, cso-cmo:<day>, cso-cmo:last, nba:last, briefing:last, da:last, gh:last) via kvDel BARU (service_role, karena RLS anon tak punya DELETE) + DELETE ai_pending_actions status pending/rejected 24 jam terakhir (dedup insertPendingAction menghitung SEMUA status — pending saja tak cukup; riwayat approved TIDAK disentuh). Respons {ok, cleared, removedPending, text} → toast dashboard.
+- Verifikasi lokal: lint bersih; curl reset-work → {ok:true, cleared:7 keys, text lengkap} (proposal delete fail honest di lokal tanpa Supabase); diag no-key → ok:false; agent-browser E2E: kantor-ceo → Rapat (Alexander) → tombol ♻️ tampil → klik → TOAST "♻️ Reset selesai — 7 cache kerjaan hari ini dibersihkan…" muncul + screenshot /tmp/reset-btn.png. .env lokal dipulihkan.
+- Commit 37507aa0 pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- Sistem kini TAHAN 429: model free yang kehabisan kapasitas shared otomatis ditinggalkan 10 menit, tim lompat ke yang hidup (Nemotron Ultra 550B workhorse saat ini). Inkling (403 permanen) keluar dari semua chain.
+- Bos bisa REGENERATE semua kerjaan tim dengan 1 klik setelah otak hidup: Ruang Rapat → ♻️ Reset Kerjaan AI → lalu 🌅 Briefing + 🧹 Sweep 7 Agen + ✍️ Buat 3 Draf → semua output baru = AI beneran (badge 🤖 di proposal).
+- Catatan kuota tetap: free-tier 50 req/hari (1000 bila top-up $10) — dengan breaker menghemat percobaan, pemakaian efisien; kalau Bos top-up $10, 429 Gemma 4 langsung jarang.
