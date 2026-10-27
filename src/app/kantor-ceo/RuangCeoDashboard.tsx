@@ -227,6 +227,18 @@ const BTNO = 'font-[inherit] text-xs px-3 py-2 rounded-xl border border-amber-30
 const SEP = 'mt-3 pt-3 border-t border-white/10'
 const ERR = 'mt-2 text-[11.5px] text-red-300'
 const OKS = 'mt-2 text-[11.5px] text-emerald-300'
+
+/* Task 35f: env yang BOLEH kosong — di ringkasan diag ditandai ⚪ (opsional),
+   bukan ❌, supaya tidak tampak seperti masalah (Bos pernah bingung: bot token
+   opsional ditandai ❌ seolah key utama gagal). */
+const OPTIONAL_ENV: Record<string, boolean> = {
+  OPENROUTER_MODEL: true,        // override model Sinta — default tim sudah jalan
+  RESEND_WEBHOOK_SECRET: true,   // statistik email dibuka — nice to have
+  OWNER_EMAIL: true,             // default luxtradee@gmail.com sudah benar
+  DISCORD_BOT_TOKEN: true,       // hanya chat 2 arah /bos — webhook 1 arah jalan tanpa ini
+  DISCORD_APP_ID: true,
+  DISCORD_PUBLIC_KEY: true,
+}
 const INPUT = 'bg-white/10 border border-white/15 rounded-lg text-white placeholder-white/35 text-[11.5px] px-2 py-1.5 outline-none focus:border-white/35 transition-colors'
 const PANEL = 'bg-white/5 border border-white/10 rounded-2xl'
 
@@ -534,7 +546,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   <b className="text-violet-200">🩺 Hasil Diagnostik</b><br />
                   {['profiles', 'trades', 'bug_reports', 'agent_kv'].map(k => { const r = data[k] || {}; return (
                     <div key={k}>{r.ok ? '✅' : '❌'} <b>{k}</b>{r.ok ? '' : <span className="text-red-300"> — {String(r.error || '').slice(0, 90)}</span>}</div>) })}
-                  <div className="text-white/40 mt-1">{Object.entries(data.env).map(([k, v]: any) => `${k} ${v ? '✅' : '❌'}`).join(' · ')}</div>
+                  <div className="text-white/40 mt-1">{Object.entries(data.env).map(([k, v]: any) => `${k} ${v ? '✅' : OPTIONAL_ENV[k] ? '⚪ (opsional)' : '❌'}`).join(' · ')}</div>
                   {(() => { const or = data.openrouter?.data || data.openrouter; if (!or) return null; const bad = or.ok === false || String(or.verdict || '').startsWith('❌') || or.keyCheck?.ok === false; return (
                     <div className={`mt-2 rounded-lg border px-2 py-1.5 text-[10.5px] leading-relaxed ${bad ? 'bg-red-400/10 border-red-300/25 text-red-100/90' : 'bg-emerald-400/10 border-emerald-300/25 text-emerald-100/90'}`}>
                       <b>🧠 Tes Otak Karyawan AI (OpenRouter) — {bad ? 'ADA MASALAH ⚠️' : 'HIDUP ✅'}</b>
@@ -558,9 +570,15 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {data.setup && (
                     <div className="mt-2 rounded-lg bg-amber-400/10 border border-amber-300/20 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90 max-h-40 overflow-y-auto kscroll">
                       <b>🔧 Cara memasang yang belum ada:</b>
-                      {Object.entries(data.setup).map(([k, v]: any) => (!data.env?.[k]
+                      {/* Task 35f: yang WAJIB tampil duluan, yang OPSIONAL di bawah + label —
+                          dulu bot token opsional tampak se-wajib key utama, Bos bingung */}
+                      {Object.entries(data.setup).map(([k, v]: any) => (!data.env?.[k] && !OPTIONAL_ENV[k]
                         ? <div key={k} className="mt-1">• <b className="text-amber-200">{k}</b> — {v}</div>
                         : null))}
+                      {Object.entries(data.setup).map(([k, v]: any) => (!data.env?.[k] && OPTIONAL_ENV[k]
+                        ? <div key={k} className="mt-1 text-white/55">• <b>{k}</b> (opsional) — {v}</div>
+                        : null))}
+                      {data.setupHint ? <div className="mt-1.5 text-white/60">{data.setupHint}</div> : null}
                     </div>)}
                   <div className="text-white/40 mt-1">Tes kirim beneran: tombol 🧪 Tes Discord &amp; 🧪 Tes Email di Ruang Rapat.</div>
                 </div>)}

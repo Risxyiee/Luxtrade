@@ -560,7 +560,12 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
         continue
       }
       const result: any = await res.json()
-      const text = result?.choices?.[0]?.message?.content?.trim()
+      /* Task 35f: model REASONING (mis. Nemotron Lightning) sering menaruh
+         teks di field `reasoning` dengan `content` kosong — dulu hanya baca
+         content → Lightning selalu dianggap gagal walau jawab. Sekarang
+         fallback: content ?? reasoning. */
+      const msg = result?.choices?.[0]?.message || {}
+      const text = String(msg.content ?? msg.reasoning ?? '').trim()
       if (!text) { lastErr = `${model} → respons kosong`; continue }
       await orMarkHealthy(e, model)
       return { text, model }
@@ -682,7 +687,7 @@ async function orDiag(e: Env): Promise<Record<string, unknown>> {
       const res = await fetch(OR_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Balas persis satu kata: OK' }], max_tokens: 16 }),
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Balas persis satu kata: OK' }], max_tokens: 64 }),
         signal: timeoutSignal(25_000),
       })
       const ms = Date.now() - t0
@@ -692,9 +697,16 @@ async function orDiag(e: Env): Promise<Record<string, unknown>> {
         tested.push({ model, ok: false, status: res.status, ms, hint: OR_HINTS[res.status] || `HTTP ${res.status}`, body: txt })
       } else {
         const data: any = await res.json()
-        const text = data?.choices?.[0]?.message?.content?.trim()
-        await orMarkHealthy(e, model)
-        tested.push({ model, ok: !!text, status: 200, ms, reply: String(text || '').slice(0, 40) })
+        const msg = data?.choices?.[0]?.message || {}
+        const text = String(msg.content ?? msg.reasoning ?? '').trim()
+        if (text) {
+          await orMarkHealthy(e, model)
+          tested.push({ model, ok: true, status: 200, ms, reply: text.slice(0, 40) })
+        } else {
+          /* Task 35f: JUJUR — 200 dengan balasan kosong dulu tampil "❌ HTTP 200 ·"
+             tanpa penjelasan (membingungkan Bos). Kini ada alasannya. */
+          tested.push({ model, ok: false, status: 200, ms, hint: 'HTTP 200 tapi balasan kosong — model "reasoning" kemungkinan kehabisan token jawaban di tes mini ini (di kerja nyata token besar biasanya jalan; kalau tetap kosong, agen otomatis lompat ke model lain di chain)' })
+        }
       }
     } catch (x: any) {
       tested.push({ model, ok: false, status: 0, ms: Date.now() - t0, hint: 'Timeout / jaringan terputus dari Workers', error: String(x?.message || x).slice(0, 120) })
@@ -2467,11 +2479,16 @@ async function handle(req: Request): Promise<Response> {
           OWNER_EMAIL: has('OWNER_EMAIL'),
         },
         setup: {
+          /* Task 35f: bedakan WAJIB vs OPSIONAL — dulu semua ❌ tampak "wajib
+             diset" sehingga Bos bingung (bot token sudah ada kok ditandai ❌). */
+          OPENROUTER_MODEL: 'Aman dilewati — hanya override model utama Sinta; kosong = pakai model default tim.',
+          RESEND_WEBHOOK_SECRET: 'Aman dilewati — baru berguna kalau mau statistik email dibuka: resend.com → Webhooks → copy Signing Secret → secret RESEND_WEBHOOK_SECRET.',
+          OWNER_EMAIL: 'Default sudah luxtradee@gmail.com. Set hanya kalau mau ganti email pemilik.',
+          DISCORD_BOT_TOKEN: 'Hanya untuk chat 2 arah /bos di Discord (webhook 1 arah sudah jalan tanpa ini). Kalau Bos YAKIN sudah diset tapi masih ❌: (1) pastikan lokasinya Cloudflare → Workers & Pages → luxtradee → Settings → Variables & Secrets (bukan project lain), nama persis DISCORD_BOT_TOKEN tanpa spasi/kutip; (2) setelah set/ubah → klik Deploy ulang; (3) jalankan 🩺 lagi.',
           RESEND_API_KEY: 'Cloudflare → Workers & Pages → luxtradee → Settings → Variables & Secrets → Add: RESEND_API_KEY (re_...) Encrypt → Deploy. Lalu tes: tombol 🧪 Tes Email di Ruang Rapat.',
           DISCORD_WEBHOOK_URL: 'Cloudflare → Variables & Secrets → Add: DISCORD_WEBHOOK_URL (discord.com/api/webhooks/...) Encrypt → Deploy. Lalu tes: tombol 🧪 Tes Discord.',
-          RESEND_WEBHOOK_SECRET: 'Opsional tapi disarankan: resend.com → Webhooks → copy Signing Secret → secret RESEND_WEBHOOK_SECRET (verifikasi event email.opened).',
-          DISCORD_BOT_TOKEN: 'Butuh chat 2 arah di Discord: discord.com/developers → Bot → Reset Token → secret DISCORD_BOT_TOKEN (+ DISCORD_APP_ID & DISCORD_PUBLIC_KEY) → klik 🤖 Daftarkan /bos.',
         },
+        setupHint: '💡 Secret baru/ubah di Cloudflare aktif setelah DEPLOY ulang — kalau baru diset dan masih ❌, klik Deploy lalu jalankan 🩺 lagi. Yang berlabel OPSIONAL aman dilewati.',
       }
       const t = async (name: string, fn: () => Promise<unknown>) => {
         try { out[name] = { ok: true, data: await fn() } }
