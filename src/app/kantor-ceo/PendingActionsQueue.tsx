@@ -298,12 +298,35 @@ export default function PendingActionsQueue() {
                     {meta.emoji} {a.agent_name}
                   </span>
                   <span className="text-[10.5px] text-white/85 font-medium">{TYPE_LABEL[a.action_type] || a.action_type}</span>
+                  {/* Task 35 — transparansi sumber draf: AI mikir sendiri vs templat */}
+                  {(() => {
+                    const aiSrc = String(a.action_payload?.ai_source || '')
+                    const aiErr = String(a.action_payload?.ai_error || '')
+                    if (aiSrc.startsWith('llm')) {
+                      return (
+                        <span className="rounded-full border border-violet-300/25 bg-violet-300/10 px-1.5 py-0.5 text-[9px] text-violet-200" title={`Draf ditulis oleh ${aiSrc.slice(4)}`}>
+                          🤖 Draf AI
+                        </span>
+                      )
+                    }
+                    if (aiSrc === 'template') {
+                      return (
+                        <span className="rounded-full border border-rose-300/30 bg-rose-300/10 px-1.5 py-0.5 text-[9px] text-rose-200" title={aiErr || 'AI gagal menyusun draf'}>
+                          ⚠️ Templat (AI gagal)
+                        </span>
+                      )
+                    }
+                    return null
+                  })()}
                   <span className="ml-auto text-[9px] text-white/35">{wibTime(a.created_at)}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   {lines.map((l, i) => (
                     <div key={i} className="text-[10px] leading-relaxed text-white/60">{l}</div>
                   ))}
+                  {String(a.action_payload?.ai_error || '') && (
+                    <div className="text-[10px] leading-relaxed text-rose-200/90">💬 Alasan AI gagal: {String(a.action_payload.ai_error).slice(0, 150)}</div>
+                  )}
                 </div>
                 <div className="flex gap-2 pt-0.5">
                   <button

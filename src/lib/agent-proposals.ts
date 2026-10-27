@@ -151,38 +151,70 @@ export async function kvIncrKey(cfg: SbConfig, key: string): Promise<number> {
  * (FASE 2 SOP Bos). Angka wajib dari blok DATA RIIL di prompt.
  * Gagal / JSON rusak → null (caller pakai templat deterministik).
  */
-export async function orJson(systemPrompt: string, userPrompt: string, model: string, agentTag: string, maxTokens = 800): Promise<{ laporan?: string; proposed_action?: any } | null> {
+/* Task 35: katalog gratis OpenRouter dikurasi ulang — model lama
+   (gemma-2-9b:free, llama-3.1-8b:free, glm-4.7-flash) 404 SEMUA → inilah
+   dulu penyebab semua proposal jadi templat. Kini rantai model hidup
+   (diverifikasi GET /api/v1/models): primary per agen + 3 cadangan.
+   Catatan limit gratis OpenRouter: 20 req/menit; 50/hari tanpa kredit,
+   1000/hari kalau saldo ≥ $10. */
+const OR_LIVE_CHAIN = [
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+]
+
+export interface OrJsonResult { laporan?: string; proposed_action?: any; ai_model?: string; ai_error?: string }
+
+/**
+ * 1 panggilan OpenRouter dengan kontrak output WAJIB JSON:
+ * { "laporan": "...", "proposed_action": { ... } }
+ * (FASE 2 SOP Bos). Angka wajib dari blok DATA RIIL di prompt.
+ * Sukses → { laporan, proposed_action, ai_model }.
+ * Gagal total → { ai_error: "alasan jujur" } (caller tandai templat,
+ * BOS LIHAT ALASANNYA di dashboard — tidak ada error yang ditelan).
+ */
+export async function orJson(systemPrompt: string, userPrompt: string, model: string, agentTag: string, maxTokens = 800): Promise<OrJsonResult> {
   const key = envGet('OPENROUTER_API_KEY')
-  if (!key) return null
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.6,
-      }),
-      signal: AbortSignal.timeout(45_000),
-    })
-    if (!res.ok) {
-      console.error(`[agent-proposals:${agentTag}] OpenRouter HTTP ${res.status} — LLM dilewati, pakai templat data riil`)
-      return null
-    }
-    const raw = String((await res.json() as any)?.choices?.[0]?.message?.content || '').trim()
-    const cleaned = raw.replace(/```json|```/gi, '').trim()
-    const start = cleaned.indexOf('{')
-    const end = cleaned.lastIndexOf('}')
-    if (start < 0 || end <= start) return null
-    return JSON.parse(cleaned.slice(start, end + 1))
-  } catch (x: any) {
-    console.error(`[agent-proposals:${agentTag}] LLM gagal: ${String(x?.message || x).slice(0, 140)} — pakai templat data riil`)
-    return null
+  if (!key) {
+    console.error(`[agent-proposals:${agentTag}] OPENROUTER_API_KEY tidak tersedia — proposal pakai templat data riil`)
+    return { ai_error: 'OPENROUTER_API_KEY tidak tersedia di server' }
   }
+  const chain = [...new Set([model, ...OR_LIVE_CHAIN])].filter(Boolean)
+  let lastErr = ''
+  for (const m of chain) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: m,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.6,
+        }),
+        signal: AbortSignal.timeout(45_000),
+      })
+      if (!res.ok) {
+        lastErr = `${m} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 100)}`
+        console.error(`[agent-proposals:${agentTag}] ${lastErr} — coba model berikutnya`)
+        continue
+      }
+      const raw = String((await res.json() as any)?.choices?.[0]?.message?.content || '').trim()
+      const cleaned = raw.replace(/```json|```/gi, '').trim()
+      const start = cleaned.indexOf('{')
+      const end = cleaned.lastIndexOf('}')
+      if (start < 0 || end <= start) { lastErr = `${m} → JSON tidak ditemukan di respons`; continue }
+      return { ...(JSON.parse(cleaned.slice(start, end + 1)) as OrJsonResult), ai_model: m }
+    } catch (x: any) {
+      lastErr = `${m} → ${String(x?.message || x).slice(0, 100)}`
+    }
+  }
+  console.error(`[agent-proposals:${agentTag}] semua ${chain.length} model gagal (${lastErr}) — pakai templat data riil`)
+  return { ai_error: `Semua model OpenRouter gagal — ${lastErr}` }
 }
 
 const ANTI_HALUSINASI = `ATURAN KERAS (anti-halusinasi): gunakan HANYA angka & fakta dari blok "DATA RIIL" — DILARANG mengarang angka, nama, atau klaim. Output HANYA JSON valid tanpa teks lain.`
@@ -309,7 +341,7 @@ export async function sintaMarketProposal(cfg: SbConfig): Promise<DetectedPropos
   const j = await orJson(
     `Kamu SINTA (CMO LuxTradee — aplikasi jurnal trading AI). Tugasmu mendeteksi momen market dan menyiapkan konten. ${ANTI_HALUSINASI} Format output: {"laporan":"1-2 kalimat untuk CEO","proposed_action":{"platform":"ig","title":"...","content_body":"..."}}. content_body = caption IG siap posting (maks 500 karakter, bahasa Indonesia santil, ada CTA jurnal trading LuxTradee).`,
     `${dataRiil}\nBuat konten ${arah === 'DROP' ? 'menangkap peluang momentum turun (edukasi risiko + peluang)' : 'mengingatkan disiplin saat harga naik (FOMO control)'}.`,
-    'zhipu/glm-4.7-flash',
+    'google/gemma-4-31b-it:free',
     'Sinta',
   )
   const action = j?.proposed_action || {}
@@ -319,6 +351,8 @@ export async function sintaMarketProposal(cfg: SbConfig): Promise<DetectedPropos
     content_body: String(action.content_body || `Harga emas (XAUUSD) baru saja ${arah === 'DROP' ? 'turun' : 'naik'} ${Math.abs(changePct).toFixed(2)}% ke ${price.toFixed(2)}. Momen seperti ini paling cepat membakar akun kalau tanpa catatan. Yuk mulai jurnal trading otomatis di LuxTradee — 2 menit dari screenshot.`),
     media_url: '',
     market_snapshot: { from: last, to: price, change_pct: Number(changePct.toFixed(3)), source: 'api.gold-api.com' },
+    ai_source: j?.ai_model ? `llm:${j.ai_model}` : 'template',
+    ...(j?.ai_error ? { ai_error: String(j.ai_error).slice(0, 200) } : {}),
   }
   return { agentName: 'Sinta', actionType: 'PUBLISH_CONTENT', payload }
 }
@@ -343,7 +377,7 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
   const j = await orJson(
     `Kamu MAYA (CSO LuxTradee). Buat email winback yang hangat, tidak nagih, fokus manfaat. ${ANTI_HALUSINASI} Format: {"laporan":"...","proposed_action":{"subject":"...","html_body":"..."}}. html_body = HTML sederhana (p, b, br) siap kirim.`,
     `${dataRiil}\nBuat 1 subjek + 1 body email winback. ${discount ? `Sebut kode diskon: ${discount}.` : 'JANGAN menyebut diskon/kode apapun.'}`,
-    'google/gemma-2-9b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
     'Maya',
   )
   const action = j?.proposed_action || {}
@@ -352,7 +386,7 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
   return {
     agentName: 'Maya',
     actionType: 'SEND_WINBACK_EMAIL',
-    payload: { target_emails: targets.map((t: any) => String(t.email)), subject, html_body: htmlBody, discount_code: discount, target_count: targets.length },
+    payload: { target_emails: targets.map((t: any) => String(t.email)), subject, html_body: htmlBody, discount_code: discount, target_count: targets.length, ai_source: j?.ai_model ? `llm:${j.ai_model}` : 'template', ...(j?.ai_error ? { ai_error: String(j.ai_error).slice(0, 200) } : {}) },
   }
 }
 
@@ -396,7 +430,7 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
   const j = await orJson(
     `Kamu BAGAS (COO LuxTradee). Buat penawaran upgrade PRO yang personal & tidak maksa. ${ANTI_HALUSINASI} Format: {"laporan":"...","proposed_action":{"target_emails":["..."],"personalized_message":"..."}}. Salin email persis dari data (JANGAN mengarang email).`,
     `${dataRiil}\nEmail targets: ${hot.map(h => String(h.prof.email)).join(', ')}. Buat 1 personalized_message (maks 120 kata) yang menyebut aktivitas mereka secara umum (sering upload jurnal minggu ini) + manfaat PRO (evaluasi AI tanpa batas).`,
-    'meta-llama/llama-3.1-8b-instruct:free',
+    'nvidia/nemotron-3.5-lightning:free',
     'Bagas',
   )
   const action = j?.proposed_action || {}
@@ -404,7 +438,7 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
   return {
     agentName: 'Bagas',
     actionType: 'SEND_UPGRADE_OFFER',
-    payload: { target_emails: hot.map(h => String(h.prof.email)), personalized_message: message, hot_stats: hot.map(h => ({ trades: h.trades })) },
+    payload: { target_emails: hot.map(h => String(h.prof.email)), personalized_message: message, hot_stats: hot.map(h => ({ trades: h.trades })), ai_source: j?.ai_model ? `llm:${j.ai_model}` : 'template', ...(j?.ai_error ? { ai_error: String(j.ai_error).slice(0, 200) } : {}) },
   }
 }
 

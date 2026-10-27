@@ -5,9 +5,11 @@
 // Cron 08:00 WIB: Cloudflare cron trigger (worker-entry.ts) → /api/ceo-agent?action=briefing&key=CRON_SECRET
 // (cron-job.org TIDAK diperlukan lagi — semua otomatis lewat trigger Workers bawaan)
 // ARSITEKTUR MULTI-AGENT (SOP Bos): tiap karyawan pakai model OpenRouter
-// sendiri — Bagas COO (llama-3.1-8b, di /api/cron/ai-coo-agent), Raka CTO
-// (qwen-2.5-coder-7b), Maya CSO (gemma-2-9b), Sinta CMO (glm-4.7-flash),
-// Alexander CEO (llama-3.1-8b), Putri CFO TANPA LLM (murni matematika).
+// sendiri. Task 35: katalog lama dipensiunkan OpenRouter (llama-3.1-8b:
+// free, gemma-2-9b:free, qwen-2.5-coder, glm-4.7-flash, glm-4-flash semuanya
+// 404 — dulu inilah penyebab "semua karyawan jadi templat"). Kini dipakai
+// model GRATIS yang hidup (diverifikasi katalog OpenRouter): Gemma 4 &
+// Nemotron 3.5. Putri CFO TETAP tanpa LLM (murni matematika).
 // ============================================================
 // Tabel Supabase yang dipakai (skema produksi Luxtradee — lihat
 // prisma/schema.prisma):
@@ -422,37 +424,49 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
 
 /* ============================================================
    ALOKASI MODEL MULTI-AGENT (SOP Bos) — tiap karyawan punya model
-   OpenRouter masing-masing sesuai keahliannya:
-   • Bagas  (COO)  → meta-llama/llama-3.1-8b-instruct:free (route ai-coo-agent)
-   • Raka   (CTO)  → qwen/qwen-2.5-coder-7b-instruct:free
-   • Maya   (CSO)  → google/gemma-2-9b-it:free
-   • Sinta  (CMO)  → zhipu/glm-4.7-flash (cadangan resmi: zhipu/glm-4-flash)
+   OpenRouter masing-masing sesuai keahliannya (Task 35 — model lama
+   dipensiunkan OpenRouter, diganti katalog hidup):
+   • Bagas  (COO)  → google/gemma-4-26b-a4b-it:free (route ai-coo-agent)
+   • Raka   (CTO)  → nvidia/nemotron-3.5-lightning:free
+   • Maya   (CSO)  → google/gemma-4-26b-a4b-it:free
+   • Sinta  (CMO)  → google/gemma-4-31b-it:free (kreatif konten)
    • Putri  (CFO)  → TANPA LLM — murni matematika hardcoded
-   • Alexander (CEO) → meta-llama/llama-3.1-8b-instruct:free
-   • Dewi   (DA)   → google/gemma-2-9b-it:free (mingguan, tidak bentrok Maya)
-   • Farhan (GH)   → meta-llama/llama-3.1-8b-instruct:free (mingguan)
+   • Alexander (CEO) → google/gemma-4-31b-it:free
+   • Dewi   (DA)   → google/gemma-4-31b-it:free (analisis data)
+   • Farhan (GH)   → nvidia/nemotron-3.5-lightning:free
+   Cadangan tim: Nemotron Ultra 550B → Inkling → Xing 4.0.
    Override per karyawan tanpa ubah kode: env OR_MODEL_CTO (contoh).
    ============================================================ */
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
 type AgentKey = 'coo' | 'cto' | 'cso' | 'cmo' | 'ceo' | 'da' | 'gh'
+/* Task 35: model lama SEMUA 404 di OpenRouter (katalog dikurasi ulang —
+   tinggal 16 model gratis). Verifikasi katalog: GET /api/v1/models.
+   Pilihan hidup: Gemma 4 (31B/26B MoE — bahasa Indonesia bagus),
+   Nemotron 3.5 Lightning (cepat, 1M ctx). Override per karyawan
+   tetap bisa via env OR_MODEL_<AGENT> tanpa ubah kode. */
 const AGENT_MODELS: Record<AgentKey, string> = {
-  coo: 'meta-llama/llama-3.1-8b-instruct:free',
-  cto: 'qwen/qwen-2.5-coder-7b-instruct:free',
-  cso: 'google/gemma-2-9b-it:free',
-  cmo: 'zhipu/glm-4.7-flash',
-  ceo: 'meta-llama/llama-3.1-8b-instruct:free',
-  da: 'google/gemma-2-9b-it:free',
-  gh: 'meta-llama/llama-3.1-8b-instruct:free',
+  coo: 'google/gemma-4-26b-a4b-it:free',
+  cto: 'nvidia/nemotron-3.5-lightning:free',
+  cso: 'google/gemma-4-26b-a4b-it:free',
+  cmo: 'google/gemma-4-31b-it:free',
+  ceo: 'google/gemma-4-31b-it:free',
+  da: 'google/gemma-4-31b-it:free',
+  gh: 'nvidia/nemotron-3.5-lightning:free',
 }
-/* Cadangan resmi seluruh tim kalau model utama karyawan error/429
-   (SOP Bos: fallback Sinta ke zhipu/glm-4-flash). */
-const OR_TEAM_FALLBACK = 'zhipu/glm-4-flash'
+/* Cadangan resmi seluruh tim (Task 35): kalau model utama 404/429,
+   chain turun ke Nemotron Ultra 550B → Inkling → Xing 4.0 — semuanya
+   model gratis hidup. Dulu cuma 1 fallback (glm-4-flash) yang ikut mati. */
+const OR_TEAM_FALLBACKS = [
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'thinkingmachines/inkling:free',
+  'xingchen-agi/xing4.0-29b-a4b:free',
+]
 
 function orChain(e: Env, agent: AgentKey): string[] {
   const override = cleanEnv(e[`OR_MODEL_${agent.toUpperCase()}`])
   /* Legacy env OPENROUTER_MODEL masih dihormati sebagai pilihan utama Sinta */
   const primary = override || (agent === 'cmo' ? cleanEnv(e.OPENROUTER_MODEL) : '') || AGENT_MODELS[agent]
-  return [...new Set([primary, OR_TEAM_FALLBACK])]
+  return [...new Set([primary, ...OR_TEAM_FALLBACKS])]
 }
 
 /* 1 panggilan OpenRouter — native fetch, kompatibel Cloudflare Workers.
@@ -626,10 +640,10 @@ async function cmoAgent(e: Env) {
     `\nOutput: TEPAT 3 naskah TikTok (hook 3 detik pertama → body → CTA, durasi 30–45 detik per naskah), dipisah baris persis "===DRAF-2===" dan "===DRAF-3===" antar naskah, tanpa penjelasan tambahan.`
 
   /* ═══════ Rantai model SINTA (SOP Multi-Agent) ═══════
-     1) OpenRouter zhipu/glm-4.7-flash (model resmi Sinta)
-     2) OpenRouter zhipu/glm-4-flash (cadangan resmi — SOP Bos)
-     3) Gemini (nyawa cadangan terakhir)
-     4) fallbackDraft (fail-safe — teks statis, sistem tidak pernah crash)
+     Task 35: rantai via agentBrain('cmo') = Gemma 4 31B → Nemotron
+     Lightning → Gemma 4 26B → Nemotron Ultra → Inkling → Xing 4.0
+     (semuanya model gratis hidup; model lama glm-4.7/4-flash sudah 404)
+     → fallbackDraft (fail-safe — teks statis, sistem tidak pernah crash)
      ⭐ Kemampuan baru: 1 panggilan model → 3 draf pilihan (Bos pilih).
         Kalau model cuma kasih 1–2, draf utama diduplikasi agar pilihan tetap ada. */
   let drafts: string[] = []
@@ -1123,7 +1137,7 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
     .slice(0, 50)
 
   /* SOP Multi-Agent — MAYA (CSO) meracik draf email hari ini pakai model
-     resminya (google/gemma-2-9b-it:free via OpenRouter), rotasi 3 variasi
+     resminya (google/gemma-4-26b-a4b-it:free via OpenRouter — Task 35), rotasi 3 variasi
      nada, maks 50 user pasif. 1 panggilan LLM/hari; sapaan personal per
      user tetap dari data trading ASLI (personalLine) + CTA statis sistem.
      Gagal → templat statis PASSIVE_VARIANTS (fail-safe). */
@@ -1226,8 +1240,7 @@ async function watchdog(e: Env) {
     } else if (cto.bugs24h > parseInt(bugsAlertedRaw || '0', 10)) {
       await kvSet(e, 'wd:bugs:last', String(cto.bugs24h))
       /* TRIAGE otomatis (RAKA — CTO): 3 bug terakhir diringkas jadi diagnosa
-         + prioritas P1-P3 oleh model resmi Raka (qwen-2.5-coder-7b via
-         OpenRouter) → Bos nggak perlu buka Supabase manual.
+         + prioritas P1-P3 oleh model resmi Raka (nvidia/nemotron-3.5-lightning:free via OpenRouter — Task 35, qwen lama 404) → Bos nggak perlu buka Supabase manual.
          LLM hanya dipanggil SAAT bug baru masuk (bukan tiap 15 mnt). */
       let triage = ''
       try {

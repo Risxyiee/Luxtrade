@@ -116,7 +116,10 @@ async function alexanderAnswer(question: string): Promise<string> {
     'Jangan pakai format markdown berat — Discord biasa saja.' + ctx
 
   const orKey = envGet('OPENROUTER_API_KEY')
-  const chain = [envGet('OPENROUTER_MODEL') || 'meta-llama/llama-3.1-8b-instruct:free', 'meta-llama/llama-3.1-8b-instruct:free']
+  /* Task 35: model lama (llama-3.1-8b:free) 404 — bot /bos pakai katalog hidup */
+  const chain = [envGet('OPENROUTER_MODEL') || 'google/gemma-4-31b-it:free',
+    'nvidia/nemotron-3.5-lightning:free', 'google/gemma-4-26b-a4b-it:free',
+    'thinkingmachines/inkling:free']
     .filter((v, i, a) => v && a.indexOf(v) === i)
 
   if (orKey) {
