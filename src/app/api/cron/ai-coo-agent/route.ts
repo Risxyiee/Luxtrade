@@ -81,7 +81,9 @@ const BAGAS_MODEL = 'google/gemma-4-26b-a4b-it:free'
 const BAGAS_FALLBACK_MODELS = [
   'nvidia/nemotron-3.5-lightning:free',
   'google/gemma-4-31b-it:free',
-  'thinkingmachines/inkling:free',
+  /* Task 35c: inkling DIBUANG (403 policy-blocked, verifikasi diag live Bos)
+     → diganti Nemotron Ultra 550B (terbukti hidup 333 ms) */
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
 ]
 
 async function getOpenRouterKey(): Promise<string> {
