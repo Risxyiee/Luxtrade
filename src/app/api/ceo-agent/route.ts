@@ -160,13 +160,18 @@ async function kvIncr(e: Env, key: string): Promise<number> {
   return cur + 1
 }
 /* Hapus kunci kv (service_role — RLS anon biasanya tidak punya DELETE).
-   Gagal → diam (pemanggil reset-work tetap lapor daftar kunci yang dicoba). */
-async function kvDel(e: Env, key: string): Promise<void> {
+   Task 35-e JUJUR: kini return jumlah baris yang BENAR-BENAR terhapus
+   (Prefer: return=representation) — dulu diam-diam "sukses" walau 0
+   terhapus, bikin reset-work melapor "7 dibersihkan" yang belum tentu. */
+async function kvDel(e: Env, key: string): Promise<number> {
   try {
-    await fetch(`${sbUrl(e)}/rest/v1/agent_kv?key=eq.${encodeURIComponent(key)}`, {
-      method: 'DELETE', headers: sbHPriv(e), signal: timeoutSignal(10_000),
+    const res = await fetch(`${sbUrl(e)}/rest/v1/agent_kv?key=eq.${encodeURIComponent(key)}&select=key`, {
+      method: 'DELETE', headers: { ...sbHPriv(e), Prefer: 'return=representation' }, signal: timeoutSignal(10_000),
     })
-  } catch { /* abaikan */ }
+    if (!res.ok) return 0
+    const rows = (await res.json().catch(() => [])) as unknown[]
+    return Array.isArray(rows) ? rows.length : 0
+  } catch { return 0 }
 }
 
 /* ---------- Supabase headers ---------- */
@@ -183,14 +188,20 @@ async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
   const url = `${sbUrl(e)}/rest/v1/${table}?select=*&limit=1${filters ? '&' + filters : ''}`
   /* Gunakan service_role key untuk tabel yang butuh bypass RLS.
      agent_kv punya RLS policy SELECT untuk anon → pakai sbH saja.
-     profiles/trades/bug_reports butuh service_role → pakai sbHPriv. */
-  const usePriv = ['profiles', 'trades', 'bug_reports'].includes(table)
+     profiles/trades/bug_reports + ai_pending_actions (tabel sistem,
+     TANPA policy anon) → wajib service_role.
+     Task 35-e pelajaran dari Bos: reset-work dulu COUNT ai_pending_actions
+     pakai anon → 401, padahal key sehat semua (dashboard & antrean proposal
+     jalan normal). Pesan "key salah/expired" yang lama MENYESATKAN. */
+  const usePriv = ['profiles', 'trades', 'bug_reports', 'ai_pending_actions'].includes(table)
   const res = await fetch(url, { headers: { ...(usePriv ? sbHPriv(e) : sbH(e)), Prefer: 'count=exact' }, signal: timeoutSignal(10_000) })
   if (!res.ok) {
     const hint = res.status === 401
-      ? (usePriv && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)
-        ? ' — RLS blokir anon key. Set SUPABASE_SERVICE_ROLE_KEY di Cloudflare Secrets (Supabase → Settings → API → service_role secret)'
-        : ' — SUPABASE_ANON_KEY / SERVICE_ROLE_KEY salah/expired (cek Cloudflare Secrets: tanpa kutip & spasi)')
+      ? (usePriv
+        ? (!cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY)
+          ? ' — service_role belum diset (fallback anon diblokir RLS). Set SUPABASE_SERVICE_ROLE_KEY di Cloudflare Secrets (Supabase → Settings → API → service_role secret)'
+          : ' — service_role DITOLAK Supabase untuk tabel ini (key salah/expired/di-rotasi — cek Supabase → Settings → API)')
+        : ' — anon key ditolak untuk tabel ini (RLS anon tidak punya policy / key salah). Tabel sistem wajib lewat service_role')
       : res.status === 404
         ? ` — tabel "${table}" tidak ada`
         : ''
@@ -2512,7 +2523,10 @@ async function handle(req: Request): Promise<Response> {
          memori kantor, dedup email harian. */
       const day = utcDay()
       const keys = [`cmo:${day}`, `cso-cmo:${day}`, 'cso-cmo:last', 'nba:last', 'briefing:last', 'da:last', 'gh:last']
-      for (const k of keys) await kvDel(e, k)
+      /* Task 35-e JUJUR: hitung cache yang BENAR-BENAR terhapus (kvDel kini
+         return jumlah baris; 0 = tidak ada/gagal — bukan otomatis "sukses") */
+      let clearedReal = 0
+      for (const k of keys) clearedReal += await kvDel(e, k)
       let removedPending = -1, pendErr = ''
       try {
         const since = isoAgo(24)
@@ -2521,13 +2535,13 @@ async function handle(req: Request): Promise<Response> {
           const del = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_actions?created_at=gte.${encodeURIComponent(since)}&status=in.(pending,rejected)`, {
             method: 'DELETE', headers: { ...sbHPriv(e), Prefer: 'return=minimal' }, signal: timeoutSignal(15_000),
           })
-          if (!del.ok) { pendErr = `DELETE HTTP ${del.status}`; removedPending = -1 }
+          if (!del.ok) { const b = await del.text().catch(() => ''); pendErr = `DELETE HTTP ${del.status} ${b.slice(0, 90)}`; removedPending = -1 }
         }
-      } catch (x: any) { pendErr = String(x?.message || x).slice(0, 100); removedPending = -1 }
-      const text = `♻️ Reset selesai — ${keys.length} cache kerjaan hari ini dibersihkan` +
+      } catch (x: any) { pendErr = String(x?.message || x).slice(0, 140); removedPending = -1 }
+      const text = `♻️ Reset selesai — ${clearedReal}/${keys.length} cache kerjaan hari ini terhapus` +
         (removedPending >= 0 ? ` · ${removedPending} proposal lama dihapus` : pendErr ? ` · proposal: ${pendErr}` : '') +
         `. Lanjutan: 🌅 Briefing + 🧹 Sweep 7 Agen + ✍️ Buat 3 Draf — tim kerja ulang dengan AI beneran.`
-      return j({ ok: true, cleared: keys, removedPending, text })
+      return j({ ok: true, cleared: keys, clearedReal, removedPending, text })
     }
     case 'discord-test':
       // Diagnosa: kirim pesan tes ke Discord, laporkan hasil mentahnya
