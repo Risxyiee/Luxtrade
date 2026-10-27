@@ -543,9 +543,10 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                       ) : (<>
                         <div className="mt-1">
                           {or.keyCheck?.ok
-                            ? <>🔑 Key valid{or.keyCheck.label ? <b> ({String(or.keyCheck.label).slice(0, 30)})</b> : null} · terpakai ${Number(or.keyCheck.usage || 0).toFixed(3)}{or.keyCheck.limit != null ? <> / limit ${Number(or.keyCheck.limit).toFixed(2)}</> : ' · tanpa batas kredit'}{or.keyCheck.isFreeTier ? <span className="text-amber-200"> · ⚠️ free-tier (20 req/mnt · 50 req/hari)</span> : null}</>
+                            ? <>🔑 Key valid{or.keyCheck.label ? <b> ({String(or.keyCheck.label).slice(0, 30)})</b> : null} · terpakai ${Number(or.keyCheck.usage || 0).toFixed(3)}{or.keyCheck.limit != null ? <> / batas belanja key ${Number(or.keyCheck.limit).toFixed(2)}</> : ' · tanpa batas kredit'}{or.keyCheck.isFreeTier ? <span className="text-amber-200"> · ⚠️ free-tier (saldo kosong → 20 req/mnt · 50 req/hari)</span> : null}</>
                             : <>🔑 <b>Key bermasalah:</b> {or.keyCheck?.hint || or.keyCheck?.error || `HTTP ${or.keyCheck?.status}`}</>}
                         </div>
+                        {or.keyCheck?.ok && or.keyCheck?.note ? <div className="mt-0.5 text-white/60">💡 {String(or.keyCheck.note)}</div> : null}
                         <div className="mt-1 max-h-32 overflow-y-auto kscroll">
                           {(or.chain || []).map((m: any) => (
                             <div key={m.model}>{m.ok ? '✅' : '❌'} <b>{m.model}</b> — {m.ok ? <>hidup ({m.ms} ms{m.reply ? ` · balas: "${m.reply}"` : ''})</> : <>HTTP {m.status ?? '—'} · {String(m.hint || m.error || m.body || '').slice(0, 150)}</>}</div>

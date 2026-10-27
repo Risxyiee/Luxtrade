@@ -640,13 +640,20 @@ async function orDiag(e: Env): Promise<Record<string, unknown>> {
       out.keyCheck = { ok: false, status: res.status, hint: OR_HINTS[res.status] || `HTTP ${res.status}`, body: JSON.stringify(body).slice(0, 140) }
     } else {
       const d = body?.data || {}
+      const lim = d.limit === null || d.limit === undefined ? undefined : Number(d.limit)
+      /* Task 35d: Bos pernah salah paham "limit $100" = saldo — perjelas:
+         limit = batas BELANJA key (diset saat bikin key), bukan saldo akun.
+         Status free-tier ditentukan SALDO akun (pernah top up $10+ atau belum). */
+      const limNote = lim != null ? ` · "limit $${lim.toFixed(2)}" = batas belanja KEY ini (diset saat bikin key), BUKAN saldo akun` : ''
       out.keyCheck = {
         ok: true,
         label: d.label || '',
         usage: typeof d.usage === 'number' ? d.usage : undefined,
-        limit: d.limit === null ? undefined : d.limit,
+        limit: lim,
         isFreeTier: !!d.is_free_tier,
-        note: d.is_free_tier ? 'akun free-tier — batas 20 req/menit · 50 req/hari (1000/hari bila pernah top up $10)' : 'akun ber-kredit',
+        note: (d.is_free_tier
+          ? 'akun FREE-TIER (saldo kosong) — model :free dibatasi 20 req/menit · 50 req/hari; top up $10 SEKALI → langsung 1000 req/hari'
+          : 'akun ber-kredit — kuota longgar 1000 req/hari') + limNote,
       }
     }
   } catch (x: any) {
