@@ -1809,3 +1809,22 @@ Stage Summary:
 - 401 reset-work BUKAN key bermasalah — kode salah pilih kunci utk tabel sistem; sudah dibetulkan ke service_role (pintu yang terbukti hidup). Pesan error kini akurat per jalur.
 - Kejujuran reset naik level: jumlah cache terhapus = angka nyata dari Supabase, bukan asumsi.
 - Setelah deploy Bos klik ♻️ Reset lagi → harusnya "X/7 cache terhapus · N proposal lama dihapus" tanpa 401 → lanjut 🌅 Briefing + 🧹 Sweep + ✍️ Draf → badge 🤖 Draf AI = bukti otak jalan (usage $ di OpenRouter memang tidak bergerak utk model :free — gratis tidak pernah ditagih).
+
+---
+Task ID: 35-f
+Agent: Z (main)
+Task: Diag LIVE Bos — 2/5 model hidup (Ultra 281ms + Xing 2740ms, 429 terbukti transien), tapi ada bug tampilan "❌ nemotron-3.5-lightning — HTTP 200 ·" (kosong); Bos juga protes DISCORD_BOT_TOKEN ditandai ❌ padahal opsional/sudah diset
+
+Work Log:
+- ANALISIS diag Bos: (1) Xing 4.0 yang kemarin 429 kini HIDUP → 429 free-tier memang kapasitas shared yang berputar, bukan blokir permanen; (2) Lightning "❌ HTTP 200" = bug parsing, bukan model mati.
+- ROOT CAUSE BUG: Nemotron Lightning = model REASONING — jawaban mini tes (max_tokens 16) habis dimakan proses berpikir → message.content kosong → diag ok:false tanpa hint → tampil "❌ HTTP 200 ·". Lebih parah di kerja nyata: openRouterChat (dipakai SEMUA agen) juga hanya baca content → Lightning (primary Raka/GH!) selalu "respons kosong" → buang waktu chain fallback padahal model hidup.
+- FIX 1 — openRouterChat: parsing kini `content ?? reasoning` → model reasoning jadi bisa dipakai penuh (Raka/GH kembali ke primary Lightning).
+- FIX 2 — diag: max_tokens 16 → 64 + fallback reasoning; kalau tetap 200-kosong → hint jujur "model reasoning kehabisan token jawaban di tes mini; di kerja nyata biasanya jalan; agen otomatis lompat kalau tetap kosong". orMarkHealthy hanya saat ada teks.
+- FIX 3 — env ❌ membingungkan (protes Bos): OPENROUTER_MODEL / RESEND_WEBHOOK_SECRET / OWNER_EMAIL / DISCORD_BOT_TOKEN / APP_ID / PUBLIC_KEY kini ditandai ⚪ (opsional) di ringkasan env; blok "🔧 Cara memasang" WAJIB disort duluan, OPSIONAL di bawah dengan label; setupHint baru: "secret baru aktif setelah Deploy ulang — kalau baru diset & masih ❌, Deploy lalu 🩺 lagi" + panduan cek lokasi Workers (bukan project lain) untuk bot token.
+- Verifikasi lokal: lint bersih; E2E browser (dummy env + bogus key): env ringkasan tampil "OPENROUTER_MODEL ⚪ (opsional) · RESEND_WEBHOOK_SECRET ⚪ (opsional) · DISCORD_BOT_TOKEN ⚪ (opsional)…", setup WAJIB dulu + OPSIONAL berlabel, setupHint tampil, blok 🧠 tetap render dgn "Key bermasalah" 401. Prefix dobel "(opsional) — OPSIONAL" dirapikan via sed. .env dipulihkan (DATABASE_URL saja).
+- Commit 9fa7f971 pushed → Cloudflare auto-deploy ±2-3 menit.
+
+Stage Summary:
+- Lightning (primary Raka & Farhan) kembali hidup penuh via parsing reasoning — chain jadi lebih kuat: Lightning + Ultra + Xing semuanya bisa dipakai, 429 ditangani breaker.
+- Panel diag kini tidak lagi "menghukum" env opsional dengan ❌ — Bos bisa langsung bedakan mana wajib mana opsional.
+- State kesehatan otak tim (dari diag Bos): Ultra ✅ 281ms · Xing ✅ (kadang 429, transien) · Lightning ✅ setelah fix ini · Gemma 26B/31B kadang 429 → SEMUA agen punya minimal 2-3 jalur hidup.
