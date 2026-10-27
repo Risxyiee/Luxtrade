@@ -71,12 +71,18 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
 
 // ─── AI: racik email jualan PRO ────────────────────────────────────────────
 /* ═══ SOP MULTI-AGENT — model resmi BAGAS (COO) ═══
-   meta-llama/llama-3.1-8b-instruct:free via OpenRouter (native fetch,
-   parsing standar OpenAI). Cadangan: zhipu/glm-4-flash → rantai lama
-   (Groq → Gemini lewat callLLM) → templat statis buildTemplateDraft. */
+/* ═══ SOP MULTI-AGENT — model resmi BAGAS (COO) ═══
+   Task 35: llama-3.1-8b:free & glm-4-flash MATI di OpenRouter (404) —
+   dulu inilah penyebab email Bagas selalu templat. Kini: Gemma 4 MoE
+   (utama) → rantai cadangan model gratis hidup → templat statis
+   buildTemplateDraft (fail-safe tetap ada). */
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const BAGAS_MODEL = 'meta-llama/llama-3.1-8b-instruct:free'
-const BAGAS_FALLBACK_MODEL = 'zhipu/glm-4-flash'
+const BAGAS_MODEL = 'google/gemma-4-26b-a4b-it:free'
+const BAGAS_FALLBACK_MODELS = [
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-31b-it:free',
+  'thinkingmachines/inkling:free',
+]
 
 async function getOpenRouterKey(): Promise<string> {
   try { return (await getEnvVar('OPENROUTER_API_KEY', { quiet: true })) || process.env.OPENROUTER_API_KEY || '' } catch { return process.env.OPENROUTER_API_KEY || '' }
@@ -85,7 +91,7 @@ async function getOpenRouterKey(): Promise<string> {
 async function callBagas(systemPrompt: string, userPrompt: string, maxTokens = 600): Promise<LLMResult | null> {
   const key = (await getOpenRouterKey()).trim()
   if (!key) return null
-  for (const model of [process.env.OR_MODEL_COO?.trim() || BAGAS_MODEL, BAGAS_FALLBACK_MODEL]) {
+  for (const model of [process.env.OR_MODEL_COO?.trim() || BAGAS_MODEL, ...BAGAS_FALLBACK_MODELS]) {
     try {
       const res = await fetch(OR_URL, {
         method: 'POST',
