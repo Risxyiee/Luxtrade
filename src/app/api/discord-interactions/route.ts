@@ -223,7 +223,9 @@ export async function POST(req: NextRequest) {
 
     if (name === 'nba-oke' || name === 'nba-not') {
       const v = name === 'nba-oke' ? 'oke' : 'not'
-      const day = new Date().toISOString().slice(0, 10)
+      /* Task 35g: pakai tanggal WIB (dulu UTC — jam 00:00–06:59 WIB verdict Bos
+         ditulis ke key "kemarin" → briefing baca key hari ini & verdict terasa hilang) */
+      const day = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
       await kvSetRaw(`nba-verdict:${day}`, v)
       let snippet = ''
       try { snippet = String(JSON.parse((await kvGetRaw('nba:last')) || '{}')?.text || '').slice(0, 90) } catch { /* ignore */ }

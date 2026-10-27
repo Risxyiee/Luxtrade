@@ -94,7 +94,12 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T | null): Promise<
   })
 }
 const isoAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString()
-const utcDay = (off = 0) => new Date(Date.now() + off * 86400_000).toISOString().slice(0, 10)
+/* Task 35g (akar komplain Bos: "sudah update data tapi kantor masih tampil kerjaan lama"):
+   dulu key harian pakai tanggal UTC — padahal Bos & semua user di WIB (UTC+7).
+   Jam 00:00–06:59 WIB, tanggal UTC masih "kemarin" → draf CMO / briefing /
+   verdict NBA / csmailed semuanya baca key KEMARIN → kantor tampil kerjaan lama
+   padahal hari sudah ganti. Kini SEMUA key harian pakai tanggal WIB. */
+const wibDay = (off = 0) => new Date(Date.now() + 7 * 3600_000 + off * 86400_000).toISOString().slice(0, 10)
 const dayIndex = () => Math.floor(Date.now() / 86400_000)
 const fmtN = (n: number) => (n >= 0 ? n.toLocaleString('id-ID') : '—')
 const wibNow = () =>
@@ -340,8 +345,8 @@ async function ctoAgent(e: Env) {
   /* riwayat watchdog hari ini (dicatat action=watchdog tiap 15 mnt) */
   let upToday = 0, downToday = 0
   try {
-    upToday = parseInt((await kvGet(e, `up:${utcDay()}`)) || '0', 10)
-    downToday = parseInt((await kvGet(e, `down:${utcDay()}`)) || '0', 10)
+    upToday = parseInt((await kvGet(e, `up:${wibDay()}`)) || '0', 10)
+    downToday = parseInt((await kvGet(e, `down:${wibDay()}`)) || '0', 10)
   } catch { /* ignore */ }
   return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, upToday, downToday, err }
 }
@@ -372,7 +377,7 @@ async function csoAgent(e: Env) {
      upload hari ini? (ID yang di-email disimpan di agent_kv saat kirim) */
   let emailed = 0, returned = 0
   try {
-    const ids: string[] = JSON.parse((await kvGet(e, `csmailed:${utcDay(-1)}`)) || '[]')
+    const ids: string[] = JSON.parse((await kvGet(e, `csmailed:${wibDay(-1)}`)) || '[]')
     emailed = ids.length
     returned = ids.filter((id) => activeSet.has(id)).length
   } catch { /* ignore */ }
@@ -431,7 +436,7 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
     },
   )
   if (res.status === 429) {
-    await kvIncr(e, `quota429:${utcDay()}`)
+    await kvIncr(e, `quota429:${wibDay()}`)
     const x: any = new Error('Gemini 429 (rate limit)'); x.status = 429
     throw x
   }
@@ -738,7 +743,7 @@ async function cmoAgent(e: Env) {
 
   /* SOP Bos: 1 draf TikTok / HARI. Draf hari ini yang sudah dibuat
      (dashboard dibuka / briefing pagi) dipakai ulang — hemat kuota model. */
-  const dayKey = `cmo:${utcDay()}`
+  const dayKey = `cmo:${wibDay()}`
   try {
     const cached = await kvGet(e, dayKey)
     if (cached) return { ...JSON.parse(cached), dupToday: true }
@@ -856,11 +861,11 @@ async function cfoAgent(e: Env) {
   const limit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
   const emailLimit = parseInt(e.RESEND_DAILY_LIMIT || '100', 10) // Resend free: 100 email/hari
   const read = async (k: string) => parseInt((await kvGet(e, k)) || '0', 10)
-  const usedToday = await read(`quota:${utcDay(0)}`)
-  const usedYesterday = await read(`quota:${utcDay(-1)}`)
-  const quota429 = await read(`quota429:${utcDay(-1)}`)
-  const emailToday = await read(`email:${utcDay(0)}`)
-  const emailYesterday = await read(`email:${utcDay(-1)}`)
+  const usedToday = await read(`quota:${wibDay(0)}`)
+  const usedYesterday = await read(`quota:${wibDay(-1)}`)
+  const quota429 = await read(`quota429:${wibDay(-1)}`)
+  const emailToday = await read(`email:${wibDay(0)}`)
+  const emailYesterday = await read(`email:${wibDay(-1)}`)
   const pct = limit > 0 ? Math.round((usedToday / limit) * 100) : 0
   const emailPct = emailLimit > 0 ? Math.round((emailToday / emailLimit) * 100) : 0
   /* ⭐ KEMAMPUAN BARU (SOP Bos) — LAPORAN PENDAPATAN:
@@ -1036,7 +1041,7 @@ async function runMorningBriefing(e: Env) {
      (CTO/CSO/CMO/CFO + penawaran COO + prioritas kemarin) dikirim dulu
      <~60 dtk; QA/E2E/AUTO-ACC/diskusi CSO×CMO/NBA jadi FASE 2 — pesan
      terpisah SETELAH laporan utama aman. */
-  const day = utcDay()
+  const day = wibDay()
   const [cto, cso, cmo, cfo, cooLine] = await Promise.all([
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
     csoAgent(e).catch((x: any) => ({ total: -1, active: -1, passive: -1, err: String(x?.message || x) })),
@@ -1054,8 +1059,12 @@ async function runMorningBriefing(e: Env) {
     const raw = await kvGet(e, 'nba:last')
     if (raw) {
       const p = JSON.parse(raw) as { at?: string; text?: string }
-      if (p?.text && String(p.at || '').slice(0, 10) && String(p.at).slice(0, 10) < utcDay()) {
-        const verdict = await kvGet(e, `nba-verdict:${String(p.at).slice(0, 10)}`)
+      /* Task 35g: tanggal proposal dikonversi ke WIB dulu (dulu langsung pakai
+         potongan ISO UTC-nya — proposal jam 00:00–06:59 WIB salah dianggap "kemarin",
+         verdict Bos yang tersimpan di key tanggal WIB jadi tak terbaca). */
+      const atWibDay = p?.at ? new Date(new Date(p.at).getTime() + 7 * 3600_000).toISOString().slice(0, 10) : ''
+      if (p?.text && atWibDay && atWibDay < wibDay()) {
+        const verdict = await kvGet(e, `nba-verdict:${atWibDay}`)
         if (verdict === 'oke')
           nbaLine = `🎯 **PRIORITAS KEMARIN**: ${p.text}\n→ ✅ Bos sudah konfirmasi OKE — dicatat ke Memori Kantor. Kalau sudah tuntas, kabari Alexander buat update status.`
         else if (verdict === 'not')
@@ -1367,11 +1376,11 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
     if (r && (r as any).ok) {
       sent++
       emailedIds.push(p.id as string)
-      await kvIncr(e, `email:${utcDay()}`).catch(() => {}) // CFO: pantau kuota Resend
+      await kvIncr(e, `email:${wibDay()}`).catch(() => {}) // CFO: pantau kuota Resend
     }
   }
   /* simpan siapa saja yang di-email hari ini → besok dihitung "balik aktif" */
-  if (emailedIds.length) await kvSet(e, `csmailed:${utcDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
+  if (emailedIds.length) await kvSet(e, `csmailed:${wibDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
   if (sent) await memAdd(e, 'CSO Maya', `${sent} email personal ke user pasif (variasi "${variant.subject}"; ${personalized} pakai data trade asli penerima; draf via ${emailProvider === 'template' ? 'templat statis' : emailModel})`)
   return { sent, ids: emailedIds, variant: variant.subject, personalized, emailProvider, emailModel }
 }
@@ -1383,7 +1392,7 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
    cuma catat riwayat uptime ke agent_kv.
    ============================================================ */
 async function watchdog(e: Env) {
-  const day = utcDay()
+  const day = wibDay()
   const alerts: string[] = []
 
   /* 1) ping situs + hitung bug — pakai ctoAgent (sudah ada retry + abaikan 521-524) */
@@ -1505,7 +1514,7 @@ async function weeklyReport(e: Env) {
   L.push(bugs7 >= 0 ? `• Bug masuk minggu ini: ${bugs7} ${bugs7 > 0 ? '⚠️' : '✅'}` : '• Bug: gagal diambil')
   let up = 0, down = 0
   for (let i = 0; i < 7; i++) {
-    const d = utcDay(-i)
+    const d = wibDay(-i)
     try {
       up += parseInt((await kvGet(e, `up:${d}`)) || '0', 10)
       down += parseInt((await kvGet(e, `down:${d}`)) || '0', 10)
@@ -1517,7 +1526,7 @@ async function weeklyReport(e: Env) {
 
   /* CFO — pemakaian kuota 7 hari */
   let q7 = 0
-  for (let i = 0; i < 7; i++) { try { q7 += parseInt((await kvGet(e, `quota:${utcDay(-i)}`)) || '0', 10) } catch { /* ignore */ } }
+  for (let i = 0; i < 7; i++) { try { q7 += parseInt((await kvGet(e, `quota:${wibDay(-i)}`)) || '0', 10) } catch { /* ignore */ } }
   const limit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
   L.push('💰 **CFO — Pemakaian Kuota Gemini**')
   L.push(`• Total 7 hari: ${fmtN(q7)} request (rata-rata ${fmtN(Math.round(q7 / 7))}/hari · limit harian ${fmtN(limit)})`)
@@ -1546,7 +1555,7 @@ async function weeklyReport(e: Env) {
   try {
     let opens7 = 0, clicks7 = 0
     for (let i = 0; i < 7; i++) {
-      const d = utcDay(-i)
+      const d = wibDay(-i)
       opens7 += parseInt((await kvGet(e, `opens:${d}`)) || '0', 10) || 0
       clicks7 += parseInt((await kvGet(e, `clicks:${d}`)) || '0', 10) || 0
     }
@@ -1555,7 +1564,7 @@ async function weeklyReport(e: Env) {
 
   /* Email Resend — pemakaian 7 hari (free tier ±3.000/bulan) */
   let em7 = 0
-  for (let i = 0; i < 7; i++) { try { em7 += parseInt((await kvGet(e, `email:${utcDay(-i)}`)) || '0', 10) } catch { /* ignore */ } }
+  for (let i = 0; i < 7; i++) { try { em7 += parseInt((await kvGet(e, `email:${wibDay(-i)}`)) || '0', 10) } catch { /* ignore */ } }
   L.push(`📧 **Email Resend 7 hari**: ${fmtN(em7)} terkirim`)
 
   L.push('━━━━━━━━━━━━━━━━━━')
@@ -1852,7 +1861,7 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
   /* Feedback email CSO kemarin — berapa yang balik */
   let emailed = 0, returned = 0
   try {
-    const ids: string[] = JSON.parse((await kvGet(e, `csmailed:${utcDay(-1)}`)) || '[]')
+    const ids: string[] = JSON.parse((await kvGet(e, `csmailed:${wibDay(-1)}`)) || '[]')
     emailed = ids.length
     returned = ids.filter((id) => active7.has(id)).length
   } catch { /* ignore */ }
@@ -2172,7 +2181,7 @@ async function abSnapshot(e: Env): Promise<{ A: AbVariantStat; B: AbVariantStat;
   const zero = (): AbVariantStat => ({ views: 0, clicks: 0, cr: 0 })
   const out: Record<'A' | 'B', AbVariantStat> = { A: zero(), B: zero() }
   for (let i = 0; i < 7; i++) {
-    const d = utcDay(-i)
+    const d = wibDay(-i)
     for (const v of ['A', 'B'] as const) {
       out[v].views += parseInt((await kvGet(e, `ab:view:${v}:${d}`)) || '0', 10) || 0
       out[v].clicks += parseInt((await kvGet(e, `ab:click:${v}:${d}`)) || '0', 10) || 0
@@ -2508,7 +2517,7 @@ async function handle(req: Request): Promise<Response> {
       return j(await cfoAgent(e))
     case 'quota-track': {
       const limit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
-      const k = `quota:${utcDay()}`
+      const k = `quota:${wibDay()}`
       const used = parseInt((await kvGet(e, k)) || '0', 10)
       if (used >= limit)
         return j({ allowed: false, usedToday: used, limit, reason: 'kuota harian habis — tunda upload ke besok (anti 429)' }, 429)
@@ -2517,7 +2526,7 @@ async function handle(req: Request): Promise<Response> {
     }
     case 'acc-email': {
       // Flow "ACC EMAIL" — dipicu tombol di dashboard CEO (owner login)
-      const day = utcDay()
+      const day = wibDay()
       if (await kvGet(e, `acc_email:${day}`)) return j({ ok: true, dup: true })
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
       let emailsSent = -1
@@ -2538,7 +2547,7 @@ async function handle(req: Request): Promise<Response> {
          kalau tak dihapus, sweep menolak mengusulkan ulang).
          TIDAK disentuh: riwayat ACC/eksekusi (status approved), cmo:posted,
          memori kantor, dedup email harian. */
-      const day = utcDay()
+      const day = wibDay()
       const keys = [`cmo:${day}`, `cso-cmo:${day}`, 'cso-cmo:last', 'nba:last', 'briefing:last', 'da:last', 'gh:last']
       /* Task 35-e JUJUR: hitung cache yang BENAR-BENAR terhapus (kvDel kini
          return jumlah baris; 0 = tidak ada/gagal — bukan otomatis "sukses") */
@@ -2573,7 +2582,7 @@ async function handle(req: Request): Promise<Response> {
       // Dipicu tombol di Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not.
       const v = (url.searchParams.get('verdict') || '').toLowerCase()
       if (v !== 'oke' && v !== 'not') return j({ ok: false, error: 'verdict harus oke atau not' }, 400)
-      const day = utcDay()
+      const day = wibDay()
       await kvSet(e, `nba-verdict:${day}`, v)
       const raw = await kvGet(e, 'nba:last').catch(() => null)
       let snippet = ''
@@ -2585,7 +2594,7 @@ async function handle(req: Request): Promise<Response> {
       return j({ ok: true, verdict: v, note: v === 'oke' ? 'NBA hari ini dicatat OKE — besok Alexander cek tuntasnya' : 'NBA diganti — Alexander pilih prioritas baru besok pagi' })
     }
     case 'nba-verdict-last':
-      return j({ verdict: (await kvGet(e, `nba-verdict:${utcDay()}`)) || null })
+      return j({ verdict: (await kvGet(e, `nba-verdict:${wibDay()}`)) || null })
     case 'email-test': {
       // ⭐ Diagnosa Resend: kirim email tes ke Bos (OWNER_EMAIL), laporkan
       // hasil mentahnya — biar kelihatan salah di mana (key/domain/kuota).
@@ -2732,15 +2741,15 @@ async function handle(req: Request): Promise<Response> {
       // Status SELALU jujur: posted:true hanya kalau Graph API konfirmasi.
       try {
         let draftText = ''
-        try { draftText = String(JSON.parse((await kvGet(e, `cmo:${utcDay()}`)) || 'null')?.draft || '') } catch { /* ignore */ }
+        try { draftText = String(JSON.parse((await kvGet(e, `cmo:${wibDay()}`)) || 'null')?.draft || '') } catch { /* ignore */ }
         if (!draftText) return j({ error: 'belum ada draf hari ini — jalankan agen CMO dulu (✍️ Buat 3 Draf)' }, 404)
         const force = url.searchParams.get('force') === '1'
         if (!force) {
-          const prev = await kvGet(e, `cmo:posted:${utcDay()}`)
+          const prev = await kvGet(e, `cmo:posted:${wibDay()}`)
           if (prev) { try { return j({ alreadyPosted: true, result: JSON.parse(prev) }) } catch { /* repost */ } }
         }
         const result: MetaPostResult = await metaAutoPost(draftText)
-        if (result.posted) await kvSet(e, `cmo:posted:${utcDay()}`, JSON.stringify(result)).catch(() => {})
+        if (result.posted) await kvSet(e, `cmo:posted:${wibDay()}`, JSON.stringify(result)).catch(() => {})
         return j({ result, diag: metaDiag() })
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
@@ -2751,7 +2760,7 @@ async function handle(req: Request): Promise<Response> {
         const set = url.searchParams.get('set')
         if (set === 'on' || set === 'off') await kvSet(e, 'cmo:autopost', set)
         const state = (await kvGet(e, 'cmo:autopost')) || 'on'
-        const postedRaw = await kvGet(e, `cmo:posted:${utcDay()}`)
+        const postedRaw = await kvGet(e, `cmo:posted:${wibDay()}`)
         return j({ autopost: state, postedToday: postedRaw ? JSON.parse(postedRaw) : null, diag: metaDiag() })
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
@@ -2761,7 +2770,7 @@ async function handle(req: Request): Promise<Response> {
       // Respons dibungkus {talk} — tanpa key `error` di root supaya state
       // dashboard ruangan lain tidak ikut menampilkan pesan ini.
       try {
-        const dayKey = `cso-cmo:${utcDay()}`
+        const dayKey = `cso-cmo:${wibDay()}`
         if (await kvGet(e, dayKey)) {
           const last = await kvGet(e, 'cso-cmo:last')
           return last ? j({ talk: { ...JSON.parse(last), dupToday: true } }) : j({ talk: await csoCmoTalk(e) })
@@ -2787,7 +2796,7 @@ async function handle(req: Request): Promise<Response> {
       // Dewi (Data Analyst) — analisis trades 30 hari → insight + rekomendasi.
       // Dedup per hari; kirim Discord (pesan terpisah) tiap hasil baru.
       try {
-        const dk = `da:${utcDay()}`
+        const dk = `da:${wibDay()}`
         if (await kvGet(e, dk)) {
           const last = await kvGet(e, 'da:last')
           return last ? j({ da: { ...JSON.parse(last), dupToday: true } }) : j({ da: await analystAgent(e) })
@@ -2809,7 +2818,7 @@ async function handle(req: Request): Promise<Response> {
       // Farhan (Growth Hacker) — funnel nyata + 3 eksperimen minggu ini.
       // Dedup per hari; kirim Discord (pesan terpisah) tiap hasil baru.
       try {
-        const gk = `gh:${utcDay()}`
+        const gk = `gh:${wibDay()}`
         if (await kvGet(e, gk)) {
           const last = await kvGet(e, 'gh:last')
           return last ? j({ gh: { ...JSON.parse(last), dupToday: true } }) : j({ gh: await growthAgent(e) })

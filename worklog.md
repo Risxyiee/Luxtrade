@@ -1828,3 +1828,25 @@ Stage Summary:
 - Lightning (primary Raka & Farhan) kembali hidup penuh via parsing reasoning — chain jadi lebih kuat: Lightning + Ultra + Xing semuanya bisa dipakai, 429 ditangani breaker.
 - Panel diag kini tidak lagi "menghukum" env opsional dengan ❌ — Bos bisa langsung bedakan mana wajib mana opsional.
 - State kesehatan otak tim (dari diag Bos): Ultra ✅ 281ms · Xing ✅ (kadang 429, transien) · Lightning ✅ setelah fix ini · Gemma 26B/31B kadang 429 → SEMUA agen punya minimal 2-3 jalur hidup.
+---
+Task ID: 35-g
+Agent: Z (main)
+Task: 修老问题根因 — Bos 更新数据后办公室仍显示旧任务（日缓存 key 用 UTC 日期，凌晨 0–7 点 WIB 读到"昨天"）
+
+Work Log:
+- 用户提供最新生产诊断（证实 Task 35-f 已部署生效：lightning ✅ hidup 301ms、429 有完整 free-tier 文案、verdict 新文案正确）→ 无新 bug
+- 调查遗留老问题"办公室显示旧任务"：追查 ceo-agent route 的日缓存 key 生成
+- 根因确认：line 97 `utcDay()` = UTC 日期，而 Bos 在 WIB（UTC+7）。每天 00:00–06:59 WIB，UTC 日期仍是"昨天"→ `cmo:` draf 缓存 / `cso-cmo:` / `nba-verdict:` / `csmailed:` / `quota:` 等全部读昨天的 key → 办公室显示旧工作
+- 修复 4 个文件（全部日 key 统一 WIB 口径）：
+  1. `src/app/api/ceo-agent/route.ts` — `utcDay` → `wibDay`（+7h 偏移），30+ 调用点全换；NBA verdict 的 `p.at` 比较也转 WIB（atWibDay）
+  2. `src/app/api/discord-interactions/route.ts` — `/nba-oke`、`/nba-not` 写 verdict 改 WIB 日期（与 route 读取口径一致）
+  3. `src/lib/agent-proposals.ts` — 导出 `utcDay` → `wibDay`；CFO Putri 读 `quota429:` / `resend_sent:` 改 WIB（与 route 写入同 key 同口径）
+  4. `src/app/api/execute-action/route.ts` — import 改 `wibDay`；`resend_sent:` 计数改 WIB
+- 工具坑：eslint flat-config 单文件调用报 "no matching configuration"；tsc --noEmit 全量 OOM SIGKILL（sandbox 内存限制）→ 改用 bun 直接单测纯函数 + dev server 编译验证
+- 验证：bun 单测 wibDay 对照 Intl Asia/Jakarta（11 采样点 + UTC 16:59/17:01 翻转边界）全 OK；agent-proposals 导入正常、旧 utcDay 已移除；dev server 编译 4 route 全通过（ceo-agent 3.5s / discord-interactions / execute-action / 首页 200）
+
+Stage Summary:
+- 根因修复：所有"日"概念缓存/统计 key 从 UTC 改为 WIB 日期，凌晨 0–7 点不再读昨天的 draf/briefing/verdict
+- 兼容性：切换日一次性过渡（旧 UTC 命名缓存 miss → 自动重新生成 = 正是 Bos 想要的"看到新内容"）；WIB 白天 08:00–23:59 的历史 key 与 UTC 同名不受影响
+- 效果：Bos 凌晨打开办公室将看到当天新工作（缓存 miss 触发重生成），而非昨天的旧任务
+- 待 Bos 部署验证：明天凌晨 0–7 点 WIB 打开 /kantor-ceo，✍️ Draf / 🌅 Briefing 应显示当天内容
