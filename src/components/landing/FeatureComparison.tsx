@@ -74,7 +74,7 @@ const features: FeatureRow[] = [
   },
   {
     name: { id: 'Kalkulator Risiko & Posisi', en: 'Risk & Position Calculator' },
-    free: { type: 'cross' },
+    free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
@@ -84,7 +84,7 @@ const features: FeatureRow[] = [
   },
   {
     name: { id: 'Kalender Ekonomi', en: 'Economic Calendar' },
-    free: { type: 'cross' },
+    free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
@@ -114,7 +114,7 @@ const features: FeatureRow[] = [
   },
   {
     name: { id: 'Streak', en: 'Streaks' },
-    free: { type: 'cross' },
+    free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
@@ -124,7 +124,7 @@ const features: FeatureRow[] = [
   },
   {
     name: { id: 'Pencapaian', en: 'Achievements' },
-    free: { type: 'cross' },
+    free: { type: 'check' },
     pro: { type: 'check' },
   },
   {

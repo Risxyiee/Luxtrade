@@ -123,6 +123,9 @@ export default function VelaChartTerminal({
           timeframe: defaultTimeframe,
           live: true,
           theme: 'dark',
+          /* Branding Vela dimatikan via opsi resmi (bukan hack DOM) —
+             area chart bersih, fokus ke identitas Luxtradee */
+          watermark: false,
           /* Gaya candle Luxtradee: emerald naik / merah turun */
           upColor: '#10b981',
           downColor: '#ef4444',
@@ -263,8 +266,8 @@ export default function VelaChartTerminal({
       {/* ---------- Toolbar atas (di luar canvas — tidak menutupi UI Vela) ---------- */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-[11px] text-white/40 flex items-center gap-1.5">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Vela™ terminal · XAUUSD &amp; forex via data Luxtradee · crypto via Binance
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+          Luxtradee Trading Terminal · XAUUSD &amp; forex · data live
         </div>
         <div className="flex items-center gap-1.5">
           {pineQuota && (
@@ -305,7 +308,7 @@ export default function VelaChartTerminal({
           const active = !!activePresets[i]
           return (
             <button key={p.name} onClick={() => runPreset(i)} disabled={presetBusy !== null}
-              className={`text-[11px] px-2.5 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1 min-h-[32px] disabled:opacity-50 ${active ? 'border-emerald-400/40 bg-emerald-400/15 text-emerald-200' : 'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/10 hover:text-white'}`}
+              className={`text-[11px] px-2.5 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1 min-h-[32px] disabled:opacity-50 ${active ? 'border-purple-400/40 bg-purple-400/15 text-purple-200' : 'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/10 hover:text-white'}`}
               aria-label={`Tambah ${short} ke chart`}>
               {active ? '✓' : '+'} {short}
             </button>
@@ -322,8 +325,8 @@ export default function VelaChartTerminal({
 
         {booting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#05070d] gap-2">
-            <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
-            <div className="text-white/50 text-xs">Menyalakan mesin chart Vela…</div>
+            <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
+            <div className="text-white/50 text-xs">Menyalakan mesin chart…</div>
           </div>
         )}
         {bootError && (
@@ -341,26 +344,26 @@ export default function VelaChartTerminal({
         {pineOpen && (
           <div className="absolute right-2 top-2 bottom-2 w-[min(92vw,380px)] z-30 flex flex-col rounded-xl border border-white/10 bg-[#0a0f16]/95 backdrop-blur shadow-2xl">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-              <div className="text-xs font-semibold text-emerald-300">📐 Pine Script® Editor</div>
+              <div className="text-xs font-semibold text-purple-300">📐 Pine Script® Editor</div>
               <button className="text-white/40 hover:text-white" onClick={() => setPineOpen(false)} aria-label="Tutup editor"><X className="w-4 h-4" /></button>
             </div>
             <div className="px-3 py-2 space-y-2 flex-1 min-h-0 flex flex-col">
               <input
                 value={pineName} onChange={(e) => setPineName(e.target.value)}
                 placeholder="Nama skrip"
-                className="w-full text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+                className="w-full text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-purple-400/40"
               />
               <textarea
                 value={pineSource} onChange={(e) => setPineSource(e.target.value)}
                 spellCheck={false}
-                className="w-full flex-1 min-h-[160px] text-[11.5px] leading-relaxed font-mono bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-emerald-100/90 outline-none focus:border-emerald-400/40 resize-none kscroll"
+                className="w-full flex-1 min-h-[160px] text-[11.5px] leading-relaxed font-mono bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-purple-100/90 outline-none focus:border-purple-400/40 resize-none kscroll"
               />
               {pineMsg && (
                 <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${pineMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
                   {pineMsg.text}
                 </div>
               )}
-              <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold" disabled={pineBusy} onClick={pineSave}>
+              <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold" disabled={pineBusy} onClick={pineSave}>
                 {pineBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : '▶ Save / Compile ke Chart'}
               </Button>
               {pineQuota && !pineQuota.isPro && (

@@ -21,8 +21,8 @@ const VelaChartTerminal = dynamic(() => import('@/components/VelaChartTerminal')
   loading: () => (
     <div className="flex items-center justify-center h-[420px] rounded-2xl border border-white/5 bg-white/[0.02]">
       <div className="flex flex-col items-center gap-2">
-        <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        <span className="text-white/40 text-xs">Memuat Vela terminal…</span>
+        <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-white/40 text-xs">Memuat trading terminal…</span>
       </div>
     </div>
   ),
@@ -37,11 +37,8 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-emerald-400" />
-            Trading Chart
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-300 border border-emerald-400/20 align-middle">
-              Vela™
-            </span>
+            <TrendingUp className="w-6 h-6 text-purple-400" />
+            Luxtradee Trading Terminal
           </h2>
           <p className="text-white/60 text-sm">
             Terminal profesional — tekan <kbd className="px-1 rounded bg-white/10 text-[10px]">0</kbd> untuk ganti simbol, <kbd className="px-1 rounded bg-white/10 text-[10px]">1–9</kbd> untuk timeframe

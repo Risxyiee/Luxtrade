@@ -64,7 +64,7 @@ const plans: Plan[] = [
       'Analitik Mendalam & Equity Curve',
       'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
       'Alert Telegram & Pine Script® Tanpa Batas',
-      'Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+      'Heatmap, Analitik & Target Trading',
       'AI Insights, Trading Score, Weekly Report & Psikologi',
       'Ekspor Data ke CSV / PDF + Dukungan Prioritas'
     ],
@@ -87,7 +87,7 @@ const plans: Plan[] = [
       'Analitik Mendalam & Equity Curve',
       'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
       'Alert Telegram & Pine Script® Tanpa Batas',
-      'Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+      'Heatmap, Analitik & Target Trading',
       'AI Insights, Trading Score, Weekly Report & Psikologi',
       'Ekspor Data ke CSV / PDF + Dukungan Prioritas',
       'Hemat 2 Bulan vs Bulanan'

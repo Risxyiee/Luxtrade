@@ -26,9 +26,9 @@ const menuItems = [
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'pasar', proOnly: false },
   { id: 'chart', label: 'Live Chart', labelId: 'Chart Live', icon: CandlestickChart, category: 'pasar', proOnly: false },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'pasar', proOnly: false },
-  { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'pasar', proOnly: true, proType: 'gold' },
+  { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'pasar', proOnly: false },
 
-  { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
+  { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: false },
   { id: 'heatmap', label: 'Market Heatmap', labelId: 'Pasar Heatmap', icon: Grid3X3, category: 'alat', proOnly: true, proType: 'gold' },
   { id: 'analytics', label: 'Analytics', labelId: 'Analitik', icon: PieChart, category: 'alat', proOnly: true, proType: 'gold' },
   { id: 'targets', label: 'Targets', labelId: 'Target', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
@@ -36,9 +36,9 @@ const menuItems = [
   { id: 'ai', label: 'AI Insights', labelId: 'Insight AI', icon: Brain, category: 'lanjutan', proOnly: true, proType: 'cyan' },
   { id: 'score', label: 'Trading Score', labelId: 'Skor Trading', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'cyan' },
   { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan', icon: FileText, category: 'lanjutan', proOnly: true, proType: 'cyan' },
-  { id: 'streaks', label: 'Streaks', labelId: 'Streak', icon: Flame, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'streaks', label: 'Streaks', labelId: 'Streak', icon: Flame, category: 'lanjutan', proOnly: false },
   { id: 'psychology', label: 'Psychology', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'cyan' },
-  { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'lanjutan', proOnly: false },
   { id: 'community', label: 'Community', labelId: 'Komunitas', icon: Users, category: 'lanjutan', proOnly: false },
 ]
 

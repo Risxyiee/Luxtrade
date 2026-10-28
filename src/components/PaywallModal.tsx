@@ -68,7 +68,7 @@ export default function PaywallModal({
     '📊 In-Depth Win-Rate Charts & Mistake Tracker',
     '📈 All Chart Preset Indicators (EMA 20/50 + RSI 14 + VWAP)',
     '🔔 Unlimited Telegram Alerts & Pine Script®',
-    '🧮 Advanced Risk Calculator, Heatmap & Economic Calendar',
+    '🗺️ Market Heatmap, Analytics & Trading Targets',
     '📥 Free Data Export to CSV / PDF',
     '👑 Priority Support',
   ] : [
@@ -77,7 +77,7 @@ export default function PaywallModal({
     '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
     '📈 Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
     '🔔 Alert Telegram & Pine Script® Tanpa Batas',
-    '🧮 Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+    '🗺️ Heatmap, Analitik & Target Trading',
     '📥 Bebas Ekspor Data ke CSV / PDF',
     '👑 Dukungan Prioritas',
   ]
@@ -88,7 +88,7 @@ export default function PaywallModal({
     '📊 In-Depth Win-Rate Charts & Mistake Tracker',
     '📈 All Chart Preset Indicators (EMA 20/50 + RSI 14 + VWAP)',
     '🔔 Unlimited Telegram Alerts & Pine Script®',
-    '🧮 Advanced Risk Calculator, Heatmap & Economic Calendar',
+    '🗺️ Market Heatmap, Analytics & Trading Targets',
     '📥 Free Data Export to CSV / PDF',
     '👑 Priority Support',
   ] : [
@@ -97,7 +97,7 @@ export default function PaywallModal({
     '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
     '📈 Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
     '🔔 Alert Telegram & Pine Script® Tanpa Batas',
-    '🧮 Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+    '🗺️ Heatmap, Analitik & Target Trading',
     '📥 Bebas Ekspor Data ke CSV / PDF',
     '👑 Dukungan Prioritas',
   ]

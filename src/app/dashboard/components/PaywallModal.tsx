@@ -55,7 +55,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
         { icon: Zap, title: "Chart Vela™ Semua Preset Indikator", desc: "EMA 20/50 + RSI 14 + VWAP, Pine Script® tanpa batas" },
         { icon: Star, title: "Alert Telegram Tanpa Batas", desc: "Gratis 2×/hari — Pro kirim alert kapan saja" },
-        { icon: Shield, title: "Semua Tools Pro", desc: "Risk Calculator, Heatmap, Kalender Ekonomi, AI Insights, Trading Score" }
+        { icon: Shield, title: "Semua Tools Pro", desc: "Heatmap, Analitik, AI Insights, Trading Score, Laporan Mingguan" }
       ],
       price: {
         monthly: "Rp39.000",
@@ -84,7 +84,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload MT5/TradingView screenshot, AI auto-extracts data" },
         { icon: Zap, title: "Vela™ Chart — All Preset Indicators", desc: "EMA 20/50 + RSI 14 + VWAP, unlimited Pine Script®" },
         { icon: Star, title: "Unlimited Telegram Alerts", desc: "Free is 2×/day — Pro sends alerts anytime" },
-        { icon: Shield, title: "All Pro Tools", desc: "Risk Calculator, Heatmap, Economic Calendar, AI Insights, Trading Score" }
+        { icon: Shield, title: "All Pro Tools", desc: "Heatmap, Analytics, AI Insights, Trading Score, Weekly Report" }
       ],
       price: {
         monthly: "$2.49",
