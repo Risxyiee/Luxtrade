@@ -1989,3 +1989,25 @@ Stage Summary:
 - Free sekarang: Kalkulator Risiko, Kalender Ekonomi, Streak, Pencapaian (nav + isi tab + landing + modals selaras); tetap Pro: Heatmap, Analitik mendalam, Target, AI Insights, Trading Score, Weekly Report, Psikologi, unlimited alert/Pine, AI Vision
 - Vela = Luxtradee Trading Terminal: tanpa watermark Vela (opsi resmi), aksen ungu, dark tetap
 - SQL utk Bos (jalankan di Supabase SQL Editor, idempotent): docs/SUPABASE_QUOTA_TABLES.sql versi baru — memperbaiki "permission denied for table user_quotas" via GRANT eksplisit + policy drop/create ulang
+---
+Task ID: 41
+Agent: Z (main)
+Task: (A) Data feed forex/gold → OANDA + tambah Nasdaq US100 + update selector simbol; (B) Protected Custom Pine Script (source tak pernah ke browser) + alert Entry/SL/TP otomatis ke Telegram khusus Pro
+
+Work Log:
+- EKSPLORASI: Vela `addIndicator`/`runIndicator` WAJIB menerima source script → jalur aman = engine PineTS dijalankan HEADLESS di server (PineEngine.prepare + execute mode static + session.getContext(['plots','meta']) → snapshot.plots berisi {time,value} per key) — terbukti jalan di bun (320ms/120 bar), keys = title Pine, meta.overlay benar
+- ALERT ENGINE: event onAlert (alert() Pine) TIDAK terpicu pada static run (0 event di 120 bar) → solusi DUA JALUR: (1) engine alerts utk live bila ada, (2) alert_rules declaratif jsonb (cross_above/cross_below/above/below, a=close|plot_N, b=number|plot_N|close) dievaluasi server pada bar terakhir + alias stabil plot_0..N — unit test lolos (cross hanya bar terakhir = anti-spam by design)
+- (A1) src/lib/market/oanda.ts: client OANDA v20 REST server-only (XAU_USD dkk 12 instrumen, granularitas M5..W, price=M, OANDA_API_KEY + OANDA_ENV practice/live, fetch candle incl. forming bar, tanpa key → null = fallback cascade lama tanpa risiko)
+- (A2) /api/forex: OANDA = SUMBER PRIMER sebelum TwelveData/AlphaVantage/Yahoo (cache mem+KV sama); US100 masuk FOREX_SYMBOLS + alias US100/NAS100/USTEC/NDX/NASDAQ; commodityYahooSymbols + 'US100':'NQ=F' (futures ≈ CFD, hampir 24 jam); FIX PENTING: validatePrice menolak US100 (rentang forex 0.1–100) → rentang khusus indeks 1.000–100.000
+- (A3) LuxtradeeProvider: SYMBOLS + {ticker:'US100', type:'index', group:'INDICES'} → otomatis muncul di symbol search Vela; toolbar: "Forex & Gold via OANDA · US100 · Crypto"
+- (B1) docs/PROTECTED_SCRIPTS.sql (idempotent): protected_scripts (source RAHASIA; RLS tanpa policy + REVOKE dari anon/authenticated → hanya service role) + pine_alert_log (UNIQUE user+script+symbol+signal+bar_time = anti-spam per-bar) + seed contoh 'ltx-sniper-ema' (EMA21/55+ATR SL/TP + alert() + fallback rules)
+- (B2) src/lib/pine-protected.ts: runPineHeadless (timeout 15s, polling getContext, judul & warna dari deklarasi Pine via scanPlotColors) + evaluateAlertRules + sendTelegramToUser + formatSignalMessage (HTML, WIB, ikon per sinyal)
+- (B3) /api/compile-pine: GET daftar skrip (id/slug/nama/deskripsi SAJA — tanpa source) + isPro; POST: auth → readIsPro (403 upgrade bila free, dicek SEBELUM skrip dimuat) → load service-role → fetchServerCandles (OANDA→Yahoo→Binance, 300 bar) → headless run → detectAndDispatch (engine alerts bar-terakhir + rules; dedupe pine_alert_log ignoreDuplicates + memDedupe 5 menit; kirim Telegram ke profiles.telegram_chat_id) → respons plots SAJA
+- (B4) VelaChartTerminal: registerNativeIndicator('luxtradee-protected', multiInstance, price-pane) — instance fetch /api/compile-pine per (scriptId,symbol,tf), cache 45s (refetch ini sekaligus LOOP LISTENER alert server), emit series line index-aligned ctx.bars() via ctx.emit; chips baris "Eksklusif": Pro = 🛡️ aktifkan, Free = 🔒 PRO → dialog upgrade
+- UJI LOKAL: lint bersih; bun test headless (plot+judul+warna asli Pine ✅, rules ✅, format TG ✅); /api/forex XAUUSD ✅ cascade, US100 1h+1d ✅ (yahoo NQ=F ~29.9rb, setelah fix validatePrice); compile-pine GET dgn sesi → {isPro:false,scripts:[]} ✅, POST sesi free → 403 upgrade:true ✅ (gate sebelum muat skrip); chart boot normal dgn registrasi native + teks OANDA ✅ (2×); dev.log hanya error Prisma sandbox lama
+
+Stage Summary:
+- ARSITEKTUR KEAMANAN: source Pine master hanya di Supabase (service role); server compile → kirim angka plot; client gambar via native indicator; TIDAK ada tab editor utk skrip proteksi; Free diblokir 403 server-side (bukan sekadar UI)
+- ALERT: sinyal Entry/SL/TP → Telegram real-time-ish (poll 45s chart aktif) dedupe per-bar (UNIQUE index + mem); user Pro tanpa telegram_chat_id dilewati tanpa error
+- YANG DIPERLUKAN BOS UTK PRODUCTION: (1) jalankan docs/PROTECTED_SCRIPTS.sql di Supabase; (2) set env OANDA_API_KEY (+OANDA_ENV) di Cloudflare; (3) skrip master diisi via SQL (protected_scripts); (4) user Pro wajib hubungkan Telegram (settings/telegram)
+- CATATAN JUJUR: render chip Eksklusif di chart belum terverifikasi penuh di sandbox (butuh service-role key + akun Pro + SQL); seluruh rantai lain (engine, API, gate, candle, alert format, dedupe) teruji
