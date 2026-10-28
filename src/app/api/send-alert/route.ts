@@ -25,6 +25,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import {
   checkAlertQuota, commitAlertQuota,
   alertQuotaExceededMessage,
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
       used: q.isPro ? 0 : q.alerts_today_count,
       limit: q.isPro ? null : FREE_ALERT_LIMIT_PER_DAY,
       remaining: q.isPro ? null : Math.max(0, FREE_ALERT_LIMIT_PER_DAY - q.alerts_today_count),
+      chatBound: q.chatBound === true,
     })
   } catch (x: any) {
     return NextResponse.json({ error: String(x?.message || x).slice(0, 140) }, { status: 500 })
@@ -77,12 +79,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    /* 2) KIRIM ke Telegram Bot API */
+    /* 2) KIRIM ke Telegram Bot API
+       Tujuan (Task 37): body.chatId (override manual) > profiles.telegram_chat_id
+       (halaman /dashboard/settings/telegram) > env TELEGRAM_CHAT_ID (default Bos) */
     const token = envOr('TELEGRAM_BOT_TOKEN')
-    const chatId = String(body?.chatId || '').trim() || envOr('TELEGRAM_CHAT_ID')
+    let chatId = String(body?.chatId || '').trim()
+    if (!chatId) {
+      try {
+        const supabase = getSupabaseAdmin()
+        if (supabase) {
+          const { data } = await supabase.from('profiles').select('telegram_chat_id').eq('id', userId).maybeSingle()
+          chatId = String(data?.telegram_chat_id || '').trim()
+        }
+      } catch { /* kolom belum ada / admin null → lanjut ke env */ }
+    }
+    if (!chatId) chatId = envOr('TELEGRAM_CHAT_ID')
     if (!token || !chatId) {
       return NextResponse.json(
-        { error: 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID belum diset — Cloudflare → Workers & Pages → Settings → Variables & Secrets → Add (Token dari @BotFather, Chat ID dari @userinfobot) → Deploy ulang' },
+        { error: 'Chat ID Telegram belum terpasang — atur di /dashboard/settings/telegram (atau set env TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID untuk default semua user)' },
         { status: 503 },
       )
     }
