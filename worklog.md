@@ -2042,3 +2042,26 @@ Stage Summary:
 - ARSITEKTUR: /api/candles (TD primary + Yahoo fallback) → LuxtradeeForexProvider (DataProvider Vela) → chart; crypto = BinanceProvider native websocket; WatchlistTab tetap /api/forex (Yahoo); compile-pine tetap Yahoo→Binance
 - KEAMANAN: TWELVE_DATA_API_KEY hanya dibaca server (route/lib); tidak ada key di bundle client; tanpa key pun chart tetap jalan (fallback keyless) → mustahil 401 di client
 - CATATAN JUJUR: screenshot visual chart gagal di-capture (sandbox mematikan server terus; screenshot terakhir menangkap halaman error server-mati) — render terbukti via DOM polling (7 canvas + toolbar true) & dev.log, bukan gambar
+
+## Task 42-FINAL (sesi lanjutan) — Datafeed Vela 100% KEYLESS (hapus total jalur keyed, arahan Bos: "batalkan OANDA, pakai native/keyless")
+
+PERUBAHAN (melengkapi parsial sesi sebelumnya yang masih TD-primary):
+- /api/candles: REWRITE total — jalur Twelve Data (TWELVE_DATA_API_KEY) DIHAPUS; sumber tunggal Yahoo Finance publik; kontrak respons identik (source: 'yahoo-finance', tanpa field note fallback)
+- live-market.ts: sisa fetchTwelveDataPrice dihapus → urutan sumber keyless: Yahoo → Binance → CoinGecko
+- yahoo.ts: HARDENING — fallback host otomatis query1 → query2 (anti blokir edge/crumb datacenter); alur per-host continue + null jujur di akhir
+- LuxtradeeProvider.ts: header docs keyless; getBars kini normalizeSymbol (alias NASDAQ/NAS100/USTEC/GOLD/XAU/USD/"EUR/USD" → kanonik); guard ticker kosong (default EURUSD normalizeSymbol TIDAK boleh nyala untuk simbol tak dikenal)
+- VelaChartTerminal.tsx: providers config { binance: BinanceProvider NATIVE @luxalgo/vela (websocket publik), luxtradee: keyless FX/Gold/Silver/US100 }; header docs "DATAFEED Task 42 — bersih dari OANDA & API key eksternal"
+- server-candles.ts + /api/forex + ChartTab: komentar disinkronkan (hapus semua sebutan Twelve Data/OANDA)
+- (warisan auto-commit sesi sebelumnya ikut ter-commit): src/lib/market/oanda.ts DIHAPUS (-164), /api/forex refactor ke lib bersama, compile-pine/pine-protected kecil
+
+UJI (semua hijau):
+- lint bersih
+- curl /api/candles: XAUUSD 1h ✅ (~4058, source yahoo-finance, TANPA field note = jalur TD benar-benar mati), alias NASDAQ→US100 ✅ (~29.914 via NQ=F), EURUSD 15m ✅ (1.1128)
+- rg "oanda|TWELVE_DATA|twelvedata" src/ → 0 referensi kode (hanya teks worklog/docs)
+- E2E /test-vela (halaman test sementara, SUDAH DIHAPUS lagi): 7 canvas WebGL ✅; XAUUSD 1h live @4057.8 ✅; polling /api/candles ±3s semua 200 ✅; symbol search: kategori Crypto (BTCUSDT/BINANCE native) + Forex (XAUUSD) + US100 "Nasdaq 100 — US Tech 100 (NASDAQ/NAS100)" ✅; klik US100 → chart pindah + candle 200 + legend LUXTRADEE ✅; NOL page error ✅
+- 401 yang terlihat di network HANYA /api/pine/save, /api/send-alert, /api/compile-pine saat ANONIM (wajib login — by design, badge kuota disembunyikan) — BUKAN dari API data eksternal; dev.log NOL 401 eksternal ✅
+
+CATATAN UTK BOS:
+- Tidak perlu env/key apa pun lagi untuk chart: crypto = Binance websocket publik (native @luxalgo/vela), FX/Gold/Silver/US100 = Yahoo publik via server proxy. TWELVE_DATA_API_KEY boleh dihapus dari Cloudflare env (tidak dipakai)
+- Paket @luxalgo/vela hanya menyertakan provider crypto native (Binance/Coinbase/Hyperliquid) — datafeed "TradingView" tidak ada di paket; FX/Gold/US100 memakai port DataProvider Vela yang sama via feed keyless Luxtradee
+- Screenshot bukti: .e2e/42-vela-keyless.png (XAUUSD) + .e2e/42-vela-us100.png (US100)

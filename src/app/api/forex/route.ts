@@ -3,8 +3,8 @@
  * GET /api/forex — candle OHLC forex / gold / US100 (keyless)
  * ============================================================
  * DIPAKAI OLEH: WatchlistTab (polling harga limit=1) & panel lain.
- * Datafeed CHART VELA kini lewat /api/candles (Twelve Data
- * primary + fallback route ini tetap Yahoo keyless).
+ * Datafeed CHART VELA lewat /api/candles — juga Yahoo keyless
+ * (Task 42: seluruh datafeed 100% keyless, tanpa API keyed).
  *
  * SATU SUMBER DATA: Yahoo Finance chart API (publik, GRATIS,
  * TANPA API KEY) → mustahil kena 401 Unauthorized. Logika fetch
