@@ -173,7 +173,7 @@ function scheduleBrowserNotification(title: string, body: string, dateTime: stri
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTabProps) {
+function EconomicCalendarTab({ language }: EconomicCalendarTabProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [calLoading, setCalLoading] = useState(true)
   const [calFilter, setCalFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
@@ -307,24 +307,6 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
       .filter(e => e.impact === 'high' && new Date(e.dateTime).getTime() > nowMs)
       .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())[0] || null
   }, [events])
-
-  // ─── Paywall for free users ──────────────────────────────────────────────
-  if (!isPro) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center mb-4">
-          <CalendarDays className="w-8 h-8 text-white" />
-        </div>
-        <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
-        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">
-          {language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}
-        </p>
-        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
-          {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
-        </button>
-      </div>
-    )
-  }
 
   const L = language === 'id'
   const t = {

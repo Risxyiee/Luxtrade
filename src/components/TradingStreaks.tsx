@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Flame,
   Trophy,
@@ -10,13 +10,10 @@ import {
   Award,
   Target,
   TrendingUp,
-  Zap,
   Calendar,
-  Lock,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 
 // ---------------------------------------------------------------------------
@@ -278,37 +275,11 @@ function EmptyState() {
   )
 }
 
-function UpgradeOverlay({ onUpgrade }: { onUpgrade: () => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-[#080b12]/80 backdrop-blur-md"
-    >
-      <Lock className="mb-3 h-8 w-8 text-amber-400" />
-      <p className="mb-1 text-lg font-semibold text-white">
-        Pro Feature
-      </p>
-      <p className="mb-5 max-w-xs text-center text-sm text-white/60">
-        Unlock streaks, achievements &amp; performance insights with LuxTradee
-        Pro.
-      </p>
-      <Button
-        onClick={onUpgrade}
-        className="bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-black hover:from-amber-400 hover:to-orange-400"
-      >
-        <Zap className="mr-1.5 h-4 w-4" />
-        Upgrade to Pro
-      </Button>
-    </motion.div>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function TradingStreaks({ trades, isPro, onUpgrade }: TradingStreaksProps) {
+export default function TradingStreaks({ trades }: TradingStreaksProps) {
   const days = useMemo(() => groupByDay(trades), [trades])
   const stats = useMemo(() => computeStreaks(days), [days])
   const heatmap = useMemo(() => buildHeatmap(days), [days])
@@ -606,20 +577,6 @@ export default function TradingStreaks({ trades, isPro, onUpgrade }: TradingStre
           )}
         </CardContent>
       </Card>
-
-      {/* Pro upgrade overlay */}
-      <AnimatePresence>
-        {!isPro && trades.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10"
-          >
-            <UpgradeOverlay onUpgrade={onUpgrade} />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

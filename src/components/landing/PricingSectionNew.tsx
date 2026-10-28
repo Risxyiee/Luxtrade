@@ -116,6 +116,7 @@ export default function PricingSectionNew({
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Telegram Alerts 2×/day' : 'Alert Telegram 2×/hari'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Pine Script® 2×/month' : 'Pine Script® 2×/bulan'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Prop Firm Guard & Calendar' : 'Prop Firm Guard & Kalender'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Risk Calculator, Economic Calendar, Streaks & Achievements' : 'Kalkulator Risiko, Kalender Ekonomi, Streak & Pencapaian'}</li>
               <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Vision Auto-Journal (PRO)' : 'AI Vision Auto-Journal (PRO)'}</li>
             </ul>
             <Link prefetch={false} href="/auth/signup">
@@ -201,7 +202,7 @@ export default function PricingSectionNew({
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Advanced Analytics & Equity Curve' : 'Analitik Lanjutan & Equity Curve'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'All Chart Preset Indicators (EMA 20/50 + RSI 14 + VWAP)' : 'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Telegram Alerts & Pine Script®' : 'Alert Telegram & Pine Script® Tanpa Batas'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Risk Calculator, Heatmap & Economic Calendar' : 'Kalkulator Risiko, Heatmap & Kalender Ekonomi'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Market Heatmap, Analytics & Trading Targets' : 'Heatmap, Analitik & Target Trading'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Insights, Trading Score, Weekly Report & Psychology' : 'AI Insights, Trading Score, Laporan Mingguan & Psikologi'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'CSV & PDF Export + Priority Support' : 'Ekspor CSV & PDF + Dukungan Prioritas'}</li>
               </ul>
