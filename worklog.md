@@ -1850,3 +1850,20 @@ Stage Summary:
 - 兼容性：切换日一次性过渡（旧 UTC 命名缓存 miss → 自动重新生成 = 正是 Bos 想要的"看到新内容"）；WIB 白天 08:00–23:59 的历史 key 与 UTC 同名不受影响
 - 效果：Bos 凌晨打开办公室将看到当天新工作（缓存 miss 触发重生成），而非昨天的旧任务
 - 待 Bos 部署验证：明天凌晨 0–7 点 WIB 打开 /kantor-ceo，✍️ Draf / 🌅 Briefing 应显示当天内容
+---
+Task ID: 35-h
+Agent: Z (main)
+Task: SOP Bos — Maya (CSO) 分两群发邮件：A=曾上传但休眠（召回邮件）、B=从未上传（激活邮件），masing-masing 各自文案
+
+Work Log:
+- 摸清现有流程：sendPassiveEmails 只给"pasif >24jam"一类用户发 1 封通用 draf（personalLine 只是开头个性化）
+- 新增 NEVER_UPLOADED_VARIANTS（3 个静态 fallback 模板，B 组专用）
+- 重构 sendPassiveEmails：tradeMap 提前构建 → 分群 A dormant（有 trade 记录，maks 30）/ B never（无 trade 且账龄 ≥3 天，maks 20）→ Maya LLM 2 次并行调用（各自 prompt：A=怀念/价值唤回，B=去陌生化/第一步引导）→ 发送循环按组取各自 draf
+- acc-email case 返回 sentDormant/sentNever + Discord 回复分组文案；AUTO-ACC 文案带分组；memAdd 记录两群两 draf
+- UI（RuangCeoDashboard）：按钮 "📧 ACC EMAIL ke User Pasif"→"📧 ACC EMAIL ke 2 Grup User" + 描述 "2 grup, draf beda" + ACC 结果显示 "(X vakum + Y belum upload, draf beda)" + AUTO-ACC 描述 + TEAM_DETAIL CSO tugas 更新
+- 验证：编译全通过（/kantor-ceo 200、/api/ceo-agent OK）；agent-browser 实测（教训再次确认：跨命令 server 被杀，必须单命令全链路）CSO 面板新按钮/描述渲染确认
+
+Stage Summary:
+- Maya 现在每天两类用户各收各的邮件：休眠用户收"怀念+jurnal价值"，从未上传用户收"第一步引导"（各自 LLM draf + 各自静态 fallback）
+- 限额不变：总 maks 50（A30+B20），Resend free 100/天安全；<3 天新注册不打扰；csmailed 反馈回路照旧
+- 待 Bos 部署验证：点 📧 ACC EMAIL → Discord 应显示 "X email terkirim ke 2 grup — A user vakum + B belum pernah upload"
