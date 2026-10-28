@@ -1,230 +1,56 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+/**
+ * ============================================================
+ * ChartTab — DITOTAL-GANTI dengan Vela™ by LuxAlgo (Task 36)
+ * ============================================================
+ * Chart lama (lightweight-charts CandlestickChart + selector
+ * manual) digantikan VelaChartTerminal: workspace penuh dengan
+ * symbol search, timeframe bar, 70+ indikator bawaan, drawing
+ * tools, Pine Script® editor (kuota free 2×/bulan) dan panel
+ * Alert Telegram (kuota free 2×/hari).
+ *
+ * Data XAUUSD/forex tetap dari /api/forex (via LuxtradeeForexProvider).
+ */
+
 import dynamic from 'next/dynamic'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 
-interface CandlestickData {
-  time: number | string
-  open: number
-  high: number
-  low: number
-  close: number
-}
-
-const CandlestickChart = dynamic(() => import('@/components/CandlestickChart'), {
-  ssr: false,
+const VelaChartTerminal = dynamic(() => import('@/components/VelaChartTerminal'), {
+  ssr: false, // Vela menyentuh WebGL/canvas sejak konstruktor — wajib client-only
   loading: () => (
-    <div className="flex items-center justify-center h-[400px]">
-      <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+    <div className="flex items-center justify-center h-[420px] rounded-2xl border border-white/5 bg-white/[0.02]">
+      <div className="flex flex-col items-center gap-2">
+        <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-white/40 text-xs">Memuat Vela terminal…</span>
+      </div>
     </div>
-  )
+  ),
 })
 
-const symbols = [
-  { symbol: 'XAUUSD', name: 'Gold', icon: '🥇' },
-  { symbol: 'XAGUSD', name: 'Silver', icon: '🥈' },
-  { symbol: 'EURUSD', name: 'EUR/USD', icon: '🇪🇺🇸' },
-  { symbol: 'GBPUSD', name: 'GBP/USD', icon: '🇬🇧' },
-  { symbol: 'USDJPY', name: 'USD/JPY', icon: '🇺🇸🇯🇵' },
-  { symbol: 'EURGBP', name: 'EUR/GBP', icon: '🇪🇧🇧' },
-  { symbol: 'EURJPY', name: 'EUR/JPY', icon: '🇪🇯🇵' },
-  { symbol: 'GBPJPY', name: 'GBP/JPY', icon: '🇬🇧🇯🇵' },
-  { symbol: 'AUDUSD', name: 'AUD/USD', icon: '🇦🇺🇸' },
-  { symbol: 'NZDUSD', name: 'NZD/USD', icon: '🇳🇿🇺🇸' },
-  { symbol: 'USDCAD', name: 'USD/CAD', icon: '🇺🇸🇨🇦' },
-  { symbol: 'USDCHF', name: 'USD/CHF', icon: '🇺🇸🇨🇭' },
-]
-
-const intervals = ['m5', 'm15', '1h', '4h', '1d', '1w']
-
-interface ChartTabProps {
-  isPro?: boolean
-}
-
-export default function ChartTab({ isPro = false }: ChartTabProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD')
-  const [selectedInterval, setSelectedInterval] = useState('1h')
-  const [chartError, setChartError] = useState<string | null>(null)
-  const [chartData, setChartData] = useState<CandlestickData[]>([])
-
-  // Track current request to avoid stale responses
-  const requestIdRef = useRef(0)
-  const isFetchingRef = useRef(false)
-
-  // Single fetch function
-  const loadChart = async (symbol: string, interval: string) => {
-    if (isFetchingRef.current) return
-    isFetchingRef.current = true
-
-    const thisRequestId = ++requestIdRef.current
-    setIsLoading(true)
-    setChartError(null)
-
-    try {
-      // Higher timeframes need more candles; M5/M15 need cache-busting for fresh data
-      const limitMap: Record<string, number> = { 'm5': 100, 'm15': 100, '1h': 100, '4h': 100, '1d': 100, '1w': 52 }
-      const limit = limitMap[interval] || 100
-      // M5/M15: add timestamp to bust cache so we always get fresh candles
-      const bustCache = (interval === 'm5' || interval === 'm15') ? `&_t=${Date.now()}` : ''
-      // Map m5/m15 to API format (5m/15m)
-      const apiInterval = interval === 'm5' ? '5m' : interval === 'm15' ? '15m' : interval
-      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${apiInterval}&limit=${limit}${bustCache}`)
-
-      // Stale check
-      if (thisRequestId !== requestIdRef.current) return
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-      const result = await res.json()
-      const apiData = result?.data || []
-
-      if (thisRequestId !== requestIdRef.current) return
-
-      if (apiData.length > 0) {
-        setChartData(apiData)
-      } else if (result.error) {
-        throw new Error(result.error)
-      } else {
-        throw new Error('No data')
-      }
-    } catch (err) {
-      if (thisRequestId !== requestIdRef.current) return
-      setChartError(err instanceof Error ? err.message : 'Failed to load chart')
-    } finally {
-      if (thisRequestId === requestIdRef.current) {
-        setIsLoading(false)
-      }
-      isFetchingRef.current = false
-    }
-  }
-
-  // Fetch on mount + symbol/interval change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadChart(selectedSymbol, selectedInterval)
-    }, 200)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, selectedInterval])
-
-  const handleRefresh = () => {
-    isFetchingRef.current = false
-    loadChart(selectedSymbol, selectedInterval)
-  }
-
+/* TabContent lama masih mem-passing `isPro` — diterima tapi tak dipakai:
+   kuota kini dicek SERVER-SIDE per-aksi (/api/pine/save & /api/send-alert). */
+export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-cyan-400" />
+            <TrendingUp className="w-6 h-6 text-emerald-400" />
             Trading Chart
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-300 border border-emerald-400/20 align-middle">
+              Vela™
+            </span>
           </h2>
           <p className="text-white/60 text-sm">
-            {selectedSymbol} &middot; {selectedInterval}
+            Terminal profesional — tekan <kbd className="px-1 rounded bg-white/10 text-[10px]">0</kbd> untuk ganti simbol, <kbd className="px-1 rounded bg-white/10 text-[10px]">1–9</kbd> untuk timeframe
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isLoading}>
-          {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-        </Button>
       </div>
 
-      {/* Symbol Selector */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-white/60 mb-2">GOLD & METALS</h3>
-          <div className="flex flex-wrap gap-2">
-            {symbols.filter(s => ['XAUUSD', 'XAGUSD'].includes(s.symbol)).map((s) => (
-              <Button
-                key={s.symbol}
-                size="sm"
-                variant={selectedSymbol === s.symbol ? 'default' : 'outline'}
-                onClick={() => setSelectedSymbol(s.symbol)}
-                disabled={isLoading}
-                className="text-xs"
-              >
-                <span className="mr-1">{s.icon}</span> {s.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-white/60 mb-2">MAJOR FOREX PAIRS</h3>
-          <div className="flex flex-wrap gap-2">
-            {symbols.filter(s => !['XAUUSD', 'XAGUSD'].includes(s.symbol)).slice(0, 6).map((s) => (
-              <Button
-                key={s.symbol}
-                size="sm"
-                variant={selectedSymbol === s.symbol ? 'default' : 'outline'}
-                onClick={() => setSelectedSymbol(s.symbol)}
-                disabled={isLoading}
-                className="text-xs"
-              >
-                <span className="mr-1">{s.icon}</span> {s.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Interval Selector */}
-      <div className="flex gap-2 items-center flex-wrap">
-        <span className="text-white/60 text-sm">TF:</span>
-        {intervals.map((interval) => (
-          <Button
-            key={interval}
-            size="sm"
-            variant={selectedInterval === interval ? 'default' : 'outline'}
-            onClick={() => setSelectedInterval(interval)}
-            disabled={isLoading}
-            className="text-xs"
-          >
-            {interval}
-          </Button>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative overflow-hidden">
-        {chartError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070a10]/90 rounded-lg z-10">
-            <AlertTriangle className="w-10 h-10 text-red-400 mb-3" />
-            <p className="text-white font-semibold mb-1">Chart Error</p>
-            <p className="text-white/60 text-sm mb-3">{chartError}</p>
-            <Button size="sm" onClick={() => { setChartError(null); handleRefresh() }}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Retry
-            </Button>
-          </div>
-        )}
-
-        {!chartError && isLoading && chartData.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#070a10]/90 rounded-lg z-10">
-            <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
-          </div>
-        )}
-
-        {chartData.length > 0 ? (
-          <CandlestickChart data={chartData as any} containerClassName="w-full" />
-        ) : !isLoading && !chartError ? (
-          <div className="flex items-center justify-center h-[400px] text-white/40 text-sm">
-            Select a symbol to load chart
-          </div>
-        ) : null}
-      </div>
-
-      {/* Info Badges */}
-      <div className="flex gap-3 flex-wrap">
-        <Badge className="bg-blue-500/20 text-cyan-400">{selectedSymbol}</Badge>
-        <Badge className="bg-emerald-500/20 text-emerald-400">{selectedInterval}</Badge>
-        {chartData.length > 0 && (
-          <Badge className="bg-cyan-500/20 text-cyan-400">{chartData.length} candles</Badge>
-        )}
-      </div>
+      {/* Vela terminal (chart + Pine editor + Alert Telegram) */}
+      <VelaChartTerminal defaultSymbol="XAUUSD" defaultTimeframe="60" />
     </div>
   )
 }
