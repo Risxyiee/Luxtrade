@@ -28,6 +28,8 @@ import {
   fetchServerCandles,
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
+import { ensureDefaultScript } from '@/lib/pine-default-script'
+import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +77,9 @@ export async function GET(request: NextRequest) {
     const isPro = await readIsPro(auth.user.id)
 
     const supabase = getSupabaseAdmin()
+    /* Auto-seed skrip default (Impulsive Breakout XAUUSD v4) —
+       tanpa SQL manual: user free pun langsung melihat chip-nya. */
+    try { await ensureDefaultScript() } catch { /* best-effort */ }
     let scripts: Array<{ id: string; slug: string; name: string; description: string | null }> = []
     if (supabase) {
       const { data, error } = await supabase
@@ -101,14 +106,12 @@ export async function POST(request: NextRequest) {
     if (!auth?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = auth.user.id
 
-    /* 2) GATE PRO — wajib is_pro true (kedaluwarsa ikut dicek) */
+    /* 2) GATE AKSES:
+       - Skrip DEFAULT (Impulsive Breakout XAUUSD v4): SEMUA user
+         boleh MENJALANKAN untuk MELIHAT (permintaan Bos — free
+         hanya bisa liat). Notifikasi Telegram tetap khusus Pro.
+       - Skrip terproteksi lain: Pro saja. */
     const isPro = await readIsPro(userId)
-    if (!isPro) {
-      return NextResponse.json({
-        error: 'Indikator terproteksi Luxtradee khusus member Pro. Upgrade untuk mengaktifkan skrip sinyal eksklusif ini.',
-        upgrade: true,
-      }, { status: 403 })
-    }
 
     /* 3) BODY */
     const body = await request.json().catch(() => null) as
@@ -127,7 +130,15 @@ export async function POST(request: NextRequest) {
     const { data: row, error: rowErr } = await q.maybeSingle() as { data: ProtectedScriptRow | null; error: any }
     if (rowErr || !row) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
 
-    /* 5) CANDLE SERVER (Yahoo → Binance — keyless, tanpa API key) */
+    const isDefault = row.slug === DEFAULT_PINE_SLUG
+    if (!isPro && !isDefault) {
+      return NextResponse.json({
+        error: 'Indikator terproteksi Luxtradee khusus member Pro. Upgrade untuk mengaktifkan skrip sinyal eksklusif ini.',
+        upgrade: true,
+      }, { status: 403 })
+    }
+
+    /* 5) CANDLE SERVER (TradingView → Finnhub → TwelveData → Yahoo) */
     const cd = await fetchServerCandles(symbol, interval, 300)
     if (!cd) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })
@@ -138,20 +149,29 @@ export async function POST(request: NextRequest) {
     if (!run.ok || !run.plots?.length) {
       return NextResponse.json({ error: run.error || 'Skrip tidak menghasilkan plot' }, { status: 422 })
     }
+    /* Plot helper (prefix _) = state utk alert_rules — JANGAN dikirim
+       ke chart; evaluasi rules tetap pakai plots lengkap di bawah. */
+    const visiblePlots = run.plots.filter((p) => !p.key.startsWith('_'))
+    if (!visiblePlots.length) {
+      return NextResponse.json({ error: 'Skrip tidak menghasilkan plot' }, { status: 422 })
+    }
 
-    /* 7) ALERT — deteksi sinyal Entry/SL/TP + kirim Telegram (dedupe per-bar) */
-    const signalsSent = await detectAndDispatch({
-      userId, script: row, symbol, interval,
-      plots: run.plots, bars: cd.bars,
-      engineAlerts: run.engineAlerts || [],
-    })
+    /* 7) ALERT — hanya user Pro (free hanya lihat, tanpa notifikasi).
+       Dedupe per-bar via pine_alert_log. */
+    const signalsSent = isPro
+      ? await detectAndDispatch({
+          userId, script: row, symbol, interval,
+          plots: run.plots, bars: cd.bars,
+          engineAlerts: run.engineAlerts || [],
+        })
+      : 0
 
     /* 8) RESPONS — plots SAJA. Tanpa source. Tanpa editor. */
     return NextResponse.json({
       success: true,
-      isPro: true,
+      isPro,
       meta: { title: run.title || row.name, overlay: run.overlay !== false, source: cd.source },
-      plots: run.plots,
+      plots: visiblePlots,
       signalsSent,
       fetchedAt: new Date().toISOString(),
     })

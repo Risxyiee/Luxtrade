@@ -13,12 +13,13 @@
  * chart Vela tetap satu aplikasi penuh (symbol search,
  * multi-timeframe, live) untuk multi-asset.
  *
- * ROUTING DATAFEED (Task 42 — tanpa OANDA):
- *   - Forex / Gold / Silver / Nasdaq (US100) → /api/candles
- *     (Twelve Data spot → Yahoo keyless fallback; alias
- *     NASDAQ, NAS100, GOLD, XAU/USD, … dinormalisasi otomatis)
- *   - Crypto (BTCUSDT, ETHUSDT, …) → BinanceProvider NATIVE Vela
- *     (REST + websocket publik) — di-wire di VelaChartTerminal.tsx
+ * ROUTING DATAFEED (Task 42 + urutan baru — BINANCE DIBUANG):
+ *   - Forex / Gold / Silver / Nasdaq (US100) / Crypto → /api/candles
+ *     (TradingView keyless → Finnhub → Twelve Data spot → Yahoo
+ *     keyless; alias NASDAQ, NAS100, GOLD, XAU/USD, BTC, …
+ *     dinormalisasi otomatis)
+ *   - BINANCE PROVIDER DIBUANG (keputusan Bos) — semua simbol
+ *     dilayani feed Luxtradee via /api/candles.
  *
  * Vela memanggil:
  *   getBars(ticker, timeframe, range)  → sejarah candle (wajib)
@@ -61,6 +62,17 @@ const SYMBOLS: SymbolDescriptor[] = [
   { ticker: 'NZDUSD', description: 'New Zealand Dollar / US Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'USDCAD', description: 'US Dollar / Canadian Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'USDCHF', description: 'US Dollar / Swiss Franc', type: 'forex', group: 'MAJOR' },
+  // Crypto (via TradingView BINANCE:* → Yahoo BTC-USD — tanpa key, tanpa BinanceProvider)
+  { ticker: 'BTCUSDT', description: 'Bitcoin / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'ETHUSDT', description: 'Ethereum / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'SOLUSDT', description: 'Solana / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'XRPUSDT', description: 'XRP / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'DOGEUSDT', description: 'Dogecoin / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'ADAUSDT', description: 'Cardano / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'LTCUSDT', description: 'Litecoin / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'BNBUSDT', description: 'BNB / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'LINKUSDT', description: 'Chainlink / USDT', type: 'crypto', group: 'CRYPTO' },
+  { ticker: 'AVAXUSDT', description: 'Avalanche / USDT', type: 'crypto', group: 'CRYPTO' },
 ]
 
 const SYMBOL_SET = new Set(SYMBOLS.map((s) => s.ticker))

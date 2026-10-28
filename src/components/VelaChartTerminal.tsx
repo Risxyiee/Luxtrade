@@ -8,22 +8,17 @@
  * search, timeframe, indikator bawaan 70+, drawing tools), tema
  * gelap elegan ala Luxtradee.
  *
- * DATAFEED (Task 42 — bersih dari OANDA, spot-grade dulu):
- *   - Crypto (BTCUSDT, ETHUSDT, …)
- *       → BinanceProvider NATIVE bawaan paket @luxalgo/vela
- *         (REST + websocket publik Binance — datafeed standar)
- *   - Forex / Gold (XAUUSD) / Silver / Nasdaq (US100)
- *       → LuxtradeeForexProvider — interface DataProvider Vela
- *         yang sama; via /api/candles dengan rantai sumber:
- *         Twelve Data SPOT (XAU/USD dkk — paling dekat feed
- *         broker, TWELVE_DATA_API_KEY) → Yahoo keyless fallback
- *         (TANPA key Yahoo apa pun → chart tak pernah mati 401)
- *   Catatan: paket @luxalgo/vela hanya menyertakan provider
- *   crypto secara native (Binance/Coinbase/Hyperliquid); FX/
- *   Gold/US100 memakai port DataProvider yang sama, keyless.
+ * DATAFEED (urutan baru — BINANCE DIBUANG, satu pintu keyless):
+ *   Semua simbol (FX/Gold/US100/crypto) → LuxtradeeForexProvider
+ *   via /api/candles: TradingView keyless → Finnhub → Twelve
+ *   Data (TWELVE_DATA_API_KEY) → Yahoo keyless. Chart tak pernah
+ *   mati 401.
  * - Pine Script®           : @luxalgo/vela-pinets (PineEngine)
  *                            + editor Save/Compile dengan kuota
  *                            FREE 2×/bulan (/api/pine/save)
+ * - Indikator DEFAULT      : Impulsive Breakout XAUUSD v4 (master
+ *                            Bos) — aktif otomatis, semua user bisa
+ *                            lihat; alert Telegram khusus Pro (🔔)
  * - Alert Telegram         : panel kirim alert dengan kuota
  *                            FREE 2×/hari (/api/send-alert)
  *
@@ -37,6 +32,7 @@ import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert, Trash2 } from 'lucide-react'
+import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 /* ---------- Luxtradee Pine® presets (muncul di indicator picker) ---------- */
 const PINE_PRESETS = [
@@ -357,10 +353,9 @@ export default function VelaChartTerminal({
     let dead = false
     ;(async () => {
       try {
-        const [{ VelaWorkspace: WS }, { LuxtradeeForexProvider }, { BinanceProvider }, { PineEngine }, velaCore] = await Promise.all([
+        const [{ VelaWorkspace: WS }, { LuxtradeeForexProvider }, { PineEngine }, velaCore] = await Promise.all([
           import('@luxalgo/vela/workspace'),
           import('@/components/vela/LuxtradeeProvider'),
-          import('@luxalgo/vela/providers/binance'),
           import('@luxalgo/vela-pinets'),
           import('@luxalgo/vela'),
         ])
@@ -380,12 +375,11 @@ export default function VelaChartTerminal({
           /* Gaya candle Luxtradee: emerald naik / merah turun */
           upColor: '#10b981',
           downColor: '#ef4444',
-          /* Datafeed (Task 42 — tanpa OANDA, tanpa API key):
-             crypto → provider NATIVE bawaan Vela (websocket Binance);
-             FX/Gold/Silver/US100 → feed keyless Luxtradee. */
+          /* Datafeed (urutan baru — BINANCE DIBUANG, semua via feed
+             Luxtradee /api/candles: TradingView → Finnhub → Twelve
+             Data → Yahoo; FX/Gold/US100/crypto satu pintu keyless) */
           providers: {
-            binance: () => new BinanceProvider(),          // native @luxalgo/vela
-            luxtradee: () => new LuxtradeeForexProvider(), // keyless FX/Gold/US100
+            luxtradee: () => new LuxtradeeForexProvider(), // TV→Finnhub→TD→Yahoo
           },
           /* Pine Script® engine — in-process (paling stabil).
              Skrip berat nanti bisa ganti PineWorkerEngine. */
@@ -441,6 +435,34 @@ export default function VelaChartTerminal({
     } catch { /* belum login — badge disembunyikan */ }
   }, [loadAlertSubs])
   useEffect(() => { refreshQuotas() }, [refreshQuotas])
+
+  /* ---------- Default Pine aktif otomatis (SEMUA user bisa lihat) ----------
+     Impulsive Breakout XAUUSD v4 (master Bos) dipasang sendiri begitu
+     chart siap — free melihat garis Entry/SL/TP, Pro bisa 🔔 alert.
+     Anti-dobel: bila persist Vela sudah memulihkannya, skip. */
+  const autoAddedRef = useRef(false)
+  useEffect(() => {
+    if (booting || autoAddedRef.current) return
+    if (!protectedScripts.length) return
+    const def = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
+    if (!def) return
+    autoAddedRef.current = true
+    const t = setTimeout(() => {
+      try {
+        const chart: any = (wsRef.current as any)?.chart
+        if (!chart || typeof chart.addNativeIndicator !== 'function') return
+        const present: string[] = typeof chart.presentNativeIndicators === 'function'
+          ? chart.presentNativeIndicators()
+          : []
+        if (!present.includes(PROTECTED_TYPE)) {
+          chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: def.id } })
+        }
+        setActiveProtected((m) => ({ ...m, [def.id]: true }))
+      } catch { /* diam — user masih bisa klik chip manual */ }
+    }, 2500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booting, protectedScripts])
 
   /* ---------- Aksi alert otomatis (klik 🔔 → aktif + test / toggle / hapus) ---------- */
   const openAlertDialog = useCallback((s: ProtectedScriptMeta) => {
@@ -696,7 +718,10 @@ export default function VelaChartTerminal({
           <span className="text-[10px] uppercase tracking-wider text-purple-300/50">Eksklusif</span>
           {protectedScripts.map((s) => {
             const active = !!activeProtected[s.id]
-            if (!protectedIsPro) {
+            const isDefaultScript = s.slug === DEFAULT_PINE_SLUG
+            /* Free: skrip DEFAULT tetap bisa dilihat (permintaan Bos),
+               skrip eksklusif lain tetap terkunci → paywall. */
+            if (!protectedIsPro && !isDefaultScript) {
               return (
                 <button key={s.id}
                   onClick={() => setUpgradeMsg(`🛡️ ${s.name} adalah indikator EKSKLUSIF member Pro. Source code dijamin aman (tidak pernah dikirim ke browser) — kamu hanya melihat garis & sinyal Entry/SL/TP-nya di chart, plus alert otomatis ke Telegram. Upgrade ke Pro (Rp39rb/bulan) untuk mengaktifkannya!`)}
@@ -713,10 +738,17 @@ export default function VelaChartTerminal({
                   className={`text-[11px] pl-2.5 pr-2 py-1.5 inline-flex items-center gap-1 transition-colors disabled:opacity-50 ${active ? 'text-purple-200' : 'text-purple-100/80 hover:text-white'}`}
                   aria-label={`Aktifkan ${s.name} (indikator terproteksi)`}
                   title={s.description || s.name}>
-                  {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : '🛡️'} {s.name}
+                  {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : isDefaultScript ? '⚡' : '🛡️'} {s.name}
                 </button>
                 <span className="w-px bg-purple-400/20" aria-hidden="true" />
-                <button onClick={() => openAlertDialog(s)}
+                <button onClick={() => {
+                  /* Free → paywall: notifikasi sinyal khusus Pro */
+                  if (!protectedIsPro) {
+                    setUpgradeMsg(`🔔 Alert otomatis sinyal ${s.name} ke Telegram adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp39rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
+                    return
+                  }
+                  openAlertDialog(s)
+                }}
                   className="relative px-2 inline-flex items-center text-purple-100/80 hover:bg-purple-400/15 hover:text-white transition-colors"
                   aria-label={`Alert otomatis 24 jam untuk ${s.name} — klik untuk mengaktifkan`}
                   title="Alert otomatis 24 jam — sinyal Entry/SL/TP ke Telegram">

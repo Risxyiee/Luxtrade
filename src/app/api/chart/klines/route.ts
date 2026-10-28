@@ -22,46 +22,6 @@ function setCache(key: string, data: any[], source: string) {
   }
 }
 
-// ── Binance API (FREE, no key needed, crypto only) ──────────────────
-async function fetchBinanceKlines(symbol: string, interval: string, limit: number): Promise<any[] | null> {
-  // Map 1w to Binance's 1W interval format
-  const binanceInterval = interval === '1w' ? '1W' : interval
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${binanceInterval}&limit=${limit}`
-
-  try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 10000)
-    const response = await fetch(url, { signal: controller.signal })
-    clearTimeout(tid)
-
-    if (!response.ok) return null
-
-    const data = await response.json()
-    if (!Array.isArray(data) || data.length === 0) return null
-
-    const ohlcData = data
-      .map((kline: any[]) => ({
-        time: Math.floor(kline[0] / 1000),
-        open: parseFloat(kline[1]),
-        high: parseFloat(kline[2]),
-        low: parseFloat(kline[3]),
-        close: parseFloat(kline[4]),
-        volume: parseFloat(kline[5]),
-      }))
-      .filter((k: any) =>
-        typeof k.time === 'number' && k.time > 0 &&
-        typeof k.open === 'number' && typeof k.high === 'number' &&
-        typeof k.low === 'number' && typeof k.close === 'number' &&
-        k.high >= k.low && k.open > 0
-      )
-      .sort((a: any, b: any) => a.time - b.time)
-
-    return ohlcData.length > 0 ? ohlcData : null
-  } catch {
-    return null
-  }
-}
-
 // ── CoinGecko OHLC API (FREE, no key needed, crypto) ────────────────
 // CoinGecko symbol mapping for common pairs
 const COINGECKO_MAP: Record<string, string> = {
@@ -211,25 +171,8 @@ export async function GET(request: NextRequest) {
 
     const errors: string[] = []
 
-    // PRIMARY: Binance API (best for crypto — free, fast, OHLC)
-    console.log(`[Klines] Symbol=${symbol} Interval=${interval} — trying Binance...`)
-    const binanceData = await fetchBinanceKlines(symbol, interval, limit)
-    if (binanceData && binanceData.length > 0) {
-      setCache(cacheKey, binanceData, 'binance')
-      console.log(`[Klines] ✓ ${binanceData.length} candles from Binance`)
-      return NextResponse.json({
-        success: true,
-        symbol,
-        interval,
-        data: binanceData,
-        source: 'binance',
-        fetchedAt: new Date().toISOString(),
-      })
-    }
-    errors.push('Binance: no data returned')
-
-    // FALLBACK 1: CoinGecko OHLC (free, no key)
-    console.log(`[Klines] Binance failed, trying CoinGecko...`)
+    // PRIMARY: CoinGecko OHLC (free, no key) — BINANCE DIBUANG (keputusan Bos)
+    console.log(`[Klines] Symbol=${symbol} Interval=${interval} — trying CoinGecko...`)
     const cgData = await fetchCoinGeckoKlines(symbol, interval, limit)
     if (cgData && cgData.length > 0) {
       setCache(cacheKey, cgData, 'coingecko')
