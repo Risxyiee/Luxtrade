@@ -28,8 +28,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'LuxTradee gratis nggak?',
     q_en: 'Is LuxTradee free?',
-    a_id: 'Ada paket gratis — 10 trade per bulan dan 10 AI queries untuk mencoba fitur-fiturnya. Kalau kamu serius prop firm dan butuh fitur lengkap tanpa batas, upgrade ke PRO.',
-    a_en: "There's a free plan — 10 trades per month and 10 AI queries to try the features. If you're serious about prop firm trading, upgrade to PRO for unlimited access.",
+    a_id: 'Ada paket gratis — 10 jurnal per bulan, 10x tanya AI, chart live Vela™ dengan 1 indikator, alert Telegram 2×/hari, dan Pine Script® 2×/bulan. Kalau kamu serius prop firm dan butuh semuanya tanpa batas, upgrade ke PRO (Rp39rb/bulan).',
+    a_en: "There's a free plan — 10 journals per month, 10x AI chat, Vela™ live chart with 1 indicator, Telegram alerts 2×/day, and Pine Script® 2×/month. If you're serious about prop firm trading, upgrade to PRO (Rp39k/month) for unlimited access.",
     category: 'general',
   },
   {
@@ -42,8 +42,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'Bisa import dari MT4/MT5?',
     q_en: 'Can I import from MT4/MT5?',
-    a_id: 'Bisa! Screenshot trade kamu, upload dan AI otomatis extract pair, entry/exit, SL/TP, profit/loss — langsung jadi jurnal. Atau input manual dari dashboard.',
-    a_en: 'Yes! Screenshot your trade, upload and AI auto-extracts pair, entry/exit, SL/TP, profit/loss — instantly becomes a journal. Or input manually from the dashboard.',
+    a_id: 'Bisa! Input manual selalu gratis dari dashboard. Dengan PRO, kamu dapat AI Vision: upload screenshot trade dari MT5/TradingView dan AI otomatis extract pair, entry/exit, SL/TP, profit/loss — langsung jadi jurnal.',
+    a_en: 'Yes! Manual input is always free from the dashboard. With PRO you get AI Vision: upload a trade screenshot from MT5/TradingView and AI auto-extracts pair, entry/exit, SL/TP, profit/loss — instantly becomes a journal.',
     category: 'technical',
   },
   {

@@ -255,7 +255,7 @@ export default function VelaChartTerminal({
 
   const lockedPresetMsg = (i: number) => {
     const names = PINE_PRESETS.slice(FREE_INDICATOR_LIMIT).map((x) => x.name.replace('Luxtradee — ', ''))
-    return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp49rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
+    return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp39rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
   }
 
   return (
@@ -365,7 +365,7 @@ export default function VelaChartTerminal({
               </Button>
               {pineQuota && !pineQuota.isPro && (
                 <div className="text-[10px] text-white/40 leading-relaxed">
-                  Paket gratis: 2× edit/bulan · terpakai {pineQuota.used}. Pro = tanpa batas (Rp49rb/bulan).
+                  Paket gratis: 2× edit/bulan · terpakai {pineQuota.used}. Pro = tanpa batas (Rp39rb/bulan).
                 </div>
               )}
               {pineScripts.length > 0 && (

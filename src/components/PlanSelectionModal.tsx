@@ -42,9 +42,11 @@ const plans: Plan[] = [
     pricingKey: 'PRO_30_DAYS',
     features: [
       '10 Jurnal Transaksi / Bulan',
+      '10x Tanya AI (Chat)',
       'Grafik Performa & Statistik Standar',
-      'Kalkulator Risiko Trading Pemula',
-      '3x Uji Coba Fitur PRO'
+      'Chart Live Vela™ + 1 Indikator',
+      'Alert Telegram 2×/Hari · Pine Script® 2×/Bulan',
+      'Prop Firm Guard & Watchlist'
     ]
   },
   {
@@ -57,12 +59,14 @@ const plans: Plan[] = [
     durationType: 'month',
     pricingKey: 'PRO_30_DAYS',
     features: [
-      'UNLIMITED Jurnal Transaksi',
-      'Analisis AI Pintar - Deteksi Kesalahan & Solusi',
-      'Grafik Win-Rate & Mistake Tracker',
-      'Kalkulator Risiko & Posisi Advance',
-      'Ekspor Data ke Excel / PDF',
-      'Akses VIP Grup & Dukungan Prioritas'
+      'UNLIMITED Jurnal Transaksi & Tanya AI',
+      'AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
+      'Analitik Mendalam & Equity Curve',
+      'Semua Indikator Chart Vela™ (70+)',
+      'Alert Telegram & Pine Script® Tanpa Batas',
+      'Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+      'AI Insights, Trading Score, Weekly Report & Psikologi',
+      'Ekspor Data ke CSV / PDF + Dukungan Prioritas'
     ],
     popular: true
   },
@@ -78,12 +82,14 @@ const plans: Plan[] = [
     popular: true,
     savings: '16%',
     features: [
-      'UNLIMITED Jurnal Transaksi',
-      'Analisis AI Pintar - Deteksi Kesalahan & Solusi',
-      'Grafik Win-Rate & Mistake Tracker',
-      'Kalkulator Risiko & Posisi Advance',
-      'Ekspor Data ke Excel / PDF',
-      'Akses VIP Grup & Dukungan Prioritas',
+      'UNLIMITED Jurnal Transaksi & Tanya AI',
+      'AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
+      'Analitik Mendalam & Equity Curve',
+      'Semua Indikator Chart Vela™ (70+)',
+      'Alert Telegram & Pine Script® Tanpa Batas',
+      'Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+      'AI Insights, Trading Score, Weekly Report & Psikologi',
+      'Ekspor Data ke CSV / PDF + Dukungan Prioritas',
       'Hemat 2 Bulan vs Bulanan'
     ]
   },

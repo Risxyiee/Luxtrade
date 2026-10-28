@@ -63,35 +63,43 @@ export default function PaywallModal({
 
   // Features list based on language - Matching landing page features
   const proFeatures = isEnglish ? [
-    '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
-    '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
+    '🔥 UNLIMITED Trade Journals & AI Chat',
+    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
     '📊 In-Depth Win-Rate Charts & Mistake Tracker',
-    '🧮 Advanced Risk & Position Calculator',
-    '📥 Free Data Export to Excel / PDF',
-    '👑 VIP Group Access & Priority Support',
+    '📈 All Vela™ Chart Indicators (70+)',
+    '🔔 Unlimited Telegram Alerts & Pine Script®',
+    '🧮 Advanced Risk Calculator, Heatmap & Economic Calendar',
+    '📥 Free Data Export to CSV / PDF',
+    '👑 Priority Support',
   ] : [
-    '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
-    '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+    '🔥 UNLIMITED Jurnal Transaksi & Tanya AI',
+    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
     '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
-    '🧮 Kalkulator Risiko & Posisi Advance',
-    '📥 Bebas Ekspor Data ke Excel / PDF',
-    '👑 Akses VIP Grup & Dukungan Prioritas',
+    '📈 Semua Indikator Chart Vela™ (70+)',
+    '🔔 Alert Telegram & Pine Script® Tanpa Batas',
+    '🧮 Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+    '📥 Bebas Ekspor Data ke CSV / PDF',
+    '👑 Dukungan Prioritas',
   ]
 
   const annualFeatures = isEnglish ? [
-    '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
-    '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
+    '🔥 UNLIMITED Trade Journals & AI Chat',
+    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
     '📊 In-Depth Win-Rate Charts & Mistake Tracker',
-    '🧮 Advanced Risk & Position Calculator',
-    '📥 Free Data Export to Excel / PDF',
-    '👑 VIP Group Access & Priority Support',
+    '📈 All Vela™ Chart Indicators (70+)',
+    '🔔 Unlimited Telegram Alerts & Pine Script®',
+    '🧮 Advanced Risk Calculator, Heatmap & Economic Calendar',
+    '📥 Free Data Export to CSV / PDF',
+    '👑 Priority Support',
   ] : [
-    '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
-    '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+    '🔥 UNLIMITED Jurnal Transaksi & Tanya AI',
+    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
     '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
-    '🧮 Kalkulator Risiko & Posisi Advance',
-    '📥 Bebas Ekspor Data ke Excel / PDF',
-    '👑 Akses VIP Grup & Dukungan Prioritas',
+    '📈 Semua Indikator Chart Vela™ (70+)',
+    '🔔 Alert Telegram & Pine Script® Tanpa Batas',
+    '🧮 Kalkulator Risiko, Heatmap & Kalender Ekonomi',
+    '📥 Bebas Ekspor Data ke CSV / PDF',
+    '👑 Dukungan Prioritas',
   ]
 
   const lifetimeFeatures = isEnglish ? [

@@ -565,7 +565,7 @@ export default function AdminSecurePage() {
                                           <Clock className="w-4 h-4 text-amber-400" />
                                           <div>
                                             <div className="font-semibold">1 Bulan</div>
-                                            <div className="text-xs text-gray-500">Rp 49.000</div>
+                                            <div className="text-xs text-gray-500">Rp 39.000</div>
                                           </div>
                                         </button>
                                         <button

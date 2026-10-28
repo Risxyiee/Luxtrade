@@ -110,11 +110,13 @@ export default function PricingSectionNew({
               <span className="text-gray-500">{language === 'en' ? '/month' : '/bulan'}</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-400 text-sm flex-grow">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 Trade Entries / month' : '10 Trade Entries / bulan'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 AI Queries / month' : '10 AI Queries / bulan'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Basic Analytics' : 'Analitik Dasar'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Manual Journal Input' : 'Input Jurnal Manual'}</li>
-              <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Pattern Detection' : 'Deteksi Pola AI'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 Trade Entries / month' : '10 Jurnal Transaksi / bulan'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10x AI Chat Queries' : '10x Tanya AI (Chat)'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Vela™ Live Chart + 1 Indicator' : 'Chart Live Vela™ + 1 Indikator'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Telegram Alerts 2×/day' : 'Alert Telegram 2×/hari'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Pine Script® 2×/month' : 'Pine Script® 2×/bulan'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Prop Firm Guard & Calendar' : 'Prop Firm Guard & Kalender'}</li>
+              <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Vision Auto-Journal (PRO)' : 'AI Vision Auto-Journal (PRO)'}</li>
             </ul>
             <Link prefetch={false} href="/auth/signup">
               <span className="block w-full py-3 border border-white/10 rounded-xl hover:bg-white/5 transition-colors text-sm font-medium text-white text-center cursor-pointer">
@@ -194,15 +196,14 @@ export default function PricingSectionNew({
               </div>
 
               <ul className="space-y-3 mb-6 text-gray-300 text-sm flex-grow">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Trade Entries' : 'Trade Entries Tak Terbatas'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Trade Entries & AI Chat' : 'Jurnal & Tanya AI Tak Terbatas'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Vision Auto-Journal (upload MT5/TV screenshot)' : 'AI Vision Auto-Journal (upload screenshot MT5/TV)'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Advanced Analytics & Equity Curve' : 'Analitik Lanjutan & Equity Curve'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Auto Extract MT5/TV (AI Vision)' : 'Auto Extract MT5/TV (AI Vision)'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Pattern Detection & Guard' : 'Deteksi Pola AI & Guard'}</li>
-                {/* New Pro features */}
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Priority Support' : 'Prioritas Support'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Export CSV & PDF' : 'Ekspor CSV & PDF'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Journal Entries' : 'Jurnal Tak Terbatas'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Trading Score & Psychology' : 'Skor Trading & Psikologi'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'All Vela™ Chart Indicators (70+)' : 'Semua Indikator Chart Vela™ (70+)'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Telegram Alerts & Pine Script®' : 'Alert Telegram & Pine Script® Tanpa Batas'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Risk Calculator, Heatmap & Economic Calendar' : 'Kalkulator Risiko, Heatmap & Kalender Ekonomi'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Insights, Trading Score, Weekly Report & Psychology' : 'AI Insights, Trading Score, Laporan Mingguan & Psikologi'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'CSV & PDF Export + Priority Support' : 'Ekspor CSV & PDF + Dukungan Prioritas'}</li>
               </ul>
 
               {/* Promo Input */}

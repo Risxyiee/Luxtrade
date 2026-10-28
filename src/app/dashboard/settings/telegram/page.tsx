@@ -270,7 +270,7 @@ export default function TelegramSettingsPage() {
           </CardHeader>
           <CardContent className="text-[12px] text-white/60 leading-relaxed">
             <b className="text-white/85">Gratis:</b> 2 alert/hari.<br />
-            <b className="text-amber-300">Pro (Rp49rb/bln):</b> tanpa batas.
+            <b className="text-amber-300">Pro (Rp39rb/bln):</b> tanpa batas.
             <div className="mt-1.5">
               <Link href="/#pricing" className="text-amber-300 hover:text-amber-200 underline underline-offset-2">Lihat paket Pro →</Link>
             </div>

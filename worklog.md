@@ -1913,3 +1913,25 @@ Stage Summary:
 - Keamanan berlapis: secret-token header (setWebhook), validasi UUID, service-role-only write, notifikasi rebind ke chat lama, log minim, tanpa bocor data
 - Bos deploy 4 langkah: (1) SQL: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_chat_id text;` (2) Cloudflare secrets: TELEGRAM_BOT_TOKEN + TELEGRAM_WEBHOOK_SECRET (openssl rand -hex 32) (3) setWebhook: https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://luxtradee.web.id/api/telegram/webhook&secret_token=<SECRET> (4) deploy
 - commit: 3 file berubah (1 baru webhook + 2 rewrite/edit) + chip indikator VelaChartTerminal
+---
+Task ID: 38
+Agent: Z (main)
+Task: Perbaiki semua deskripsi fitur Pro/Free agar sesuai dashboard — landing pricing, FeatureComparison, FAQ, PlanSelectionModal, 2 PaywallModal, satukan harga Rp39.000 (bukan Rp49rb), hapus dead code landing lama
+
+Work Log:
+- Audit menyeluruh: sumber kebenaran = dashboard. Sidebar proOnly: PRO = Economic Calendar, Risk Calculator, Heatmap, Analytics, Targets (gold) + AI Insights, Trading Score, Weekly Report, Streaks, Psychology, Achievements (cyan). Free = Trades/Journal/Chart/Prop Firm Guard/Watchlist/News/Calendar/Community. Batas server: FREE_TRADE_LIMIT=10 & FREE_JOURNAL_LIMIT=10 per bulan (/api/trades 403), FREE_AI_QUOTA=10 (ai-quota, chat), alert 2/hari, pine 2/bulan, 1 indikator preset. AI Vision auto-journal = PRO saja (/api/auto-journal reject non-pro)
+- Harga resmi: lib/pricing.ts PRO_30_DAYS=39000 & PRO_ANNUAL=390000 & PRO_LIFETIME=299000 — dipakai Midtrans create-transaction (getPlanPrice) + LandingCheckoutModal + PaywallModal + LanguageContext. Temuan: Task 36/37 memakai Rp49rb (diktat lama) → DISAMAKAN semua ke Rp39.000
+- Landing LIVE = page.tsx (PricingSectionNew/FeatureComparison/FAQSection dll). LuxTradeLanding.tsx + PricingSection.tsx + LifetimeUltraCard.tsx = DEAD CODE (tidak diimport siapa pun, berisi copy usang "5 jurnal/bulan", "3x trial", harga 49rb) → DIHAPUS (git rm)
+- Edit PricingSectionNew: kartu Gratis = 10 jurnal/bulan, 10x Tanya AI, Chart Vela™+1 indikator, Alert TG 2×/hari, Pine® 2×/bulan, Prop Firm Guard, ✗AI Vision; kartu PRO = unlimited jurnal+AI, AI Vision, Analytics, semua indikator Vela™ 70+, Alert&Pine® tanpa batas, tools pro, ekspor+prioritas
+- Edit FeatureComparison: tabel 23 baris match sidebar (tambah Chart Vela™ 1 vs 70+, Pine® 2/bulan vs ∞, Alert TG 2/hari vs ∞, Prop Firm Guard free ✓✓, Risk Calc/Heatmap/EconCal/Target/AI Insights/Streak/Pencapaian pro ✓, hapus baris "Promo Code Discounts" yang tak jelas)
+- Edit FAQSection: FAQ gratis sebut chart/alert/pine + harga Rp39rb; FAQ MT5 diperjelas (manual = gratis, AI Vision extract = PRO)
+- Edit PlanSelectionModal: Free hapus klaim salah ("Kalkulator Risiko Pemula" — itu PRO, "3x Uji Coba PRO" tak ada sistemnya) → daftar baru; Elite Pro & Annual → daftar fitur baru termasuk chart Vela™/Alert/Pine
+- Edit components/PaywallModal (connections) + dashboard/components/PaywallModal: fitur PRO ditambah chart Vela™ semua indikator + Alert TG/Pine tanpa batas (id+en)
+- Harga 49rb→39rb: user-quota.ts (pineQuotaExceededMessage), VelaChartTerminal (paywall chip + drawer pine), settings/telegram (kartu kuota), admin-secure (label 1 Bulan), seed-plans (49000→39000, lifetime 100000→299000), ceo-agent (default PRO_PRICE_IDR 39000 + komentar), RuangCeoDashboard (teks SOP)
+- Verifikasi: lint penuh lulus; browser E2E localhost → /#pricing: semua teks baru tampil (velaFree/alertTG/pine/proVela/proAlert/proRisk/rp39/aiVision = true) + tabel perbandingan lengkap; screenshot bersih (cookie banner saja, layout OK)
+
+Stage Summary:
+- Satu sumber kebenaran harga: lib/pricing.ts (Rp39.000/bln · Rp390.000/thn · Rp299.000 lifetime) — Midtrans, checkout, paywall, landing, admin, CEO agent semuanya kini konsisten
+- Deskripsi Free/Pro konsisten 100% dengan isi dashboard (sidebar proOnly + kuota server) di: landing pricing, tabel perbandingan, FAQ, PlanSelectionModal, 2 PaywallModal
+- 3 file dead code dihapus (±1.900 baris copy usang hilang dari repo → tak bisa lagi membingungkan)
+- Konfirmasi ke Bos: error Telegram 404 Not Found = TOKEN salah (@BotFather → /mybots → API Token), bukan masalah kode; SQL lengkap diberikan di chat
