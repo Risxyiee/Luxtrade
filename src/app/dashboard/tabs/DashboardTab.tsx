@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
-  Sparkles, AlertTriangle, Clock, BarChart3, Plus,
+  Sparkles, AlertTriangle, Clock, BarChart3, Plus, Send,
   Trophy, Flame, Loader2, CreditCard, Shield
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -397,6 +398,17 @@ function DashboardTab({
               {language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
             </Button>
           )}
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-sky-500/30 text-sky-300 hover:bg-sky-500/10 hover:text-sky-200 hover:border-sky-500/50 transition-all"
+          >
+            <Link href="/dashboard/settings/telegram">
+              <Send className="w-4 h-4 mr-2" />
+              {language === 'id' ? 'Hubungkan Telegram' : 'Connect Telegram'}
+            </Link>
+          </Button>
         </div>
       </motion.div>
 
