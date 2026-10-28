@@ -1,19 +1,29 @@
 /**
  * ============================================================
  * LuxtradeeForexProvider — DataProvider untuk Vela™ yang menyajikan
- * XAUUSD / XAGUSD / major forex / US100 dari API Luxtradee sendiri
- * (/api/forex — OANDA + TwelveData + AlphaVantage + Yahoo + cache KV).
+ * XAUUSD / XAGUSD / major forex / US100 (Nasdaq) dari datafeed
+ * Luxtradee (/api/candles — 100% KEYLESS: Yahoo Finance publik
+ * via server, TANPA API KEY apa pun → mustahil 401).
  * ============================================================
- * Kenapa custom provider? Provider bawaan Vela (Binance/Coinbase/
- * Hyperliquid) tidak menyajikan XAUUSD & pasangan forex. Dengan
- * provider ini, chart Vela tetap satu aplikasi penuh (symbol search,
- * multi-timeframe, live) tapi datanya dari pipeline milik Bos.
+ * Kenapa provider ini? Provider native bawaan Vela (Binance/
+ * Coinbase/Hyperliquid) semuanya CRYPTO — tidak menyajikan XAUUSD,
+ * pasangan forex, maupun indeks. Provider ini di-plug dengan
+ * interface DataProvider yang SAMA seperti provider native, jadi
+ * chart Vela tetap satu aplikasi penuh (symbol search,
+ * multi-timeframe, live) untuk multi-asset.
+ *
+ * ROUTING DATAFEED (Task 42 — tanpa OANDA, tanpa API key):
+ *   - Forex / Gold / Silver / Nasdaq (US100) → /api/candles
+ *     (Yahoo Finance publik — datafeed standar keyless; alias
+ *     NASDAQ, NAS100, GOLD, XAU/USD, … dinormalisasi otomatis)
+ *   - Crypto (BTCUSDT, ETHUSDT, …) → BinanceProvider NATIVE Vela
+ *     (REST + websocket publik) — di-wire di VelaChartTerminal.tsx
  *
  * Vela memanggil:
  *   getBars(ticker, timeframe, range)  → sejarah candle (wajib)
  *   info()                             → metadata (capabilities)
  *   listSymbols()                      → daftar simbol (symbol search)
- * Live ticks: /api/forex berbasis REST → capabilities.stream = false,
+ * Live ticks: /api/candles berbasis REST → capabilities.stream = false,
  * feed Vela otomatis POLLING getBars (dok: "otherwise the feed polls
  * getBars") — tanpa WebSocket pun chart tetap hidup.
  */
@@ -25,8 +35,9 @@ import type {
   ProviderInfo,
   SymbolDescriptor,
 } from '@luxalgo/vela'
+import { normalizeSymbol } from '@/lib/market/yahoo'
 
-/* Timeframe kanonik Vela (menit, string) → format /api/forex.
+/* Timeframe kanonik Vela (menit, string) → format /api/candles.
    Kunci lama ('1D'/'D'/'W') tetap dihormati biar aman. */
 const TF_MAP: Record<string, string> = {
   '5': '5m', '15': '15m', '30': '30m',
@@ -36,9 +47,9 @@ const TF_MAP: Record<string, string> = {
 }
 
 const SYMBOLS: SymbolDescriptor[] = [
-  { ticker: 'XAUUSD', description: 'Gold / US Dollar', type: 'forex', group: 'METALS', default: true },
-  { ticker: 'XAGUSD', description: 'Silver / US Dollar', type: 'forex', group: 'METALS' },
-  { ticker: 'US100', description: 'Nasdaq 100 — US Tech 100', type: 'index', group: 'INDICES' },
+  { ticker: 'XAUUSD', description: 'Gold / US Dollar — Emas', type: 'forex', group: 'METALS', default: true },
+  { ticker: 'XAGUSD', description: 'Silver / US Dollar — Perak', type: 'forex', group: 'METALS' },
+  { ticker: 'US100', description: 'Nasdaq 100 — US Tech 100 (NASDAQ/NAS100)', type: 'index', group: 'INDICES' },
   { ticker: 'EURUSD', description: 'Euro / US Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'GBPUSD', description: 'British Pound / US Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'USDJPY', description: 'US Dollar / Japanese Yen', type: 'forex', group: 'MAJOR' },
@@ -77,7 +88,12 @@ export class LuxtradeeForexProvider implements DataProvider {
   }
 
   async getBars(ticker: string, timeframe: string, range: BarRange): Promise<OHLCV[]> {
-    const clean = ticker.trim().toUpperCase()
+    /* Alias diterima: NASDAQ/NAS100/USTEC→US100, GOLD/XAU→XAUUSD,
+       "XAU/USD", "EUR/USD", … → simbol kanonik Luxtradee.
+       (Ticker kosong TETAP ditolak — normalizeSymbol punya default
+       EURUSD yang tidak boleh menyala untuk simbol tak dikenal.) */
+    const raw = ticker.trim().toUpperCase()
+    const clean = raw ? normalizeSymbol(raw) : ''
     if (!SYMBOL_SET.has(clean)) return [] // simbol di luar daftar → park (feed Vela yang tangani)
 
     const interval = TF_MAP[timeframe] || '1h'
@@ -108,10 +124,10 @@ export class LuxtradeeForexProvider implements DataProvider {
   }
 
   private async fetchCandles(symbol: string, interval: string, limit: number): Promise<OHLCV[]> {
-    const res = await fetch(`/api/forex?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}&_t=${Date.now()}`, {
+    const res = await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}&_t=${Date.now()}`, {
       headers: { accept: 'application/json' },
     })
-    if (!res.ok) throw new Error(`/api/forex HTTP ${res.status}`)
+    if (!res.ok) throw new Error(`/api/candles HTTP ${res.status}`)
     const json: any = await res.json()
     const rows: any[] = Array.isArray(json?.data) ? json.data : []
     /* Baris { time(sec|ms|iso), open, high, low, close, volume? } → OHLCV Vela */

@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     const { data: row, error: rowErr } = await q.maybeSingle() as { data: ProtectedScriptRow | null; error: any }
     if (rowErr || !row) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
 
-    /* 5) CANDLE SERVER (OANDA → Yahoo → Binance) */
+    /* 5) CANDLE SERVER (Yahoo → Binance — keyless, tanpa API key) */
     const cd = await fetchServerCandles(symbol, interval, 300)
     if (!cd) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })

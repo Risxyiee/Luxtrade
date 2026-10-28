@@ -10,7 +10,8 @@
  * tools, Pine Script® editor (kuota free 2×/bulan) dan panel
  * Alert Telegram (kuota free 2×/hari).
  *
- * Data XAUUSD/forex tetap dari /api/forex (via LuxtradeeForexProvider).
+ * Data XAUUSD/forex tetap dari /api/forex (Yahoo keyless — via
+ * LuxtradeeForexProvider); crypto dari BinanceProvider native Vela.
  */
 
 import dynamic from 'next/dynamic'

@@ -2011,3 +2011,34 @@ Stage Summary:
 - ALERT: sinyal Entry/SL/TP → Telegram real-time-ish (poll 45s chart aktif) dedupe per-bar (UNIQUE index + mem); user Pro tanpa telegram_chat_id dilewati tanpa error
 - YANG DIPERLUKAN BOS UTK PRODUCTION: (1) jalankan docs/PROTECTED_SCRIPTS.sql di Supabase; (2) set env OANDA_API_KEY (+OANDA_ENV) di Cloudflare; (3) skrip master diisi via SQL (protected_scripts); (4) user Pro wajib hubungkan Telegram (settings/telegram)
 - CATATAN JUJUR: render chip Eksklusif di chart belum terverifikasi penuh di sandbox (butuh service-role key + akun Pro + SQL); seluruh rantai lain (engine, API, gate, candle, alert format, dedupe) teruji
+
+## Task 42 — Datafeed Terminal: Twelve Data + Hapus Total OANDA (2026-10-28)
+Tanggal: 2026-10-28
+Task: (A) HAPUS seluruh dependensi OANDA dari datafeed chart (permintaan Bos: batalkan integrasi OANDA); (B) Twelve Data API sebagai sumber chart Forex/Gold/Nasdaq via /api/candles (key server-only) + fallback Yahoo keyless; (C) crypto tetap BinanceProvider native Vela (websocket)
+
+Perubahan:
+- HAPUS src/lib/market/oanda.ts (client OANDA v20 dihapus total; OANDA_API_KEY/OANDA_ENV tidak lagi dipakai di mana pun)
+- BARU src/lib/market/yahoo.ts: fetcher Yahoo Finance keyless BERSAMA (FOREX_SYMBOLS + alias + normalizeSymbol + validatePrice + fetchYahooChart + agregasi 2h/4h + live tick) — dipakai /api/forex, /api/candles, server-candles (DRY, tidak ada 3 salinan lagi)
+- BARU /api/candles: datafeed chart Vela. PRIMARY Twelve Data /time_series (TWELVE_DATA_API_KEY server-only; XAUUSD→XAU/USD, XAGUSD→XAG/USD, US100→NDX→fallback QQQ, forex→EUR/USD dll; interval 5m→5min … 1w→1week, terima format Vela '60'/'240'/'1D'; outputsize≤500) → FALLBACK Yahoo keyless bila key kosong/invalid/429 (kuota 8 req/min) → 503 jujur tanpa mock. Cache mem+KV (TTL 30s harga/60s intraday/300s lainnya). Kontrak respons = /api/forex: {success,symbol,interval,data[{time(epoch sec),open,high,low,close,volume?}],source,fetchedAt}
+- /api/forex di-refactor jadi tipis (import lib bersama yahoo.ts) — kontrak tidak berubah (WatchlistTab aman)
+- server-candles.ts (compile-pine): Yahoo (lib bersama) → Binance; tanpa OANDA
+- live-market.ts (warisan sesi lalu, di-commit sekalian): jalur TwelveData /price dihapus → Yahoo/Binance/CoinGecko keyless
+- LuxtradeeProvider (datafeed adapter Vela): fetchCandles pindah /api/forex → /api/candles (Forex/Gold/Silver/Nasdaq); crypto tetap BinanceProvider native di VelaChartTerminal (providers: luxtradee + binance)
+- VelaChartTerminal.tsx: header comment + toolbar "Luxtradee Trading Terminal · Forex · Gold · US100 · Crypto · data live" (tanpa OANDA)
+- Komentar sinkron: compile-pine (Yahoo→Binance), pine-protected, ChartTab
+
+UJI:
+- lint bersih
+- curl /api/candles: XAUUSD 1h ✅ (gold ~4058, Yahoo fallback + note), US100 dgn timeframe Vela '60' ✅ (~29.9k), alias NASDAQ + 4h agregasi ✅, BTCUSDT → 400 pesan jelas (crypto via Binance websocket terminal) ✅
+- TWELVE_DATA_API_KEY=dummy_invalid → TD gagal → fallback Yahoo mulus (errors: "key tidak valid") ✅
+- E2E /test-vela (halaman test sementara, SUDAH DIHAPUS): Vela terminal RENDER — 7 canvas WebGL + toolbar "Luxtradee Trading Terminal" + tanpa boot error; dev.log bukti datafeed baru: "[Candles] ✓ 300 candles" + GET /api/candles?symbol=XAUUSD&interval=1h&limit=300 → 200 + polling live berulang ±6s; console TANPA 401/Unauthorized ✅
+- Kendala sandbox: dev server mati antar-command + daemon browser wedged berkali-kali; login dashboard sukses terbukti di log (cookie auth) tapi verifikasi visual chart via dashboard terhalang ChunkLoadError stale-chunk (dev-only, dikenal) → verifikasi render dilakukan via /test-vela mount langsung (komponen sama persis)
+
+YANG DIPERLUKAN BOS UTK PRODUCTION:
+- Set env TWELVE_DATA_API_KEY di Cloudflare (Settings → Variables & Secrets). Tanpa key: chart tetap hidup via fallback Yahoo (keyless) — Twelve Data baru aktif setelah key terpasang
+- Tidak perlu key apa pun untuk crypto (Binance publik)
+
+Stage Summary:
+- ARSITEKTUR: /api/candles (TD primary + Yahoo fallback) → LuxtradeeForexProvider (DataProvider Vela) → chart; crypto = BinanceProvider native websocket; WatchlistTab tetap /api/forex (Yahoo); compile-pine tetap Yahoo→Binance
+- KEAMANAN: TWELVE_DATA_API_KEY hanya dibaca server (route/lib); tidak ada key di bundle client; tanpa key pun chart tetap jalan (fallback keyless) → mustahil 401 di client
+- CATATAN JUJUR: screenshot visual chart gagal di-capture (sandbox mematikan server terus; screenshot terakhir menangkap halaman error server-mati) — render terbukti via DOM polling (7 canvas + toolbar true) & dev.log, bukan gambar

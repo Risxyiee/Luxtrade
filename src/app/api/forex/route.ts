@@ -1,190 +1,43 @@
+/**
+ * ============================================================
+ * GET /api/forex — candle OHLC forex / gold / US100 (keyless)
+ * ============================================================
+ * DIPAKAI OLEH: WatchlistTab (polling harga limit=1) & panel lain.
+ * Datafeed CHART VELA kini lewat /api/candles (Twelve Data
+ * primary + fallback route ini tetap Yahoo keyless).
+ *
+ * SATU SUMBER DATA: Yahoo Finance chart API (publik, GRATIS,
+ * TANPA API KEY) → mustahil kena 401 Unauthorized. Logika fetch
+ * bersama ada di src/lib/market/yahoo.ts (dipakai juga oleh
+ * /api/candles sebagai fallback).
+ *
+ * Fitur:
+ *   - Alias simbol (GOLD→XAUUSD, NASDAQ→US100, "XAU/USD", dst.)
+ *   - Sanity check harga (XAU < 2000 / US100 di luar rentang → reject)
+ *   - Cache in-memory (TTL per-interval) + KV Cloudflare (cross-isolate)
+ *   - Live tick utk polling harga (limit=1): regularMarketPrice Yahoo
+ *   - Respons jujur 503 tanpa mock bila gagal
+ *
+ * Kontrak respons (tidak berubah):
+ *   { success, symbol, interval, data: [{time,open,high,low,close}], source, fetchedAt }
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchOandaCandles, oandaToLux, isOandaSymbol, hasOandaKey } from '@/lib/market/oanda'
+import {
+  FOREX_SYMBOLS,
+  normalizeSymbol,
+  validatePrice,
+  fetchYahooChart,
+  type YahooCandle,
+} from '@/lib/market/yahoo'
 
 export const dynamic = 'force-dynamic'
 
-// Forex symbols mapping with decimal precision (NO hardcoded prices)
-const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals: number }> = {
-  'XAUUSD': { from: 'XAU', to: 'USD', decimals: 2 },
-  'XAGUSD': { from: 'XAG', to: 'USD', decimals: 3 },
-  'EURUSD': { from: 'EUR', to: 'USD', decimals: 5 },
-  'GBPUSD': { from: 'GBP', to: 'USD', decimals: 5 },
-  'USDJPY': { from: 'USD', to: 'JPY', decimals: 3 },
-  'EURGBP': { from: 'EUR', to: 'GBP', decimals: 5 },
-  'EURJPY': { from: 'EUR', to: 'JPY', decimals: 3 },
-  'GBPJPY': { from: 'GBP', to: 'JPY', decimals: 3 },
-  'AUDUSD': { from: 'AUD', to: 'USD', decimals: 5 },
-  'NZDUSD': { from: 'NZD', to: 'USD', decimals: 5 },
-  'USDCAD': { from: 'USD', to: 'CAD', decimals: 5 },
-  'USDCHF': { from: 'USD', to: 'CHF', decimals: 5 },
-  // Indeks — Nasdaq 100 (Task 41): via Yahoo NQ=F (futures ≈ CFD US100)
-  'US100': { from: 'US100', to: 'USD', decimals: 1 },
-}
-
-// ── Symbol aliases / normalization ────────────────────────────────────
-// Maps common abbreviations, slang, and slash-separated pairs to the
-// canonical symbol used in FOREX_SYMBOLS.
-const SYMBOL_ALIASES: Record<string, string> = {
-  // Indeks AS — Nasdaq 100 (US100 / NAS100 / USTEC) — Task 41
-  'US100': 'US100', 'NAS100': 'US100', 'USTEC': 'US100', 'NDX': 'US100',
-  'NASDAQ': 'US100', 'US100/USD': 'US100', 'USTEC100': 'US100',
-  // Gold
-  'XAU': 'XAUUSD', 'GOLD': 'XAUUSD', 'XAU/USD': 'XAUUSD',
-  // Silver
-  'XAG': 'XAGUSD', 'SILVER': 'XAGUSD', 'XAG/USD': 'XAGUSD',
-  // Forex shorthand (popular with traders)
-  'EU': 'EURUSD', 'GU': 'GBPUSD', 'GJ': 'GBPJPY', 'EJ': 'EURJPY',
-  'UJ': 'USDJPY', 'AU': 'AUDUSD', 'NU': 'NZDUSD', 'UC': 'USDCAD', 'UF': 'USDCHF',
-  // Slash-separated pairs
-  'EUR/USD': 'EURUSD', 'GBP/USD': 'GBPUSD', 'USD/JPY': 'USDJPY',
-  'EUR/GBP': 'EURGBP', 'EUR/JPY': 'EURJPY', 'GBP/JPY': 'GBPJPY',
-  'AUD/USD': 'AUDUSD', 'NZD/USD': 'NZDUSD', 'USD/CAD': 'USDCAD', 'USD/CHF': 'USDCHF',
-  // Crypto (for future / Yahoo fallback)
-  'BTC': 'BTCUSD', 'ETH': 'ETHUSD',
-  // Indices (pass through as-is for Yahoo fallback)
-  'US30': 'US30',
-}
-
-/**
- * Normalize a raw symbol string:
- * 1. Strip whitespace, uppercase
- * 2. Check SYMBOL_ALIASES first
- * 3. If already in FOREX_SYMBOLS, return as-is
- * 4. Otherwise return the cleaned string (let caller decide what to do)
- */
-function normalizeSymbol(rawSymbol: string): string {
-  const cleaned = rawSymbol.trim().toUpperCase()
-  if (!cleaned) return 'EURUSD' // blank → default
-  if (SYMBOL_ALIASES[cleaned]) return SYMBOL_ALIASES[cleaned]
-  if (FOREX_SYMBOLS[cleaned]) return cleaned
-  return cleaned // unknown symbol — caller must handle
-}
-
-// ── CF Workers env vars ──────────────────────────────────────────────
-// In OpenNext/CF Workers, the init.js template populates process.env from
-// the CF env (secrets + [vars]) at request time via populateProcessEnv().
-// So process.env.FOO works for both secrets and vars.
-// We also try getCloudflareContext().env as a fallback.
-let _envCache: Record<string, string> | null = null
-
-function coerceEnvString(val: unknown): string {
-  if (typeof val === 'string') return val
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val)
-  if (val && typeof val === 'object' && 'toString' in val) {
-    try { const s = String(val); if (s && s !== '[object Object]') return s } catch {}
-  }
-  return ''
-}
-
-/** Known placeholder patterns that should NOT be treated as real API keys */
-const FOREX_PLACEHOLDER_PATTERNS = [
-  'your_', 'xxx', 'sk-or-', 'sk-your', 'hf_your',
-  're_xxxxxxxxxx',
-]
-
-function isPlaceholderEnvVar(value: string): boolean {
-  if (!value || value.length < 4) return true
-  const lower = value.toLowerCase()
-  return FOREX_PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p))
-}
-
-async function getEnvVar(key: string, options?: { quiet?: boolean }): Promise<string> {
-  // 1. Try CF Workers env FIRST (primary for production)
-  try {
-    const { getCloudflareContext } = await import('@opennextjs/cloudflare')
-    try {
-      const ctx = await getCloudflareContext({ async: true })
-      const fromCtx = coerceEnvString(ctx?.env?.[key])
-      if (fromCtx && fromCtx.length > 0 && !isPlaceholderEnvVar(fromCtx)) {
-        console.log(`[Forex:getEnvVar] ${key} found in CF ctx.env (async) (${fromCtx.length} chars)`)
-        return fromCtx
-      }
-    } catch {}
-    try {
-      const ctx = getCloudflareContext()
-      const fromCtx = coerceEnvString(ctx?.env?.[key])
-      if (fromCtx && fromCtx.length > 0 && !isPlaceholderEnvVar(fromCtx)) {
-        console.log(`[Forex:getEnvVar] ${key} found in CF ctx.env (sync) (${fromCtx.length} chars)`)
-        return fromCtx
-      }
-    } catch {}
-  } catch {}
-  // 2. Fallback: process.env (local dev)
-  const fromProcess = process.env[key]
-  if (fromProcess && fromProcess.length > 0 && !isPlaceholderEnvVar(fromProcess)) {
-    console.log(`[Forex:getEnvVar] ${key} found in process.env (${fromProcess.length} chars)`)
-    return fromProcess
-  }
-  if (!options?.quiet) {
-    console.warn(`[Forex:getEnvVar] ${key} NOT FOUND in any source`)
-  }
-  return ''
-}
-
-async function getAlphaVantageKey(): Promise<string> {
-  _envCache ??= {}
-  _envCache.ALPHA_VANTAGE_API_KEY ??= await getEnvVar('ALPHA_VANTAGE_API_KEY', { quiet: true })
-  return _envCache.ALPHA_VANTAGE_API_KEY || ''
-}
-async function getTwelveDataKey(): Promise<string> {
-  _envCache ??= {}
-  _envCache.TWELVE_DATA_API_KEY ??= await getEnvVar('TWELVE_DATA_API_KEY', { quiet: true })
-  return _envCache.TWELVE_DATA_API_KEY || ''
-}
-
-// ── Price sanity validation ──────────────────────────────────────────
-// Validates that a price is reasonable for a given symbol before caching or returning.
-// Returns null if the price is clearly stale/wrong, otherwise returns the price unchanged.
-function validatePrice(symbol: string, price: number): number | null {
-  const info = FOREX_SYMBOLS[symbol]
-  if (!info) return price // Unknown symbol, pass through
-
-  if (isNaN(price) || price <= 0) return null
-
-  // Gold (XAU/USD) — In 2025, gold is ~3000+. Anything below 2000 is clearly stale/wrong.
-  if (info.from === 'XAU' && price < 2000) {
-    console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 2000 (stale/wrong data)`)
-    return null
-  }
-
-  // Silver (XAG/USD) — In 2025, silver is ~30+. Anything below 10 is clearly stale/wrong.
-  if (info.from === 'XAG' && price < 10) {
-    console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 10 (stale/wrong data)`)
-    return null
-  }
-
-  // Forex major pairs should be in reasonable ranges
-  // JPY pairs: typically 100-200 range
-  if (info.to === 'JPY' && price < 50) {
-    console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 50 for JPY pair (stale/wrong data)`)
-    return null
-  }
-  // Indeks US100 (Nasdaq 100 ≈ 25.000 pada 2026) — rentang luas (Task 41)
-  if (info.from === 'US100') {
-    if (price < 1000 || price > 100000) {
-      console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is outside US100 index range (stale/wrong data)`)
-      return null
-    }
-    return price
-  }
-
-  // Non-JPY forex: typically 0.5-2.0 range
-  if (info.to !== 'JPY' && info.from !== 'XAU' && info.from !== 'XAG') {
-    if (price < 0.1 || price > 100) {
-      console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is out of normal forex range (stale/wrong data)`)
-      return null
-    }
-  }
-
-  return price
-}
-
-// Validate an array of candles, filtering out any with invalid prices
+// ── Price sanity validation (filter array candle, pakai validatePrice bersama) ──
 function validateCandles(symbol: string, candles: any[]): any[] {
   return candles.filter(candle => {
     const validClose = validatePrice(symbol, candle.close)
     if (validClose === null) return false
-    // Also check open/high/low are in reasonable range (not as strict as close)
     if (candle.open <= 0 || candle.high <= 0 || candle.low <= 0) return false
     if (candle.high < candle.low) return false
     return true
@@ -199,9 +52,7 @@ const CACHE_TTL_SHORT = 1 * 60 * 1000     // 1 minute for M5/M15
 const CACHE_TTL_PRICE = 30 * 1000         // 30 seconds for limit=1 (price checks)
 
 function getCacheTtl(interval: string, limit: number): number {
-  // Price polling (limit=1) needs the freshest data
   if (limit <= 1) return CACHE_TTL_PRICE
-  // Short timeframes need shorter cache for fresh data
   if (interval === '5m' || interval === '15m') return CACHE_TTL_SHORT
   return CACHE_TTL_DEFAULT
 }
@@ -209,18 +60,14 @@ function getCacheTtl(interval: string, limit: number): number {
 function getCached(key: string, interval: string, limit: number): CacheEntry | null {
   const entry = cache.get(key)
   if (entry && Date.now() - entry.timestamp < getCacheTtl(interval, limit)) {
-    // Validate cached data before returning (e.g., stale XAU prices)
     const symbol = key.split(':')[0]
     const validatedData = validateCandles(symbol, entry.data)
     if (validatedData.length === 0 && entry.data.length > 0) {
-      // All candles failed sanity check — cache is stale, invalidate it
       console.warn(`[Forex] Cache entry for ${key} failed sanity validation — invalidating`)
       cache.delete(key)
       return null
     }
-    // Return validated data (may be same as original if all passed)
     if (validatedData.length < entry.data.length) {
-      // Some candles were filtered out — update the cache
       entry.data = validatedData
     }
     return entry
@@ -231,7 +78,6 @@ function getCached(key: string, interval: string, limit: number): CacheEntry | n
 
 function setCache(key: string, data: any[], source: string) {
   cache.set(key, { data, timestamp: Date.now(), source })
-  // Prune old entries
   if (cache.size > 100) {
     const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
     if (oldest) cache.delete(oldest[0])
@@ -252,19 +98,15 @@ async function getForexKVCache(key: string): Promise<CacheEntry | null> {
     if (!raw) return null
     const entry = JSON.parse(raw) as CacheEntry
 
-    // Validate KV cached data before returning (e.g., stale XAU prices)
     const symbol = key.split(':')[0]
     const validatedData = validateCandles(symbol, entry.data)
     if (validatedData.length === 0 && entry.data.length > 0) {
-      // All candles failed sanity check — KV cache is stale, skip it
       console.warn(`[Forex] KV cache entry for ${key} failed sanity validation — skipping`)
       return null
     }
     if (validatedData.length < entry.data.length) {
-      // Some candles were filtered out — update entry
       entry.data = validatedData
     }
-
     return entry
   } catch {
     return null
@@ -287,275 +129,21 @@ async function setForexKVCache(key: string, data: any[], source: string, ttlSeco
   }
 }
 
-// ── Twelve Data Real-time Price (for watchlist polling) ─────────────
-async function fetchTwelveDataPrice(symbol: string): Promise<any[] | null> {
-  const TWELVE_DATA_KEY = await getTwelveDataKey()
-  if (!TWELVE_DATA_KEY || TWELVE_DATA_KEY.length < 10) return null
-
-  const info = FOREX_SYMBOLS[symbol]
-  if (!info) return null
-
-  const tdSymbol = `${info.from}/${info.to}`
-  const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(tdSymbol)}&apikey=${TWELVE_DATA_KEY}`
-
-  try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 10000)
-    const res = await fetch(url, { signal: controller.signal })
-    clearTimeout(tid)
-
-    if (!res.ok) return null
-
-    const json = await res.json()
-    if (json.status === 'error' || !json.price) return null
-
-    const price = parseFloat(json.price)
-    if (isNaN(price) || price <= 0) return null
-
-    // Sanity check for commodity pairs (stricter: validate full price range)
-    const validatedPrice = validatePrice(symbol, price)
-    if (validatedPrice === null) return null
-
-    // Return as a single-candle array compatible with the existing format
-    return [{
-      time: Math.floor(Date.now() / 1000),
-      open: price,
-      high: price,
-      low: price,
-      close: parseFloat(price.toFixed(info.decimals)),
-    }]
-  } catch {
-    return null
-  }
-}
-
-// ── Twelve Data API (FREE: 800 req/day, intraday!) ──────────────────
-async function fetchTwelveData(symbol: string, interval: string, limit: number): Promise<any[] | null> {
-  const TWELVE_DATA_KEY = await getTwelveDataKey()
-  if (!TWELVE_DATA_KEY || TWELVE_DATA_KEY.length < 10) return null
-
-  const info = FOREX_SYMBOLS[symbol]
-  if (!info) return null
-
-  // Map interval to Twelve Data format
-  const tdIntervalMap: Record<string, string> = {
-    '5m': '5min', '15m': '15min', '30m': '30min', '1h': '1h', '4h': '4h', '1d': '1day', '1w': '1week',
-  }
-  const tdInterval = tdIntervalMap[interval] || interval
-
-  // For commodity pairs (XAU, XAG), TwelveData uses the symbol directly
-  const tdSymbol = `${info.from}/${info.to}`
-
-  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${tdInterval}&outputsize=${limit}&apikey=${TWELVE_DATA_KEY}`
-
-  try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 10000)
-    const res = await fetch(url, { signal: controller.signal })
-    clearTimeout(tid)
-
-    if (!res.ok) return null
-
-    const json = await res.json()
-    if (json.status === 'error' || !json.values || json.values.length === 0) return null
-
-    return json.values
-      .map((v: any) => ({
-        time: Math.floor(new Date(v.datetime).getTime() / 1000),
-        open: parseFloat(v.open),
-        high: parseFloat(v.high),
-        low: parseFloat(v.low),
-        close: parseFloat(v.close),
-      }))
-      .filter((k: any) => {
-        if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
-        // Use centralized sanity validation (stricter: XAU < 2000 rejected)
-        return validatePrice(symbol, k.close) !== null
-      })
-      .sort((a: any, b: any) => a.time - b.time)
-  } catch {
-    return null
-  }
-}
-
-// ── Alpha Vantage API (FREE: 25 req/day, daily only) ────────────────
-async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] | null> {
-  const ALPHA_VANTAGE_KEY = await getAlphaVantageKey()
-  if (!ALPHA_VANTAGE_KEY || ALPHA_VANTAGE_KEY === 'demo' || ALPHA_VANTAGE_KEY.length < 10) return null
-
-  const info = FOREX_SYMBOLS[symbol]
-  if (!info) return null
-
-  // For commodity pairs (XAU/XAG), Alpha Vantage uses the commodity function
-  const isCommodity = info.from === 'XAU' || info.from === 'XAG'
-  const avFunction = isCommodity ? 'TIME_SERIES_DAILY' : 'FX_DAILY'
-  // For commodities, symbol format is different
-  const avUrl = isCommodity
-    ? `https://www.alphavantage.co/query?function=${avFunction}&symbol=${info.from}${info.to}&apikey=${ALPHA_VANTAGE_KEY}&outputsize=compact`
-    : `https://www.alphavantage.co/query?function=${avFunction}&from_symbol=${info.from}&to_symbol=${info.to}&apikey=${ALPHA_VANTAGE_KEY}&outputsize=compact`
-
-  const url = avUrl
-
-  try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 10000)
-    const res = await fetch(url, { signal: controller.signal })
-    clearTimeout(tid)
-
-    if (!res.ok) return null
-
-    const text = await res.text()
-    if (text.includes('Thank you for using Alpha Vantage')) return null
-
-    const data = JSON.parse(text)
-    if (data['Error Message']) return null
-
-    // Commodity pairs use 'Time Series (Daily)', forex uses 'Time Series FX (Daily)'
-    const timeSeriesKey = isCommodity ? 'Time Series (Daily)' : 'Time Series FX (Daily)'
-    if (!data[timeSeriesKey]) return null
-
-    const timeSeries = data[timeSeriesKey]
-    return Object.entries(timeSeries)
-      .slice(0, limit)
-      .reverse()
-      .map(([date, values]: [string, any]) => ({
-        time: Math.floor(new Date(date).getTime() / 1000),
-        open: parseFloat(values['1. open']),
-        high: parseFloat(values['2. high']),
-        low: parseFloat(values['3. low']),
-        close: parseFloat(values['4. close']),
-      }))
-      .filter((k: any) => {
-        if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
-        // Use centralized sanity validation (stricter: XAU < 2000 rejected)
-        return validatePrice(symbol, k.close) !== null
-      })
-      .sort((a: any, b: any) => a.time - b.time)
-  } catch {
-    return null
-  }
-}
-
-// ── Yahoo Finance (FREE, no API key needed, reliable) ────────────────
-async function fetchYahooFinance(symbol: string, interval: string, limit: number): Promise<any[] | null> {
-  const info = FOREX_SYMBOLS[symbol]
-  if (!info) return null
-
-  // Yahoo Finance symbol format: EURUSD=X
-  // Commodity pairs use futures symbols: GC=F (Gold), SI=F (Silver)
-  const commodityYahooSymbols: Record<string, string> = {
-    'XAUUSD': 'GC=F',   // Gold Futures
-    'XAGUSD': 'SI=F',   // Silver Futures
-    'US100': 'NQ=F',    // Nasdaq 100 futures ≈ CFD US100 (Task 41)
-  }
-  const yahooSymbol = commodityYahooSymbols[symbol] || `${info.from}${info.to}=X`
-
-  // Map interval to Yahoo Finance format
-  const yahooIntervalMap: Record<string, string> = {
-    '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1wk',
-  }
-  const yahooInterval = yahooIntervalMap[interval] || '1h'
-  // Yahoo range based on interval and limit
-  const rangeMap: Record<string, string> = {
-    '5m': '1d', '15m': '5d', '30m': '5d', '1h': '10d', '4h': '30d', '1d': '6mo', '1w': '1y',
-  }
-  const range = rangeMap[interval] || '5d'
-
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${yahooInterval}&range=${range}`
-
-  try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 10000)
-    const res = await fetch(url, {
-      headers: {
-        // Use a realistic browser User-Agent to avoid Yahoo bot detection
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-      },
-      signal: controller.signal,
-    })
-    clearTimeout(tid)
-
-    if (!res.ok) return null
-
-    const json = await res.json()
-    const result = json?.chart?.result?.[0]
-    if (!result) return null
-
-    // Check Yahoo's meta for trading status — skip if market is closed and data is stale
-    const meta = result.meta || {}
-    const currentPrice = meta.regularMarketPrice
-    const lastTradeTime = meta.regularMarketTime
-
-    const timestamps = result.timestamp || []
-    const quote = result.indicators?.quote?.[0]
-    if (!quote || !timestamps.length) return null
-
-    const candles: any[] = []
-    for (let i = 0; i < timestamps.length; i++) {
-      const open = quote.open?.[i]
-      const high = quote.high?.[i]
-      const low = quote.low?.[i]
-      const close = quote.close?.[i]
-      // Skip candles with null values
-      if (open == null || high == null || low == null || close == null) continue
-      if (high < low || open <= 0) continue
-      // Use centralized sanity validation (stricter: XAU < 2000 rejected)
-      if (validatePrice(symbol, close) === null) continue
-      candles.push({
-        time: timestamps[i],
-        open: parseFloat(open.toFixed(info.decimals)),
-        high: parseFloat(high.toFixed(info.decimals)),
-        low: parseFloat(low.toFixed(info.decimals)),
-        close: parseFloat(close.toFixed(info.decimals)),
-      })
-    }
-
-    if (candles.length === 0) return null
-
-    // For limit=1 (price check), also add the latest regularMarketPrice from meta
-    // if it's more recent than the last candle. This gives us the real-time price
-    // even between candle intervals.
-    if (limit === 1 && currentPrice && lastTradeTime && currentPrice > 0) {
-      const lastCandle = candles[candles.length - 1]
-      if (lastTradeTime > lastCandle.time) {
-        candles.push({
-          time: lastTradeTime,
-          open: lastCandle.close, // Use last close as open for the live tick
-          high: Math.max(lastCandle.high, currentPrice),
-          low: Math.min(lastCandle.low, currentPrice),
-          close: parseFloat(currentPrice.toFixed(info.decimals)),
-        })
-      }
-    }
-
-    // Return only the requested limit
-    return candles.slice(-limit).sort((a, b) => a.time - b.time)
-  } catch (err: any) {
-    console.warn(`[Forex] Yahoo Finance error for ${symbol}: ${err.message}`)
-    return null
-  }
-}
-
 // ── Main handler ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  // Reset env cache for each request
-  _envCache = null
-
   try {
     const { searchParams } = new URL(request.url)
     const rawSymbol = searchParams.get('symbol') || 'EURUSD'
     const interval = searchParams.get('interval') || '1h'
-    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 300)
     const nocache = searchParams.get('nocache') === 'true'
     const isPriceCheck = limit <= 1
 
-    // Normalize symbol (e.g., "XAU" → "XAUUSD", "GOLD" → "XAUUSD")
+    // Normalize symbol (e.g., "XAU" → "XAUUSD", "NASDAQ" → "US100")
     const symbol = normalizeSymbol(rawSymbol)
 
-    // If the normalized symbol is not in FOREX_SYMBOLS, return a clear error
     if (!FOREX_SYMBOLS[symbol]) {
-      console.warn(`[Forex] Unsupported symbol: "${rawSymbol}" → normalized to "${symbol}" — not in FOREX_SYMBOLS`)
+      console.warn(`[Forex] Unsupported symbol: "${rawSymbol}" → normalized to "${symbol}"`)
       return NextResponse.json({
         success: false,
         symbol,
@@ -564,27 +152,21 @@ export async function GET(request: NextRequest) {
         source: 'unsupported',
         unavailable: true,
         message: `Simbol "${rawSymbol}" tidak didukung. Simbol yang tersedia: ${Object.keys(FOREX_SYMBOLS).join(', ')}`,
-        errors: [`Symbol "${rawSymbol}" (normalized: "${symbol}") is not supported`],
         fetchedAt: new Date().toISOString(),
       }, { status: 400 })
     }
     const validSymbol = symbol
     const cacheKey = `${validSymbol}:${interval}:${limit}`
 
-    // Determine cache TTL for KV
     const kvTtlSeconds = isPriceCheck ? 30 : (interval === '5m' || interval === '15m') ? 60 : 300
 
-    // Check in-memory cache first (unless nocache is set)
-    // For price checks with nocache, always skip cache to get freshest data
+    // Cache in-memory (kecuali nocache; price check selalu minta yang freshest)
     if (!nocache) {
       const cached = getCached(cacheKey, interval, limit)
       if (cached) {
-        // For price checks, mark as stale if data is >15s old
-        // so the client knows to treat it as less reliable
         const age = Date.now() - cached.timestamp
         if (isPriceCheck && age > 15000) {
-          // Cache is stale for a price check — don't return it, fetch fresh
-          cache.delete(cacheKey)
+          cache.delete(cacheKey) // price check perlu data segar
         } else {
           return NextResponse.json({
             success: true,
@@ -598,14 +180,11 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Check KV cache (cross-isolate on CF Workers)
+      // KV cache (cross-isolate on CF Workers)
       const kvCached = await getForexKVCache(cacheKey)
       if (kvCached && Date.now() - kvCached.timestamp < getCacheTtl(interval, limit)) {
         const kvAge = Date.now() - kvCached.timestamp
-        if (isPriceCheck && kvAge > 15000) {
-          // KV cache is stale for a price check — don't return it
-        } else {
-          // Populate in-memory cache from KV
+        if (!(isPriceCheck && kvAge > 15000)) {
           setCache(cacheKey, kvCached.data, kvCached.source)
           return NextResponse.json({
             success: true,
@@ -620,121 +199,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const errors: string[] = []
-
-    // ── PRIMARY: OANDA v20 (Task 41) — candle forex/gold paling akurat.
-    // Bila OANDA_API_KEY belum dipasang / simbol di luar cakupan (US100),
-    // lanjut ke cascade lama (TwelveData → AlphaVantage → Yahoo) tanpa risiko.
-    if (isOandaSymbol(validSymbol)) {
-      const oa = await fetchOandaCandles(validSymbol, interval, limit)
-      if (oa && oa.length) {
-        const oaData = oandaToLux(oa)
-        setCache(cacheKey, oaData, 'oanda')
-        await setForexKVCache(cacheKey, oaData, 'oanda', kvTtlSeconds)
-        console.log(`[Forex] ✓ ${oaData.length} candles from OANDA (${validSymbol})`)
-        return NextResponse.json({
-          success: true,
-          symbol: validSymbol,
-          interval,
-          data: oaData,
-          source: 'oanda',
-          fetchedAt: new Date().toISOString(),
-        })
-      }
-      errors.push(hasOandaKey() ? 'OANDA: no data returned' : 'OANDA: API key not configured')
-    }
-
-    // Resolve API keys early (before any source calls)
-    const tdKey = await getTwelveDataKey()
-    const avKey = await getAlphaVantageKey()
-    // Log API key status for debugging
-    console.log(`[Forex] API keys: TwelveData=${tdKey ? 'YES(' + tdKey.substring(0, 6) + '...)' : 'NOT SET'}, AlphaVantage=${avKey ? 'YES' : 'NOT SET'}`)
-
-    // For price checks (limit=1), try real-time /price endpoint first
-    // This avoids the stale-candle issue where /time_series returns
-    // the last COMPLETED candle (up to 1h stale for 1h interval).
-    if (isPriceCheck) {
-      const tdPriceData = await fetchTwelveDataPrice(validSymbol)
-      if (tdPriceData && tdPriceData.length > 0) {
-        // Don't cache real-time price with the same key as time_series
-        // (it would pollute the chart cache with a single live tick)
-        console.log(`[Forex] ✓ Real-time price from TwelveData /price`)
-        return NextResponse.json({
-          success: true,
-          symbol: validSymbol,
-          interval,
-          data: tdPriceData,
-          source: 'twelvedata-price',
-          fetchedAt: new Date().toISOString(),
-        })
-      }
-    }
-
-    // Try Twelve Data time_series (best: intraday + free)
-    console.log(`[Forex] Symbol=${validSymbol} Interval=${interval} Limit=${limit} Nocache=${nocache} TwelveData=${tdKey ? 'key:' + tdKey.substring(0, 6) + '...' : 'NOT SET'}`)
-    const tdData = await fetchTwelveData(validSymbol, interval, limit)
-    if (tdData && tdData.length > 0) {
-      setCache(cacheKey, tdData, 'twelvedata')
-      await setForexKVCache(cacheKey, tdData, 'twelvedata', kvTtlSeconds)
-      console.log(`[Forex] ✓ ${tdData.length} candles from TwelveData`)
+    // YAHOO — satu-satunya sumber (publik, tanpa API key → tanpa risiko 401)
+    // limit<=1 → liveTick aktif (regularMarketPrice sbg harga real-time)
+    const yf: YahooCandle[] | null = await fetchYahooChart(validSymbol, interval, limit, isPriceCheck)
+    if (yf && yf.length > 0) {
+      setCache(cacheKey, yf, 'yahoo-finance')
+      await setForexKVCache(cacheKey, yf, 'yahoo-finance', kvTtlSeconds)
+      console.log(`[Forex] ✓ ${yf.length} candles from Yahoo Finance (${validSymbol} ${interval})`)
       return NextResponse.json({
         success: true,
         symbol: validSymbol,
         interval,
-        data: tdData,
-        source: 'twelvedata',
-        fetchedAt: new Date().toISOString(),
-      })
-    }
-    if (!tdKey || tdKey.length < 10) {
-      errors.push('TwelveData: API key not configured')
-    } else {
-      errors.push('TwelveData: no data returned')
-    }
-
-    // Try Alpha Vantage (daily only)
-    if (avKey) console.log(`[Forex] TwelveData failed, trying AlphaVantage (key: ${avKey.substring(0, 6)}...)`)
-    const avData = await fetchAlphaVantage(validSymbol, limit)
-    if (avData && avData.length > 0) {
-      setCache(cacheKey, avData, 'alphavantage')
-      await setForexKVCache(cacheKey, avData, 'alphavantage', kvTtlSeconds)
-      console.log(`[Forex] ✓ ${avData.length} candles from AlphaVantage`)
-      return NextResponse.json({
-        success: true,
-        symbol: validSymbol,
-        interval,
-        data: avData,
-        source: 'alphavantage',
-        note: 'Intraday not available — showing daily data',
-        fetchedAt: new Date().toISOString(),
-      })
-    }
-    if (avKey && avKey.length >= 10) {
-      errors.push('AlphaVantage: no data returned')
-    } else {
-      errors.push('AlphaVantage: API key not configured')
-    }
-
-    // Try Yahoo Finance (free, no key needed)
-    console.log(`[Forex] AlphaVantage failed, trying Yahoo Finance...`)
-    const yfData = await fetchYahooFinance(validSymbol, interval, limit)
-    if (yfData && yfData.length > 0) {
-      setCache(cacheKey, yfData, 'yahoo-finance')
-      await setForexKVCache(cacheKey, yfData, 'yahoo-finance', kvTtlSeconds)
-      console.log(`[Forex] ✓ ${yfData.length} candles from Yahoo Finance`)
-      return NextResponse.json({
-        success: true,
-        symbol: validSymbol,
-        interval,
-        data: yfData,
+        data: yf,
         source: 'yahoo-finance',
         fetchedAt: new Date().toISOString(),
       })
     }
-    errors.push('Yahoo Finance: no data returned')
 
-    // ALL LIVE SOURCES FAILED — return honest "unavailable" response (NO mock data)
-    console.error(`[Forex] ❌ All live API sources failed for ${validSymbol}: ${errors.join('; ')}`)
+    // SUMBER GAGAL — respons jujur (TANPA mock data)
+    console.error(`[Forex] ❌ Yahoo Finance gagal untuk ${validSymbol} ${interval}`)
     return NextResponse.json({
       success: false,
       symbol: validSymbol,
@@ -742,8 +225,7 @@ export async function GET(request: NextRequest) {
       data: [],
       source: 'unavailable',
       unavailable: true,
-      message: `Data live untuk ${validSymbol} sedang tidak dapat diakses. Semua sumber API gagal: ${errors.join(', ')}. Coba beberapa menit lagi.`,
-      errors,
+      message: `Data live untuk ${validSymbol} sedang tidak dapat diakses dari Yahoo Finance. Coba beberapa menit lagi.`,
       fetchedAt: new Date().toISOString(),
     }, { status: 503 })
   } catch (error) {
