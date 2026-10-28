@@ -7,7 +7,8 @@
  *   2. Script master disimpan di tabel `protected_scripts`
  *      (Supabase, RLS tanpa policy → hanya service role).
  *   3. Server menjalankan engine PineTS (yang sama dengan chart)
- *      secara HEADLESS terhadap candle server (OANDA/Yahoo/Binance),
+ *      secara HEADLESS terhadap candle server (Yahoo/Binance —
+ *      keyless, tanpa API key),
  *      lalu HANYA mengembalikan hasil plot {time, value} + sinyal.
  *   4. Alert Entry/SL/TP terdeteksi server (event `alert()` engine
  *      + alert_rules declaratif), di-dedupe per-bar, lalu diteruskan

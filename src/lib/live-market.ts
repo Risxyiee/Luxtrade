@@ -2,11 +2,12 @@
  * Live Market Data Fetcher
  * Fetches REAL-TIME prices from free APIs — NO dummy/mock/hardcoded data.
  *
- * Sources:
- * 1. TwelveData (API key required) — forex, stocks, crypto
- * 2. Yahoo Finance (free, no key) — forex, stocks, crypto
- * 3. Binance (free, no key) — crypto only
- * 4. CoinGecko (free, no key) — crypto only
+ * Sources (SEMUA KEYLESS — Task 42: jalur Twelve Data ber-API-key
+ * sudah DIHAPUS; tidak ada lagi fungsi penarik data yang butuh API
+ * key → mustahil 401 Unauthorized dari API eksternal):
+ * 1. Yahoo Finance (free, no key) — forex, stocks, crypto
+ * 2. Binance (free, no key) — crypto only
+ * 3. CoinGecko (free, no key) — crypto only
  *
  * Returns null if ALL sources fail — never returns fake data.
  */
@@ -21,36 +22,6 @@ function getPriceCache(key: string): PriceCache | null {
   if (entry && Date.now() - entry.timestamp < PRICE_CACHE_TTL) return entry
   priceCache.delete(key)
   return null
-}
-
-// ── TwelveData Real-time Price ─────────────────────────────────────
-async function fetchTwelveDataPrice(symbol: string): Promise<PriceCache | null> {
-  const key = process.env.TWELVE_DATA_API_KEY
-  if (!key || key.length < 10) return null
-
-  // Map common symbols to TwelveData format
-  const symbolMap: Record<string, string> = {
-    'XAUUSD': 'XAU/USD', 'XAGUSD': 'XAG/USD',
-    'EURUSD': 'EUR/USD', 'GBPUSD': 'GBP/USD', 'USDJPY': 'USD/JPY',
-    'AUDUSD': 'AUD/USD', 'NZDUSD': 'NZD/USD', 'USDCAD': 'USD/CAD', 'USDCHF': 'USD/CHF',
-    'EURGBP': 'EUR/GBP', 'EURJPY': 'EUR/JPY', 'GBPJPY': 'GBP/JPY',
-  }
-  const tdSymbol = symbolMap[symbol.toUpperCase()] || symbol
-
-  try {
-    const res = await fetch(
-      `https://api.twelvedata.com/price?symbol=${encodeURIComponent(tdSymbol)}&apikey=${key}`,
-      { signal: AbortSignal.timeout(8000) }
-    )
-    if (!res.ok) return null
-    const json = await res.json()
-    const price = parseFloat(json.price)
-    if (isNaN(price) || price <= 0) return null
-
-    return { price, source: 'TwelveData', timestamp: Date.now() }
-  } catch {
-    return null
-  }
 }
 
 // ── Yahoo Finance Real-time Price ──────────────────────────────────
@@ -195,22 +166,18 @@ export async function fetchLivePrice(symbol: string): Promise<PriceCache | null>
   // Determine if crypto
   const isCrypto = /^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|MATIC|LINK|LTC|UNI|ATOM|APT|ARB|OP|NEAR|SUI|SEI|PEPE|WIF|SHIB)/i.test(normalizedSymbol)
 
-  // Try sources in order
-  // 1. TwelveData (if key available)
-  const td = await fetchTwelveDataPrice(normalizedSymbol)
-  if (td) { priceCache.set(cacheKey, td); return td }
-
-  // 2. Yahoo Finance (free, no key)
+  // Try sources in order (semua keyless)
+  // 1. Yahoo Finance (free, no key)
   const yf = await fetchYahooPrice(normalizedSymbol)
   if (yf) { priceCache.set(cacheKey, yf); return yf }
 
-  // 3. Binance (crypto only, free)
+  // 2. Binance (crypto only, free)
   if (isCrypto) {
     const bn = await fetchBinancePrice(normalizedSymbol)
     if (bn) { priceCache.set(cacheKey, bn); return bn }
   }
 
-  // 4. CoinGecko (crypto only, free)
+  // 3. CoinGecko (crypto only, free)
   if (isCrypto) {
     const cg = await fetchCoinGeckoPrice(normalizedSymbol)
     if (cg) { priceCache.set(cacheKey, cg); return cg }

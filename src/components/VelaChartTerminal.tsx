@@ -8,9 +8,17 @@
  * search, timeframe, indikator bawaan 70+, drawing tools), tema
  * gelap elegan ala Luxtradee.
  *
- * - Data FX (XAUUSD dll.)  : provider custom `LuxtradeeForexProvider`
- *                            (menyajikan /api/forex milik Bos)
- * - Data crypto            : BinanceProvider bawaan Vela
+ * DATAFEED (Task 42 — bersih dari OANDA & API key eksternal):
+ *   - Crypto (BTCUSDT, ETHUSDT, …)
+ *       → BinanceProvider NATIVE bawaan paket @luxalgo/vela
+ *         (REST + websocket publik Binance — datafeed standar)
+ *   - Forex / Gold (XAUUSD) / Silver / Nasdaq (US100)
+ *       → LuxtradeeForexProvider — interface DataProvider Vela
+ *         yang sama; data keyless Yahoo Finance publik via
+ *         /api/candles (TANPA API KEY apa pun → mustahil 401)
+ *   Catatan: paket @luxalgo/vela hanya menyertakan provider
+ *   crypto secara native (Binance/Coinbase/Hyperliquid); FX/
+ *   Gold/US100 memakai port DataProvider yang sama, keyless.
  * - Pine Script®           : @luxalgo/vela-pinets (PineEngine)
  *                            + editor Save/Compile dengan kuota
  *                            FREE 2×/bulan (/api/pine/save)
@@ -256,10 +264,12 @@ export default function VelaChartTerminal({
           /* Gaya candle Luxtradee: emerald naik / merah turun */
           upColor: '#10b981',
           downColor: '#ef4444',
-          /* Data: FX milik Bos + crypto Binance */
+          /* Datafeed (Task 42 — tanpa OANDA, tanpa API key):
+             crypto → provider NATIVE bawaan Vela (websocket Binance);
+             FX/Gold/Silver/US100 → feed keyless Luxtradee. */
           providers: {
-            luxtradee: () => new LuxtradeeForexProvider(),
-            binance: () => new BinanceProvider(),
+            binance: () => new BinanceProvider(),          // native @luxalgo/vela
+            luxtradee: () => new LuxtradeeForexProvider(), // keyless FX/Gold/US100
           },
           /* Pine Script® engine — in-process (paling stabil).
              Skrip berat nanti bisa ganti PineWorkerEngine. */
@@ -420,7 +430,7 @@ export default function VelaChartTerminal({
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-[11px] text-white/40 flex items-center gap-1.5">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-          Luxtradee Trading Terminal · Forex &amp; Gold via OANDA · US100 · Crypto
+          Luxtradee Trading Terminal · Forex · Gold · US100 · Crypto · data live
         </div>
         <div className="flex items-center gap-1.5">
           {pineQuota && (
