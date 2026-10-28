@@ -27,6 +27,17 @@ export const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals:
   'USDCHF': { from: 'USD', to: 'CHF', decimals: 5 },
   // Indeks — Nasdaq 100 via futures NQ=F (≈ CFD US100, hampir 24 jam)
   'US100': { from: 'US100', to: 'USD', decimals: 1 },
+  // Crypto (BINANCE DIBUANG — crypto kini via TradingView/Finnhub/Yahoo)
+  'BTCUSDT': { from: 'BTC', to: 'USDT', decimals: 2 },
+  'ETHUSDT': { from: 'ETH', to: 'USDT', decimals: 2 },
+  'SOLUSDT': { from: 'SOL', to: 'USDT', decimals: 2 },
+  'XRPUSDT': { from: 'XRP', to: 'USDT', decimals: 4 },
+  'DOGEUSDT': { from: 'DOGE', to: 'USDT', decimals: 5 },
+  'ADAUSDT': { from: 'ADA', to: 'USDT', decimals: 4 },
+  'LTCUSDT': { from: 'LTC', to: 'USDT', decimals: 2 },
+  'BNBUSDT': { from: 'BNB', to: 'USDT', decimals: 2 },
+  'LINKUSDT': { from: 'LINK', to: 'USDT', decimals: 3 },
+  'AVAXUSDT': { from: 'AVAX', to: 'USDT', decimals: 3 },
 }
 
 /* ---------- Alias simbol / normalisasi ---------- */
@@ -42,6 +53,17 @@ export const SYMBOL_ALIASES: Record<string, string> = {
   'EUR/USD': 'EURUSD', 'GBP/USD': 'GBPUSD', 'USD/JPY': 'USDJPY',
   'EUR/GBP': 'EURGBP', 'EUR/JPY': 'EURJPY', 'GBP/JPY': 'GBPJPY',
   'AUD/USD': 'AUDUSD', 'NZD/USD': 'NZDUSD', 'USD/CAD': 'USDCAD', 'USD/CHF': 'USDCHF',
+  // Crypto shorthand
+  'BTC': 'BTCUSDT', 'BTC/USD': 'BTCUSDT', 'BTCUSD': 'BTCUSDT',
+  'ETH': 'ETHUSDT', 'ETH/USD': 'ETHUSDT', 'ETHUSD': 'ETHUSDT',
+  'SOL': 'SOLUSDT', 'SOL/USD': 'SOLUSDT', 'SOLUSD': 'SOLUSDT',
+  'XRP': 'XRPUSDT', 'XRP/USD': 'XRPUSDT', 'XRPUSD': 'XRPUSDT',
+  'DOGE': 'DOGEUSDT', 'DOGE/USD': 'DOGEUSDT', 'DOGEUSD': 'DOGEUSDT',
+  'ADA': 'ADAUSDT', 'ADA/USD': 'ADAUSDT', 'ADAUSD': 'ADAUSDT',
+  'LTC': 'LTCUSDT', 'LTC/USD': 'LTCUSDT', 'LTCUSD': 'LTCUSDT',
+  'BNB': 'BNBUSDT', 'BNB/USD': 'BNBUSDT', 'BNBUSD': 'BNBUSDT',
+  'LINK': 'LINKUSDT', 'LINK/USD': 'LINKUSDT', 'LINKUSD': 'LINKUSDT',
+  'AVAX': 'AVAXUSDT', 'AVAX/USD': 'AVAXUSDT', 'AVAXUSD': 'AVAXUSDT',
 }
 
 export function normalizeSymbol(rawSymbol: string): string {
@@ -65,6 +87,8 @@ export function validatePrice(symbol: string, price: number): number | null {
   if (info.from === 'XAG' && price < 10) return null
   // Pasangan JPY: puluhan–ratusan
   if (info.to === 'JPY' && price < 50) return null
+  // Crypto: cukup pastikan positif (PEPE dkk sangat kecil)
+  if (info.to === 'USDT') return price > 0 ? price : null
   // Indeks US100 — rentang luas: futures/NDX ~25rb, QQQ (ETF proxy) ~600
   if (info.from === 'US100') {
     if (price < 100 || price > 100000) return null
@@ -88,7 +112,7 @@ export interface YahooCandle {
   volume?: number
 }
 
-/* Simbol Yahoo: forex "EURUSD=X", futures GC=F (gold), SI=F (silver), NQ=F (Nasdaq) */
+/* Simbol Yahoo: forex "EURUSD=X", futures GC=F (gold), SI=F (silver), NQ=F (Nasdaq), crypto BTC-USD */
 const YAHOO_SYMBOLS: Record<string, string> = {
   'XAUUSD': 'GC=F',
   'XAGUSD': 'SI=F',
@@ -103,6 +127,16 @@ const YAHOO_SYMBOLS: Record<string, string> = {
   'NZDUSD': 'NZDUSD=X',
   'USDCAD': 'USDCAD=X',
   'USDCHF': 'USDCHF=X',
+  'BTCUSDT': 'BTC-USD',
+  'ETHUSDT': 'ETH-USD',
+  'SOLUSDT': 'SOL-USD',
+  'XRPUSDT': 'XRP-USD',
+  'DOGEUSDT': 'DOGE-USD',
+  'ADAUSDT': 'ADA-USD',
+  'LTCUSDT': 'LTC-USD',
+  'BNBUSDT': 'BNB-USD',
+  'LINKUSDT': 'LINK-USD',
+  'AVAXUSDT': 'AVAX-USD',
 }
 
 /* Interval → {iv Yahoo, range} — 2h/4h tidak ada di Yahoo → agregasi dari 1h */

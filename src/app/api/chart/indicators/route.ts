@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { fetchServerCandles } from '@/lib/market/server-candles'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,26 +13,13 @@ export async function GET(request: NextRequest) {
     console.log('   Interval:', interval)
     console.log('   Limit:', limit)
 
-    // Fetch OHLC data from Binance
-    const response = await fetch(
-      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
-    )
-
-    if (!response.ok) {
-      throw new Error(`Binance API error: ${response.status}`)
+    // Fetch OHLC via rantai server Luxtradee (TradingView → Finnhub →
+    // TwelveData → Yahoo) — BINANCE DIBUANG (keputusan Bos)
+    const cd = await fetchServerCandles(symbol.toUpperCase(), interval, Math.min(parseInt(limit) || 150, 500))
+    if (!cd || !cd.bars.length) {
+      throw new Error('Data candle tidak tersedia dari semua sumber')
     }
-
-    const klines = await response.json()
-
-    // Transform to OHLC format
-    const ohlcData = klines.map((kline: any[]) => ({
-      time: Math.floor(kline[0] / 1000),
-      open: parseFloat(kline[1]),
-      high: parseFloat(kline[2]),
-      low: parseFloat(kline[3]),
-      close: parseFloat(kline[4]),
-      volume: parseFloat(kline[5])
-    }))
+    const ohlcData = cd.bars
 
     console.log(`   Fetched ${ohlcData.length} candles`)
 

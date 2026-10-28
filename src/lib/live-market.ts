@@ -2,12 +2,9 @@
  * Live Market Data Fetcher
  * Fetches REAL-TIME prices from free APIs — NO dummy/mock/hardcoded data.
  *
- * Sources (SEMUA KEYLESS — Task 42: jalur Twelve Data ber-API-key
- * sudah DIHAPUS; tidak ada lagi fungsi penarik data yang butuh API
- * key → mustahil 401 Unauthorized dari API eksternal):
+ * Sources (SEMUA KEYLESS — Task 42 + BINANCE DIBUANG keputusan Bos):
  * 1. Yahoo Finance (free, no key) — forex, stocks, crypto
- * 2. Binance (free, no key) — crypto only
- * 3. CoinGecko (free, no key) — crypto only
+ * 2. CoinGecko (free, no key) — crypto only
  *
  * Returns null if ALL sources fail — never returns fake data.
  */
@@ -72,50 +69,6 @@ async function fetchYahooPrice(symbol: string): Promise<PriceCache | null> {
   }
 }
 
-// ── Binance Price (crypto only) ────────────────────────────────────
-async function fetchBinancePrice(symbol: string): Promise<PriceCache | null> {
-  // Convert to Binance format: BTCUSD → BTCUSDT
-  let binanceSymbol = symbol.toUpperCase().replace('/', '')
-  if (!binanceSymbol.endsWith('USDT') && !binanceSymbol.endsWith('BUSD') && !binanceSymbol.endsWith('BTC') && !binanceSymbol.endsWith('ETH')) {
-    // Assume USDT pair for crypto
-    if (/^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|MATIC|LINK|LTC)/i.test(binanceSymbol)) {
-      binanceSymbol = binanceSymbol.replace(/USD$/, 'USDT')
-      if (!binanceSymbol.endsWith('USDT')) binanceSymbol += 'USDT'
-    } else {
-      return null // Not a crypto symbol Binance would know
-    }
-  }
-
-  try {
-    const res = await fetch(
-      `https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`,
-      { signal: AbortSignal.timeout(8000) }
-    )
-    if (!res.ok) return null
-
-    const json = await res.json()
-    const price = parseFloat(json.price)
-    if (isNaN(price) || price <= 0) return null
-
-    // Also get 24h change
-    let change24h: number | undefined
-    try {
-      const res24h = await fetch(
-        `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
-        { signal: AbortSignal.timeout(5000) }
-      )
-      if (res24h.ok) {
-        const data = await res24h.json()
-        change24h = parseFloat(data.priceChangePercent)
-      }
-    } catch { /* ignore */ }
-
-    return { price, change24h, source: 'Binance', timestamp: Date.now() }
-  } catch {
-    return null
-  }
-}
-
 // ── CoinGecko Price (crypto only) ──────────────────────────────────
 const COINGECKO_IDS: Record<string, string> = {
   'BTC': 'bitcoin', 'ETH': 'ethereum', 'BNB': 'binancecoin', 'SOL': 'solana',
@@ -171,13 +124,7 @@ export async function fetchLivePrice(symbol: string): Promise<PriceCache | null>
   const yf = await fetchYahooPrice(normalizedSymbol)
   if (yf) { priceCache.set(cacheKey, yf); return yf }
 
-  // 2. Binance (crypto only, free)
-  if (isCrypto) {
-    const bn = await fetchBinancePrice(normalizedSymbol)
-    if (bn) { priceCache.set(cacheKey, bn); return bn }
-  }
-
-  // 3. CoinGecko (crypto only, free)
+  // 2. CoinGecko (crypto only, free)
   if (isCrypto) {
     const cg = await fetchCoinGeckoPrice(normalizedSymbol)
     if (cg) { priceCache.set(cacheKey, cg); return cg }
