@@ -1950,3 +1950,22 @@ Work Log:
 Stage Summary:
 - Copy fitur PRO kini 100% jujur & konsisten: gate nyata = 3 preset Luxtradee; tidak ada lagi klaim "70+ indikator" yang bisa dikontradiksi user free (mereka tetap bisa akses library bawaan Vela via picker)
 - Harga tunggal Rp39.000/bulan di seluruh sistem (Task 38) + preset indikator jelas (38-b)
+---
+Task ID: 39
+Agent: Z (main)
+Task: (1) Bersihkan file mati yang "masuk lagi" — root .md lama, config vercel/wrangler lama, dead code (cek dulu aktif/tidak, yang ragu dikonfirmasi); (2) Tombol "Hubungkan Telegram" di dekat "Tambah Akun Trading" di dashboard
+
+Work Log:
+- JAWABAN "kenapa masuk lagi": commit bersih-bersih e9f2e5cc (23 Okt, hapus 80+ file) & e25eaf69 (wrangler.toml) BENAR, tapi commit agent otomatis eb42bc41 (27 Okt, judul UUID) memulihkan file lama dari git history → root kotor lagi
+- AUDIT 2 fase (sesuai referensi Bos): (1) diff file dihapus-vs-ada sekarang → 101 file restored masih ada; (2) tiap file dicek referensi import-nya SATU-SATU (rg pattern from/import()/dynamic) + rantai dependensi
+- TERSELAMATKAN dari daftar hapus (ternyata AKTIF): .env.ci (dipakai .github/workflows/build-apk.yml baris 69-79!), Caddyfile, examples/websocket, src/middleware.ts (middleware AKTIF — Next 15.5.24 TIDAK punya konvensi proxy.ts, MIDDLEWARE_FILENAME saja), src/components/NotificationCenter.tsx (dirender Header.tsx:259), TradingScore.tsx (TabContent.tsx:234), PNLShareCard.tsx (DashboardModals.tsx:440), src/lib/trading-account.ts (re-export types/index.ts + connections page)
+- src/proxy.ts DIHAPUS: 0 referensi + Next terpasang tak kenal proxy (verifikasi node_modules/next/dist/lib/constants.js) — middleware.ts root juga dihapus (Next pakai src/ saat src dir ada)
+- HAPUS 185 file (semua bukti lengkap): wrangler.json + wrangler.toml (wrangler.jsonc = single source of truth per komentarnya sendiri — 2 config ini penyebab production incident terdokumentasi), vercel.json + vercel-postbuild.sh (deploy = Cloudflare, cron sudah di worker-entry.ts), sentry.* 4 file + api/sentry-test (paket @sentry tak terpasang, komentar file sendiri: "DELETE THIS FILE"), jest.config.js + jest.setup.js + src/__tests__ + playwright.config.ts + e2e/ (jest & playwright tak ada di package.json), 50+ komponen/lib dead (0 import: SidebarMewah, WelcomeModal, PaymentModal, EditTradeModal, QuickStats, landing/FeaturesSection, landing/HowItWorksSection, lib/payment/doku.ts, lib/supabase/client.ts, store/*zustand, dll — semuanya sudah pernah dihapus e9f2e5cc dan deploy tetap jalan 23→27 Okt = bukti aman), 69 root .md lama (68 ternyata IDENTIK byte-per-byte dengan docs/archive/ via cmp; MIDTRANS root = versi lama, archive = versi final), DEPLOYMENT.md + HANDOFF.md dipindah ke docs/archive/, artifact root (7 png, dev.out, 4 doku-*.json, fix_ai.js/py, test-db.ts, build.sh, run-tests.sh, download/, .screenshots/, public/logo.svg)
+- Tombol Telegram: src/app/dashboard/tabs/DashboardTab.tsx — Quick Action row sekarang [+ Catat Trade Baru] [Tambah Akun Trading] [✈️ Hubungkan Telegram] (Button asChild + Link → /dashboard/settings/telegram, ikon Send lucide, style outline sky konsisten tema, bilingual id/en)
+- TES LOKAL (server+tes satu chain, env Supabase publik diinjeksi sementara lalu .env dipulihkan): lint penuh lulus; browser E2E: landing render sempurna pasca cleanup (screenshot), login e2e-tester → dashboard, 3 tombol tampil, klik Hubungkan Telegram → /dashboard/settings/telegram → deep link AKTIF https://t.me/luxtradeebot?start=fdad8493-… (target _blank), kartu kuota Gratis 2/hari · Pro Rp39rb ✓ (screenshot /tmp/t39/quick-actions.png)
+- DEV LOG: hanya error Prisma postgres-URL lokal (keterbatasan sandbox, bukan regresi)
+
+Stage Summary:
+- Root repo bersih: 185 file mati hilang (±15 ribu baris), config Cloudflare tunggal (wrangler.jsonc), tidak ada duplikat middleware
+- Yang TIDAK dihapus + alasannya (minta konfirmasi Bos): package-lock.json (bisa dipakai jika install command CF dashboard pakai npm), scripts/ 25 file (dev utility manual), api/test-* routes (test-huggingface/test-zai-vision/test-supabase/seed/setup-db — mungkin pernah dicurl), docs/ + _archive/sql-history/ (arsip SQL produksi), devDeps tak terpakai di package.json (@testing-library/*, @types/jest — tak diutak-atik agar bun.lock aman)
+- Pencegahan "masuk lagi": file sudah git rm (bukan hanya lokal); jika agent commit UUID mengembalikan lagi, cek git log --diff-filter=D --diff-filter=A pasangan commitnya
