@@ -36,7 +36,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert } from 'lucide-react'
+import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert, Trash2 } from 'lucide-react'
 
 /* ---------- Luxtradee Pine® presets (muncul di indicator picker) ---------- */
 const PINE_PRESETS = [
@@ -194,6 +194,33 @@ plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
 interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
 
+/* ---------- Alert otomatis Pine (Task 44 — klik 🔔 aktif 24 jam) ---------- */
+interface AlertSubRow { id: string; scriptId: string; scriptName: string; symbol: string; interval: string; enabled: boolean }
+const ALERT_TFS: Array<{ v: string; label: string }> = [
+  { v: '5m', label: '5 Menit' }, { v: '15m', label: '15 Menit' }, { v: '30m', label: '30 Menit' },
+  { v: '1h', label: '1 Jam' }, { v: '2h', label: '2 Jam' }, { v: '4h', label: '4 Jam' },
+  { v: '1d', label: '1 Hari' }, { v: '1w', label: '1 Minggu' },
+]
+/* Timeframe chart Vela → interval kanonik server */
+const TF_TO_ALERT: Record<string, string> = {
+  '5': '5m', '15': '15m', '30': '30m', '60': '1h', '120': '2h', '240': '4h',
+  '1D': '1d', 'D': '1d', '1440': '1d', '1W': '1w', 'W': '1w', '10080': '1w',
+}
+function tfToAlert(tf: string): string {
+  const t = String(tf || '').trim()
+  return TF_TO_ALERT[t] || (/^\d+m$|^\d+h$|^1d$|^1w$/.test(t) ? t : '1h')
+}
+/** Hasil test alert → kalimat manusiawi untuk dialog */
+function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
+  if (tj?.telegramBound !== true) {
+    return { kind: 'warn', text: '✅ Alert aktif, tapi Telegram belum terhubung — buka Settings → Telegram agar sinyal bisa terkirim.' }
+  }
+  const n = Array.isArray(tj?.triggers) ? tj.triggers.length : 0
+  if (tj?.sent > 0) return { kind: 'ok', text: '🚀 Sinyal ditemukan & terkirim ke Telegram! Alert tetap aktif 24 jam.' }
+  if (n > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke Telegram. Alert aktif 24 jam.` }
+  return { kind: 'ok', text: '✅ Berjalan normal — belum ada sinyal di bar terakhir. Alert dicek server otomatis tiap 5 menit, 24 jam.' }
+}
+
 /**
  * Hitung tinggi auto-fit: chart mengisi VIEWPORT penuh — minus
  * header sticky dashboard (h-16) minus footer (bila ada) minus
@@ -316,6 +343,15 @@ export default function VelaChartTerminal({
   const [protectedBusy, setProtectedBusy] = useState<string | null>(null)
   const [protectedMsg, setProtectedMsg] = useState<string | null>(null)
 
+  /* ---------- Alert otomatis Pine (🔔 klik aktif 24 jam) ---------- */
+  const [alertDlg, setAlertDialog] = useState<ProtectedScriptMeta | null>(null)
+  const [alertSubs, setAlertSubs] = useState<AlertSubRow[]>([])
+  const [alertTgBound, setAlertTgBound] = useState<boolean | null>(null)
+  const [alertSymbol, setAlertSymbol] = useState('XAUUSD')
+  const [alertInterval, setAlertInterval] = useState('1h')
+  const [alertSaving, setAlertSaving] = useState(false)
+  const [alertDlgMsg, setAlertDlgMsg] = useState<{ kind: 'ok' | 'err' | 'warn'; text: string } | null>(null)
+
   /* ---------- Boot Vela workspace (sekali) ---------- */
   useEffect(() => {
     let dead = false
@@ -374,6 +410,18 @@ export default function VelaChartTerminal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /* ---------- Alert otomatis Pine: muat langganan + status Telegram ---------- */
+  const loadAlertSubs = useCallback(async () => {
+    try {
+      const r = await fetch('/api/pine/alerts', { cache: 'no-store' })
+      if (!r.ok) return
+      const j: any = await r.json()
+      setAlertSubs(Array.isArray(j?.subscriptions) ? j.subscriptions : [])
+      setAlertTgBound(j?.telegramBound === true)
+      if (typeof j?.isPro === 'boolean') setProtectedIsPro(j.isPro)
+    } catch { /* belum login — dot bell cukup kosong */ }
+  }, [])
+
   /* ---------- Kuota badge (mount) ---------- */
   const refreshQuotas = useCallback(async () => {
     try {
@@ -389,9 +437,87 @@ export default function VelaChartTerminal({
         setProtectedIsPro(pr.isPro === true)
         if (Array.isArray(pr.scripts)) setProtectedScripts(pr.scripts)
       }
+      loadAlertSubs()
     } catch { /* belum login — badge disembunyikan */ }
-  }, [])
+  }, [loadAlertSubs])
   useEffect(() => { refreshQuotas() }, [refreshQuotas])
+
+  /* ---------- Aksi alert otomatis (klik 🔔 → aktif + test / toggle / hapus) ---------- */
+  const openAlertDialog = useCallback((s: ProtectedScriptMeta) => {
+    /* Default simbol & TF ikut chart yang sedang dibuka */
+    let sym = 'XAUUSD'
+    let tf = '1h'
+    try {
+      const c: any = (wsRef.current as any)?.chart
+      const cs = String(c?.symbol || '').split(':').pop()?.toUpperCase()
+      if (cs) sym = cs
+      if (c?.timeframe) tf = tfToAlert(String(c.timeframe))
+    } catch { /* default tetap dipakai */ }
+    setAlertSymbol(sym)
+    setAlertInterval(tf)
+    setAlertDlgMsg(null)
+    setAlertDialog(s)
+    loadAlertSubs()
+  }, [loadAlertSubs])
+
+  const saveAlertSub = useCallback(async (opts: { scriptId: string; symbol: string; interval: string; enabled: boolean; withTest?: boolean }) => {
+    setAlertSaving(true)
+    setAlertDlgMsg(null)
+    try {
+      const res = await fetch('/api/pine/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptId: opts.scriptId, symbol: opts.symbol.trim(), timeframe: opts.interval, enabled: opts.enabled }),
+      })
+      const j: any = await res.json().catch(() => null)
+      if (res.status === 403) { setAlertDialog(null); setUpgradeMsg(String(j?.error || 'Alert otomatis khusus member Pro.')); return }
+      if (res.status === 401) { setAlertDlgMsg({ kind: 'err', text: 'Sesi habis — login ulang dulu ya.' }); return }
+      if (!res.ok) { setAlertDlgMsg({ kind: 'err', text: String(j?.error || `HTTP ${res.status}`) }); return }
+      await loadAlertSubs()
+      if (!opts.withTest) {
+        setAlertDlgMsg({ kind: 'ok', text: opts.enabled ? `✅ Alert ${opts.symbol} ${opts.interval} dinyalakan.` : `Alert ${opts.symbol} ${opts.interval} dimatikan.` })
+        return
+      }
+      /* Test langsung — user langsung lihat hasil evaluasi bar terakhir */
+      const t = await fetch('/api/pine/alerts/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptId: opts.scriptId, symbol: opts.symbol.trim(), timeframe: opts.interval }),
+      })
+      const tj: any = await t.json().catch(() => null)
+      if (!t.ok) {
+        setAlertDlgMsg({ kind: 'ok', text: `✅ Alert aktif 24 jam — dicek otomatis tiap 5 menit. (Test gagal: ${String(tj?.error || t.status)})` })
+        return
+      }
+      setAlertDlgMsg(alertTestMsg(tj))
+    } catch (x: any) {
+      setAlertDlgMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
+    } finally { setAlertSaving(false) }
+  }, [loadAlertSubs])
+
+  const testAlertSub = useCallback(async (sub: AlertSubRow) => {
+    setAlertSaving(true)
+    setAlertDlgMsg(null)
+    try {
+      const t = await fetch('/api/pine/alerts/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptId: sub.scriptId, symbol: sub.symbol, timeframe: sub.interval }),
+      })
+      const tj: any = await t.json().catch(() => null)
+      if (!t.ok) { setAlertDlgMsg({ kind: 'err', text: String(tj?.error || `HTTP ${t.status}`) }); return }
+      setAlertDlgMsg(alertTestMsg(tj))
+    } catch (x: any) {
+      setAlertDlgMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
+    } finally { setAlertSaving(false) }
+  }, [])
+
+  const deleteAlertSub = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/pine/alerts?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      setAlertSubs((l) => l.filter((s) => s.id !== id))
+    } catch { /* diam — daftar segar saat dialog dibuka lagi */ }
+  }, [])
 
   /* ---------- Jalankan Pine ke chart ---------- */
   const runOnChart = useCallback(async (source: string): Promise<string | null> => {
@@ -498,7 +624,7 @@ export default function VelaChartTerminal({
       }
       chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
       setActiveProtected((m) => ({ ...m, [s.id]: true }))
-      setProtectedMsg('🛡️ ' + s.name + ' tampil di chart — source tetap aman di server. Sinyal Entry/SL/TP otomatis ke Telegram.')
+      setProtectedMsg('🛡️ ' + s.name + ' tampil di chart. Klik 🔔 di sebelah nama skrip untuk alert otomatis 24 jam ke Telegram.')
     } catch (x: any) {
       setProtectedMsg('⚠️ ' + String(x?.message || x).slice(0, 120))
     } finally { setProtectedBusy(null) }
@@ -580,13 +706,24 @@ export default function VelaChartTerminal({
                 </button>
               )
             }
+            const hasSub = alertSubs.some((x) => x.scriptId === s.id && x.enabled)
             return (
-              <button key={s.id} onClick={() => addProtected(s)} disabled={protectedBusy === s.id}
-                className={`text-[11px] px-2.5 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1 min-h-[32px] disabled:opacity-50 ${active ? 'border-purple-400/40 bg-purple-400/15 text-purple-200' : 'border-purple-400/20 bg-purple-400/[0.06] text-purple-100/80 hover:bg-purple-400/15 hover:text-white'}`}
-                aria-label={`Aktifkan ${s.name} (indikator terproteksi)`}
-                title={s.description || s.name}>
-                {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : '🛡️'} {s.name}
-              </button>
+              <span key={s.id} className={`inline-flex items-stretch rounded-full border overflow-hidden min-h-[32px] ${active ? 'border-purple-400/40 bg-purple-400/15' : 'border-purple-400/20 bg-purple-400/[0.06]'}`}>
+                <button onClick={() => addProtected(s)} disabled={protectedBusy === s.id}
+                  className={`text-[11px] pl-2.5 pr-2 py-1.5 inline-flex items-center gap-1 transition-colors disabled:opacity-50 ${active ? 'text-purple-200' : 'text-purple-100/80 hover:text-white'}`}
+                  aria-label={`Aktifkan ${s.name} (indikator terproteksi)`}
+                  title={s.description || s.name}>
+                  {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : '🛡️'} {s.name}
+                </button>
+                <span className="w-px bg-purple-400/20" aria-hidden="true" />
+                <button onClick={() => openAlertDialog(s)}
+                  className="relative px-2 inline-flex items-center text-purple-100/80 hover:bg-purple-400/15 hover:text-white transition-colors"
+                  aria-label={`Alert otomatis 24 jam untuk ${s.name} — klik untuk mengaktifkan`}
+                  title="Alert otomatis 24 jam — sinyal Entry/SL/TP ke Telegram">
+                  <Bell className="w-3 h-3" />
+                  {hasSub && <span className="absolute top-1 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true" />}
+                </button>
+              </span>
             )
           })}
           {protectedMsg && (
@@ -710,6 +847,92 @@ export default function VelaChartTerminal({
               Upgrade ke Pro
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Dialog: Alert otomatis Pine (klik 🔔) ---------- */}
+      <Dialog open={!!alertDlg} onOpenChange={(v) => !v && setAlertDialog(null)}>
+        <DialogContent className="max-w-sm bg-[#0a0f16] border-white/10 max-h-[85vh] overflow-y-auto kscroll">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sky-300 text-base">
+              <Bell className="w-4 h-4" /> Alert Otomatis — {alertDlg?.name}
+            </DialogTitle>
+            <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
+              Sinyal Entry/SL/TP skrip ini dicek server tiap 5 menit & dikirim ke Telegram — tanpa buka chart.
+            </DialogDescription>
+          </DialogHeader>
+
+          {alertTgBound === false && (
+            <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200 flex items-center justify-between gap-2">
+              <span>Telegram belum terhubung — alert tidak bisa terkirim.</span>
+              <a href="/dashboard/settings/telegram" className="underline font-semibold whitespace-nowrap">Hubungkan</a>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                value={alertSymbol}
+                onChange={(e) => setAlertSymbol(e.target.value.toUpperCase())}
+                placeholder="SIMBOL (mis. XAUUSD)"
+                aria-label="Simbol alert"
+                className="flex-1 min-w-0 text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-sky-400/40"
+              />
+              <select
+                value={alertInterval}
+                onChange={(e) => setAlertInterval(e.target.value)}
+                aria-label="Timeframe alert"
+                className="text-xs bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-white/90 outline-none focus:border-sky-400/40"
+              >
+                {ALERT_TFS.map((t) => (
+                  <option key={t.v} value={t.v} className="bg-[#0a0f16]">{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <Button
+              size="sm"
+              className="w-full bg-sky-500 hover:bg-sky-400 text-black font-semibold"
+              disabled={alertSaving || !alertDlg || alertSymbol.trim().length < 3}
+              onClick={() => alertDlg && saveAlertSub({ scriptId: alertDlg.id, symbol: alertSymbol.trim(), interval: alertInterval, enabled: true, withTest: true })}
+            >
+              {alertSaving
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <>Aktifkan {alertSymbol.trim() || 'Alert'} · {ALERT_TFS.find((t) => t.v === alertInterval)?.label}</>}
+            </Button>
+            {alertDlgMsg && (
+              <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertDlgMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : alertDlgMsg.kind === 'warn' ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+                {alertDlgMsg.text}
+              </div>
+            )}
+          </div>
+
+          {alertDlg && alertSubs.filter((s) => s.scriptId === alertDlg.id).length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[10px] text-white/40 uppercase tracking-wider">Langganan skrip ini</div>
+              <div className="max-h-40 overflow-y-auto kscroll space-y-1 pr-0.5">
+                {alertSubs.filter((s) => s.scriptId === alertDlg.id).map((s) => (
+                  <div key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-emerald-400' : 'bg-white/20'}`} aria-hidden="true" />
+                    <span className="text-[11px] text-white/80 flex-1 truncate">{s.symbol} · {s.interval}</span>
+                    <button
+                      onClick={() => testAlertSub(s)}
+                      disabled={alertSaving}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-200/90 hover:bg-sky-400/15 disabled:opacity-50"
+                      title="Jalankan pengecekan sinyal sekarang"
+                    >⚡ Test</button>
+                    <button
+                      onClick={() => saveAlertSub({ scriptId: s.scriptId, symbol: s.symbol, interval: s.interval, enabled: !s.enabled })}
+                      disabled={alertSaving}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-white/60 hover:text-white disabled:opacity-50"
+                    >{s.enabled ? 'Matikan' : 'Nyalakan'}</button>
+                    <button onClick={() => deleteAlertSub(s.id)} disabled={alertSaving} aria-label={`Hapus langganan ${s.symbol} ${s.interval}`} className="text-white/35 hover:text-red-300 disabled:opacity-50">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
