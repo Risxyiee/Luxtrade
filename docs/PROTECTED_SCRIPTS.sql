@@ -64,6 +64,14 @@ drop policy if exists "pine_alert_log_no_client"    on public.pine_alert_log;
 revoke all on public.protected_scripts from anon, authenticated;
 revoke all on public.pine_alert_log    from anon, authenticated;
 
+-- BERI AKSES PENUH ke service_role (server).
+-- FIX: beberapa project Supabase tidak mewariskan default-privileges
+-- ke tabel yang dibuat lewat SQL Editor → service_role kena
+-- "permission denied for table protected_scripts". GRANT eksplisit
+-- menyelesaikannya (idempotent — aman dijalankan berulang).
+grant select, insert, update, delete on public.protected_scripts to service_role;
+grant select, insert, update, delete on public.pine_alert_log    to service_role;
+
 -- ============================================================
 -- 4) CONTOH SKRIP MASTER (boleh dihapus/diubah Bos)
 --    "Luxtradee Sniper EMA" — EMA 21/55 + SL/TP + alert entry.
