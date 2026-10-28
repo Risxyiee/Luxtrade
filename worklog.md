@@ -1867,3 +1867,27 @@ Stage Summary:
 - Maya 现在每天两类用户各收各的邮件：休眠用户收"怀念+jurnal价值"，从未上传用户收"第一步引导"（各自 LLM draf + 各自静态 fallback）
 - 限额不变：总 maks 50（A30+B20），Resend free 100/天安全；<3 天新注册不打扰；csmailed 反馈回路照旧
 - 待 Bos 部署验证：点 📧 ACC EMAIL → Discord 应显示 "X email terkirim ke 2 grup — A user vakum + B belum pernah upload"
+---
+Task ID: 36
+Agent: Z (main)
+Task: 迁移 chart 到 LuxAlgo Vela™（@luxalgo/vela）+ freemium 配额（Telegram alert 2×/天 free、Pine Script 编辑 2×/月 free）
+
+Work Log:
+- 事实核查：@luxalgo/vela@0.9.0 + @luxalgo/vela-pinets@0.3.0 真实存在（npm+GitHub）→ 安装 + peer `pinets`；API 从 node_modules .d.ts 逐个确认（VelaWorkspace options、DataProvider 接口、ProviderCapabilities、IndicatorManifest、DARK_THEME、ws.chart 访问器、runIndicator）
+- 探索现状：旧 chart = lightweight-charts（ChartTab+CandlestickChart+/api/forex）；profiles.is_pro 已有；Telegram 旧 token 已死（lib/telegram.ts 注释确认迁移 Discord）；Pine 从零；身份=getAuthenticatedUser；Prisma 在 CF Workers 是 stub → 配额走 Supabase REST
+- 新文件：
+  1. docs/SUPABASE_QUOTA_TABLES.sql — user_quotas（alerts_today_count/alerts_reset_date/pine_edits_month_count/pine_reset_month）+ pine_scripts + RLS（user 只读自己配额、写只走 service role 防篡改；脚本 owner CRUD）
+  2. src/lib/user-quota.ts — wibDay/wibMonth + getQuotaRow 懒重置（读时对比日期/月份归零，无 cron）+ readIsPro（含 subscription_until/pro_expiry 过期复核）+ check/commit Alert & Pine + 官方文案函数
+  3. src/app/api/send-alert/route.ts — GET 配额状态 + POST：free ≥2 → 429 "Kuota alert gratis habis (maksimal 2x sehari). Upgrade ke Pro untuk alert tanpa batas!"；<2 → api.telegram.org/bot{token}/sendMessage 成功后才 commitAlertQuota（失败不烧配额）；Pro 跳过检查；env TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID
+  4. src/app/api/pine/save/route.ts — GET 列表+配额（读取不耗额）；POST：校验 //@version= 头 + 长度 → free ≥2 → 403 "Batas edit skrip gratis bulan ini habis (2x/bulan). Upgrade ke Pro (Rp49rb/bulan) untuk edit sepuasnya!"；通过 → insert pine_scripts → commitPineQuota；DELETE 自己的
+  5. src/components/vela/LuxtradeeProvider.ts — DataProvider 实现：12 FX/金属符号、TF_MAP（vela 分钟→/api/forex 格式）、in-flight 去重、sec/ms/ISO 时间归一、range 裁剪、capabilities.stream=false（Vela feed 自动轮询）
+  6. src/components/VelaChartTerminal.tsx — VelaWorkspace（dark、emerald/红蜡烛色、layout:false、persist 'luxtradee-vela-v1'、双 provider、PineEngine + 3 个 Luxtradee Pine 预设 manifest）；Pine 编辑抽屉（名字+source+Save/Compile→POST→成功 chart.runIndicator 上图；403→升级 Dialog→/#pricing）；Alert TG 抽屉（POST→成功显示剩余次数；429→升级 Dialog）；配额 badge（GET 两端点，401/500 优雅隐藏）；WebGL boot error UI+重试
+  7. src/components/ChartTab.tsx — total 替换：删 lightweight-charts+手工 selector（Vela 自带 symbol search/TF），dynamic ssr:false + loading 态 + Vela™ badge + 键盘提示；兼容旧 isPro prop（忽略，配额已 server-side per-aksi）
+- 浏览器 E2E（sandbox 反复 OOM 杀 dev/browser，多轮重试）：登录 e2e-tester@luxtradee.app ✅ → /dashboard ✅ → Chart Live tab → VelaChartTerminal mounted ✅（dev.log：refreshQuotas 调 /api/send-alert+/api/pine/save 500=本地无 service role 的清晰错误路径，前端优雅降级）→ Vela workspace 构造并拉数据 ✅（dev.log：Compiling /api/forex = LuxtradeeForexProvider.getBars 被 Vela feed 调用）→ UI 三件套（Vela toolbar/Pine Script/Alert TG）渲染确认 ✅；chunk "failed" 已证伪（curl 200，dev 重启缓存假象）；干净 canvas 截图受 sandbox 限制未拿到（诚实记录）
+- lint 全量通过；.env 测试后恢复仅 DATABASE_URL
+
+Stage Summary:
+- 旧 chart 已 total 替换为 Vela™ terminal（数据源不变 /api/forex + Binance crypto；Pine Script® v5/v6 可编译执行）
+- 配额模型：free 2 alert/天 + 2 Pine edit/月（Supabase user_quotas 懒重置 WIB 口径、服务端判定、成功才计数、Pro 完全跳过）；pine_scripts 存用户脚本
+- Bos 部署 3 步：(1) Supabase SQL Editor 跑 docs/SUPABASE_QUOTA_TABLES.sql（2) Cloudflare 加 TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID secrets（3) Deploy；@BotFather 建 bot 拿 token、@userinfobot 拿 chat id
+- commit 待 push：代码 7 文件（4 新建 + 3 修改）

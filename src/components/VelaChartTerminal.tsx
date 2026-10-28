@@ -1,0 +1,378 @@
+'use client'
+/**
+ * ============================================================
+ * VelaChartTerminal — Chart terminal baru Luxtradee (Task 36)
+ * ============================================================
+ * Menggantikan chart lama (lightweight-charts) dengan Vela™ by
+ * LuxAlgo (@luxalgo/vela) — WebGL2, workspace lengkap (symbol
+ * search, timeframe, indikator bawaan 70+, drawing tools), tema
+ * gelap elegan ala Luxtradee.
+ *
+ * - Data FX (XAUUSD dll.)  : provider custom `LuxtradeeForexProvider`
+ *                            (menyajikan /api/forex milik Bos)
+ * - Data crypto            : BinanceProvider bawaan Vela
+ * - Pine Script®           : @luxalgo/vela-pinets (PineEngine)
+ *                            + editor Save/Compile dengan kuota
+ *                            FREE 2×/bulan (/api/pine/save)
+ * - Alert Telegram         : panel kirim alert dengan kuota
+ *                            FREE 2×/hari (/api/send-alert)
+ *
+ * CATATAN SSR: komponen ini WAJIB dimuat via next/dynamic dengan
+ * { ssr: false } (dilakukan di ChartTab) — Vela menyentuh
+ * WebGL/canvas sejak konstruktor.
+ */
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { VelaWorkspace } from '@luxalgo/vela/workspace'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert } from 'lucide-react'
+
+/* ---------- Luxtradee Pine® presets (muncul di indicator picker) ---------- */
+const PINE_PRESETS = [
+  {
+    name: 'Luxtradee — EMA 20/50',
+    category: 'Luxtradee',
+    enabled: true,
+    script: `//@version=6
+indicator("Luxtradee EMA 20/50", overlay=true)
+plot(ta.ema(close, 20), color=color.orange, linewidth=2)
+plot(ta.ema(close, 50), color=color.teal, linewidth=2)`,
+  },
+  {
+    name: 'Luxtradee — RSI 14',
+    category: 'Luxtradee',
+    script: `//@version=6
+indicator("Luxtradee RSI 14", overlay=false)
+plot(ta.rsi(close, 14), color=color.purple, linewidth=2)
+hline(70), hline(30)`,
+  },
+  {
+    name: 'Luxtradee — VWAP',
+    category: 'Luxtradee',
+    script: `//@version=6
+indicator("Luxtradee VWAP", overlay=true)
+plot(ta.vwap, color=color.aqua, linewidth=2)`,
+  },
+]
+
+/* ---------- Template awal editor ---------- */
+const PINE_TEMPLATE = `//@version=6
+indicator("Luxtradee Skrip Saya", overlay=true)
+plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
+
+interface PineScriptRow { id: string; name: string; source: string }
+interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
+
+export default function VelaChartTerminal({
+  height = 'clamp(420px, 62vh, 640px)',
+  defaultSymbol = 'XAUUSD',
+  defaultTimeframe = '60',
+}: {
+  height?: string
+  defaultSymbol?: string
+  defaultTimeframe?: string
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const wsRef = useRef<VelaWorkspace | null>(null)
+  const [booting, setBooting] = useState(true)
+  const [bootError, setBootError] = useState<string | null>(null)
+
+  /* ---------- Pine editor state ---------- */
+  const [pineOpen, setPineOpen] = useState(false)
+  const [pineName, setPineName] = useState('Skrip saya')
+  const [pineSource, setPineSource] = useState(PINE_TEMPLATE)
+  const [pineBusy, setPineBusy] = useState(false)
+  const [pineMsg, setPineMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [pineScripts, setPineScripts] = useState<PineScriptRow[]>([])
+  const [pineQuota, setPineQuota] = useState<QuotaBadge | null>(null)
+
+  /* ---------- Alert Telegram state ---------- */
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertMsg, setAlertMsg] = useState('')
+  const [alertBusy, setAlertBusy] = useState(false)
+  const [alertResult, setAlertResult] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [alertQuota, setAlertQuota] = useState<QuotaBadge | null>(null)
+
+  /* ---------- Upgrade paywall dialog ---------- */
+  const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
+
+  /* ---------- Boot Vela workspace (sekali) ---------- */
+  useEffect(() => {
+    let dead = false
+    ;(async () => {
+      try {
+        const [{ VelaWorkspace: WS }, { LuxtradeeForexProvider }, { BinanceProvider }, { PineEngine }] = await Promise.all([
+          import('@luxalgo/vela/workspace'),
+          import('@/components/vela/LuxtradeeProvider'),
+          import('@luxalgo/vela/providers/binance'),
+          import('@luxalgo/vela-pinets'),
+        ])
+        if (dead || !hostRef.current) return
+        const ws = new WS(hostRef.current, {
+          layout: false, // satu chart penuh
+          symbol: defaultSymbol,
+          timeframe: defaultTimeframe,
+          live: true,
+          theme: 'dark',
+          /* Gaya candle Luxtradee: emerald naik / merah turun */
+          upColor: '#10b981',
+          downColor: '#ef4444',
+          /* Data: FX milik Bos + crypto Binance */
+          providers: {
+            luxtradee: () => new LuxtradeeForexProvider(),
+            binance: () => new BinanceProvider(),
+          },
+          /* Pine Script® engine — in-process (paling stabil).
+             Skrip berat nanti bisa ganti PineWorkerEngine. */
+          engines: { pine: () => new PineEngine() },
+          indicators: PINE_PRESETS,
+          persist: 'luxtradee-vela-v1', // restore layout/indikator/gambar user
+        })
+        wsRef.current = ws
+        setBooting(false)
+      } catch (x: any) {
+        if (!dead) {
+          setBootError(String(x?.message || x).slice(0, 160))
+          setBooting(false)
+        }
+      }
+    })()
+    return () => {
+      dead = true
+      try { wsRef.current?.destroy() } catch { /* ignore */ }
+      wsRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  /* ---------- Kuota badge (mount) ---------- */
+  const refreshQuotas = useCallback(async () => {
+    try {
+      const [p, a] = await Promise.all([
+        fetch('/api/pine/save', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/send-alert', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ])
+      if (p?.quota) setPineQuota(p.quota)
+      if (p?.scripts) setPineScripts(p.scripts)
+      if (a && !a.error) setAlertQuota(a)
+    } catch { /* belum login — badge disembunyikan */ }
+  }, [])
+  useEffect(() => { refreshQuotas() }, [refreshQuotas])
+
+  /* ---------- Jalankan Pine ke chart ---------- */
+  const runOnChart = useCallback(async (source: string): Promise<string | null> => {
+    const chart: any = (wsRef.current as any)?.chart
+    if (!chart) return 'Chart belum siap — tunggu sebentar lalu coba lagi.'
+    try {
+      if (typeof chart.runIndicator === 'function') await chart.runIndicator(source)
+      else await chart.addIndicator(source)
+      return null
+    } catch (x: any) {
+      /* runIndicator Vela mengembalikan error terstruktur — tampilkan apa adanya */
+      const m = String(x?.message || x?.reason || x).replace(/https?:\/\/\S+/g, '').slice(0, 180)
+      return m || 'Skrip gagal dikompilasi.'
+    }
+  }, [])
+
+  /* ---------- Save/Compile Pine (kuota 2×/bulan untuk free) ---------- */
+  const pineSave = useCallback(async () => {
+    setPineBusy(true); setPineMsg(null)
+    try {
+      const res = await fetch('/api/pine/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: pineName, source: pineSource }),
+      })
+      const r: any = await res.json()
+      if (res.status === 403) { // kuota free habis
+        setUpgradeMsg(String(r?.error || 'Batas edit tercapai.'))
+        return
+      }
+      if (!res.ok) { setPineMsg({ kind: 'err', text: String(r?.error || `HTTP ${res.status}`) }); return }
+      /* Sukses simpan → compile langsung ke chart */
+      const err = await runOnChart(pineSource)
+      if (err) { setPineMsg({ kind: 'err', text: `Tersimpan, tapi gagal tampil di chart: ${err}` }) }
+      else { setPineMsg({ kind: 'ok', text: `✅ "${r?.script?.name || pineName}" tersimpan & tampil di chart.` }) }
+      if (r?.quota) setPineQuota(r.quota)
+      if (r?.script) setPineScripts((l) => [r.script, ...l].slice(0, 30))
+    } catch (x: any) {
+      setPineMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
+    } finally { setPineBusy(false) }
+  }, [pineName, pineSource, runOnChart])
+
+  /* ---------- Alert Telegram (kuota 2×/hari untuk free) ---------- */
+  const alertSend = useCallback(async () => {
+    if (!alertMsg.trim()) return
+    setAlertBusy(true); setAlertResult(null)
+    try {
+      const res = await fetch('/api/send-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: alertMsg.trim() }),
+      })
+      const r: any = await res.json()
+      if (res.status === 429) { // kuota alert free habis
+        setUpgradeMsg(String(r?.error || 'Kuota alert habis.'))
+        return
+      }
+      if (!res.ok) { setAlertResult({ kind: 'err', text: String(r?.error || `HTTP ${res.status}`) }); return }
+      setAlertResult({ kind: 'ok', text: r?.isPro ? '✅ Terkirim ke Telegram (Pro — tanpa batas).' : `✅ Terkirim ke Telegram! Sisa kuota hari ini: ${r?.remaining ?? 0}.` })
+      setAlertMsg('')
+      if (typeof r?.used === 'number') setAlertQuota((q) => q ? { ...q, used: r.used, remaining: r.remaining } : q)
+    } catch (x: any) {
+      setAlertResult({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
+    } finally { setAlertBusy(false) }
+  }, [alertMsg])
+
+  const quotaLabel = (q: QuotaBadge | null, unit: string) =>
+    !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
+
+  return (
+    <div className="space-y-2">
+      {/* ---------- Toolbar atas (di luar canvas — tidak menutupi UI Vela) ---------- */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-[11px] text-white/40 flex items-center gap-1.5">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Vela™ terminal · XAUUSD &amp; forex via data Luxtradee · crypto via Binance
+        </div>
+        <div className="flex items-center gap-1.5">
+          {pineQuota && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/60">
+              📐 {quotaLabel(pineQuota, 'edit')}
+            </span>
+          )}
+          {alertQuota && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/60">
+              🔔 {quotaLabel(alertQuota, 'alert')}
+            </span>
+          )}
+          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => { setPineOpen((v) => !v); setAlertOpen(false) }}>
+            <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
+          </Button>
+          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => { setAlertOpen((v) => !v); setPineOpen(false) }}>
+            <Bell className="w-3.5 h-3.5 mr-1" /> Alert TG
+          </Button>
+        </div>
+      </div>
+
+      {/* ---------- Vela workspace ---------- */}
+      <div className="relative rounded-2xl border border-white/10 bg-[#05070d] overflow-hidden">
+        <div ref={hostRef} style={{ height }} className="w-full" />
+
+        {booting && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#05070d] gap-2">
+            <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
+            <div className="text-white/50 text-xs">Menyalakan mesin chart Vela…</div>
+          </div>
+        )}
+        {bootError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#05070d] gap-2 p-6 text-center">
+            <TriangleAlert className="w-8 h-8 text-red-400" />
+            <div className="text-white text-sm font-semibold">Chart gagal dimuat</div>
+            <div className="text-white/50 text-xs max-w-md">{bootError}</div>
+            <Button size="sm" variant="outline" className="mt-1" onClick={() => window.location.reload()}>
+              Muat ulang
+            </Button>
+          </div>
+        )}
+
+        {/* ---------- Drawer: Pine Script editor ---------- */}
+        {pineOpen && (
+          <div className="absolute right-2 top-2 bottom-2 w-[min(92vw,380px)] z-30 flex flex-col rounded-xl border border-white/10 bg-[#0a0f16]/95 backdrop-blur shadow-2xl">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+              <div className="text-xs font-semibold text-emerald-300">📐 Pine Script® Editor</div>
+              <button className="text-white/40 hover:text-white" onClick={() => setPineOpen(false)} aria-label="Tutup editor"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="px-3 py-2 space-y-2 flex-1 min-h-0 flex flex-col">
+              <input
+                value={pineName} onChange={(e) => setPineName(e.target.value)}
+                placeholder="Nama skrip"
+                className="w-full text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+              />
+              <textarea
+                value={pineSource} onChange={(e) => setPineSource(e.target.value)}
+                spellCheck={false}
+                className="w-full flex-1 min-h-[160px] text-[11.5px] leading-relaxed font-mono bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-emerald-100/90 outline-none focus:border-emerald-400/40 resize-none kscroll"
+              />
+              {pineMsg && (
+                <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${pineMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+                  {pineMsg.text}
+                </div>
+              )}
+              <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold" disabled={pineBusy} onClick={pineSave}>
+                {pineBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : '▶ Save / Compile ke Chart'}
+              </Button>
+              {pineQuota && !pineQuota.isPro && (
+                <div className="text-[10px] text-white/40 leading-relaxed">
+                  Paket gratis: 2× edit/bulan · terpakai {pineQuota.used}. Pro = tanpa batas (Rp49rb/bulan).
+                </div>
+              )}
+              {pineScripts.length > 0 && (
+                <div className="min-h-0 overflow-y-auto kscroll space-y-1">
+                  <div className="text-[10px] text-white/40 uppercase tracking-wider">Skrip tersimpan</div>
+                  {pineScripts.map((s) => (
+                    <button key={s.id} onClick={() => { setPineName(s.name); setPineSource(s.source) }}
+                      className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate">
+                      📄 {s.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ---------- Drawer: Alert Telegram ---------- */}
+        {alertOpen && (
+          <div className="absolute right-2 top-2 w-[min(92vw,340px)] z-30 rounded-xl border border-white/10 bg-[#0a0f16]/95 backdrop-blur shadow-2xl">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+              <div className="text-xs font-semibold text-sky-300">🔔 Alert → Telegram Bot</div>
+              <button className="text-white/40 hover:text-white" onClick={() => setAlertOpen(false)} aria-label="Tutup alert"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="px-3 py-2 space-y-2">
+              <textarea
+                value={alertMsg} onChange={(e) => setAlertMsg(e.target.value)}
+                placeholder="Contoh: XAUUSD tembus 2350 — cek setup long!"
+                className="w-full h-20 text-[11.5px] bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-sky-400/40 resize-none"
+              />
+              {alertResult && (
+                <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertResult.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+                  {alertResult.text}
+                </div>
+              )}
+              <Button size="sm" className="w-full bg-sky-500 hover:bg-sky-400 text-black font-semibold" disabled={alertBusy || !alertMsg.trim()} onClick={alertSend}>
+                {alertBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-3.5 h-3.5 mr-1" /> Kirim Alert</>}
+              </Button>
+              {alertQuota && !alertQuota.isPro && (
+                <div className="text-[10px] text-white/40 leading-relaxed">
+                  Paket gratis: 2 alert/hari · terpakai {alertQuota.used}. Pro = tanpa batas.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---------- Dialog paywall upgrade ---------- */}
+      <Dialog open={!!upgradeMsg} onOpenChange={(v) => !v && setUpgradeMsg(null)}>
+        <DialogContent className="max-w-sm bg-[#0a0f16] border-white/10">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-300">
+              <GraduationCap className="w-5 h-5" /> Batas Gratis Tercapai
+            </DialogTitle>
+            <DialogDescription className="text-white/70 text-sm leading-relaxed pt-1">
+              {upgradeMsg}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setUpgradeMsg(null)}>Nanti saja</Button>
+            <Button size="sm" className="bg-amber-400 hover:bg-amber-300 text-black font-semibold" onClick={() => { window.location.href = '/#pricing' }}>
+              Upgrade ke Pro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
