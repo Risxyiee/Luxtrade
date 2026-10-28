@@ -4,7 +4,7 @@
  * ============================================================
  * POST  { name?: string, source: string }
  *   → Free : maks 2×/BULAN (lazy reset per bulan WIB, tabel user_quotas).
- *     Ke-3 kali → 403 + pesan upgrade Rp49rb/bulan (SOP Bos).
+ *     Ke-3 kali → 403 + pesan upgrade Rp39rb/bulan (harga = lib/pricing.ts).
  *   → Pro  : tanpa batas.
  *   Sukses → simpan ke `pine_scripts` + increment counter + kembalikan
  *   baris skrip (UI langsung execute ke chart Vela via chart.runIndicator).

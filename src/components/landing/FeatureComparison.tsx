@@ -45,7 +45,7 @@ const features: FeatureRow[] = [
   {
     name: { id: 'Chart Live Vela™ (indikator preset)', en: 'Vela™ Live Chart (preset indicators)' },
     free: { type: 'text', value: '1 (EMA 20/50)' },
-    pro: { type: 'text', value: 'Semua (70+)' },
+    pro: { type: 'text', value: 'Semua (EMA + RSI + VWAP)' },
   },
   {
     name: { id: 'Editor Pine Script®', en: 'Pine Script® Editor' },

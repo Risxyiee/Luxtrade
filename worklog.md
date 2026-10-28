@@ -1935,3 +1935,18 @@ Stage Summary:
 - Deskripsi Free/Pro konsisten 100% dengan isi dashboard (sidebar proOnly + kuota server) di: landing pricing, tabel perbandingan, FAQ, PlanSelectionModal, 2 PaywallModal
 - 3 file dead code dihapus (±1.900 baris copy usang hilang dari repo → tak bisa lagi membingungkan)
 - Konfirmasi ke Bos: error Telegram 404 Not Found = TOKEN salah (@BotFather → /mybots → API Token), bukan masalah kode; SQL lengkap diberikan di chat
+---
+Task ID: 38-b
+Agent: Z (main)
+Task: Lanjutan sinkronisasi — hapus sisa klaim "70+ indikator" yang menyesatkan, ganti daftar preset jujur sesuai gating dashboard (free 1 = EMA 20/50, pro semua 3 preset)
+
+Work Log:
+- Konteks: Task 38 paralel sudah menyamakan harga ke Rp39.000 & menyatukan copy; namun 6 tempat masih mengklaim "Semua Indikator Chart Vela™ (70+)" untuk PRO — padahal yang di-gate hanyalah 3 preset Luxtradee (library bawaan Vela 70+ tak bisa digate dan tersedia untuk semua user via picker Vela)
+- Edit 6 file: PricingSectionNew (PRO card), FeatureComparison (pro cell 'Semua (70+)' → 'Semua (EMA + RSI + VWAP)'), components/PaywallModal (en+id), dashboard/components/PaywallModal (en+id desc), PlanSelectionModal (Elite Pro + Annual)
+- Semua klaim kini: "Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)" — konsisten dengan chip 🔒 di Chart Live & paywall dialog
+- Comment pine/save route diselaraskan (Rp39rb, sumber harga = lib/pricing.ts)
+- lint penuh lulus; commit + push
+
+Stage Summary:
+- Copy fitur PRO kini 100% jujur & konsisten: gate nyata = 3 preset Luxtradee; tidak ada lagi klaim "70+ indikator" yang bisa dikontradiksi user free (mereka tetap bisa akses library bawaan Vela via picker)
+- Harga tunggal Rp39.000/bulan di seluruh sistem (Task 38) + preset indikator jelas (38-b)
