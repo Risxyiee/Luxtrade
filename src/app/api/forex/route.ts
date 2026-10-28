@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { fetchOandaCandles, oandaToLux, isOandaSymbol, hasOandaKey } from '@/lib/market/oanda'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,12 +17,17 @@ const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals: number
   'NZDUSD': { from: 'NZD', to: 'USD', decimals: 5 },
   'USDCAD': { from: 'USD', to: 'CAD', decimals: 5 },
   'USDCHF': { from: 'USD', to: 'CHF', decimals: 5 },
+  // Indeks — Nasdaq 100 (Task 41): via Yahoo NQ=F (futures ≈ CFD US100)
+  'US100': { from: 'US100', to: 'USD', decimals: 1 },
 }
 
 // ── Symbol aliases / normalization ────────────────────────────────────
 // Maps common abbreviations, slang, and slash-separated pairs to the
 // canonical symbol used in FOREX_SYMBOLS.
 const SYMBOL_ALIASES: Record<string, string> = {
+  // Indeks AS — Nasdaq 100 (US100 / NAS100 / USTEC) — Task 41
+  'US100': 'US100', 'NAS100': 'US100', 'USTEC': 'US100', 'NDX': 'US100',
+  'NASDAQ': 'US100', 'US100/USD': 'US100', 'USTEC100': 'US100',
   // Gold
   'XAU': 'XAUUSD', 'GOLD': 'XAUUSD', 'XAU/USD': 'XAUUSD',
   // Silver
@@ -36,7 +42,7 @@ const SYMBOL_ALIASES: Record<string, string> = {
   // Crypto (for future / Yahoo fallback)
   'BTC': 'BTCUSD', 'ETH': 'ETHUSD',
   // Indices (pass through as-is for Yahoo fallback)
-  'US30': 'US30', 'NAS100': 'NAS100',
+  'US30': 'US30',
 }
 
 /**
@@ -153,6 +159,15 @@ function validatePrice(symbol: string, price: number): number | null {
     console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 50 for JPY pair (stale/wrong data)`)
     return null
   }
+  // Indeks US100 (Nasdaq 100 ≈ 25.000 pada 2026) — rentang luas (Task 41)
+  if (info.from === 'US100') {
+    if (price < 1000 || price > 100000) {
+      console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is outside US100 index range (stale/wrong data)`)
+      return null
+    }
+    return price
+  }
+
   // Non-JPY forex: typically 0.5-2.0 range
   if (info.to !== 'JPY' && info.from !== 'XAU' && info.from !== 'XAG') {
     if (price < 0.1 || price > 100) {
@@ -431,6 +446,7 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
   const commodityYahooSymbols: Record<string, string> = {
     'XAUUSD': 'GC=F',   // Gold Futures
     'XAGUSD': 'SI=F',   // Silver Futures
+    'US100': 'NQ=F',    // Nasdaq 100 futures ≈ CFD US100 (Task 41)
   }
   const yahooSymbol = commodityYahooSymbols[symbol] || `${info.from}${info.to}=X`
 
@@ -605,6 +621,28 @@ export async function GET(request: NextRequest) {
     }
 
     const errors: string[] = []
+
+    // ── PRIMARY: OANDA v20 (Task 41) — candle forex/gold paling akurat.
+    // Bila OANDA_API_KEY belum dipasang / simbol di luar cakupan (US100),
+    // lanjut ke cascade lama (TwelveData → AlphaVantage → Yahoo) tanpa risiko.
+    if (isOandaSymbol(validSymbol)) {
+      const oa = await fetchOandaCandles(validSymbol, interval, limit)
+      if (oa && oa.length) {
+        const oaData = oandaToLux(oa)
+        setCache(cacheKey, oaData, 'oanda')
+        await setForexKVCache(cacheKey, oaData, 'oanda', kvTtlSeconds)
+        console.log(`[Forex] ✓ ${oaData.length} candles from OANDA (${validSymbol})`)
+        return NextResponse.json({
+          success: true,
+          symbol: validSymbol,
+          interval,
+          data: oaData,
+          source: 'oanda',
+          fetchedAt: new Date().toISOString(),
+        })
+      }
+      errors.push(hasOandaKey() ? 'OANDA: no data returned' : 'OANDA: API key not configured')
+    }
 
     // Resolve API keys early (before any source calls)
     const tdKey = await getTwelveDataKey()

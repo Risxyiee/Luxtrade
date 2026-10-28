@@ -1,8 +1,8 @@
 /**
  * ============================================================
  * LuxtradeeForexProvider — DataProvider untuk Vela™ yang menyajikan
- * XAUUSD / XAGUSD / major forex dari API Luxtradee sendiri
- * (/api/forex — AlphaVantage + Yahoo Finance + cache KV).
+ * XAUUSD / XAGUSD / major forex / US100 dari API Luxtradee sendiri
+ * (/api/forex — OANDA + TwelveData + AlphaVantage + Yahoo + cache KV).
  * ============================================================
  * Kenapa custom provider? Provider bawaan Vela (Binance/Coinbase/
  * Hyperliquid) tidak menyajikan XAUUSD & pasangan forex. Dengan
@@ -38,6 +38,7 @@ const TF_MAP: Record<string, string> = {
 const SYMBOLS: SymbolDescriptor[] = [
   { ticker: 'XAUUSD', description: 'Gold / US Dollar', type: 'forex', group: 'METALS', default: true },
   { ticker: 'XAGUSD', description: 'Silver / US Dollar', type: 'forex', group: 'METALS' },
+  { ticker: 'US100', description: 'Nasdaq 100 — US Tech 100', type: 'index', group: 'INDICES' },
   { ticker: 'EURUSD', description: 'Euro / US Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'GBPUSD', description: 'British Pound / US Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'USDJPY', description: 'US Dollar / Japanese Yen', type: 'forex', group: 'MAJOR' },

@@ -59,6 +59,123 @@ plot(ta.vwap, color=color.aqua, linewidth=2)`,
 /* ---------- Batas indikator preset (SOP Bos: free 1, pro buka semua) ---------- */
 const FREE_INDICATOR_LIMIT = 1
 
+/* ============================================================
+   PROTECTED CUSTOM PINE SCRIPT® (Task 41) — client-side glue
+   ============================================================
+   Source Pine TIDAK PERNAH dikirim ke browser. Server
+   (/api/compile-pine) menjalankan engine PineTS headless dan
+   HANYA mengembalikan hasil plot {time, value}. Client menggambar
+   hasilnya via NATIVE INDICATOR Vela (registerNativeIndicator)
+   — tanpa tab editor, tanpa source, tanpa cara menyalin kodenya.
+   ============================================================ */
+const PROTECTED_TYPE = 'luxtradee-protected'
+
+interface ProtectedPlot { key: string; title: string; color: string; data: Array<{ time: number; value: number | null }> }
+interface ProtectedScriptMeta { id: string; slug: string; name: string; description: string | null }
+
+/* Cache plot per (scriptId, symbol, tf) — 45 detik. Refetch ringan
+   ini sekaligus jadi loop LISTENER alert: tiap refresh, server
+   mengevaluasi ulang sinyal Entry/SL/TP → Telegram user Pro. */
+const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[] }>()
+
+function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string) {
+  try {
+    const barsArr: Array<{ time: number }> = typeof ctx?.bars === 'function' ? ctx.bars() : []
+    const series = plots.map((p) => {
+      const m = new Map<number, number | null>()
+      for (const d of p.data) m.set(d.time, d.value)
+      return {
+        id: `ltxp-${scriptId}-${p.key}`,
+        title: p.title,
+        paneId: 'price',
+        kind: 'line' as const,
+        /* Index-aligned terhadap bars() SAAT EMIT (kontrak Vela) */
+        points: barsArr.map((b) => ({ time: b.time, value: m.get(b.time) ?? null })),
+        style: { color: p.color, width: 2, lineStyle: 'solid' as const },
+      }
+    })
+    ctx?.emit?.({ series })
+  } catch { /* jangan biarkan satu emit mengguncang chart */ }
+}
+
+function createProtectedInstance() {
+  let ctx: any = null
+  let scriptId = ''
+  let busy = false
+  let lastEmit = 0
+
+  const run = async (force: boolean) => {
+    const c = ctx
+    if (!c || !scriptId || busy) return
+    /* simbol bisa berprefiks provider — buang sebelum ':'] */
+    const sym = String(c.symbol || '').split(':').pop() || ''
+    const tf = String(c.timeframe || '60')
+    const ck = `${scriptId}:${sym.toUpperCase()}:${tf}`
+    const cached = protectedPlotCache.get(ck)
+    if (cached && Date.now() - cached.at < 45000) {
+      emitProtectedPlots(c, cached.plots, scriptId)
+      return
+    }
+    if (!force && Date.now() - lastEmit < 15000) return // anti-jitter live tick
+    busy = true
+    try {
+      c.setStatus?.('loading')
+      const res = await fetch('/api/compile-pine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptId, symbol: sym.toUpperCase(), interval: tf }),
+      })
+      if (res.ok) {
+        const j: any = await res.json()
+        if (Array.isArray(j?.plots) && j.plots.length) {
+          protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots })
+          emitProtectedPlots(c, j.plots, scriptId)
+          lastEmit = Date.now()
+          c.setStatus?.('live')
+          return
+        }
+      } else if (res.status === 403) {
+        /* Pro kadaluarsa di tengah sesi — biarkan kosong; chip UI
+           akan menutup akses pada pemakaian berikutnya */
+      }
+      c.setStatus?.('idle')
+    } catch { try { c?.setStatus?.('idle') } catch {} }
+    finally { busy = false }
+  }
+
+  return {
+    start: (c: any, inputs: Record<string, any>) => {
+      ctx = c; scriptId = String(inputs?.scriptId || ''); run(true)
+    },
+    onBars: () => { run(false) },
+    onViewport: () => { /* tidak viewport-dependent */ },
+    setInputs: (i: Record<string, any>) => {
+      const s = String(i?.scriptId || '')
+      if (s && s !== scriptId) { scriptId = s; run(true) }
+    },
+    suspend: () => { /* tetap hidup — data murah dari cache */ },
+    resume: () => { run(false) },
+    stop: () => { ctx = null },
+  }
+}
+
+let protectedRegistered = false
+function ensureProtectedNativeRegistered(register: (d: any) => void) {
+  if (protectedRegistered) return
+  protectedRegistered = true
+  register({
+    type: PROTECTED_TYPE,
+    title: 'Luxtradee Pro Script',
+    shortTitle: 'LTX Pro',
+    paneHint: 'price',
+    overlay: true,
+    multiInstance: true,
+    inputsSchema: () => [{ key: 'scriptId', type: 'text', defval: '', title: 'Script ID', visible: false } as any],
+    defaultInputs: () => ({ scriptId: '' }),
+    create: createProtectedInstance,
+  })
+}
+
 /* ---------- Template awal editor ---------- */
 const PINE_TEMPLATE = `//@version=6
 indicator("Luxtradee Skrip Saya", overlay=true)
@@ -66,7 +183,6 @@ plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
 
 interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
-
 export default function VelaChartTerminal({
   height = 'clamp(420px, 62vh, 640px)',
   defaultSymbol = 'XAUUSD',
@@ -105,18 +221,29 @@ export default function VelaChartTerminal({
   const [presetBusy, setPresetBusy] = useState<number | null>(null)
   const [presetMsg, setPresetMsg] = useState<string | null>(null)
 
+  /* ---------- Indikator Eksklusif (Protected Pine — Pro saja) ---------- */
+  const [protectedScripts, setProtectedScripts] = useState<ProtectedScriptMeta[]>([])
+  const [protectedIsPro, setProtectedIsPro] = useState(false)
+  const [activeProtected, setActiveProtected] = useState<Record<string, boolean>>({})
+  const [protectedBusy, setProtectedBusy] = useState<string | null>(null)
+  const [protectedMsg, setProtectedMsg] = useState<string | null>(null)
+
   /* ---------- Boot Vela workspace (sekali) ---------- */
   useEffect(() => {
     let dead = false
     ;(async () => {
       try {
-        const [{ VelaWorkspace: WS }, { LuxtradeeForexProvider }, { BinanceProvider }, { PineEngine }] = await Promise.all([
+        const [{ VelaWorkspace: WS }, { LuxtradeeForexProvider }, { BinanceProvider }, { PineEngine }, velaCore] = await Promise.all([
           import('@luxalgo/vela/workspace'),
           import('@/components/vela/LuxtradeeProvider'),
           import('@luxalgo/vela/providers/binance'),
           import('@luxalgo/vela-pinets'),
+          import('@luxalgo/vela'),
         ])
         if (dead || !hostRef.current) return
+        /* Native indicator untuk hasil Protected Pine (server-computed)
+           — daftar SEBELUM chart dibuat supaya addNativeIndicator hidup */
+        ensureProtectedNativeRegistered((velaCore as any).registerNativeIndicator)
         const ws = new WS(hostRef.current, {
           layout: false, // satu chart penuh
           symbol: defaultSymbol,
@@ -160,13 +287,18 @@ export default function VelaChartTerminal({
   /* ---------- Kuota badge (mount) ---------- */
   const refreshQuotas = useCallback(async () => {
     try {
-      const [p, a] = await Promise.all([
+      const [p, a, pr] = await Promise.all([
         fetch('/api/pine/save', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         fetch('/api/send-alert', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/compile-pine', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ])
       if (p?.quota) setPineQuota(p.quota)
       if (p?.scripts) setPineScripts(p.scripts)
       if (a && !a.error) setAlertQuota(a)
+      if (pr) {
+        setProtectedIsPro(pr.isPro === true)
+        if (Array.isArray(pr.scripts)) setProtectedScripts(pr.scripts)
+      }
     } catch { /* belum login — badge disembunyikan */ }
   }, [])
   useEffect(() => { refreshQuotas() }, [refreshQuotas])
@@ -261,13 +393,34 @@ export default function VelaChartTerminal({
     return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp39rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
   }
 
+  /* ---------- Indikator Eksklusif (Protected Pine — Pro) ----------
+     Source tidak pernah keluar dari server: chip ini hanya menambah
+     NATIVE indicator yang menggambar hasil plot dari /api/compile-pine.
+     Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403. */
+  const addProtected = useCallback(async (s: ProtectedScriptMeta) => {
+    if (protectedBusy) return
+    setProtectedBusy(s.id); setProtectedMsg(null)
+    try {
+      const chart: any = (wsRef.current as any)?.chart
+      if (!chart) { setProtectedMsg('⚠️ Chart belum siap — coba lagi sebentar.'); return }
+      if (typeof chart.addNativeIndicator !== 'function') {
+        setProtectedMsg('⚠️ Terminal belum mendukung indikator eksklusif (update chart).'); return
+      }
+      chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
+      setActiveProtected((m) => ({ ...m, [s.id]: true }))
+      setProtectedMsg('🛡️ ' + s.name + ' tampil di chart — source tetap aman di server. Sinyal Entry/SL/TP otomatis ke Telegram.')
+    } catch (x: any) {
+      setProtectedMsg('⚠️ ' + String(x?.message || x).slice(0, 120))
+    } finally { setProtectedBusy(null) }
+  }, [protectedBusy])
+
   return (
     <div className="space-y-2">
       {/* ---------- Toolbar atas (di luar canvas — tidak menutupi UI Vela) ---------- */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-[11px] text-white/40 flex items-center gap-1.5">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-          Luxtradee Trading Terminal · XAUUSD &amp; forex · data live
+          Luxtradee Trading Terminal · Forex &amp; Gold via OANDA · US100 · Crypto
         </div>
         <div className="flex items-center gap-1.5">
           {pineQuota && (
@@ -318,6 +471,39 @@ export default function VelaChartTerminal({
           <span className={`text-[10.5px] ${presetMsg.startsWith('✅') ? 'text-emerald-300/80' : 'text-red-300/80'}`}>{presetMsg}</span>
         )}
       </div>
+
+      {/* ---------- Indikator Eksklusif (Protected Pine® — Pro) ----------
+          Skrip master Bos: source tak pernah ke browser, user hanya
+          melihat garis + sinyal. Free melihat chip terkunci. */}
+      {protectedScripts.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-purple-300/50">Eksklusif</span>
+          {protectedScripts.map((s) => {
+            const active = !!activeProtected[s.id]
+            if (!protectedIsPro) {
+              return (
+                <button key={s.id}
+                  onClick={() => setUpgradeMsg(`🛡️ ${s.name} adalah indikator EKSKLUSIF member Pro. Source code dijamin aman (tidak pernah dikirim ke browser) — kamu hanya melihat garis & sinyal Entry/SL/TP-nya di chart, plus alert otomatis ke Telegram. Upgrade ke Pro (Rp39rb/bulan) untuk mengaktifkannya!`)}
+                  className="text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-white/35 hover:text-white/60 hover:border-white/20 transition-colors inline-flex items-center gap-1 min-h-[32px]"
+                  aria-label={`${s.name} — khusus Pro, klik untuk info upgrade`}>
+                  🔒 {s.name} <span className="text-[9px] font-bold text-purple-300/80">PRO</span>
+                </button>
+              )
+            }
+            return (
+              <button key={s.id} onClick={() => addProtected(s)} disabled={protectedBusy === s.id}
+                className={`text-[11px] px-2.5 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1 min-h-[32px] disabled:opacity-50 ${active ? 'border-purple-400/40 bg-purple-400/15 text-purple-200' : 'border-purple-400/20 bg-purple-400/[0.06] text-purple-100/80 hover:bg-purple-400/15 hover:text-white'}`}
+                aria-label={`Aktifkan ${s.name} (indikator terproteksi)`}
+                title={s.description || s.name}>
+                {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : '🛡️'} {s.name}
+              </button>
+            )
+          })}
+          {protectedMsg && (
+            <span className={`text-[10.5px] ${protectedMsg.startsWith('🛡️') || protectedMsg.startsWith('✅') ? 'text-emerald-300/80' : 'text-red-300/80'}`}>{protectedMsg}</span>
+          )}
+        </div>
+      )}
 
       {/* ---------- Vela workspace ---------- */}
       <div className="relative rounded-2xl border border-white/10 bg-[#05070d] overflow-hidden">
