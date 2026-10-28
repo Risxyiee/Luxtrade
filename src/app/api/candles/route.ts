@@ -2,25 +2,30 @@
  * ============================================================
  * GET /api/candles — datafeed chart Vela (forex, gold, US100)
  * ============================================================
- * 100% KEYLESS (Task 42 — arahan Bos: batalkan jalur API keyed,
- * pakai datafeed standar tanpa kunci apa pun → mustahil 401
- * Unauthorized dari API eksternal):
+ * RANTAI SUMBER (spot-grade dulu, keyless selalu siaga):
  *
- *   - SATU SUMBER: Yahoo Finance chart API (publik, gratis,
- *     TANPA API KEY) — fallback host otomatis query1 → query2.
- *     Jalur Twelve Data (TWELVE_DATA_API_KEY) sudah DIHAPUS —
- *     tidak ada lagi route/fungsi penarik data ber-key di app.
+ *   1. TWELVE DATA (process.env.TWELVE_DATA_API_KEY) — candle
+ *      SPOT XAU/USD, XAG/USD, forex major & NDX. Level harga
+ *      paling mendekati feed broker (OANDA/MT4/MT5). Free tier
+ *      8 req/min → rate limiter + cache ketat di lib twelvedata.
+ *      TANPA key / quota habis / plan tak mencakup → NULL dan
+ *      lanjut ke sumber di bawah (UI tidak pernah 401).
+ *
+ *   2. YAHOO Finance chart API (publik, GRATIS, TANPA API KEY)
+ *      — fallback host otomatis query1 → query2. Selalu hidup.
  *
  *   - Crypto TIDAK lewat route ini — terminal Vela memakai
  *     BinanceProvider NATIVE bawaan @luxalgo/vela (REST +
  *     websocket publik, tanpa key).
  *
  * Pemetaan simbol (kanonik Luxtradee):
- *   Gold    : XAUUSD  (Yahoo GC=F)
- *   Silver  : XAGUSD  (Yahoo SI=F)
- *   Nasdaq  : US100   (Yahoo NQ=F — futures Nasdaq 100, alias
- *                      NAS100/NASDAQ/NDX dinormalisasi masuk sini)
- *   Forex   : EURUSD, GBPUSD, USDJPY, dst. (Yahoo …=X)
+ *   Gold    : XAUUSD  (TD XAU/USD spot → Yahoo GC=F)
+ *   Silver  : XAGUSD  (TD XAG/USD spot → Yahoo SI=F)
+ *   Nasdaq  : US100   (TD NDX → Yahoo NQ=F futures; alias
+ *                      NAS100/NASDAQ/NDX dinormalisasi masuk sini.
+ *                      QQQ TIDAK dipakai — level ~$490 vs NDX ~21rb
+ *                      merusak skala chart)
+ *   Forex   : EURUSD, GBPUSD, USDJPY, dst. (TD EUR/USD → Yahoo …=X)
  *
  * Interval kanonik: 5m · 15m · 30m · 1h · 2h · 4h · 1d · 1w
  *   (2h/4h diagregasi dari 1h oleh lib bersama market/yahoo.ts)
@@ -41,6 +46,7 @@ import {
   fetchYahooChart,
   type YahooCandle,
 } from '@/lib/market/yahoo'
+import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 
 export const dynamic = 'force-dynamic'
 
@@ -180,7 +186,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    /* ---- SATU SUMBER: YAHOO FINANCE (publik, keyless → tanpa risiko 401) ----
+    /* ---- SUMBER 1: TWELVE DATA (spot-grade, mendekati feed broker) ----
+       Tanpa key / quota habis → null → lanjut Yahoo. limit<=1 tetap
+       aman: cache price 30s + rate limiter 7 req/menit di lib. */
+    const td = await fetchTwelveDataCandles(validSymbol, interval, limit)
+    if (td && td.length) {
+      setCache(cacheKey, td, 'twelvedata')
+      await setKvCache(cacheKey, td, 'twelvedata', kvTtlSeconds)
+      console.log(`[Candles] ✓ ${td.length} candles Twelve Data (${validSymbol} ${interval})`)
+      return NextResponse.json({
+        success: true, symbol: validSymbol, interval, data: td,
+        source: 'twelvedata',
+        fetchedAt: new Date().toISOString(),
+      })
+    }
+
+    /* ---- SUMBER 2: YAHOO FINANCE (publik, keyless → tanpa risiko 401) ----
        limit<=1 → liveTick aktif (regularMarketPrice sbg harga real-time) */
     const yf: YahooCandle[] | null = await fetchYahooChart(validSymbol, interval, limit, limit <= 1)
     if (yf && yf.length) {

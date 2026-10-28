@@ -8,14 +8,16 @@
  * search, timeframe, indikator bawaan 70+, drawing tools), tema
  * gelap elegan ala Luxtradee.
  *
- * DATAFEED (Task 42 — bersih dari OANDA & API key eksternal):
+ * DATAFEED (Task 42 — bersih dari OANDA, spot-grade dulu):
  *   - Crypto (BTCUSDT, ETHUSDT, …)
  *       → BinanceProvider NATIVE bawaan paket @luxalgo/vela
  *         (REST + websocket publik Binance — datafeed standar)
  *   - Forex / Gold (XAUUSD) / Silver / Nasdaq (US100)
  *       → LuxtradeeForexProvider — interface DataProvider Vela
- *         yang sama; data keyless Yahoo Finance publik via
- *         /api/candles (TANPA API KEY apa pun → mustahil 401)
+ *         yang sama; via /api/candles dengan rantai sumber:
+ *         Twelve Data SPOT (XAU/USD dkk — paling dekat feed
+ *         broker, TWELVE_DATA_API_KEY) → Yahoo keyless fallback
+ *         (TANPA key Yahoo apa pun → chart tak pernah mati 401)
  *   Catatan: paket @luxalgo/vela hanya menyertakan provider
  *   crypto secara native (Binance/Coinbase/Hyperliquid); FX/
  *   Gold/US100 memakai port DataProvider yang sama, keyless.
