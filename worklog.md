@@ -1891,3 +1891,25 @@ Stage Summary:
 - 配额模型：free 2 alert/天 + 2 Pine edit/月（Supabase user_quotas 懒重置 WIB 口径、服务端判定、成功才计数、Pro 完全跳过）；pine_scripts 存用户脚本
 - Bos 部署 3 步：(1) Supabase SQL Editor 跑 docs/SUPABASE_QUOTA_TABLES.sql（2) Cloudflare 加 TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID secrets（3) Deploy；@BotFather 建 bot 拿 token、@userinfobot 拿 chat id
 - commit 待 push：代码 7 文件（4 新建 + 3 修改）
+---
+Task ID: 37
+Agent: Z (main)
+Task: Fitur "Hubungkan Telegram" (deep linking) — user tidak perlu cari Chat ID manual; webhook /api/telegram/webhook simpan chat.id otomatis ke profiles.telegram_chat_id; gating indikator chart (free 1, pro 3); cek dulu baru push, keamanan aman
+
+Work Log:
+- Bos kasih bot resmi: t.me/luxtradeebot → deep link `https://t.me/luxtradeebot?start=<USER_ID>` (userId = UUID sesi login, 122-bit entropy, tak bisa ditebak)
+- Baru — src/app/api/telegram/webhook/route.ts: POST update Telegram → parse `/start <uuid>` (regex UUID, izinkan /start@luxtradeebot di grup) → service role update profiles.telegram_chat_id → balas konfirmasi ke chat user. KEAMANAN: (1) wajib header X-Telegram-Bot-Api-Secret-Token == env TELEGRAM_WEBHOOK_SECRET → 401 kalau beda/kosong (anti-palsu), (2) UUID divalidasi sebelum sentuh DB + balasan generik tanpa bocor, (3) tulis DB hanya service role, (4) rebind ke chat berbeda → notifikasi keamanan ke chat LAMA, (5) log hanya potongan id. GET = healthcheck. Update non-message/edited_message diabaikan 200. Error kolom belum ada → dibalas pesan "migrasi belum jalan" tapi tetap 200 (anti spam retry). Setup Bos: setWebhook + secret_token
+- Edit — src/app/api/profile/telegram-chat/route.ts (GET dirombak): userId diambil dari SESI (tanpa DB) supaya deep link tetap hidup walau kolom belum dibuat; baca telegram_chat_id fallback admin→client user (RLS select own); error kolom (PGRST204) di-degrade jadi field `warning` (bukan 500). PUT tetap admin-only (disconnect)
+- Rewrite — src/app/dashboard/settings/telegram/page.tsx: tombol "Hubungkan ke Telegram" (a href deep link, target _blank), langkah 1-2-3, badge status Terhubung/Belum, auto-poll 8s + re-cek saat window focus (status berubah sendiri setelah user tekan START, toast 🎉 saat transisi), tombol Tes Alert (POST /api/send-alert, ikut kuota), Lepaskan (PUT ""), kotak amber warning non-blocking, kartu kuota (free 2/hari · Pro ∞ → /#pricing) + kartu keamanan. Bot username dari NEXT_PUBLIC_TELEGRAM_BOT_USERNAME, default 'luxtradeebot'
+- Edit — src/components/VelaChartTerminal.tsx: baris chip indikator Luxtradee di atas canvas — free: hanya EMA 20/50 aktif, RSI 14 & VWAP chip terkunci "🔒 … PRO" → klik → paywall Dialog "Paket gratis hanya 1 indikator (EMA 20/50). Upgrade ke Pro (Rp49rb/bulan) untuk membuka RSI 14 + VWAP…" → /#pricing. Pro: semua terbuka (isPro dari quota badge). FREE_INDICATOR_LIMIT=1 konstanta. Catatan jujur: Vela tak punya setOptions reaktif → picker internal Vela masih menampilkan 3 preset (gate di chip row kami); kuota nyata (alert 2/hari, pine 2/bulan) tetap server-side
+- TES LOKAL DULU (sesuai perintah Bos, server+tes dalam SATU bash chain karena sandbox bunuh proses antar perintah):
+  - curl webhook: secret salah → 401 ✅; edited_message → handled:false 200 ✅; /start tanpa uuid → balasan generik 200 ✅; /start uuid valid → 503 "service role belum diset" (jalur benar lokal) ✅; GET telegram-chat tanpa auth → 401 ✅
+  - Browser E2E (e2e-tester): login → /dashboard/settings/telegram → deep link TAMPIL `https://t.me/luxtradeebot?start=fdad8493-7249-…` (UUID user asli) + langkah + tombol aktif + warning amber (kolom belum dibuat — sesuai desain) ✅
+  - Chart Live: chip row `["+ EMA 20/50","🔒 RSI 14 PRO","🔒 VWAP PRO"]` ✅; klik chip terkunci → Dialog "Batas Gratis Tercapai" + teks Rp49rb/bulan + RSI 14 + VWAP + tombol Upgrade ke Pro ✅ (screenshot /tmp/t37/paywall.png)
+  - .env tes (SUPABASE publik + TELEGRAM_WEBHOOK_SECRET dummy) sudah dipulihkan ke hanya DATABASE_URL; lint full lulus
+
+Stage Summary:
+- Alur user final: settings → 1 klik → Telegram → START → bot balas "✅ Telegram berhasil terhubung!" → alert chart masuk ke chat user (free 2×/hari, Pro ∞). Nol friction, tanpa @userinfobot manual
+- Keamanan berlapis: secret-token header (setWebhook), validasi UUID, service-role-only write, notifikasi rebind ke chat lama, log minim, tanpa bocor data
+- Bos deploy 4 langkah: (1) SQL: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_chat_id text;` (2) Cloudflare secrets: TELEGRAM_BOT_TOKEN + TELEGRAM_WEBHOOK_SECRET (openssl rand -hex 32) (3) setWebhook: https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://luxtradee.web.id/api/telegram/webhook&secret_token=<SECRET> (4) deploy
+- commit: 3 file berubah (1 baru webhook + 2 rewrite/edit) + chip indikator VelaChartTerminal
