@@ -195,16 +195,25 @@ interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
 
 /**
- * Hitung tinggi auto-fit: sisa ruang viewport di bawah host sampai
- * footer (kalau ada) — diklem min 420px / max 1800px.
- * Posisi pakai docTop (rect.top + scrollY) agar stabil terhadap scroll.
+ * Hitung tinggi auto-fit: chart mengisi VIEWPORT penuh — minus
+ * header sticky dashboard (h-16) minus footer (bila ada) minus
+ * jarak napas 28px. Diklem min 420px (mobile) / max 1800px
+ * (monitor raksasa).
+ *
+ * FIX (keluhan Bos: "masih ada ruang kosong di bawah"): formula
+ * lama mengurangi docTop (posisi chart di DOKUMEN, bisa ~900px)
+ * dari innerHeight (VIEWPORT) → hasil negatif → selalu jatuh ke
+ * min 420px. Formula baru tidak butuh docTop: begitu chart
+ * di-scroll masuk, tepi bawahnya menempel di atas footer &
+ * tepi atasnya mulus di bawah header sticky — gaya TradingView.
  */
 function computeFitHeight(host: HTMLElement): string | null {
   try {
-    const docTop = host.getBoundingClientRect().top + window.scrollY
+    const head = document.querySelector('header')
+    const headH = head ? head.offsetHeight : 0
     const foot = document.querySelector('footer')
     const footH = foot ? foot.offsetHeight : 0
-    const avail = window.innerHeight - docTop - footH - 28
+    const avail = window.innerHeight - headH - footH - 28
     return `${Math.round(Math.min(Math.max(avail, 420), 1800))}px`
   } catch {
     return null
