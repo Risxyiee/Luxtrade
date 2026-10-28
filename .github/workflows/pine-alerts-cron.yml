@@ -1,0 +1,47 @@
+name: Pine Alerts Runner
+
+# ============================================================
+# Alert Pine otomatis 24 jam (Task 44)
+# ------------------------------------------------------------
+# Tiap 5 menit server mengecek sinyal Entry/SL/TP dari skrip
+# terproteksi untuk SEMUA langganan aktif → Telegram user Pro.
+# User tak perlu buka chart — alert tetap jalan.
+#
+# SETUP SEKALI (wajib, oleh Bos):
+#   GitHub repo → Settings → Secrets and variables → Actions:
+#     PROD_URL               = https://luxtradee.web.id
+#     PINE_ALERT_CRON_SECRET = string acak (SAMakan dengan env
+#                              PINE_ALERT_CRON_SECRET di Cloudflare)
+#   Cloudflare Dashboard → Workers → Settings → Variables:
+#     PINE_ALERT_CRON_SECRET = string acak yang sama
+#
+# Tanpa secret yang cocok, endpoint menolak (403) — aman.
+# ============================================================
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: pine-alerts-runner
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Panggil /api/cron/pine-alerts
+        run: |
+          code=$(curl -sS -o /tmp/pine-alerts.json -w '%{http_code}' -X POST \
+            -H "x-cron-secret: ${{ secrets.PINE_ALERT_CRON_SECRET }}" \
+            -H "User-Agent: luxtradee-pine-alerts-cron" \
+            --max-time 280 \
+            "${{ secrets.PROD_URL }}/api/cron/pine-alerts") || code=000
+          echo "HTTP $code"
+          cat /tmp/pine-alerts.json || true
+          echo ""
+          if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
+            echo "::warning::Runner gagal (HTTP $code) — otomatis dicoba lagi di jadwal 5 menit berikutnya"
+          fi
