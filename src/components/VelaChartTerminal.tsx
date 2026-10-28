@@ -56,6 +56,9 @@ plot(ta.vwap, color=color.aqua, linewidth=2)`,
   },
 ]
 
+/* ---------- Batas indikator preset (SOP Bos: free 1, pro buka semua) ---------- */
+const FREE_INDICATOR_LIMIT = 1
+
 /* ---------- Template awal editor ---------- */
 const PINE_TEMPLATE = `//@version=6
 indicator("Luxtradee Skrip Saya", overlay=true)
@@ -96,6 +99,11 @@ export default function VelaChartTerminal({
 
   /* ---------- Upgrade paywall dialog ---------- */
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
+
+  /* ---------- Preset indikator (chip) — free 1 · pro 3 ---------- */
+  const [activePresets, setActivePresets] = useState<Record<number, boolean>>({})
+  const [presetBusy, setPresetBusy] = useState<number | null>(null)
+  const [presetMsg, setPresetMsg] = useState<string | null>(null)
 
   /* ---------- Boot Vela workspace (sekali) ---------- */
   useEffect(() => {
@@ -228,6 +236,28 @@ export default function VelaChartTerminal({
   const quotaLabel = (q: QuotaBadge | null, unit: string) =>
     !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
 
+  /* ---------- Preset chip: tambah indikator Luxtradee ke chart ----------
+     Free: 1 indikator (EMA 20/50). Pro: semua terbuka. Kuota nyata
+     (alert & Pine edit) tetap dijaga server-side di API. */
+  const isProUser = alertQuota?.isPro === true
+  const runPreset = useCallback(async (i: number) => {
+    if (presetBusy !== null) return
+    setPresetBusy(i); setPresetMsg(null)
+    const err = await runOnChart(PINE_PRESETS[i].script)
+    const short = PINE_PRESETS[i].name.replace('Luxtradee — ', '')
+    if (err) setPresetMsg(`⚠️ ${short}: ${err}`)
+    else {
+      setActivePresets((s) => ({ ...s, [i]: true }))
+      setPresetMsg(`✅ ${short} tampil di chart.`)
+    }
+    setPresetBusy(null)
+  }, [presetBusy, runOnChart])
+
+  const lockedPresetMsg = (i: number) => {
+    const names = PINE_PRESETS.slice(FREE_INDICATOR_LIMIT).map((x) => x.name.replace('Luxtradee — ', ''))
+    return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp49rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
+  }
+
   return (
     <div className="space-y-2">
       {/* ---------- Toolbar atas (di luar canvas — tidak menutupi UI Vela) ---------- */}
@@ -254,6 +284,36 @@ export default function VelaChartTerminal({
             <Bell className="w-3.5 h-3.5 mr-1" /> Alert TG
           </Button>
         </div>
+      </div>
+
+      {/* ---------- Indikator preset Luxtradee — free 1 · pro 3 ---------- */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[10px] uppercase tracking-wider text-white/35">Indikator</span>
+        {PINE_PRESETS.map((p, i) => {
+          const short = p.name.replace('Luxtradee — ', '')
+          const locked = !isProUser && i >= FREE_INDICATOR_LIMIT
+          if (locked) {
+            return (
+              <button key={p.name}
+                onClick={() => setUpgradeMsg(lockedPresetMsg(i))}
+                className="text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-white/35 hover:text-white/60 hover:border-white/20 transition-colors inline-flex items-center gap-1 min-h-[32px]"
+                aria-label={`${short} — khusus Pro, klik untuk info upgrade`}>
+                🔒 {short} <span className="text-[9px] font-bold text-amber-300/80">PRO</span>
+              </button>
+            )
+          }
+          const active = !!activePresets[i]
+          return (
+            <button key={p.name} onClick={() => runPreset(i)} disabled={presetBusy !== null}
+              className={`text-[11px] px-2.5 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1 min-h-[32px] disabled:opacity-50 ${active ? 'border-emerald-400/40 bg-emerald-400/15 text-emerald-200' : 'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/10 hover:text-white'}`}
+              aria-label={`Tambah ${short} ke chart`}>
+              {active ? '✓' : '+'} {short}
+            </button>
+          )
+        })}
+        {presetMsg && (
+          <span className={`text-[10.5px] ${presetMsg.startsWith('✅') ? 'text-emerald-300/80' : 'text-red-300/80'}`}>{presetMsg}</span>
+        )}
       </div>
 
       {/* ---------- Vela workspace ---------- */}

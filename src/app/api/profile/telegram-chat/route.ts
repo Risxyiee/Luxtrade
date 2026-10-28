@@ -32,26 +32,43 @@ function admin() {
   return supabase
 }
 
-/* ---------- GET: baca chat id terpasang ---------- */
+/* ---------- GET: status koneksi + userId (untuk deep link) ---------- */
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthenticatedUser(request)
-    if (!auth?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!auth?.user || !auth.client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = auth.user.id
 
-    const { data, error } = await admin()
+    /* userId TIDAK butuh DB — berasal dari sesi login sendiri. Supaya
+       deep link t.me/luxtradeebot?start=<USER_ID> tetap berfungsi
+       meski migrasi kolom belum dijalankan / service role bermasalah,
+       kegagalan baca chat id di-degrade jadi `warning` (bukan error). */
+    let chatId = ''
+    let warning: string | null = null
+
+    /* Prioritas: service role → client user sendiri (RLS select own) */
+    const supabase = getSupabaseAdmin() || auth.client
+    const { data, error } = await supabase
       .from('profiles')
       .select('telegram_chat_id')
-      .eq('id', auth.user.id)
+      .eq('id', userId)
       .maybeSingle()
+
     if (error) {
       const colMissing = error.code === 'PGRST204' || /column/i.test(error.message || '')
-      return NextResponse.json(
-        { error: colMissing ? 'Kolom telegram_chat_id belum ada — jalankan SQL ALTER TABLE dulu (lihat chat Bos / docs/SUPABASE_QUOTA_TABLES.sql)' : error.message.slice(0, 140) },
-        { status: 500 },
-      )
+      warning = colMissing
+        ? 'Kolom telegram_chat_id belum ada — jalankan SQL ALTER TABLE dulu (lihat chat Bos). Sementara status koneksi belum bisa ditampilkan, tapi tombol hubungkan tetap aktif.'
+        : error.message.slice(0, 140)
+    } else {
+      chatId = String(data?.telegram_chat_id || '').trim()
     }
-    const chatId = String(data?.telegram_chat_id || '').trim()
-    return NextResponse.json({ chatId: chatId || null, chatBound: !!chatId })
+
+    return NextResponse.json({
+      userId,
+      chatId: chatId || null,
+      chatBound: !!chatId,
+      warning,
+    })
   } catch (x: any) {
     return NextResponse.json({ error: String(x?.message || x).slice(0, 160) }, { status: 500 })
   }
