@@ -1969,3 +1969,23 @@ Stage Summary:
 - Root repo bersih: 185 file mati hilang (±15 ribu baris), config Cloudflare tunggal (wrangler.jsonc), tidak ada duplikat middleware
 - Yang TIDAK dihapus + alasannya (minta konfirmasi Bos): package-lock.json (bisa dipakai jika install command CF dashboard pakai npm), scripts/ 25 file (dev utility manual), api/test-* routes (test-huggingface/test-zai-vision/test-supabase/seed/setup-db — mungkin pernah dicurl), docs/ + _archive/sql-history/ (arsip SQL produksi), devDeps tak terpakai di package.json (@testing-library/*, @types/jest — tak diutak-atik agar bun.lock aman)
 - Pencegahan "masuk lagi": file sudah git rm (bukan hanya lokal); jika agent commit UUID mengembalikan lagi, cek git log --diff-filter=D --diff-filter=A pasangan commitnya
+---
+Task ID: 40
+Agent: Z (main)
+Task: (1) Risk Calculator + Kalender Ekonomi + Streak + Pencapaian jadi FREE; (2) SQL perbaikan user_quotas permission denied (docs/SUPABASE_QUOTA_TABLES.sql versi idempotent); (3) VelaChartTerminal: sembunyikan logo Vela + tema hijau → ungu/gelap; (4) PUSH (sesi sebelumnya kepotong konteks — kerjaan sudah di-commit lokal tapi belum di-push)
+
+Work Log:
+- TEMUAN: sesi sebelumnya (yang kehabisan konteks) SUDAH menyelesaikan seluruh perubahan di commit lokal 20f54493 (judul UUID eeba7d56) + bukti E2E di 7b8578c9 (judul UUID 652e411a, folder .e2e/) — KEDUANYA BELUM DI-PUSH, itu penyebab produksi "masih sama". Tugas sesi ini: audit diff, verifikasi ulang, push
+- AUDIT diff 20f54493 (12 file, +68/-135): SEMUA SESUAI REQUEST —
+  (a) SidebarNav: economic-calendar, risk, streaks, achievements → proOnly:false (lock icon & modal upgrade hilang);
+  (b) EconomicCalendarTab: paywall "hanya untuk PRO" dihapus; RiskCalculatorTab: gate PRO + framer-motion/Lock dihapus (kini kalkulator penuh utk free); TradingStreaks: UpgradeOverlay + Lock + AnimatePresence dihapus;
+  (c) Marketing diselaraskan: 2x PaywallModal (id+en) "Kalkulator Risiko, Heatmap & Kalender Ekonomi" → "Heatmap, Analitik & Target Trading"; PlanSelectionModal 2 plan sama; FeatureComparison: Risiko/Kalender Ekonomi/Streak/Pencapaian free: cross→check; PricingSectionNew: daftar Free ditambah baris "Kalkulator Risiko, Kalender Ekonomi, Streak & Pencapaian", baris Pro diganti
+  (d) VelaChartTerminal: branding dimatikan via opsi RESMI watermark:false (bukan hack DOM) + teks toolbar "Vela™ terminal · …" → "Luxtradee Trading Terminal · XAUUSD & forex · data live" (dot ungu); semua aksen emerald aktif → purple (preset indikator aktif, Pine editor header/input/focus/button, spinner boot & loader ChartTab); ChartTab: judul "Trading Chart + badge Vela™" → "Luxtradee Trading Terminal" (ikon ungu), loading "Memuat Vela terminal" → "Memuat trading terminal"; candle TETAP emerald/merah (gaya Luxtradee, keterbacaan trading)
+  (e) docs/SUPABASE_QUOTA_TABLES.sql → versi FIX Task 40 IDEMPOTENT: create table if not exists, GRANT usage+CRUD ke anon/authenticated/service_role (ini penghilang error 42501 permission denied), RLS enable + drop policy if exists dulu baru create (aman dijalankan berulang), + bonus kolom profiles.telegram_chat_id
+- E2E ULANGAN sendiri (server guard per langkah, atasi stale ChunkLoadError NotificationCenter dengan fresh open — dev-only, bukan regresi): lint bersih; login e2e-tester → dashboard; 4 tab diklik & diverifikasi TANPA paywall (regex paywall awal false-positive dari banner upsell Telegram "Upgrade ke Pro biar notif…" — bukan gate tab; dikonfirmasi via ekstraksi baris match): Kalkulator Risiko (Risiko Maksimal $200/Ukuran Lot 0.40 — bukti .e2e/40-risk.png), Kalender Ekonomi, Streaks (.e2e/40-streaks.png), Pencapaian — semuanya match konten, apperr:false; Chart Live: velaBrand:false + "Luxtradee Trading Terminal":true + apperr:false (2× run) + screenshot bersih .e2e/41-chart-purple.png (judul ungu, status bar ungu, EMA 20/50 free aktif, RSI/VWAP berlabel PRO jujur)
+- PUSH: 3 commit ke origin/main (20f54493 + 7b8578c9 + commit Task 40 ini)
+
+Stage Summary:
+- Free sekarang: Kalkulator Risiko, Kalender Ekonomi, Streak, Pencapaian (nav + isi tab + landing + modals selaras); tetap Pro: Heatmap, Analitik mendalam, Target, AI Insights, Trading Score, Weekly Report, Psikologi, unlimited alert/Pine, AI Vision
+- Vela = Luxtradee Trading Terminal: tanpa watermark Vela (opsi resmi), aksen ungu, dark tetap
+- SQL utk Bos (jalankan di Supabase SQL Editor, idempotent): docs/SUPABASE_QUOTA_TABLES.sql versi baru — memperbaiki "permission denied for table user_quotas" via GRANT eksplisit + policy drop/create ulang
