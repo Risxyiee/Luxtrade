@@ -2,8 +2,9 @@
  * ============================================================
  * LuxtradeeForexProvider — DataProvider untuk Vela™ yang menyajikan
  * XAUUSD / XAGUSD / major forex / US100 (Nasdaq) dari datafeed
- * Luxtradee (/api/candles — 100% KEYLESS: Yahoo Finance publik
- * via server, TANPA API KEY apa pun → mustahil 401).
+ * Luxtradee (/api/candles — rantai spot dulu: Twelve Data
+ * XAU/USD dkk via TWELVE_DATA_API_KEY, lalu Yahoo publik
+ * TANPA API KEY → chart tak pernah mati 401).
  * ============================================================
  * Kenapa provider ini? Provider native bawaan Vela (Binance/
  * Coinbase/Hyperliquid) semuanya CRYPTO — tidak menyajikan XAUUSD,
@@ -12,9 +13,9 @@
  * chart Vela tetap satu aplikasi penuh (symbol search,
  * multi-timeframe, live) untuk multi-asset.
  *
- * ROUTING DATAFEED (Task 42 — tanpa OANDA, tanpa API key):
+ * ROUTING DATAFEED (Task 42 — tanpa OANDA):
  *   - Forex / Gold / Silver / Nasdaq (US100) → /api/candles
- *     (Yahoo Finance publik — datafeed standar keyless; alias
+ *     (Twelve Data spot → Yahoo keyless fallback; alias
  *     NASDAQ, NAS100, GOLD, XAU/USD, … dinormalisasi otomatis)
  *   - Crypto (BTCUSDT, ETHUSDT, …) → BinanceProvider NATIVE Vela
  *     (REST + websocket publik) — di-wire di VelaChartTerminal.tsx

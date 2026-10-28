@@ -1,21 +1,24 @@
 /**
  * ============================================================
- * server-candles — candle OHLC untuk KEPERLUAN SERVER (keyless)
+ * server-candles — candle OHLC untuk KEPERLUAN SERVER (spot dulu)
  * ============================================================
  * Dipakai /api/compile-pine (Protected Pine Script®): engine
  * PineTS di server butuh bars. Urutan sumber:
  *
+ *   0. Twelve Data — SPOT forex & logam (XAU/USD dkk) via
+ *      lib twelvedata.ts — level harga paling dekat feed broker
+ *      (OANDA/MT4/MT5). Tanpa TWELVE_DATA_API_KEY → skip.
  *   1. Yahoo   — forex, logam (XAUUSD), & indeks US100 (NQ=F)
  *                via lib bersama src/lib/market/yahoo.ts
  *   2. Binance — crypto (BTCUSDT dll.)
  *
- * Semua sumber PUBLIK & TANPA API KEY → tidak ada kunci yang
- * bisa bocor, tidak ada error 401. Semua fetch di server.
- * (Datafeed CHART VELA memakai /api/candles — juga keyless:
- * Yahoo publik — bukan dari sini.)
+ * Twelve Data & Yahoo PUBLIK tanpa risiko bocor kunci (key TD
+ * hanya env server); semua fetch di server, tanpa mock.
+ * (Datafeed CHART VELA memakai /api/candles — rantai sama.)
  */
 
 import { fetchYahooChart, type YahooCandle } from './yahoo'
+import { fetchTwelveDataCandles } from './twelvedata'
 
 /** Interval kanonik ('5m','1h','1d',…) → detik per bar (untuk dedupe & validasi) */
 const INTERVAL_SECONDS: Record<string, number> = {
@@ -85,8 +88,9 @@ async function fetchBinanceCandles(
 
 /**
  * Sumber candle TERPADU untuk server (compile-pine dll).
- * Prioritas: Yahoo (fx/logam/indeks) → Binance (crypto).
- * Return null bila semua gagal — penelepon wajib jawab 502 jujur (TANPA mock).
+ * Prioritas: Twelve Data (spot fx/logam) → Yahoo (fx/logam/indeks)
+ * → Binance (crypto). Return null bila semua gagal — penelepon
+ * wajib jawab 502 jujur (TANPA mock).
  */
 export async function fetchServerCandles(
   symbol: string,
@@ -94,6 +98,11 @@ export async function fetchServerCandles(
   limit = 300,
 ): Promise<{ bars: LuxCandle[]; source: string } | null> {
   const errors: string[] = []
+
+  // 0) Twelve Data — spot forex & logam (paling dekat feed broker)
+  const td = await fetchTwelveDataCandles(symbol, interval, limit)
+  if (td && td.length) return { bars: td, source: 'twelvedata' }
+  if (process.env.TWELVE_DATA_API_KEY) errors.push('TwelveData: tidak ada data')
 
   // 1) Yahoo — forex, gold, US100
   const yf = await fetchYahooCandles(symbol, interval, limit)
