@@ -32,7 +32,7 @@
  * WebGL/canvas sejak konstruktor.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -193,11 +193,30 @@ plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
 
 interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
+
+/**
+ * Hitung tinggi auto-fit: sisa ruang viewport di bawah host sampai
+ * footer (kalau ada) — diklem min 420px / max 1800px.
+ * Posisi pakai docTop (rect.top + scrollY) agar stabil terhadap scroll.
+ */
+function computeFitHeight(host: HTMLElement): string | null {
+  try {
+    const docTop = host.getBoundingClientRect().top + window.scrollY
+    const foot = document.querySelector('footer')
+    const footH = foot ? foot.offsetHeight : 0
+    const avail = window.innerHeight - docTop - footH - 28
+    return `${Math.round(Math.min(Math.max(avail, 420), 1800))}px`
+  } catch {
+    return null
+  }
+}
 export default function VelaChartTerminal({
   height = 'clamp(420px, 62vh, 640px)',
   defaultSymbol = 'XAUUSD',
   defaultTimeframe = '60',
 }: {
+  /** Tinggi awal sebelum auto-fit aktif (setelah mount, chart otomatis
+   *  mengisi sisa ruang viewport sampai footer — lihat effect AUTO-FIT). */
   height?: string
   defaultSymbol?: string
   defaultTimeframe?: string
@@ -206,6 +225,56 @@ export default function VelaChartTerminal({
   const wsRef = useRef<VelaWorkspace | null>(null)
   const [booting, setBooting] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
+
+  /* ---------- AUTO-FIT tinggi chart (Task 43) ----------
+   * Keluhan Bos: chart max 640px menyisakan ruang kosong di bawah.
+   * Solusi: ukur sisa ruang viewport riil
+   *   (viewport − posisi atas chart − tinggi footer − jarak napas)
+   * lalu pakai sebagai tinggi host.
+   *
+   * DUA PASUS — kunci anti-crash (error openTime saat Vela boot
+   * kena resize container di tengah inisialisasi):
+   *   Pass 1 useLayoutEffect: hitung & set tinggi SEBELUM effect
+   *     boot Vela jalan → workspace lahir dengan ukuran final.
+   *   Pass 2 (booting=false): ResizeObserver baru dipasang —
+   *     adaptif banner PWA/promo muncul/hilang & viewport resize.
+   * Tidak bisa loop: docTop & footer tidak bergantung pada tinggi
+   * host, dan setState di-guard sama-nilai. Min 420px (mobile),
+   * max 1800px (monitor raksasa). */
+  const [autoH, setAutoH] = useState<string | null>(null)
+
+  useLayoutEffect(() => {
+    /* Pass 1 — sebelum Vela boot: pasang ukuran final dari awal */
+    const host = hostRef.current
+    if (!host) return
+    const h = computeFitHeight(host)
+    if (h) setAutoH(h)
+  }, [])
+
+  useEffect(() => {
+    /* Pass 2 — setelah boot selesai: reaksi perubahan layout */
+    if (booting) return
+    const host = hostRef.current
+    if (!host) return
+    let raf = 0
+    const apply = () => {
+      const h = computeFitHeight(host)
+      if (h) setAutoH((prev) => (prev === h ? prev : h))
+    }
+    apply()
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(apply)
+    })
+    ro.observe(document.body)
+    if (host.parentElement) ro.observe(host.parentElement)
+    window.addEventListener('resize', apply)
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', apply)
+    }
+  }, [booting])
 
   /* ---------- Pine editor state ---------- */
   const [pineOpen, setPineOpen] = useState(false)
@@ -519,7 +588,7 @@ export default function VelaChartTerminal({
 
       {/* ---------- Vela workspace ---------- */}
       <div className="relative rounded-2xl border border-white/10 bg-[#05070d] overflow-hidden">
-        <div ref={hostRef} style={{ height }} className="w-full" />
+        <div ref={hostRef} style={{ height: autoH || height }} className="w-full" />
 
         {booting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#05070d] gap-2">
