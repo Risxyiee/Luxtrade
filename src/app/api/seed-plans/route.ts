@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       data: {
         name: 'Elite Pro',
         description: 'Full access to all premium features',
-        price: 49000,
+        price: 39000,
         currency: 'IDR',
         durationMonths: 1,
         isLifetime: false,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       data: {
         name: 'Lifetime Ultra',
         description: 'Lifetime access with exclusive VIP features',
-        price: 100000,
+        price: 299000,
         currency: 'IDR',
         durationMonths: null,
         isLifetime: true,

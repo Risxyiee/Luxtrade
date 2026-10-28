@@ -167,5 +167,5 @@ export async function commitPineQuota(userId: string): Promise<void> {
 }
 
 export function pineQuotaExceededMessage(): string {
-  return 'Batas edit skrip gratis bulan ini habis (2x/bulan). Upgrade ke Pro (Rp49rb/bulan) untuk edit sepuasnya!'
+  return 'Batas edit skrip gratis bulan ini habis (2x/bulan). Upgrade ke Pro (Rp39rb/bulan) untuk edit sepuasnya!'
 }

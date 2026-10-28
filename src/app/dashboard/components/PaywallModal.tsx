@@ -50,12 +50,12 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         : "Kamu telah mencapai batas 10 trade/bulan. Upgrade ke PRO untuk unlimited trades dan semua fitur premium.",
       description: "Upgrade ke PRO untuk unlimited trades, analitik mendalam, AI auto-journal, deteksi pola kerugian, dan watchlist prop firm.",
       features: [
-        { icon: Infinity, title: "Unlimited Trade Entries", desc: "Tidak ada batas jurnal trading per bulan" },
+        { icon: Infinity, title: "Unlimited Trade Entries & AI", desc: "Jurnal transaksi dan tanya AI tanpa batas per bulan" },
         { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Analitik mendalam dengan grafik dan statistik lengkap" },
-        { icon: Brain, title: "AI Pattern Detection & Guard", desc: "Deteksi pola kerugian otomatis dan watchlist prop firm" },
-        { icon: Shield, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
-        { icon: Zap, title: "AI Trading Psychology", desc: "Laporan psikologi trading yang dianalisis oleh AI" },
-        { icon: Star, title: "All Premium Features", desc: "Akses ke semua fitur premium dan eksklusif" }
+        { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
+        { icon: Zap, title: "Chart Vela™ Semua Indikator", desc: "70+ indikator, Pine Script® tanpa batas" },
+        { icon: Star, title: "Alert Telegram Tanpa Batas", desc: "Gratis 2×/hari — Pro kirim alert kapan saja" },
+        { icon: Shield, title: "Semua Tools Pro", desc: "Risk Calculator, Heatmap, Kalender Ekonomi, AI Insights, Trading Score" }
       ],
       price: {
         monthly: "Rp39.000",
@@ -79,12 +79,12 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         : "You've hit the 10 trades/month limit. Upgrade to PRO for unlimited trades and all premium features.",
       description: "Upgrade to PRO for unlimited trades, deep analytics, AI auto-journal, loss pattern detection, and prop firm watchlist.",
       features: [
-        { icon: Infinity, title: "Unlimited Trade Entries", desc: "No limit on trading journals per month" },
+        { icon: Infinity, title: "Unlimited Trade Entries & AI", desc: "No limit on trading journals or AI queries per month" },
         { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Deep analytics with complete charts and statistics" },
-        { icon: Brain, title: "AI Pattern Detection & Guard", desc: "Automatic loss pattern detection and prop firm watchlist" },
-        { icon: Shield, title: "AI Vision Auto-Journal", desc: "Upload MT5/TradingView screenshot, AI auto-extracts data" },
-        { icon: Zap, title: "AI Trading Psychology", desc: "AI-analyzed trading psychology reports" },
-        { icon: Star, title: "All Premium Features", desc: "Access to all premium and exclusive features" }
+        { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload MT5/TradingView screenshot, AI auto-extracts data" },
+        { icon: Zap, title: "Vela™ Chart — All Indicators", desc: "70+ indicators, unlimited Pine Script®" },
+        { icon: Star, title: "Unlimited Telegram Alerts", desc: "Free is 2×/day — Pro sends alerts anytime" },
+        { icon: Shield, title: "All Pro Tools", desc: "Risk Calculator, Heatmap, Economic Calendar, AI Insights, Trading Score" }
       ],
       price: {
         monthly: "$2.49",
