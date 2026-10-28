@@ -68,7 +68,7 @@ const TEAM_DETAIL = [
     tugas: [
       'Hitung pendaftar / aktif 24 jam / pasif tiap pagi — tampil di briefing & panel Ruang CSO',
       '⭐ SKOR RISIKO CHURN: hitung user yang pernah aktif 30 hari tapi 3 hari terakhir diam → kandidat win-back dilaporkan tiap pagi (briefing + panel Ruang CSO)',
-      'Kirim EMAIL PERSONAL ke maks 50 user pasif: nada email diracik model resminya (Gemma 2 9B via OpenRouter, rotasi 3 variasi), pembuka per user dari data trading asli (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload)',
+      'Kirim EMAIL PERSONAL ke maks 50 user pasif — 2 GRUP, masing-masing draf beda: (A) user vakum yang pernah upload → nada kangen & nilai jurnalnya, (B) user yang belum pernah upload 1 trade pun → nada ajakan pertama. Nada email diracik model resminya (Gemma 2 9B via OpenRouter, rotasi 3 variasi), pembuka per user dari data trading asli (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload)',
       'Ukur feedback: besoknya hitung berapa dari yang di-email yang balik upload (dilaporkan di briefing)',
       'Bawa data nyata ke meja rapat sama Sinta (CMO): kenapa user daftar tapi males upload jurnal → jadi skrip konten',
     ],
@@ -614,21 +614,21 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               ) : <div className="text-white/50 mt-1">Belum ada data — klik tombol di bawah</div>}
               <div className={SEP}>
                 <b className="text-pink-200">📧 ACC EMAIL</b>
-                <div className="text-white/60 text-[11px] mt-0.5">Kirim email sapaan ke user pasif hari ini</div>
+                <div className="text-white/60 text-[11px] mt-0.5">2 grup, draf beda: user vakum (pernah upload) &amp; belum pernah upload</div>
                 <button className={`${BTNR} w-full mt-1.5`} style={{ opacity: P.acc === 'busy' ? 0.5 : 1 }} disabled={P.acc === 'busy'}
                   onClick={async () => { P.setAcc('busy'); const r = await call('acc-email', 'POST'); P.setAcc(r) }}>
-                  {P.acc === 'busy' ? '⏳ Mengirim…' : '📧 ACC EMAIL ke User Pasif'}
+                  {P.acc === 'busy' ? '⏳ Mengirim…' : '📧 ACC EMAIL ke 2 Grup User'}
                 </button>
                 {P.acc && P.acc !== 'busy' && (P.acc.dup
                   ? <div className={OKS}>ℹ️ ACC EMAIL sudah dicatat hari ini — besok lagi.</div>
-                  : P.acc.ok ? <div className={OKS}>✅ ACC tercatat{typeof P.acc.emailsSent === 'number' && P.acc.emailsSent >= 0 ? ` — ${P.acc.emailsSent} email terkirim (Resend)` : ' — set RESEND_API_KEY utk kirim otomatis'}.</div>
+                  : P.acc.ok ? <div className={OKS}>✅ ACC tercatat{typeof P.acc.emailsSent === 'number' && P.acc.emailsSent >= 0 ? ` — ${P.acc.emailsSent} email terkirim${typeof P.acc.sentDormant === 'number' ? ` (${P.acc.sentDormant} vakum + ${P.acc.sentNever} belum upload, draf beda)` : ' (Resend)'}` : ' — set RESEND_API_KEY utk kirim otomatis'}.</div>
                   : <div className={ERR}>❌ {String(P.acc.error || 'gagal').slice(0, 140)}</div>)}
               </div>
               <div className={SEP}>
                 <b className="text-teal-200">🤖 Mode Otomatis (AUTO-ACC)</b>
                 <div className="text-white/60 text-[11px] mt-0.5">
                   {autoacc === undefined ? 'memuat status…' : autoacc
-                    ? 'AKTIF ✅ — CSO kirim email ke user pasif OTOMATIS tiap briefing 08:00. Kamu nggak perlu klik apa-apa.'
+                    ? 'AKTIF ✅ — CSO kirim email ke 2 grup user (vakum & belum upload) OTOMATIS tiap briefing 08:00. Kamu nggak perlu klik apa-apa.'
                     : 'OFF — kamu harus klik ACC EMAIL manual tiap hari. Nyalakan biar karyawan kerja sendiri.'}
                 </div>
                 <button className={`w-full mt-1.5 text-[12px] px-3 py-2 rounded-xl cursor-pointer border transition-colors ${autoacc ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/25' : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'}`} disabled={busy}

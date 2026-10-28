@@ -1141,7 +1141,7 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
       let autoAcc = ''
       if (cfSecret(e, 'RESEND_API_KEY')) {
-        try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke user pasif (variasi "${r.variant}"; ${r.personalized} pakai data trading asli penerima; draf Maya via ${r.emailProvider === 'template' ? 'templat statis' : r.emailModel || r.emailProvider})` }
+        try { const r = await sendPassiveEmails(e); autoAcc = `📧 AUTO-ACC: ${r.sent} email PERSONAL terkirim ke 2 grup — ${r.sentDormant} vakum + ${r.sentNever} belum pernah upload (draf: "${r.variant}"; ${r.personalized} pakai data trading asli penerima; draf Maya via ${r.emailProvider === 'template' ? 'templat statis' : r.emailModel || r.emailProvider})` }
         catch (x: any) { autoAcc = `📧 AUTO-ACC gagal kirim: ${String(x?.message || x).slice(0, 80)}` }
       } else autoAcc = '📧 AUTO-ACC aktif tapi RESEND_API_KEY belum diset — email belum terkirim'
       try { await sendDiscord(e, autoAcc) } catch { /* ignore */ }
@@ -1259,6 +1259,24 @@ const PASSIVE_VARIANTS = [
   },
 ]
 
+/* Task 35h (SOP Bos): email untuk GRUP B — user yang daftar tapi BELUM PERNAH
+   upload 1 trade pun (beda kandidat & beda nada dari GRUP A vakum di atas).
+   Fallback statis kalau draf LLM Maya gagal — sama seperti GRUP A. */
+const NEVER_UPLOADED_VARIANTS = [
+  {
+    subject: 'Satu langkah kecil buat mulai 🚀',
+    text: 'Akunnya sudah siap, tinggal 1 langkah: upload 1 screenshot trade lo di https://luxtradee.web.id — dalam 2 menit AI kasih evaluasi visual lengkap.\n\nNggak perlu data lengkap, cukup 1 gambar buat mulai.\n\n— Tim Luxtrade',
+  },
+  {
+    subject: 'Evaluasi AI pertamamu nungguin 📊',
+    text: 'Banyak trader nunggu "moment yang pas" buat mulai — padahal cuma butuh 1 screenshot.\n\nUpload yang pertama di https://luxtradee.web.id, AI langsung kasih analisis entry, risk & hasilnya.\n\n— Tim Luxtrade',
+  },
+  {
+    subject: 'Coba 2 menit sore ini yuk ⏱️',
+    text: 'Fitur evaluasi AI-nya gratis dicoba: upload 1 screenshot trading lo, 2 menit kemudian keluar analisis visualnya.\n\nSiapa tahu ini kebiasaan bagus pertama di 2025 — mulai dari 1 gambar.\n\n— Tim Luxtrade',
+  },
+]
+
 /* Footer statis — SELALU ditambahkan sistem (bukan LLM) supaya link &
    tanda tangan tidak pernah hilang/halusinasi. */
 const CSO_EMAIL_FOOTER = 'Upload screenshot terakhir lo — evaluasi AI jalan dalam 2 menit: https://luxtradee.web.id\n\n— Tim Luxtrade'
@@ -1306,7 +1324,7 @@ function personalLine(name: string, t: PerUserTrade | undefined, createdAgeDays:
   return hai
 }
 
-async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string; personalized: number; emailProvider: string; emailModel: string }> {
+async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[]; variant: string; personalized: number; emailProvider: string; emailModel: string; sentDormant: number; sentNever: number }> {
   const since = isoAgo(24)
   const activeIds = await fetchActiveUserIds(e, since)
 
@@ -1317,72 +1335,117 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
   if (!res.ok) throw new Error(`Supabase profiles HTTP ${res.status}${res.status === 401 && !cleanEnv(e.SUPABASE_SERVICE_ROLE_KEY) ? ' — set SUPABASE_SERVICE_ROLE_KEY' : ''}`)
   const profiles = (await res.json()) as { id?: string; email?: string; full_name?: string | null; created_at?: string }[]
 
-  const targets = profiles
-    .filter((p) => p.email && p.id && !activeIds.has(p.id))
-    .slice(0, 50)
+  /* Task 35h (SOP Bos) — DUA GRUP, masing-masing draf BERBEDA:
+     GRUP A "dormant"  : pernah upload trade (data nyata ada) tapi >24 jam diam
+                         → email rasa kangen/nilai jurnal (nada lama).
+     GRUP B "never"    : BELUM pernah upload 1 trade pun & akun ≥3 hari
+                         (baru daftar <3 hari tidak diganggu) → email ajakan pertama.
+     Maks total 50: A 30 + B 20 (Resend free 100/hari tetap aman). */
+  const tradeMap0 = await buildPerUserTradeMap(e)
+  const allTargets = profiles.filter((p) => p.email && p.id && !activeIds.has(p.id))
+  const dormant = allTargets.filter((p) => (tradeMap0.get(p.id as string)?.n || 0) > 0).slice(0, 30)
+  const never = allTargets
+    .filter((p) => !(tradeMap0.get(p.id as string)?.n) && p.created_at && Date.now() - new Date(p.created_at).getTime() >= 3 * 86400_000)
+    .slice(0, 20)
+  const targets = [...dormant, ...never]
 
   /* SOP Multi-Agent — MAYA (CSO) meracik draf email hari ini pakai model
      resminya (google/gemma-4-26b-a4b-it:free via OpenRouter — Task 35), rotasi 3 variasi
-     nada, maks 50 user pasif. 1 panggilan LLM/hari; sapaan personal per
+     nada. Task 35h: DUA panggilan LLM — 1 draf per grup, tiap grup dapat email
+     yang pas dengan kondisinya. 1 panggilan LLM/hari/grup; sapaan personal per
      user tetap dari data trading ASLI (personalLine) + CTA statis sistem.
-     Gagal → templat statis PASSIVE_VARIANTS (fail-safe). */
+     Gagal → templat statis (PASSIVE_VARIANTS / NEVER_UPLOADED_VARIANTS). */
   const variantIdx = dayIndex() % PASSIVE_VARIANTS.length
-  let variant = PASSIVE_VARIANTS[variantIdx]
-  let emailProvider = 'template'
-  let emailModel = ''
-  try {
-    const brain = await agentBrain(
-      e, 'cso',
-      'Kamu Maya, CSO Luxtradee — web app jurnal trading XAUUSD (upload screenshot → evaluasi AI). Tulis 1 email sapaan hangat untuk user pasif (tidak upload jurnal >24 jam). Gaya: bahasa Indonesia santai & hangat, maksimal 80 kata, TANPA link/URL apa pun (sistem menambahkan link & tanda tangan otomatis), TANPA markdown, TANPA sapaan nama (sistem menambahkan sapaan personal per penerima). ' +
-      `Nada variasi hari ini: ${CSO_EMAIL_TONES[variantIdx]}. ` +
-      'OUTPUT HANYA JSON valid: {"subject":"maks 60 karakter, boleh 1 emoji","body":"isi email tanpa sapaan nama"} ' +
-      REAL_DATA_RULE,
-      `Konteks nyata: ${targets.length} user pasif akan dikontak hari ini (dari database). Tanggal: ${wibNow()}.`,
-      400, 0.8,
-    )
-    const parsed = JSON.parse(extractJsonLoose(brain.text) || '{}') as { subject?: string; body?: string }
-    const subject = String(parsed.subject || '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 120)
-    const body = String(parsed.body || '').replace(/https?:\/\/\S+/g, '').replace(/```/g, '').trim().slice(0, 700)
-    if (subject && body && body.length > 40) {
-      variant = { subject, text: `${body}\n\n${CSO_EMAIL_FOOTER}` }
-      emailProvider = brain.provider
-      emailModel = brain.model
-    }
-  } catch { /* templat statis tetap dipakai */ }
+  const draftDormant = async () => {
+    let variant = PASSIVE_VARIANTS[variantIdx]
+    let provider = 'template', model = ''
+    try {
+      const brain = await agentBrain(
+        e, 'cso',
+        'Kamu Maya, CSO Luxtradee — web app jurnal trading XAUUSD (upload screenshot → evaluasi AI). Tulis 1 email untuk USER LAMA yang sudah PERNAH nyatet trade tapi sekarang vakum (tidak upload >24 jam, banyak berminggu-minggu). Gaya: hangat & kangen seperti teman lama, ingatkan nilai jurnalnya (data trade & win rate-nya sudah terkumpul), BUKAN nagih, maksimal 80 kata, TANPA link/URL apa pun (sistem menambahkan link & tanda tangan otomatis), TANPA markdown, TANPA sapaan nama (sistem menambahkan sapaan personal per penerima). ' +
+        `Nada variasi hari ini: ${CSO_EMAIL_TONES[variantIdx]}. ` +
+        'OUTPUT HANYA JSON valid: {"subject":"maks 60 karakter, boleh 1 emoji","body":"isi email tanpa sapaan nama"} ' +
+        REAL_DATA_RULE,
+        `Konteks nyata: ${dormant.length} user lama vakum akan dikontak hari ini (dari database). Tanggal: ${wibNow()}.`,
+        400, 0.8,
+      )
+      const parsed = JSON.parse(extractJsonLoose(brain.text) || '{}') as { subject?: string; body?: string }
+      const subject = String(parsed.subject || '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 120)
+      const body = String(parsed.body || '').replace(/https?:\/\/\S+/g, '').replace(/```/g, '').trim().slice(0, 700)
+      if (subject && body && body.length > 40) {
+        variant = { subject, text: `${body}\n\n${CSO_EMAIL_FOOTER}` }
+        provider = brain.provider
+        model = brain.model
+      }
+    } catch { /* templat statis tetap dipakai */ }
+    return { variant, provider, model }
+  }
+  const draftNever = async () => {
+    let variant = NEVER_UPLOADED_VARIANTS[variantIdx % NEVER_UPLOADED_VARIANTS.length]
+    let provider = 'template', model = ''
+    try {
+      const brain = await agentBrain(
+        e, 'cso',
+        'Kamu Maya, CSO Luxtradee — web app jurnal trading XAUUSD (upload screenshot → evaluasi AI). Tulis 1 email untuk user yang daftar TAPI BELUM PERNAH upload 1 trade pun (akunnya sudah ≥3 hari). Mereka ragu/gak tahu mulai dari mana — hilangkan rasa canggung itu: tekankan cukup 1 screenshot & 2 menit, semua fitur bisa langsung dirasakan. Gaya: ramah, meringankan, tanpa tekanan, maksimal 80 kata, TANPA link/URL apa pun (sistem menambahkan link & tanda tangan otomatis), TANPA markdown, TANPA sapaan nama (sistem menambahkan sapaan personal per penerima). ' +
+        'OUTPUT HANYA JSON valid: {"subject":"maks 60 karakter, boleh 1 emoji","body":"isi email tanpa sapaan nama"} ' +
+        REAL_DATA_RULE,
+        `Konteks nyata: ${never.length} user belum pernah upload akan dikontak hari ini (dari database). Tanggal: ${wibNow()}.`,
+        400, 0.8,
+      )
+      const parsed = JSON.parse(extractJsonLoose(brain.text) || '{}') as { subject?: string; body?: string }
+      const subject = String(parsed.subject || '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 120)
+      const body = String(parsed.body || '').replace(/https?:\/\/\S+/g, '').replace(/```/g, '').trim().slice(0, 700)
+      if (subject && body && body.length > 40) {
+        variant = { subject, text: `${body}\n\n${CSO_EMAIL_FOOTER}` }
+        provider = brain.provider
+        model = brain.model
+      }
+    } catch { /* templat statis tetap dipakai */ }
+    return { variant, provider, model }
+  }
+  /* Dua draf diracik paralel — hemat waktu (2 panggilan LLM berbeda prompt) */
+  const [drA, drB] = await Promise.all([draftDormant(), draftNever()])
+  const variantA = drA.variant, variantB = drB.variant
+  let emailProvider = drA.provider === 'template' ? drB.provider : drA.provider
+  let emailModel = drA.model || drB.model
+  const variantLabel = `${variantA.subject} | ${variantB.subject}`
 
-  /* Data trading personal per penerima — 1 kueri untuk semua */
-  const tradeMap = await buildPerUserTradeMap(e)
+  /* Data trading personal per penerima — sudah dibangun di atas (tradeMap0) */
+  const tradeMap = tradeMap0
 
-  let sent = 0, personalized = 0
+  let sent = 0, personalized = 0, sentDormant = 0, sentNever = 0
   const emailedIds: string[] = []
   for (const p of targets) {
     const t = tradeMap.get(p.id as string)
+    const isDormant = (t?.n || 0) > 0
+    const v = isDormant ? variantA : variantB
     const createdAgeDays = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400_000) : 0
     const name = (p.full_name || '').trim().split(/\s+/)[0] || ''
     const line = personalLine(name, t, createdAgeDays)
     if (t || createdAgeDays >= 3) personalized++
-    const body = `${line}\n\n${variant.text}`
+    const body = `${line}\n\n${v.text}`
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${e.RESEND_API_KEY}` },
       body: JSON.stringify({
         from: EMAIL_FROM,
         to: p.email as string,
-        subject: variant.subject,
+        subject: v.subject,
         text: body,
       }),
       signal: timeoutSignal(10_000),
     }).catch(() => null)
     if (r && (r as any).ok) {
       sent++
+      if (isDormant) sentDormant++; else sentNever++
       emailedIds.push(p.id as string)
       await kvIncr(e, `email:${wibDay()}`).catch(() => {}) // CFO: pantau kuota Resend
     }
   }
   /* simpan siapa saja yang di-email hari ini → besok dihitung "balik aktif" */
   if (emailedIds.length) await kvSet(e, `csmailed:${wibDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
-  if (sent) await memAdd(e, 'CSO Maya', `${sent} email personal ke user pasif (variasi "${variant.subject}"; ${personalized} pakai data trade asli penerima; draf via ${emailProvider === 'template' ? 'templat statis' : emailModel})`)
-  return { sent, ids: emailedIds, variant: variant.subject, personalized, emailProvider, emailModel }
+  if (sent) await memAdd(e, 'CSO Maya', `${sent} email personal ke 2 grup: ${sentDormant} user vakum (draf "${variantA.subject}") + ${sentNever} belum pernah upload (draf "${variantB.subject}"); ${personalized} pakai data trade asli penerima; draf via ${emailProvider === 'template' ? 'templat statis' : emailModel}`)
+  return { sent, ids: emailedIds, variant: variantLabel, personalized, emailProvider, emailModel, sentDormant, sentNever }
 }
 
 /* ============================================================
@@ -2526,16 +2589,25 @@ async function handle(req: Request): Promise<Response> {
     }
     case 'acc-email': {
       // Flow "ACC EMAIL" — dipicu tombol di dashboard CEO (owner login)
+      // Task 35h: 2 GRUP — user vakum (pernah upload) & belum pernah upload,
+      // masing-masing draf berbeda dari Maya.
       const day = wibDay()
       if (await kvGet(e, `acc_email:${day}`)) return j({ ok: true, dup: true })
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
-      let emailsSent = -1
-      if (e.RESEND_API_KEY) { try { emailsSent = (await sendPassiveEmails(e)).sent } catch { /* ignore */ } }
+      let emailsSent = -1, sentDormant = 0, sentNever = 0
+      if (e.RESEND_API_KEY) {
+        try {
+          const r = await sendPassiveEmails(e)
+          emailsSent = r.sent
+          sentDormant = r.sentDormant
+          sentNever = r.sentNever
+        } catch { /* ignore */ }
+      }
       const reply = emailsSent >= 0
-        ? `Siap Bos! ✅ Email sapaan terkirim ke ${emailsSent} user pasif hari ini.`
+        ? `Siap Bos! ✅ ${emailsSent} email terkirim ke 2 grup — ${sentDormant} user vakum (draf "kangen") + ${sentNever} belum pernah upload (draf ajakan pertama). Masing-masing dapat email yang beda.`
         : 'Siap Bos! ✅ ACC EMAIL dicatat. Set RESEND_API_KEY agar email terkirim otomatis.'
       try { await sendDiscord(e, reply) } catch { /* ignore */ }
-      return j({ ok: true, accEmail: true, emailsSent })
+      return j({ ok: true, accEmail: true, emailsSent, sentDormant, sentNever })
     }
     case 'reset-work': {
       /* ♻️ Task 35c — tombol Bos "Reset Kerjaan AI": bersihkan cache kerjaan
