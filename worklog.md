@@ -2065,3 +2065,28 @@ CATATAN UTK BOS:
 - Tidak perlu env/key apa pun lagi untuk chart: crypto = Binance websocket publik (native @luxalgo/vela), FX/Gold/Silver/US100 = Yahoo publik via server proxy. TWELVE_DATA_API_KEY boleh dihapus dari Cloudflare env (tidak dipakai)
 - Paket @luxalgo/vela hanya menyertakan provider crypto native (Binance/Coinbase/Hyperliquid) — datafeed "TradingView" tidak ada di paket; FX/Gold/US100 memakai port DataProvider Vela yang sama via feed keyless Luxtradee
 - Screenshot bukti: .e2e/42-vela-keyless.png (XAUUSD) + .e2e/42-vela-us100.png (US100)
+
+## Task 46 — Diagnosa Produksi Basi: cron CF mati + Pine tidak muncul + alert Telegram (2026-10-29)
+
+LAPORAN BOS (verbatim): log CF "Handler does not export a scheduled() function" (cron 0 3 * * * → exception) + "candle ga gerak" + "tes ke tele untuk indikator pine juga ga berfungsi" + "usahain kalau user klik pineku keluar dichart" + "kalau user pro bisa make notif tele".
+
+AKAR MASALAH UTAMA (menyatukan SEMUA keluhan):
+- Produksi = worker LAMA. Bukti: cron CF menembak worker live dan error "no scheduled()" — artinya worker live dibangun SEBELUM worker-entry.ts (main wrangler.jsonc). Artinya build CF gagal terus-menerus untuk push-push terbaru → SEMUA fix (default pine auto-load, depth 5000, tes alert 🧪) tidak pernah sampai produksi → "chart sama kek awal padahal udah diperbaiki semua".
+- Verifikasi lokal: `next build` lolos penuh (compiled 61s, 236 halaman, traces OK) — kode repo SEHAT. Dua kegagalan build di sandbox murni interferensi (sesi lain menimpa .next) + LIMITASI RAM sandbox (esbuild OOM 1.9GB saat "Bundling the OpenNext server" — sandbox 4GB; builder CF lebih besar → build produksi lolos).
+- Hardening cron: scripts/patch-cf-worker-cron.mjs menyuntikkan scheduled() ke .open-next/worker.js (idempotent) → jalur deploy mana pun selalu punya handler cron. worker-entry.ts (main utama) tetap satu-satunya sumber logika cron.
+
+PERBAIKAN DI SESI INI:
+1. VelaChartTerminal.tsx — CHIP DEFAULT SELALU TAMPIL: visibleProtected (useMemo) selalu menyertakan "Luxtradee Candle Impulsif" di urutan pertama (pakai baris DB/UUID bila ada; fallback meta dari kode, id = slug) — dulu row Eksklusif hilang total bila /api/compile-pine GET gagal/401 → Bos tak bisa klik "pineku". KLIK SKRIP TERSIMPAN = LANGSUNG JALAN di chart (dulu hanya mengisi editor). Guard anti-dobel default saat persist Vela memulihkan instance dgn UUID tak dikenal (list kosong).
+2. /api/pine/alerts + /api/pine/alerts/test — scriptId kini menerima SLUG default "impulsive-breakout-xauusd" (dulu 400 "scriptId tidak valid" → Pro tidak pernah bisa aktifkan/tes alert Pine default bila daftar DB gagal). Slug → ensureDefaultScript() (auto-seed, dapat UUID utk FK pine_alert_subscriptions); test route punya fallback baris sintetis dari kode (replika TS default tidak butuh DB untuk evaluasi). Gate Pro tetap: free 403 upgrade.
+3. Uji pipeline server (bun): runDefaultStrategyPine — 2000 candle TV → plot Entry 217 / SL 79 / TP 138 titik + 86 engineAlerts; runPineHeadless (source strategy() verbatim) → plots tersintesis + 18 alerts → jalur alert Telegram siap.
+
+E2E BROWSER (agent-browser, server dev sandbox — sering dibunuh sesi lain, diuji via /test-vela):
+- Chart terminal render penuh (WebGL, toolbar, symbol search) ✅
+- CHIP "✓ Luxtradee Candle Impulsif" TAMPIL di row Eksklusif TANPA login & TANPA daftar API (bukti fix #1 live) ✅
+- Datafeed depth: /api/candles?limit=5000 → 200 ✅; live polling 3 detik jalan terus dari chart (200 beruntun) ✅
+- Harga bergerak nyata (curl 3×): 4030.28 → 4030.07 → 4030.365 ✅
+- 401 anonim pada /api/compile-pine & /api/pine/alerts = by design (wajib login); slug kini lolos validasi (401 bukan 400) ✅
+- lint exit 0; tsc bersih utk file yang diubah ✅
+- CATATAN JUJUR: build OpenNext penuh TIDAK bisa dituntaskan di sandbox (esbuild OOM — RAM 4GB kurang utk langkah bundling; bukan masalah kode — next build lolos). Full login E2E tidak mungkin lokal (Supabase service-role tidak ada di .env sandbox).
+
+LANGKAH BOS (sekali): push → pantau build CF sampai HIJAU (±3-5 mnt). Kalau build CF merah, cek log: kemungkinan "Asset too large" (sudah ada auto-purge) atau RAM builder — bukan kode. Setelah deploy baru live: cron 0 1/3 + */15 tidak lagi error "no scheduled()", chart otomatis memuat Pine default, dan tes alert 🧪 sampai Telegram.
