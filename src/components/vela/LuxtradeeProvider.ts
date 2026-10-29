@@ -13,10 +13,10 @@
  * chart Vela tetap satu aplikasi penuh (symbol search,
  * multi-timeframe, live) untuk multi-asset.
  *
- * ROUTING DATAFEED (Task 42 + urutan baru — BINANCE DIBUANG):
+ * ROUTING DATAFEED (Task 42 + urutan FINAL Bos — BINANCE DIBUANG):
  *   - Forex / Gold / Silver / Nasdaq (US100) / Crypto → /api/candles
- *     (TradingView keyless → Finnhub → Twelve Data spot → Yahoo
- *     keyless; alias NASDAQ, NAS100, GOLD, XAU/USD, BTC, …
+ *     (TradingView keyless → Twelve Data spot → Yahoo keyless;
+ *     alias NASDAQ, NAS100, GOLD, XAU/USD, BTC, …
  *     dinormalisasi otomatis)
  *   - BINANCE PROVIDER DIBUANG (keputusan Bos) — semua simbol
  *     dilayani feed Luxtradee via /api/candles.

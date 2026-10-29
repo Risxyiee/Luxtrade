@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 5) CANDLE SERVER (TradingView → Finnhub → TwelveData → Yahoo) */
+    /* 5) CANDLE SERVER (TradingView → TwelveData → Yahoo — urutan FINAL Bos) */
     const cd = await fetchServerCandles(symbol, interval, 300)
     if (!cd) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })

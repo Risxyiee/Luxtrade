@@ -3,19 +3,19 @@
  * server-candles — candle OHLC untuk KEPERLUAN SERVER (spot dulu)
  * ============================================================
  * Dipakai /api/compile-pine (Protected Pine Script®) + alert runner:
- * engine PineTS di server butuh bars. Urutan sumber (permintaan Bos):
+ * engine PineTS di server butuh bars. Urutan sumber FINAL (Bos,
+ * dikonfirmasi 3× — verbatim: "binaance yang dibuang"):
  *
- *   0. TradingView — websocket publik keyless, grade broker
- *      (OANDA:XAUUSD, BINANCE:BTCUSDT) — lib tradingview.ts
- *   1. Finnhub     — API resmi, butuh FINNHUB_API_KEY (tanpa key → skip)
- *                    via lib finnhub.ts
- *   2. Twelve Data — SPOT forex & logam (XAU/USD dkk) via
- *                    lib twelvedata.ts — butuh TWELVE_DATA_API_KEY
- *   3. Yahoo       — forex, logam (GC=F), indeks US100 (NQ=F),
- *                    crypto (BTC-USD) via lib bersama yahoo.ts
+ *   0. TradingView — websocket publik KEYLESS, grade broker
+ *      (OANDA:XAUUSD, BINANCE:BTCUSDT utk crypto) — lib tradingview.ts
+ *   1. Twelve Data — SPOT forex & logam (XAU/USD dkk) via
+ *      lib twelvedata.ts — butuh TWELVE_DATA_API_KEY
+ *   2. Yahoo       — forex, logam (GC=F), indeks US100 (NQ=F),
+ *      crypto (BTC-USD) via lib bersama yahoo.ts
  *
- * BINANCE DIBUANG (keputusan Bos) — kebutuhan crypto kini lewat
- * TradingView (BINANCE:*) / Finnhub / Yahoo (BTC-USD).
+ * BINANCE DIBUANG (keputusan Bos) — crypto kini via TradingView /
+ * Yahoo (BTC-USD). Finnhub PARKIR (butuh key, bukan pilihan Bos
+ * utk rantai ini) — lib finnhub.ts dipertahankan, tidak dipanggil.
  * Semua fetch di server, tanpa mock. Return null bila semua gagal —
  * penelepon wajib jawab 502 jujur.
  */
@@ -23,7 +23,6 @@
 import { fetchYahooChart, type YahooCandle } from './yahoo'
 import { fetchTwelveDataCandles } from './twelvedata'
 import { fetchTradingViewCandles } from './tradingview'
-import { fetchFinnhubCandles } from './finnhub'
 
 /** Interval kanonik ('5m','1h','1d',…) → detik per bar (untuk dedupe & validasi) */
 const INTERVAL_SECONDS: Record<string, number> = {
@@ -40,7 +39,7 @@ export type LuxCandle = YahooCandle
 
 /**
  * Sumber candle TERPADU untuk server (compile-pine, alert runner, dll).
- * Prioritas: TradingView (keyless) → Finnhub (key) → Twelve Data (key)
+ * Urutan FINAL Bos: TradingView (keyless) → Twelve Data (key)
  * → Yahoo (keyless). Return null bila semua gagal.
  */
 export async function fetchServerCandles(
@@ -55,17 +54,12 @@ export async function fetchServerCandles(
   if (tv && tv.length) return { bars: tv, source: 'tradingview' }
   errors.push('TradingView: tidak ada data')
 
-  // 1) Finnhub — API resmi (butuh key; tanpa key = skip diam)
-  const fh = await fetchFinnhubCandles(symbol, interval, limit)
-  if (fh && fh.length) return { bars: fh, source: 'finnhub' }
-  if (process.env.FINNHUB_API_KEY) errors.push('Finnhub: tidak ada data')
-
-  // 2) Twelve Data — spot forex & logam
+  // 1) Twelve Data — spot forex & logam
   const td = await fetchTwelveDataCandles(symbol, interval, limit)
   if (td && td.length) return { bars: td, source: 'twelvedata' }
   if (process.env.TWELVE_DATA_API_KEY) errors.push('TwelveData: tidak ada data')
 
-  // 3) Yahoo — forex, gold, US100, crypto (BTC-USD)
+  // 2) Yahoo — forex, gold, US100, crypto (BTC-USD)
   const yf = await fetchYahooChart(symbol, interval, limit, false)
   if (yf && yf.length) return { bars: yf, source: 'yahoo' }
   errors.push('Yahoo: tidak ada data')

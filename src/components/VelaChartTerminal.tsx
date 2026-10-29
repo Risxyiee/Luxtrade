@@ -8,10 +8,10 @@
  * search, timeframe, indikator bawaan 70+, drawing tools), tema
  * gelap elegan ala Luxtradee.
  *
- * DATAFEED (urutan baru — BINANCE DIBUANG, satu pintu keyless):
+ * DATAFEED (urutan FINAL Bos — BINANCE DIBUANG, satu pintu keyless):
  *   Semua simbol (FX/Gold/US100/crypto) → LuxtradeeForexProvider
- *   via /api/candles: TradingView keyless → Finnhub → Twelve
- *   Data (TWELVE_DATA_API_KEY) → Yahoo keyless. Chart tak pernah
+ *   via /api/candles: TradingView keyless → Twelve Data
+ *   (TWELVE_DATA_API_KEY) → Yahoo keyless. Chart tak pernah
  *   mati 401.
  * - Pine Script®           : @luxalgo/vela-pinets (PineEngine)
  *                            + editor Save/Compile dengan kuota
@@ -218,17 +218,11 @@ function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
 }
 
 /**
- * Hitung tinggi auto-fit: chart mengisi VIEWPORT penuh — minus
- * header sticky dashboard (h-16) minus footer (bila ada) minus
- * jarak napas 28px. Diklem min 420px (mobile) / max 1800px
- * (monitor raksasa).
- *
- * FIX (keluhan Bos: "masih ada ruang kosong di bawah"): formula
- * lama mengurangi docTop (posisi chart di DOKUMEN, bisa ~900px)
- * dari innerHeight (VIEWPORT) → hasil negatif → selalu jatuh ke
- * min 420px. Formula baru tidak butuh docTop: begitu chart
- * di-scroll masuk, tepi bawahnya menempel di atas footer &
- * tepi atasnya mulus di bawah header sticky — gaya TradingView.
+ * Hitung tinggi auto-fit (REVISI Bos: "ukuran chart agak dikasih
+ * celah dikit dibawahnya 20%/30% lah biar ga full bgt"):
+ * chart memakai ±75% sisa viewport (viewport − header sticky −
+ * footer − jarak napas) → SISANYA ±25% jadi celah kosong di
+ * BAWAH chart. Diklem min 420px (mobile) / max 1400px.
  */
 function computeFitHeight(host: HTMLElement): string | null {
   try {
@@ -237,7 +231,8 @@ function computeFitHeight(host: HTMLElement): string | null {
     const foot = document.querySelector('footer')
     const footH = foot ? foot.offsetHeight : 0
     const avail = window.innerHeight - headH - footH - 28
-    return `${Math.round(Math.min(Math.max(avail, 420), 1800))}px`
+    const fit = Math.round(avail * 0.75) // celah ±25% di bawah chart
+    return `${Math.round(Math.min(Math.max(fit, 420), 1400))}px`
   } catch {
     return null
   }
@@ -258,21 +253,18 @@ export default function VelaChartTerminal({
   const [booting, setBooting] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
 
-  /* ---------- AUTO-FIT tinggi chart (Task 43) ----------
-   * Keluhan Bos: chart max 640px menyisakan ruang kosong di bawah.
-   * Solusi: ukur sisa ruang viewport riil
-   *   (viewport − posisi atas chart − tinggi footer − jarak napas)
-   * lalu pakai sebagai tinggi host.
-   *
-   * DUA PASUS — kunci anti-crash (error openTime saat Vela boot
+  /* ---------- AUTO-FIT tinggi chart ----------
+   * Bos: "ukuran chart agak dikasih celah dikit dibawahnya
+   * 20%/30% lah biar ga full bgt" → tinggi = 75% sisa viewport
+   * (lihat computeFitHeight) — sisanya celah kosong di bawah.
+   * Dua pasang — kunci anti-crash (error openTime saat Vela boot
    * kena resize container di tengah inisialisasi):
    *   Pass 1 useLayoutEffect: hitung & set tinggi SEBELUM effect
    *     boot Vela jalan → workspace lahir dengan ukuran final.
    *   Pass 2 (booting=false): ResizeObserver baru dipasang —
    *     adaptif banner PWA/promo muncul/hilang & viewport resize.
-   * Tidak bisa loop: docTop & footer tidak bergantung pada tinggi
-   * host, dan setState di-guard sama-nilai. Min 420px (mobile),
-   * max 1800px (monitor raksasa). */
+   * Tidak bisa loop: tinggi host tidak memengaruhi header/footer,
+   * dan setState di-guard sama-nilai. Min 420px (mobile). */
   const [autoH, setAutoH] = useState<string | null>(null)
 
   useLayoutEffect(() => {
@@ -375,11 +367,11 @@ export default function VelaChartTerminal({
           /* Gaya candle Luxtradee: emerald naik / merah turun */
           upColor: '#10b981',
           downColor: '#ef4444',
-          /* Datafeed (urutan baru — BINANCE DIBUANG, semua via feed
-             Luxtradee /api/candles: TradingView → Finnhub → Twelve
-             Data → Yahoo; FX/Gold/US100/crypto satu pintu keyless) */
+          /* Datafeed (urutan FINAL Bos — BINANCE DIBUANG, semua via feed
+             Luxtradee /api/candles: TradingView → Twelve Data →
+             Yahoo; FX/Gold/US100/crypto satu pintu keyless) */
           providers: {
-            luxtradee: () => new LuxtradeeForexProvider(), // TV→Finnhub→TD→Yahoo
+            luxtradee: () => new LuxtradeeForexProvider(), // TV→TD→Yahoo
           },
           /* Pine Script® engine — in-process (paling stabil).
              Skrip berat nanti bisa ganti PineWorkerEngine. */
