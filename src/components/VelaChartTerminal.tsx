@@ -218,6 +218,7 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
 function createProtectedInstance() {
   let ctx: any = null
   let scriptKey = '' // id ATAU slug (default auto-load pakai slug)
+  let lastRunKey = '' // "SYM:TF" run terakhir — ganti TF/simbol WAJIB recompute (fix "mulai uji" nyangkut TF lama)
   let busy = false
   let lastEmit = 0
   let lastFail = 0 // backoff: jangan hammer server saat gagal
@@ -225,6 +226,13 @@ function createProtectedInstance() {
   let lastTrades: ProtectedTrade[] = [] // visual garis/label per trade
   let lastBarsSig = '' // anti re-emit sia-sia saat bars tak berubah
   const reemitTimers: ReturnType<typeof setTimeout>[] = []
+
+  /* Kunci run dari ctx — simbol bisa berprefiks provider (buang sebelum ':'). */
+  const ctxRunKey = (c: any): string => {
+    const sym = String(c?.symbol || '').split(':').pop() || ''
+    const tf = String(c?.timeframe || '60')
+    return `${sym.toUpperCase()}:${tf}`
+  }
 
   const clearTimers = () => {
     while (reemitTimers.length) { try { clearTimeout(reemitTimers.pop() as any) } catch { /* diam */ } }
@@ -265,6 +273,7 @@ function createProtectedInstance() {
       lastPlots = cached.plots
       lastTrades = Array.isArray(cached.trades) ? cached.trades : []
       lastBarsSig = '' // paksa emit ulang utk ctx baru
+      lastRunKey = ctxRunKey(c) // cache ini memang utk simbol+TF sekarang — sah
       maybeEmit(c)
       return
     }
@@ -286,6 +295,7 @@ function createProtectedInstance() {
           lastPlots = j.plots
           lastTrades = tradesArr
           lastBarsSig = ''
+          lastRunKey = ctxRunKey(c) // run ini sah utk simbol+TF sekarang
           if (j?.meta?.stats) emitProtectedStats(scriptKey, j.meta.stats as ProtectedStats)
           maybeEmit(c)
           lastEmit = Date.now()
@@ -319,22 +329,38 @@ function createProtectedInstance() {
       lastPlots = null
       lastTrades = []
       lastBarsSig = ''
+      lastRunKey = ''
       run(true)
     },
     onBars: () => {
       /* History termuat / tick live → gambar ulang dari plot terakhir
          TANPA fetch (instan) — fix: garis Entry/SL/TP kadang kosong
-         karena plot siap SEBELUM history chart selesai dimuat. */
-      if (lastPlots && ctx) { maybeEmit(ctx); return }
+         karena plot siap SEBELUM history chart selesai dimuat.
+         FIX BOS ("tabel mulai uji 2026"): ganti TF/simbol → plot &
+         tabel stats dari TF LAMA TIDAK BOLEH dipakai (dulu stats run
+         1h nyangkut tampil di chart 5m — Mulai uji 29 Jun 2026) →
+         recompute wajib utk simbol+TF yang baru. */
+      const c = ctx
+      if (!c) return
+      if (lastPlots) {
+        if (ctxRunKey(c) !== lastRunKey) { run(true); return }
+        maybeEmit(c)
+        return
+      }
       run(false)
     },
     onViewport: () => { if (lastPlots && ctx) maybeEmit(ctx) },
     setInputs: (i: Record<string, any>) => {
       const s = String(i?.scriptId || i?.slug || '')
-      if (s && s !== scriptKey) { scriptKey = s; lastPlots = null; lastTrades = []; lastBarsSig = ''; run(true) }
+      if (s && s !== scriptKey) { scriptKey = s; lastPlots = null; lastTrades = []; lastBarsSig = ''; lastRunKey = ''; run(true) }
     },
     suspend: () => { /* tetap hidup — data murah dari cache */ },
-    resume: () => { if (lastPlots && ctx) maybeEmit(ctx); else run(false) },
+    resume: () => {
+      const c = ctx
+      if (!c) return
+      if (lastPlots && ctxRunKey(c) === lastRunKey) maybeEmit(c)
+      else run(false)
+    },
     stop: () => { clearTimers(); ctx = null },
   }
 }

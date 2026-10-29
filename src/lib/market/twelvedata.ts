@@ -145,7 +145,7 @@ export async function fetchTwelveDataCandles(
   if (!tdSym || !tdIv) return null
   if (!rateOk()) return null // kuota 8/min terjaga — Yahoo ambil alih
 
-  const want = Math.min(Math.max(limit, 1), 20000)
+  const want = Math.min(Math.max(limit, 1), 30000)
   const PAGE = 5000 // maksimum resmi outputsize TD per request
   const maxPages = Math.min(Math.ceil(want / PAGE), 6)
 

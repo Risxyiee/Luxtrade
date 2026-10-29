@@ -43,6 +43,35 @@ export const dynamic = 'force-dynamic'
 const plotServerCache = new Map<string, { at: number; payload: any }>()
 const PLOT_CACHE_TTL_MS = 3 * 60 * 1000
 
+/* ============================================================
+   KEDALAMAN BACKTEST per interval (fix Bos: "tabel mulai uji trade
+   juga 2026 bukan 2023"). Dulu 2000 bar FLAT → 1h cuma ±4 bulan
+   (Mulai uji 29 Jun 2026), 5m cuma ±7 hari. Sekarang digali
+   SEDALAM sumber gratis sanggup — TD pagination ≤30.000 bar
+   (6×5000), Yahoo window intraminut 60 hari & 1h 730 hari
+   (terukur langsung: GC=F 5m ≈13–15k bar/60d, 1h ≈14.5k bar/730d):
+   - 1h  : 30.000 bar ≈ 4 tahun → Mulai uji tembus 2023
+   - 2h  : 16.000 bar ≈ 4,4 tahun     - 4h : 12.000 bar ≈ 6,6 tahun
+   - 5m  : 17.000 bar (≈2 bulan — batas keras Yahoo 60 hari)
+   - 15m : 11.000 bar (≈2+ tahun)     - 30m: 9.000 bar (≈1+ tahun)
+   - 1d  : 2.500 bar (±7 tahun)       - 1w : 1.200 bar (±23 tahun)
+   Sumber selalu mengembalikan SEBISANYA (bila plan/window lebih
+   pendek) — stats "Mulai uji" menampilkan bar tertua yang benar-
+   benar diterima, TANPA mock.
+   ============================================================ */
+const BACKTEST_DEPTH: Record<string, number> = {
+  '5m': 17000, '15m': 11000, '30m': 9000, '1h': 30000,
+  '2h': 16000, '4h': 12000, '1d': 2500, '1w': 1200,
+}
+const DEFAULT_BACKTEST_DEPTH = 5000
+
+/* Ekor plot/trade yang DIKIRIM ke chart — STATS tetap dihitung dari
+   kedalaman PENUH. Chart hanya menampilkan ±5000 bar, jadi plot
+   (3 seri × depth penuh) & ribuan trade lama hanya membengkakkan
+   respons MB-an di mobile. 6000 titik & 800 trade terakhir cukup. */
+const CHART_PLOT_TAIL = 6000
+const CHART_TRADE_TAIL = 800
+
 /* Vela timeframe kanonik (menit, string) → format interval server */
 const TF_NORMALIZE: Record<string, string> = {
   '5': '5m', '15': '15m', '30': '30m', '60': '1h', '120': '2h', '240': '4h',
@@ -179,12 +208,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...cached.payload, cached: true })
     }
 
-    /* 6) CANDLE SERVER (TradingView → TwelveData → Yahoo — urutan FINAL Bos)
-       DEPTH 2000 bar (Bos: backtest salah krn data pendek — 300 bar 1h
-       cuma ±2 minggu sehingga sinyal cuma muncul 2×; 2000 bar 1h ≈
-       3–4 bulan → sampel backtest layak). Server-candles menarik
-       penuh: TV series ≤5000, TD outputsize 5000, Yahoo period paging. */
-    const cd = await fetchServerCandles(symbol, interval, 2000)
+    /* 6) CANDLE SERVER (TwelveData → TradingView → Yahoo — urutan FINAL Bos)
+       KEDALAMAN per interval (Bos: "mulai uji 2026 bukan 2023" —
+       dulu 2000 bar flat → 1h cuma ±4 bulan). Server-candles menarik
+       penuh: TD outputsize ≤30.000 via pagination, TV series ≤5000,
+       Yahoo period paging (5m 60 hari, 1h 730 hari). */
+    const depth = BACKTEST_DEPTH[interval] || DEFAULT_BACKTEST_DEPTH
+    const cd = await fetchServerCandles(symbol, interval, depth)
     if (!cd) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })
     }
@@ -219,9 +249,18 @@ export async function POST(request: NextRequest) {
       : 0
 
     /* 9) RESPONS — plots SAJA. Tanpa source. Tanpa editor.
-       Stats (tabel performa ala TradingView) + TRADES (garis
-       entry→exit + label TP/SL ala line.new/label.new Pine Bos)
-       ikut utk skrip default — dirender client di chart. */
+       Stats (tabel performa ala TradingView) dihitung dari KEDALAMAN
+       PENUH; PLOT & TRADE utk gambar chart dipangkas ke ekor (chart
+       cuma menampilkan ±5000 bar — respons tetap ringan di mobile). */
+    const chartPlots = visiblePlots.map((p) => ({
+      ...p,
+      data: Array.isArray(p.data) && p.data.length > CHART_PLOT_TAIL
+        ? p.data.slice(-CHART_PLOT_TAIL)
+        : p.data,
+    }))
+    const chartTrades = Array.isArray(run.trades) && run.trades.length
+      ? run.trades.slice(-CHART_TRADE_TAIL)
+      : []
     const payload = {
       success: true,
       isPro,
@@ -231,8 +270,8 @@ export async function POST(request: NextRequest) {
         source: cd.source,
         ...(run.stats ? { stats: run.stats } : {}),
       },
-      plots: visiblePlots,
-      ...(Array.isArray(run.trades) && run.trades.length ? { trades: run.trades } : {}),
+      plots: chartPlots,
+      ...(chartTrades.length ? { trades: chartTrades } : {}),
       signalsSent,
       fetchedAt: new Date().toISOString(),
     }
