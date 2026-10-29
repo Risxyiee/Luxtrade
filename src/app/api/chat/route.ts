@@ -21,7 +21,7 @@ ESCALATION KE ADMIN:
 INFO PRODUK:
 - LuxTradee = jurnal trading AI untuk prop firm traders
 - Paket Gratis: 10 trade/bulan, 10 AI queries/bulan, analitik dasar
-- Paket PRO: Rp39K/bulan, unlimited trades, AI pattern detection, auto extract screenshot MT5/TV, equity curve, export CSV/PDF, psychology tracking
+- Paket PRO: Rp49K/bulan, unlimited trades, AI pattern detection, auto extract screenshot MT5/TV, equity curve, export CSV/PDF, psychology tracking
 - AI Vision: upload screenshot MT5/TradingView → auto extract data trade
 - AI Pattern Detection: deteksi pola loss berulang (FOMO, overtrading, dll)
 - Payment: Midtrans (IDR), Skrill (USD)

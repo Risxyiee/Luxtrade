@@ -7,8 +7,9 @@
 
 export const PRICING = {
   // PRO Subscription Plans
-  PRO_30_DAYS: 39000,      // Rp39.000 / Bulan
-  PRO_ANNUAL: 390000,     // Rp390.000 / Tahun (hemat 2 bulan)
+  PRO_30_DAYS: 49000,      // Rp49.000 / Bulan (diskon dari Rp100.000)
+  PRO_30_DAYS_ORIGINAL: 100000, // Harga normal bulanan — tampil DICORET (anchor diskon, Bos: "awal 100 rb terus dicoret diskon")
+  PRO_ANNUAL: 390000,     // Rp390.000 / Tahun (hemat ~5 bulan vs bulanan baru)
   PRO_LIFETIME: 299000,    // Rp299.000 (Lifetime - Founding Member, 30 slot)
 
   // Legacy pricing (for grandfathering existing subscribers)
@@ -50,6 +51,15 @@ export function getPlanPrice(plan: PricingPlan): number {
   if (plan === 'PRO_180_DAYS') return PRICING.LEGACY.PRO_180_DAYS
 
   return PRICING[plan]
+}
+
+/**
+ * Harga normal (sebelum diskon) utk tampilan coret — Bos: bulanan
+ * ditampilkan "Rp100.000 dicoret → Rp49.000" biar menarik.
+ */
+export function getPlanOriginalPrice(plan: PricingPlan): number | null {
+  if (plan === 'PRO_30_DAYS') return PRICING.PRO_30_DAYS_ORIGINAL
+  return null
 }
 
 /**

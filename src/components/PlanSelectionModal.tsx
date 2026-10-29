@@ -13,6 +13,7 @@ interface Plan {
   name: string
   description: string
   price: number
+  originalPrice?: number // harga normal sebelum diskon — tampil dicoret (Bos: "awal 100 rb terus dicoret")
   duration: string
   durationMonths: number
   durationType: 'month' | 'lifetime'
@@ -54,6 +55,7 @@ const plans: Plan[] = [
     name: 'Elite Pro',
     description: 'Paling Populer',
     price: PRICING.PRO_30_DAYS,
+    originalPrice: PRICING.PRO_30_DAYS_ORIGINAL,
     duration: '1 Bulan',
     durationMonths: 1,
     durationType: 'month',
@@ -421,6 +423,10 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                           <div className="text-2xl font-bold text-white tracking-tight">FREE</div>
                         ) : (
                           <div>
+                            {/* Coret harga normal Rp100.000 utk bulanan (diskon biar menarik) */}
+                            {plan.originalPrice && !hasDiscount && (
+                              <div className="text-xs text-white/30 line-through mb-1">{formatRupiah(plan.originalPrice)}</div>
+                            )}
                             {hasDiscount && (
                               <div className="text-xs text-white/30 line-through mb-1">{formatRupiah(plan.price)}</div>
                             )}

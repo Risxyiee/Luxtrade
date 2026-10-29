@@ -1150,7 +1150,7 @@ export default function VelaChartTerminal({
 
   const lockedPresetMsg = (i: number) => {
     const names = PINE_PRESETS.slice(FREE_INDICATOR_LIMIT).map((x) => x.name.replace('Luxtradee — ', ''))
-    return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp39rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
+    return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp49rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
   }
 
   /* ---------- Indikator Eksklusif (Protected Pine — Pro) ----------
@@ -1287,7 +1287,7 @@ export default function VelaChartTerminal({
             if (!protectedIsPro && !isDefaultScript) {
               return (
                 <button key={s.id}
-                  onClick={() => setUpgradeMsg(`🛡️ ${s.name} adalah indikator EKSKLUSIF member Pro. Source code dijamin aman (tidak pernah dikirim ke browser) — kamu hanya melihat garis & sinyal Entry/SL/TP-nya di chart, plus alert otomatis ke Telegram. Upgrade ke Pro (Rp39rb/bulan) untuk mengaktifkannya!`)}
+                  onClick={() => setUpgradeMsg(`🛡️ ${s.name} adalah indikator EKSKLUSIF member Pro. Source code dijamin aman (tidak pernah dikirim ke browser) — kamu hanya melihat garis & sinyal Entry/SL/TP-nya di chart, plus alert otomatis ke Telegram. Upgrade ke Pro (Rp49rb/bulan) untuk mengaktifkannya!`)}
                   className="text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-white/35 hover:text-white/60 hover:border-white/20 transition-colors inline-flex items-center gap-1 min-h-[32px]"
                   aria-label={`${s.name} — khusus Pro, klik untuk info upgrade`}>
                   🔒 {s.name} <span className="text-[9px] font-bold text-purple-300/80">PRO</span>
@@ -1307,7 +1307,7 @@ export default function VelaChartTerminal({
                 <button onClick={() => {
                   /* Free → paywall: notifikasi sinyal khusus Pro */
                   if (!protectedIsPro) {
-                    setUpgradeMsg(`🔔 Alert otomatis sinyal ${s.name} ke Telegram adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp39rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
+                    setUpgradeMsg(`🔔 Alert otomatis sinyal ${s.name} ke Telegram adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
                     return
                   }
                   openAlertDialog(s)
@@ -1420,7 +1420,7 @@ export default function VelaChartTerminal({
               </Button>
               {pineQuota && !pineQuota.isPro && (
                 <div className="text-[10px] text-white/40 leading-relaxed">
-                  Paket gratis: 2× edit/bulan · terpakai {pineQuota.used}. Pro = tanpa batas (Rp39rb/bulan).
+                  Paket gratis: 2× edit/bulan · terpakai {pineQuota.used}. Pro = tanpa batas (Rp49rb/bulan).
                 </div>
               )}
               {pineScripts.length > 0 && (

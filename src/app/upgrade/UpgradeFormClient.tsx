@@ -18,7 +18,7 @@ import { PRICING, formatRupiah } from '@/lib/pricing'
 const PLANS = [
   {
     id: 'pro-1m', plan: 'PRO', durationMonths: 1, label: '1 Bulan',
-    price: PRICING.PRO_30_DAYS, popular: false, emoji: '📊',
+    price: PRICING.PRO_30_DAYS, originalPrice: PRICING.PRO_30_DAYS_ORIGINAL, popular: false, emoji: '📊',
     features: ['Semua fitur PRO', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades']
   },
   {
@@ -209,6 +209,10 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
+                          {/* Coret harga normal Rp100.000 utk bulanan (diskon biar menarik) */}
+                          {'originalPrice' in plan && plan.originalPrice && (
+                            <p className="text-gray-500 text-xs line-through">{formatRupiah(plan.originalPrice)}</p>
+                          )}
                           <p className="text-white font-bold text-base">{formatRupiah(plan.price)}</p>
                           {plan.savings && <p className="text-emerald-400 text-xs font-medium">Hemat {plan.savings}</p>}
                         </div>

@@ -248,6 +248,9 @@ export default function PaywallModal({
                               </Badge>
                               <span className="text-white font-bold">{pricing.pro.title}</span>
                             </div>
+                            <div className="text-xs text-white/30 line-through">
+                              {formatRupiah(PRICING.PRO_30_DAYS_ORIGINAL)}
+                            </div>
                             <div className="text-2xl font-extrabold text-white">
                               {pricing.pro.price}
                               <span className="text-sm font-normal text-white/40"> {pricing.pro.period}</span>

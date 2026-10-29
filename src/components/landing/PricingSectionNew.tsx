@@ -40,10 +40,11 @@ export default function PricingSectionNew({
     }
   }
 
-  // Pricing constants
-  const monthlyPrice = 'Rp39K'
+  // Pricing constants — Bos: bulanan Rp49K, harga normal Rp100K dicoret (diskon biar menarik)
+  const monthlyPrice = 'Rp49K'
+  const monthlyOriginalPrice = 'Rp100K'
   const annualPrice = 'Rp390K'
-  const annualSavings = 'Rp78K'
+  const annualSavings = 'Rp198K'
   const monthlyPromoPrice = 'Rp25K'
 
   return (
@@ -162,9 +163,14 @@ export default function PricingSectionNew({
                   </div>
                 ) : (
                   <div className="flex items-end gap-2">
+                    {!isAnnual && (
+                      <span className="text-gray-500 line-through text-base mr-1 pb-0.5">
+                        {monthlyOriginalPrice}
+                      </span>
+                    )}
                     {isAnnual && (
                       <span className="text-gray-500 line-through text-base mr-1 pb-0.5">
-                        {language === 'en' ? 'Rp468K' : 'Rp468K'}
+                        Rp588K
                       </span>
                     )}
                     <span className="text-4xl font-bold text-white">
@@ -184,8 +190,8 @@ export default function PricingSectionNew({
                     className="mt-1 text-xs text-emerald-400 font-medium"
                   >
                     {language === 'en'
-                      ? '~17% off compared to monthly'
-                      : '~17% lebih murah dari bulanan'}
+                      ? '~34% off compared to monthly'
+                      : '~34% lebih murah dari bulanan'}
                   </motion.p>
                 )}
                 {promoApplied && (

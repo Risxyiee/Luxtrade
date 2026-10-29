@@ -107,7 +107,7 @@ const TEAM_DETAIL = [
       'Pantau kuota Gemini Vision harian (limit ±1.400) & kuota email Resend (100/hari)',
       'Gerbang quota-track: setiap evaluasi upload user dicek dulu — kuota habis → ditunda (anti-429)',
       'Alarm Discord 1×/hari kalau pemakaian ≥80%',
-      '⭐ LAPORAN PENDAPATAN: hitung user PRO (is_pro) × harga paket bulanan (env PRO_PRICE_IDR, default 39.000) → estimasi MRR bulanan + progres target (env MRR_TARGET_IDR) — tampil di briefing & Ruang CFO',
+      '⭐ LAPORAN PENDAPATAN: hitung user PRO (is_pro) × harga paket bulanan (env PRO_PRICE_IDR, default 49.000) → estimasi MRR bulanan + progres target (env MRR_TARGET_IDR) — tampil di briefing & Ruang CFO',
       'Laporan pemakaian 7 hari di laporan mingguan',
     ],
     lapor: 'Baris kuota + pendapatan MRR di briefing & panel Ruang CFO · alarm instan di 80% · rekap 7 hari mingguan',

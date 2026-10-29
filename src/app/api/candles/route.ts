@@ -2,34 +2,35 @@
  * ============================================================
  * GET /api/candles — datafeed chart Vela (forex, gold, US100, crypto)
  * ============================================================
- * RANTAI SUMBER FINAL (Bos, dikonfirmasi 3× — verbatim:
- * "binaance yang dibuang"):
+ * RANTAI SUMBER FINAL (Bos: "data chart make twelve aja"):
  *
- *   0. TRADING VIEW (websocket publik, KEYLESS) — grade broker
- *      (OANDA:XAUUSD, BINANCE:BTCUSDT utk crypto). Sudah diverifikasi
- *      hidup dari infra kita. Gagal/timeout → lanjut ke bawah.
+ *   0. TWELVE DATA (process.env.TWELVE_DATA_API_KEY) — SUMBER UTAMA
+ *      SEMUA simbol: SPOT XAU/USD, XAG/USD, forex major & NDX.
+ *      Level harga paling mendekati feed broker (OANDA/MT4/MT5).
+ *      Satu sumber untuk SEMUA timeframe & SEMUA pull (chart =
+ *      backtest Pine = tail live) → tidak ada lagi campuran skala
+ *      antar TF ("chart gajelas antar timeframe beda-beda").
+ *      Free tier 8 req/min → rate limiter + cache ketat di lib
+ *      twelvedata; polling tick live dibungkus micro-cache 2.5s
+ *      + base sejarah dari cache (TD tidak dibakar polling 3 dtk).
  *
- *   1. TWELVE DATA (process.env.TWELVE_DATA_API_KEY) — candle
- *      SPOT XAU/USD, XAG/USD, forex major & NDX. Level harga
- *      paling mendekati feed broker (OANDA/MT4/MT5). Free tier
- *      8 req/min → rate limiter + cache ketat di lib twelvedata.
- *      TANPA key / quota habis / plan tak mencakup → NULL dan
- *      lanjut ke sumber di bawah (UI tidak pernah 401).
+ *   1. TRADING VIEW (websocket publik, KEYLESS) — pemadam
+ *      kebakaran bila TD kena quota/cooldown (spot-grade juga,
+ *      OANDA:XAUUSD) → skala tetap konsisten.
  *
  *   2. YAHOO Finance chart API (publik, GRATIS, TANPA API KEY)
- *      — fallback host otomatis query1 → query2. Selalu hidup.
- *      Crypto (BTCUSDT → BTC-USD) juga dilayani Yahoo.
+ *      — jaring pengaman terakhir. Selalu hidup. Crypto
+ *      (BTCUSDT → BTC-USD) juga dilayani Yahoo.
  *
  * BINANCE DIBUANG (keputusan Bos). Finnhub PARKIR (butuh key,
  * bukan pilihan Bos utk rantai ini) — lib finnhub.ts dipertahankan.
  *
  * Pemetaan simbol (kanonik Luxtradee):
- *   Gold    : XAUUSD  (TD XAU/USD spot → Yahoo GC=F)
- *   Silver  : XAGUSD  (TD XAG/USD spot → Yahoo SI=F)
- *   Nasdaq  : US100   (TD NDX → Yahoo NQ=F futures; alias
- *                      NAS100/NASDAQ/NDX dinormalisasi masuk sini.
- *                      QQQ TIDAK dipakai — level ~$490 vs NDX ~21rb
- *                      merusak skala chart)
+ *   Gold    : XAUUSD  (TD XAU/USD spot — skala broker)
+ *   Silver  : XAGUSD  (TD XAG/USD spot — skala broker)
+ *   Nasdaq  : US100   (TD NDX; alias NAS100/NASDAQ/NDX dinormalisasi
+ *                      masuk sini. QQQ TIDAK dipakai — level ~$490 vs
+ *                      NDX ~21rb merusak skala chart)
  *   Forex   : EURUSD, GBPUSD, USDJPY, dst. (TD EUR/USD → Yahoo …=X)
  *
  * Interval kanonik: 5m · 15m · 30m · 1h · 2h · 4h · 1d · 1w
@@ -43,11 +44,12 @@
  * KEDALAMAN HISTORY (Task — permintaan Bos, "minimal 3.000–5.000
  * historical candles ke belakang, terutama 1h/15m — BUKAN cuma 500"):
  *   - Param limit/outputsize diterima sampai 5000 bar per request.
- *   - Sumber dalam rantai menarik penuh: TradingView ws series
- *     1×request ≤5000 bar; Twelve Data outputsize ≤5000 (+pagination
- *     previous_close bila minta lebih); Yahoo period1/period2 paging
- *     (15m/30m window 60 hari, 1h sampai 730 hari) → akumulasi
- *     3–6 bulan candle tergabung KRONOLOGIS (ascending lama→baru).
+ *   - Sumber dalam rantai menarik penuh: Twelve Data outputsize
+ *     ≤5000 (+pagination previous_close bila minta lebih);
+ *     TradingView ws series 1×request ≤5000 bar; Yahoo
+ *     period1/period2 paging (15m/30m window 60 hari, 1h sampai
+ *     730 hari) → akumulasi 3–6 bulan candle tergabung KRONOLOGIS
+ *     (ascending lama→baru).
  *   - Chart Vela (LuxtradeeForexProvider) meminta depth 5000 utk
  *     5m–1h → backtest Pine & scroll kiri tembus berminggu-minggu.
  *
@@ -143,8 +145,11 @@ function setCache(key: string, data: Ohlcv[], source: string) {
    buang entri KV lama yg ekornya tak ter-patch/campur skala.
    v6 → METALS SCALE-LOCK (logam Yahoo GC=F/SI=F di semua TF &
    pull) — buang entri KV lama yg masih campur skala spot↔futures
-   (penyebab "chart gajelas antar TF" & "Entry/SL/TP ga muncul"). */
-const KV_CACHE_VER = 'v6'
+   (penyebab "chart gajelas antar TF" & "Entry/SL/TP ga muncul").
+   v7 → BOS: "data chart make twelve aja" — Twelve Data jadi sumber
+   UTAMA semua simbol & TF (bukan Yahoo GC=F lagi); buang entri KV
+   lama berskala futures supaya chart 100% se-skala spot TD. */
+const KV_CACHE_VER = 'v7'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {
@@ -179,8 +184,12 @@ async function setKvCache(key: string, data: Ohlcv[], source: string, ttlSeconds
 }
 
 /* ============================================================
-   RANTAI SUMBER BERSAMA — TradingView → TwelveData → Yahoo
-   Dipakai jalur normal & jalur live (polling tick).
+   RANTAI SUMBER BERSAMA — BOS: "data chart make twelve aja"
+   TWELVE DATA DULU untuk SEMUA simbol (termasuk logam) → SATU
+   skala spot-grade di semua timeframe & semua pull (chart =
+   backtest Pine = tail live). TradingView (spot-grade juga) lalu
+   Yahoo hanya pemadam kebakaran bila TD kena quota/cooldown —
+   chart tidak pernah kosong, tapi skala TD selalu diprioritaskan.
 
    STICKY SOURCE (lib bersama source-sticky.ts, dipakai juga oleh
    server-candles utk backtest Pine): sumber yang terakhir SUKSES
@@ -190,30 +199,11 @@ async function setKvCache(key: string, data: Ohlcv[], source: string, ttlSeconds
    sumber sticky benar-benar mati.
    ============================================================ */
 const SOURCE_FETCHERS: Record<string, (s: string, i: string, l: number) => Promise<Ohlcv[] | null>> = {
-  tradingview: (s, i, l) => fetchTradingViewCandles(s, i, l),
   twelvedata: (s, i, l) => fetchTwelveDataCandles(s, i, l),
+  tradingview: (s, i, l) => fetchTradingViewCandles(s, i, l),
   'yahoo-finance': (s, i, l) => fetchYahooChart(s, i, l, l <= 1),
 }
-const SOURCE_ORDER = ['tradingview', 'twelvedata', 'yahoo-finance']
-
-/* ============================================================
-   METALS SCALE-LOCK (fix "chart masih gajelas antar TF beda-beda"
-   + "pine ga ada Entry/SL/TP") — DIAGNOSIS PRODUKSI 2026:
-   TradingView sering DITOLAK dari IP Cloudflare Workers, tapi
-   KADANG berhasil → satu TF dapat OANDA spot ($4035) sementara TF
-   lain / pull compile-pine dapat Yahoo GC=F futures ($4048) —
-   beda skala ±$13 dan beda anchor bucket (4h TV mulai 01:00 UTC,
-   Yahoo 00:00). Akibatnya: harga antar TF beda-beda, dan plot
-   Entry/SL/TP Pine (dihitung server dari pull TERPISAH) gagal
-   match waktu bar chart → semua null → garis TIDAK PERNAH muncul.
-   SOLUSI: logam (XAUUSD/XAGUSD) DIKUNCI ke SATU skala — Yahoo
-   GC=F/SI=F — di SEMUA pull (chart & Pine runner & tail), tanpa
-   sticky: deterministik, gratis, keyless, deep 5000 bar, dan
-   overlay tail otomatis pakai tick Yahoo se-skala (patchTailYahoo
-   Live). TradingView/TwelveData hanya fallback bila Yahoo mati.
-   ============================================================ */
-const METALS_SCALE_LOCK = new Set(['XAUUSD', 'XAGUSD'])
-const SOURCE_ORDER_METALS = ['yahoo-finance', 'tradingview', 'twelvedata']
+const SOURCE_ORDER = ['twelvedata', 'tradingview', 'yahoo-finance']
 
 async function fetchChain(
   symbol: string,
@@ -221,35 +211,27 @@ async function fetchChain(
   limit: number,
 ): Promise<{ bars: Ohlcv[]; source: string } | null> {
   const stickyKey = `${symbol}:${interval}`
-  const isMetal = METALS_SCALE_LOCK.has(symbol)
 
-  /* METALS SCALE-LOCK: tanpa sticky — urutan tetap Yahoo dulu di
-     SEMUA isolate & TF, jadi skala kagak bisa campur lagi. */
-  let sticky: string | null = null
-  if (!isMetal) {
-    /* 0) STICKY — sumber sukses terakhir dicoba DULU (anti ganti-ganti
-          skala antar request) */
-    sticky = await readStickySource(stickyKey)
-    if (sticky && SOURCE_FETCHERS[sticky]) {
-      try {
-        const bars = await SOURCE_FETCHERS[sticky](symbol, interval, limit)
-        if (bars && bars.length) {
-          void writeStickySource(stickyKey, sticky)
-          return { bars, source: sticky }
-        }
-      } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
-    }
+  /* 0) STICKY — sumber sukses terakhir dicoba DULU (anti ganti-ganti
+        skala antar request) */
+  const sticky = await readStickySource(stickyKey)
+  if (sticky && SOURCE_FETCHERS[sticky]) {
+    try {
+      const bars = await SOURCE_FETCHERS[sticky](symbol, interval, limit)
+      if (bars && bars.length) {
+        void writeStickySource(stickyKey, sticky)
+        return { bars, source: sticky }
+      }
+    } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
   }
 
-  /* 1..3) URUTAN: metals → Yahoo (GC=F/SI=F) → TradingView → TwelveData;
-     non-metals → TradingView → TwelveData → Yahoo */
-  const order = isMetal ? SOURCE_ORDER_METALS : SOURCE_ORDER
-  for (const source of order) {
-    if (source === sticky) continue // sudah dicoba di atas (non-metals)
+  /* 1..3) URUTAN KANONIK: TwelveData → TradingView → Yahoo */
+  for (const source of SOURCE_ORDER) {
+    if (source === sticky) continue // sudah dicoba di atas
     try {
       const bars = await SOURCE_FETCHERS[source](symbol, interval, limit)
       if (bars && bars.length) {
-        if (!isMetal) void writeStickySource(stickyKey, source)
+        void writeStickySource(stickyKey, source)
         return { bars, source }
       }
     } catch { /* lanjut sumber berikutnya */ }
@@ -307,11 +289,14 @@ export async function GET(request: NextRequest) {
        Pakai micro-cache 2.5s agar banyak client berbagi satu fetch
        upstream; jawaban TANPA cache HTTP (no-store) supaya ujung
        candle bergerak mulus layaknya feed broker.
-       FIX "CANDLE GA GERAK" (produksi): TradingView sering ditolak
-       dari IP Workers & TwelveData butuh key → sisa Yahoo telat
-       10–20 menit → ujung candle diam. Overlay SPOT keyless real-time
-       (gold-api utk XAU/XAG, binance-vision utk crypto) mengoreksi
-       ujung candle SEBELUM dikirim ke chart. */
+       TWELVE DATA-FIRST + HEMAT KUOTA (Bos: "data chart make twelve
+       aja"): TD free 8 req/min — polling tick 3 dtk TIDAK boleh
+       bakar upstream tiap poll. BASE sejarah diambil dari cache
+       (:300 mem/KV ≤15 menit — se-skala dengan chart yang sudah
+       terbuka), lalu overlay SPOT real-time (gold-api utk XAU/XAG,
+       binance-vision utk crypto) menggerakkan ujung candle. Simbol
+       tanpa overlay (forex) tetap fetch fresh via fetchChain
+       (TD dulu). Anti lompat skala futures↔spot saat TD cooldown. */
     if (nocache && limit <= 3) {
       const liveKey = `${validSymbol}:${interval}`
       const hit = getLiveCached(liveKey)
@@ -322,7 +307,24 @@ export async function GET(request: NextRequest) {
           fetchedAt: new Date(hit.timestamp).toISOString(), stale: false,
         }, { headers: { 'Cache-Control': 'no-store' } })
       }
-      const tail = await fetchChain(validSymbol, interval, Math.max(limit, 3))
+      /* BASE sejarah dari cache utama (mem dulu, lalu KV ≤15 menit) */
+      let baseBars: Ohlcv[] | null = null
+      let baseSource = ''
+      const mem300 = cache.get(`${validSymbol}:${interval}:300`)
+      if (mem300) { baseBars = mem300.data; baseSource = mem300.source }
+      else {
+        const kv300 = await getKvCache(`${validSymbol}:${interval}:300`)
+        if (kv300 && Date.now() - kv300.timestamp < 15 * 60 * 1000) {
+          baseBars = kv300.data
+          baseSource = kv300.source
+        }
+      }
+      /* Logam/crypto (ber-overlay): cukup patch BASE cached — ujung
+         candle tetap bergerak real-time tanpa 1 fetch upstream per
+         3 detik. Forex: fetch fresh (tail benar-benar baru). */
+      const tail = (baseBars && baseBars.length && hasSpotOverlay(validSymbol))
+        ? { bars: baseBars, source: baseSource }
+        : await fetchChain(validSymbol, interval, Math.max(limit, 3))
       if (tail && tail.bars.length) {
         /* Overlay spot real-time SE-SKALA DENGAN SUMBER SEJARAH (fix
            "candle kebawah"): TradingView/TwelveData → gold-api spot;
@@ -398,8 +400,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    /* ---- RANTAI SUMBER: TradingView → TwelveData → Yahoo ----
-       (urutan FINAL Bos — "binaance yang dibuang"; limit<=1 →
+    /* ---- RANTAI SUMBER: TwelveData → TradingView → Yahoo ----
+       (Bos: "data chart make twelve aja"; limit<=1 →
        Yahoo liveTick aktif sbg harga real-time) */
     const chain = await fetchChain(validSymbol, interval, limit)
     if (chain) {
