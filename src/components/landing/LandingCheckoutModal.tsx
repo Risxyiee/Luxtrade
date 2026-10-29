@@ -23,7 +23,7 @@ const PLANS = [
   {
     key: 'PRO_30_DAYS' as PricingPlan,
     label: 'Elite Pro', labelEn: 'Elite Pro',
-    price: 39000, duration: '1 Bulan', durationEn: '1 Month',
+    price: 49000, originalPrice: 100000, duration: '1 Bulan', durationEn: '1 Month',
     icon: <Zap className="w-5 h-5" />,
   },
   {
@@ -556,7 +556,12 @@ export default function LandingCheckoutModal({
                             <p className="text-white/30 text-[11px] mt-0.5">{isEn ? plan.durationEn : plan.duration}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            {showPromoPrice && <span className="text-[11px] text-white/20 line-through block">{formatRupiah(plan.price)}</span>}
+                            {/* Coret harga normal Rp100.000 utk bulanan (Bos: "awal 100 rb terus dicoret diskon") */}
+                            {(showPromoPrice || plan.originalPrice) && (
+                              <span className="text-[11px] text-white/20 line-through block">
+                                {formatRupiah(showPromoPrice ? plan.price : plan.originalPrice!)}
+                              </span>
+                            )}
                             <span className={`font-bold text-sm ${isSelected ? 'text-blue-300' : 'text-white/70'}`}>{formatRupiah(showPromoPrice ? 25000 : plan.price)}</span>
                           </div>
                           <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-colors ${isSelected ? 'text-blue-400' : 'text-white/15'}`} />
@@ -639,6 +644,13 @@ export default function LandingCheckoutModal({
                   <div className="border-t border-white/5 pt-3">
                     {isPromoPlan && <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-white/30">{isEn ? 'Original' : 'Normal'}</span><span className="text-xs text-white/30 line-through">{formatRupiah(selectedPlanInfo.price)}</span></div>}
                     {isPromoPlan && <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-emerald-400/70">{isEn ? 'Promo Discount' : 'Diskon Promo'}</span><span className="text-xs text-emerald-400/70">-{formatRupiah(selectedPlanInfo.price - 25000)}</span></div>}
+                    {/* Bulanan tanpa promo — tetap tampil coret harga normal Rp100.000 (Bos: diskon biar menarik) */}
+                    {!isPromoPlan && selectedPlanInfo.originalPrice && (
+                      <>
+                        <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-white/30">{isEn ? 'Original' : 'Normal'}</span><span className="text-xs text-white/30 line-through">{formatRupiah(selectedPlanInfo.originalPrice)}</span></div>
+                        <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-emerald-400/70">{isEn ? 'Discount' : 'Diskon'}</span><span className="text-xs text-emerald-400/70">-{formatRupiah(selectedPlanInfo.originalPrice - selectedPlanInfo.price)}</span></div>
+                      </>
+                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-white/60 font-medium">Total</span>
                       <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">{formatRupiah(finalPrice)}</span>

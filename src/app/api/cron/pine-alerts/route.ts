@@ -41,11 +41,20 @@ function isProRow(p: { is_pro?: boolean; subscription_until?: string | null; pro
 }
 
 async function handle(request: NextRequest) {
-  /* 1) SECRET GATE — PINE_ALERT_CRON_SECRET (GHA) dulu, fallback
-     CRON_SECRET (dipakai cron CF internal worker-entry). Dengan ini
-     alert otomatis tetap hidup walau Bos belum set secret khusus. */
-  const secret = String(process.env.PINE_ALERT_CRON_SECRET || process.env.CRON_SECRET || '').trim()
-  if (!secret) {
+  /* 1) SECRET GATE — terima SALAH SATU secret yang terdaftar:
+     PINE_ALERT_CRON_SECRET (GHA workflow) ATAU CRON_SECRET (cron
+     internal CF worker-entry kirim Bearer CRON_SECRET/VAPID).
+     FIX 401 produksi: dulu route hanya pakai fallback berantai
+     (PINE dulu, kalaupun ada) — sementara worker mengirim CRON_SECRET
+     → dua secret valid yang beda nilai saling menolak (401 terus).
+     Sekarang provided dicocokkan ke SEMUA secret non-kosong. Kosong
+     dua-duanya = endpoint mati total (403), aman default. */
+  const validSecrets = [
+    String(process.env.PINE_ALERT_CRON_SECRET || '').trim(),
+    String(process.env.CRON_SECRET || '').trim(),
+    String(process.env.VAPID_PRIVATE_KEY || '').trim(), // worker-entry fallback ketiga
+  ].filter(Boolean)
+  if (!validSecrets.length) {
     return NextResponse.json({ error: 'PINE_ALERT_CRON_SECRET/CRON_SECRET belum diset — endpoint cron dinonaktifkan' }, { status: 403 })
   }
   const provided = String(
@@ -54,7 +63,7 @@ async function handle(request: NextRequest) {
     || (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
     || '',
   ).trim()
-  if (provided !== secret) return NextResponse.json({ error: 'Secret salah' }, { status: 401 })
+  if (!provided || !validSecrets.includes(provided)) return NextResponse.json({ error: 'Secret salah' }, { status: 401 })
 
   /* Anti tumpang-tindih (best effort per isolat) */
   if (running && Date.now() - lastRunAt < 4 * 60 * 1000) {

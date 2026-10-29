@@ -58,7 +58,8 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Shield, title: "Semua Tools Pro", desc: "Heatmap, Analitik, AI Insights, Trading Score, Laporan Mingguan" }
       ],
       price: {
-        monthly: "Rp39.000",
+        monthly: "Rp49.000",
+        monthlyOriginal: "Rp100.000",
         yearly: "Rp390.000",
         yearlySave: "Hemat 2 bulan"
       },
@@ -87,7 +88,8 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Shield, title: "All Pro Tools", desc: "Heatmap, Analytics, AI Insights, Trading Score, Weekly Report" }
       ],
       price: {
-        monthly: "$2.49",
+        monthly: "$2.99",
+        monthlyOriginal: "$5.99",
         yearly: "$24.99",
         yearlySave: "Save 2 months"
       },
@@ -182,6 +184,9 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
                   <h3 className="text-lg font-semibold mb-2">
                     {language === 'id' ? 'Bulanan' : 'Monthly'}
                   </h3>
+                  <div className="text-sm text-gray-400 line-through mb-1">
+                    {currentContent.price.monthlyOriginal}
+                  </div>
                   <div className="text-4xl font-bold mb-1">
                     {currentContent.price.monthly}
                   </div>

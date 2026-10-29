@@ -114,12 +114,12 @@ const translations = {
 
     // Pricing
     'pricing.title': 'Investasi Kecil, Perubahan Besar di Akun Kamu',
-    'pricing.subtitle': 'Satu bulan Elite Pro cuma Rp 39.000 — kurang dari satu loss yang seharusnya bisa kamu hindari kalau jurnalnya rapi.',
+    'pricing.subtitle': 'Satu bulan Elite Pro cuma Rp 49.000 — harga normal Rp 100.000, sekarang diskon. Kurang dari satu loss yang seharusnya bisa kamu hindari kalau jurnalnya rapi.',
     'pricing.free.title': 'GRATIS',
     'pricing.free.price': 'Rp 0 / Selamanya',
     'pricing.free.desc': 'Untuk pemula yang ingin mulai',
     'pricing.pro.title': 'ELITE PRO',
-    'pricing.pro.price': 'Rp 39.000 / Bulan',
+    'pricing.pro.price': 'Rp 49.000 / Bulan',
     'pricing.pro.desc': 'Untuk trader serius yang ingin profit konsisten',
     'pricing.annual.price': 'Rp 390.000 / Tahun',
     'pricing.annual.savings': 'Hemat 2 Bulan',
@@ -148,7 +148,7 @@ const translations = {
     'paywall.free.price': 'Rp 0',
     'paywall.free.period': 'Selamanya',
     'paywall.pro.title': 'ELITE PRO',
-    'paywall.pro.price': 'Rp 39.000',
+    'paywall.pro.price': 'Rp 49.000',
     'paywall.pro.period': '/ Bulan',
     'paywall.annual.price': 'Rp 390.000',
     'paywall.annual.price_en': '$39.99',

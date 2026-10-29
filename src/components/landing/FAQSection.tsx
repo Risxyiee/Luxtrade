@@ -28,8 +28,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'LuxTradee gratis nggak?',
     q_en: 'Is LuxTradee free?',
-    a_id: 'Ada paket gratis — 10 jurnal per bulan, 10x tanya AI, chart live Vela™ dengan 1 indikator, alert Telegram 2×/hari, dan Pine Script® 2×/bulan. Kalau kamu serius prop firm dan butuh semuanya tanpa batas, upgrade ke PRO (Rp39rb/bulan).',
-    a_en: "There's a free plan — 10 journals per month, 10x AI chat, Vela™ live chart with 1 indicator, Telegram alerts 2×/day, and Pine Script® 2×/month. If you're serious about prop firm trading, upgrade to PRO (Rp39k/month) for unlimited access.",
+    a_id: 'Ada paket gratis — 10 jurnal per bulan, 10x tanya AI, chart live Vela™ dengan 1 indikator, alert Telegram 2×/hari, dan Pine Script® 2×/bulan. Kalau kamu serius prop firm dan butuh semuanya tanpa batas, upgrade ke PRO (Rp49rb/bulan, diskon dari Rp100rb).',
+    a_en: "There's a free plan — 10 journals per month, 10x AI chat, Vela™ live chart with 1 indicator, Telegram alerts 2×/day, and Pine Script® 2×/month. If you're serious about prop firm trading, upgrade to PRO (Rp49k/month, discounted from Rp100k) for unlimited access.",
     category: 'general',
   },
   {

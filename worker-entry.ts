@@ -73,9 +73,11 @@ export default {
 
     const siteUrl = (env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id').replace(/\/+$/, '')
     // Send whichever auth secret exists — econ-calendar-notify accepts either
-    // CRON_SECRET or VAPID_PRIVATE_KEY as Bearer. If neither is bound, no
-    // header is sent and routes allow the request (no-secrets-configured path).
-    const cronSecret = env.CRON_SECRET || env.VAPID_PRIVATE_KEY || process.env.CRON_SECRET || ''
+    // CRON_SECRET or VAPID_PRIVATE_KEY as Bearer; pine-alerts menerima
+    // CRON_SECRET / PINE_ALERT_CRON_SECRET / VAPID (route-nya cocokkan ke
+    // semua). If neither is bound, no header is sent and routes allow the
+    // request (no-secrets-configured path).
+    const cronSecret = env.CRON_SECRET || env.VAPID_PRIVATE_KEY || env.PINE_ALERT_CRON_SECRET || process.env.CRON_SECRET || ''
 
     console.log(`[cron] Triggered: ${event.cron} → ${routes.join(', ')}`)
 
@@ -94,7 +96,12 @@ export default {
               path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(ceoKey)
 
             const headers = { 'Content-Type': 'application/json' }
-            if (cronSecret) headers['Authorization'] = `Bearer ${cronSecret}`
+            if (cronSecret) {
+              headers['Authorization'] = `Bearer ${cronSecret}`
+              // FIX 401 pine-alerts: kirim DUA format sekaligus — route
+              // yang membaca x-cron-secret (bukan Bearer) tetap lolos.
+              headers['x-cron-secret'] = cronSecret
+            }
 
             const res = await fetch(`${siteUrl}${path}`, {
               method: 'GET',

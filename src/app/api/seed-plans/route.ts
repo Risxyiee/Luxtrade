@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       data: {
         name: 'Elite Pro',
         description: 'Full access to all premium features',
-        price: 39000,
+        price: 49000,
         currency: 'IDR',
         durationMonths: 1,
         isLifetime: false,

@@ -870,12 +870,12 @@ async function cfoAgent(e: Env) {
   const emailPct = emailLimit > 0 ? Math.round((emailToday / emailLimit) * 100) : 0
   /* ⭐ KEMAMPUAN BARU (SOP Bos) — LAPORAN PENDAPATAN:
      hitung user PRO (is_pro di Supabase) × harga paket bulanan
-     (env PRO_PRICE_IDR, default 39.000) → estimasi MRR + progres
+     (env PRO_PRICE_IDR, default 49.000) → estimasi MRR + progres
      target (env MRR_TARGET_IDR, default 10 juta). Tetap TANPA LLM —
      murni matematika hardcoded, tidak bisa halusinasi angka. */
   let proCount = -1
   try { proCount = await supaCount(e, 'profiles', 'is_pro=eq.true') } catch { proCount = -1 }
-  const proPrice = parseInt(e.PRO_PRICE_IDR || '39000', 10)
+  const proPrice = parseInt(e.PRO_PRICE_IDR || '49000', 10)
   const mrrTarget = parseInt(e.MRR_TARGET_IDR || '10000000', 10)
   /* Task 32 (SOP Bos): PnL NYATA — query trades dulu → matematika murni
      Next.js. Angka profit/loss berasal 100% dari database, bukan LLM. */
