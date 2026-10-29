@@ -16,7 +16,7 @@
  * - Pine Script®           : @luxalgo/vela-pinets (PineEngine)
  *                            + editor Save/Compile dengan kuota
  *                            FREE 2×/bulan (/api/pine/save)
- * - Indikator DEFAULT      : Impulsive Breakout XAUUSD v4 (master
+ * - Indikator DEFAULT      : Luxtradee Candle Impulsif (v5, master
  *                            Bos) — aktif otomatis, semua user bisa
  *                            lihat; alert Telegram khusus Pro (🔔)
  * - Alert Telegram         : panel kirim alert dengan kuota
@@ -85,7 +85,14 @@ const PROTECTED_TYPE = 'luxtradee-protected'
 interface ProtectedPlot { key: string; title: string; color: string; data: Array<{ time: number; value: number | null }> }
 interface ProtectedScriptMeta { id: string; slug: string; name: string; description: string | null }
 
-/* Cache plot per (scriptId, symbol, tf) — 45 detik. Refetch ringan
+/* Event status protected → UI (error tidak lagi DIAM — Bos: chip
+   diklik tapi garis tidak muncul tanpa jejak penyebabnya). */
+const PROTECTED_STATUS_EVENT = 'ltx-protected-status'
+function emitProtectedStatus(key: string, message: string) {
+  try { window.dispatchEvent(new CustomEvent(PROTECTED_STATUS_EVENT, { detail: { key, message } })) } catch { /* diam */ }
+}
+
+/* Cache plot per (scriptKey, symbol, tf) — 45 detik. Refetch ringan
    ini sekaligus jadi loop LISTENER alert: tiap refresh, server
    mengevaluasi ulang sinyal Entry/SL/TP → Telegram user Pro. */
 const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[] }>()
@@ -112,62 +119,119 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string) 
 
 function createProtectedInstance() {
   let ctx: any = null
-  let scriptId = ''
+  let scriptKey = '' // id ATAU slug (default auto-load pakai slug)
   let busy = false
   let lastEmit = 0
+  let lastFail = 0 // backoff: jangan hammer server saat gagal
+  let lastPlots: ProtectedPlot[] | null = null
+  let lastBarsSig = '' // anti re-emit sia-sia saat bars tak berubah
+  const reemitTimers: ReturnType<typeof setTimeout>[] = []
+
+  const clearTimers = () => {
+    while (reemitTimers.length) { try { clearTimeout(reemitTimers.pop() as any) } catch { /* diam */ } }
+  }
+
+  /* Re-emit beberapa kali setelah plot siap — history chart bisa
+     datang TERLAMBAT dari boot (getBars 5000 bar). Tanpa ini garis
+     Entry/SL/TP kadang tidak tampak sampai tick berikutnya. */
+  const scheduleReEmits = () => {
+    clearTimers()
+    for (const d of [700, 1800, 3500, 6000]) {
+      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey) } catch { /* diam */ } }, d))
+    }
+  }
+
+  /* Emit hanya bila bars berubah (jumlah/ujung waktu) — plot
+     bergantung pada TIME saja, bukan nilai close live. */
+  const maybeEmit = (c: any) => {
+    if (!lastPlots) return
+    try {
+      const barsArr: Array<{ time: number }> = typeof c?.bars === 'function' ? c.bars() : []
+      const sig = `${barsArr.length}:${barsArr[0]?.time ?? 0}:${barsArr[barsArr.length - 1]?.time ?? 0}`
+      if (sig === lastBarsSig) return
+      lastBarsSig = sig
+      emitProtectedPlots(c, lastPlots, scriptKey)
+    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey) } catch { /* diam */ } }
+  }
 
   const run = async (force: boolean) => {
     const c = ctx
-    if (!c || !scriptId || busy) return
+    if (!c || !scriptKey || busy) return
     /* simbol bisa berprefiks provider — buang sebelum ':'] */
     const sym = String(c.symbol || '').split(':').pop() || ''
     const tf = String(c.timeframe || '60')
-    const ck = `${scriptId}:${sym.toUpperCase()}:${tf}`
+    const ck = `${scriptKey}:${sym.toUpperCase()}:${tf}`
     const cached = protectedPlotCache.get(ck)
     if (cached && Date.now() - cached.at < 45000) {
-      emitProtectedPlots(c, cached.plots, scriptId)
+      lastPlots = cached.plots
+      lastBarsSig = '' // paksa emit ulang utk ctx baru
+      maybeEmit(c)
       return
     }
     if (!force && Date.now() - lastEmit < 15000) return // anti-jitter live tick
+    if (!force && Date.now() - lastFail < 20000) return // backoff pasca gagal (jangan banjir server)
     busy = true
     try {
       c.setStatus?.('loading')
       const res = await fetch('/api/compile-pine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptId, symbol: sym.toUpperCase(), interval: tf }),
+        body: JSON.stringify({ scriptId: scriptKey, symbol: sym.toUpperCase(), interval: tf }),
       })
       if (res.ok) {
         const j: any = await res.json()
         if (Array.isArray(j?.plots) && j.plots.length) {
           protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots })
-          emitProtectedPlots(c, j.plots, scriptId)
+          lastPlots = j.plots
+          lastBarsSig = ''
+          maybeEmit(c)
           lastEmit = Date.now()
           c.setStatus?.('live')
+          scheduleReEmits()
           return
         }
+        emitProtectedStatus(scriptKey, '⚠️ Skrip berjalan tapi belum menghasilkan plot — coba lagi sebentar.')
       } else if (res.status === 403) {
-        /* Pro kadaluarsa di tengah sesi — biarkan kosong; chip UI
-           akan menutup akses pada pemakaian berikutnya */
+        /* Pro kadaluarsa di tengah sesi — chip UI akan menutup akses
+           pada pemakaian berikutnya */
+        emitProtectedStatus(scriptKey, '🔒 Indikator eksklusif ini khusus member Pro.')
+      } else {
+        let msg = `HTTP ${res.status}`
+        try { const je: any = await res.json(); if (je?.error) msg = String(je.error) } catch { /* diam */ }
+        emitProtectedStatus(scriptKey, `⚠️ Gagal memuat indikator: ${msg}`)
+        lastFail = Date.now()
       }
       c.setStatus?.('idle')
-    } catch { try { c?.setStatus?.('idle') } catch {} }
-    finally { busy = false }
+    } catch (x: any) {
+      lastFail = Date.now()
+      emitProtectedStatus(scriptKey, `⚠️ Jaringan gagal memuat indikator: ${String(x?.message || x).slice(0, 100)}`)
+      try { c?.setStatus?.('idle') } catch { /* diam */ }
+    } finally { busy = false }
   }
 
   return {
     start: (c: any, inputs: Record<string, any>) => {
-      ctx = c; scriptId = String(inputs?.scriptId || ''); run(true)
+      ctx = c
+      scriptKey = String(inputs?.scriptId || inputs?.slug || '')
+      lastPlots = null
+      lastBarsSig = ''
+      run(true)
     },
-    onBars: () => { run(false) },
-    onViewport: () => { /* tidak viewport-dependent */ },
+    onBars: () => {
+      /* History termuat / tick live → gambar ulang dari plot terakhir
+         TANPA fetch (instan) — fix: garis Entry/SL/TP kadang kosong
+         karena plot siap SEBELUM history chart selesai dimuat. */
+      if (lastPlots && ctx) { maybeEmit(ctx); return }
+      run(false)
+    },
+    onViewport: () => { if (lastPlots && ctx) maybeEmit(ctx) },
     setInputs: (i: Record<string, any>) => {
-      const s = String(i?.scriptId || '')
-      if (s && s !== scriptId) { scriptId = s; run(true) }
+      const s = String(i?.scriptId || i?.slug || '')
+      if (s && s !== scriptKey) { scriptKey = s; lastPlots = null; lastBarsSig = ''; run(true) }
     },
     suspend: () => { /* tetap hidup — data murah dari cache */ },
-    resume: () => { run(false) },
-    stop: () => { ctx = null },
+    resume: () => { if (lastPlots && ctx) maybeEmit(ctx); else run(false) },
+    stop: () => { clearTimers(); ctx = null },
   }
 }
 
@@ -489,8 +553,10 @@ export default function VelaChartTerminal({
      - Protected Pine = native indicator (di-persist Vela bila
        tersimpan) → yang belum ada kita tambahkan; yang sudah
        dipulihkan persist cukup ditandai aktif.
-     - Pine Master (Impulsive Breakout XAUUSD v4) SELALU dimuat
-       walau state lama tidak memuatnya (default Bos). */
+     - Pine Master (Luxtradee Candle Impulsif) SELALU dimuat BY SLUG
+       TANPA menunggu daftar API (fix Bos: "harus masukin pine dulu
+       baru keluar log entry sl tp" — bila API list lambat/gagal,
+       indikator default tetap tampil di chart seketika). */
   const restoredRef = useRef(false) // write-guard: state aman ditulis ke localStorage
   const restoredPresetsRef = useRef(false)
   const restoredProtectedRef = useRef(false)
@@ -502,10 +568,11 @@ export default function VelaChartTerminal({
        401, preset EMA/RSI/VWAP ikut tidak dipulihkan = "pengaturan
        hilang"). Sekarang:
        - PRESETS     → dipulihkan segera setelah chart siap.
-       - PROTECTED   → dipulihkan begitu daftar skrip tersedia
-                       (termasuk Pine Master default). */
+       - PROTECTED   → Pine Master default dipulihkan SEKETIKA (by
+                       slug); skrip eksklusif lain menyusul saat
+                       daftar skrip tersedia. */
     const needPresets = !restoredPresetsRef.current
-    const needProtected = protectedScripts.length > 0 && !restoredProtectedRef.current
+    const needProtected = !restoredProtectedRef.current
     if (!needPresets && !needProtected) return
     const t = setTimeout(async () => {
       /* Tunggu chart siap (maks ±20 detik) — boot bisa lambat saat
@@ -523,7 +590,6 @@ export default function VelaChartTerminal({
       }
       restoredRef.current = true
       const stored = loadStoredIndicators()
-      const def = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
 
       /* ---- 1) RESTORE preset Pine dari localStorage ---- */
       if (needPresets) {
@@ -539,13 +605,21 @@ export default function VelaChartTerminal({
         }
       }
 
-      /* ---- 2) RESTORE protected — Pine Master selalu dijamin ada ---- */
+      /* ---- 2) RESTORE protected — Pine Master selalu dijamin ada,
+              by slug / id (dua-duanya diterima server) ---- */
       if (needProtected) {
         restoredProtectedRef.current = true
         try {
-          const wanted = stored
-            ? protectedScripts.filter((s) => stored.protected.includes(s.id) || (def && s.id === def.id))
-            : protectedScripts.filter((s) => def && s.id === def.id)
+          /* kunci = id ATAU slug (default auto-load pakai slug) */
+          const keys = new Set<string>([DEFAULT_PINE_SLUG])
+          for (const id of stored?.protected || []) keys.add(String(id))
+          for (const s of protectedScripts) {
+            if ((stored?.protected || []).includes(s.id) || s.slug === DEFAULT_PINE_SLUG) keys.add(s.id)
+          }
+          /* default punya dua kunci ekuivalen (slug & id) — jangan
+             pasang dobel: satu saja cukup */
+          const defMeta = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
+          const defKeys = new Set<string>([DEFAULT_PINE_SLUG, ...(defMeta ? [defMeta.id] : [])])
           /* baca scriptId instance yang SUDAH ada di chart (persist Vela) */
           const have = new Set<string>()
           try {
@@ -557,19 +631,20 @@ export default function VelaChartTerminal({
             ? chart.presentNativeIndicators()
             : []
           const presentCount = present.filter((x) => x === PROTECTED_TYPE).length
-          for (const s of wanted) {
-            if (have.has(s.id)) {
-              setActiveProtected((m) => ({ ...m, [s.id]: true })) // sudah dipulihkan persist
+          for (const key of keys) {
+            const equivalents = defKeys.has(key) ? defKeys : new Set([key])
+            if ([...equivalents].some((k) => have.has(k))) {
+              setActiveProtected((m) => ({ ...m, [key]: true })) // sudah dipulihkan persist
               continue
             }
             if (presentCount > 0 && have.size < presentCount) {
               /* persist memulihkan instance tapi id tak terbaca —
                  jangan tambah dobel, cukup tandai aktif */
-              setActiveProtected((m) => ({ ...m, [s.id]: true }))
+              setActiveProtected((m) => ({ ...m, [key]: true }))
               continue
             }
-            chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
-            setActiveProtected((m) => ({ ...m, [s.id]: true }))
+            chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: key } })
+            setActiveProtected((m) => ({ ...m, [key]: true }))
           }
         } catch { /* diam — chip manual tetap tersedia */ }
       }
@@ -605,6 +680,17 @@ export default function VelaChartTerminal({
     }, 600)
     return () => clearTimeout(t)
   }, [pineName, pineSource])
+
+  /* ---------- Status protected → pesan UI (error tidak diam lagi:
+     sebelumnya POST gagal = tidak ada garis TANPA penjelasan) ---------- */
+  useEffect(() => {
+    const onStatus = (e: Event) => {
+      const d = (e as CustomEvent)?.detail
+      if (d && typeof d.message === 'string' && d.message) setProtectedMsg(d.message)
+    }
+    window.addEventListener(PROTECTED_STATUS_EVENT, onStatus)
+    return () => window.removeEventListener(PROTECTED_STATUS_EVENT, onStatus)
+  }, [])
 
   /* ============================================================
      KLIK RIWAYAT TRADE → MARKER CHART (fitur Bos)
@@ -878,15 +964,20 @@ export default function VelaChartTerminal({
      Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403. */
   const addProtected = useCallback(async (s: ProtectedScriptMeta) => {
     if (protectedBusy) return
+    const isDef = s.slug === DEFAULT_PINE_SLUG
     /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart --- */
-    if (activeProtected[s.id]) {
+    if (activeProtected[s.id] || (isDef && activeProtected[DEFAULT_PINE_SLUG])) {
       setProtectedBusy(s.id); setProtectedMsg(null)
       try {
         const chart: any = (wsRef.current as any)?.chart
         const handles = ((typeof chart?.indicators === 'function' ? chart.indicators() : []) || []) as any[]
-        const h = handles.find((x) => x?.nativeType === PROTECTED_TYPE && String(x?.inputValues?.()?.scriptId || '') === s.id)
+        const h = handles.find((x) => {
+          if (x?.nativeType !== PROTECTED_TYPE) return false
+          const sid = String(x?.inputValues?.()?.scriptId || '')
+          return sid === s.id || (isDef && sid === DEFAULT_PINE_SLUG)
+        })
         if (h) { try { h.remove() } catch { /* diam */ } }
-        setActiveProtected((m) => ({ ...m, [s.id]: false }))
+        setActiveProtected((m) => ({ ...m, [s.id]: false, ...(isDef ? { [DEFAULT_PINE_SLUG]: false } : {}) }))
         setProtectedMsg(`✕ ${s.name} dilepas dari chart. (Pine Master akan muncul lagi otomatis saat terminal dibuka berikutnya.)`)
       } finally { setProtectedBusy(null) }
       return
@@ -971,8 +1062,8 @@ export default function VelaChartTerminal({
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wider text-purple-300/50">Eksklusif</span>
           {protectedScripts.map((s) => {
-            const active = !!activeProtected[s.id]
             const isDefaultScript = s.slug === DEFAULT_PINE_SLUG
+            const active = !!activeProtected[s.id] || (isDefaultScript && !!activeProtected[DEFAULT_PINE_SLUG])
             /* Free: skrip DEFAULT tetap bisa dilihat (permintaan Bos),
                skrip eksklusif lain tetap terkunci → paywall. */
             if (!protectedIsPro && !isDefaultScript) {
