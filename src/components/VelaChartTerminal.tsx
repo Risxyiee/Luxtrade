@@ -84,6 +84,18 @@ const PROTECTED_TYPE = 'luxtradee-protected'
 
 interface ProtectedPlot { key: string; title: string; color: string; data: Array<{ time: number; value: number | null }> }
 interface ProtectedScriptMeta { id: string; slug: string; name: string; description: string | null }
+/* Trade strategy (server) — bahan visual chart ala line.new/label.new
+   Pine Bos: garis entry→exit dotted hijau/merah + label TP/SL + panah
+   entry ala Strategy Tester TradingView. time dalam ms. */
+interface ProtectedTrade {
+  side: 'long' | 'short'
+  entryTime: number
+  entryPrice: number
+  exitTime: number | null
+  exitPrice: number | null
+  pnl: number
+  reason: 'sl' | 'tp' | 'session' | 'daily_dd' | 'open'
+}
 
 /* Event status protected → UI (error tidak lagi DIAM — Bos: chip
    diklik tapi garis tidak muncul tanpa jejak penyebabnya). */
@@ -116,12 +128,12 @@ function emitProtectedStats(key: string, stats: ProtectedStats) {
   try { window.dispatchEvent(new CustomEvent(PROTECTED_STATS_EVENT, { detail: { key, stats } })) } catch { /* diam */ }
 }
 
-/* Cache plot per (scriptKey, symbol, tf) — 45 detik. Refetch ringan
+/* Cache plot+trades per (scriptKey, symbol, tf) — 45 detik. Refetch ringan
    ini sekaligus jadi loop LISTENER alert: tiap refresh, server
    mengevaluasi ulang sinyal Entry/SL/TP → Telegram user Pro. */
-const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[] }>()
+const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[] }>()
 
-function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string) {
+function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = []) {
   try {
     const barsArr: Array<{ time: number }> = typeof ctx?.bars === 'function' ? ctx.bars() : []
     /* BUCKET-TOLERANT MATCHING (fix "pine ga ada Entry/SL/TP"):
@@ -134,20 +146,72 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string) 
     const tfKey = String(ctx?.timeframe || '60')
     const bucketMs = TF_MS[tfKey] || 3_600_000
     const snap = (t: number) => Math.floor(t / bucketMs) * bucketMs
-    const series = plots.map((p) => {
-      const m = new Map<number, number | null>()
-      for (const d of p.data) if (d.value != null) m.set(snap(d.time), d.value)
-      return {
-        id: `ltxp-${scriptId}-${p.key}`,
-        title: p.title,
+    /* Visual ala line.new/label.new Pine Bos (Strategy Tester
+       TradingView): bila data trade tersedia, garis Entry→Exit dotted
+       hijau/merah + label TP/SL + panah BUY/SELL MENGGANTIKAN garis
+       stepped SL/TP sintetis yang menempel candle & susah dibaca.
+       Garis stepped Entry tetap (posisi terbuka menjulur). */
+    const hasTradeVisuals = trades.length > 0
+    const series = plots
+      .filter((p) => !hasTradeVisuals || (p.key !== 'StopLoss' && p.key !== 'TakeProfit'))
+      .map((p) => {
+        const m = new Map<number, number | null>()
+        for (const d of p.data) if (d.value != null) m.set(snap(d.time), d.value)
+        return {
+          id: `ltxp-${scriptId}-${p.key}`,
+          title: p.title,
+          paneId: 'price',
+          kind: 'line' as const,
+          /* Index-aligned terhadap bars() SAAT EMIT (kontrak Vela) */
+          points: barsArr.map((b) => ({ time: b.time, value: m.get(snap(b.time)) ?? null })),
+          style: { color: p.color, width: p.key === 'Entry' ? 2 : 1, lineStyle: 'solid' as const },
+        }
+      })
+    /* ---- Garis & label per trade (replika line.new/label.new) ----
+       Warna = isWin ? color.green : color.red ala Pine Bos; batas
+       400 trade terakhir = max_lines_count/max_labels_count Pine. */
+    const WIN = '#22ab94'
+    const LOSS = '#ef5350'
+    const recent = trades.slice(-400)
+    const lines: any[] = []
+    const labels: any[] = []
+    const lastBarTime = barsArr.length ? barsArr[barsArr.length - 1].time : 0
+    for (let i = 0; i < recent.length; i++) {
+      const t = recent[i]
+      if (!t?.entryTime || !Number.isFinite(t.entryPrice)) continue
+      const win = t.pnl > 0
+      const col = win ? WIN : LOSS
+      const t1 = snap(t.entryTime)
+      const isOpen = t.exitTime == null
+      const t2 = isOpen ? lastBarTime : snap(t.exitTime as number)
+      if (!t2 || t2 < t1) continue
+      const y2 = isOpen ? t.entryPrice : Number(t.exitPrice)
+      if (!Number.isFinite(y2)) continue
+      lines.push({
+        id: `ltxl-${scriptId}-${i}`,
         paneId: 'price',
-        kind: 'line' as const,
-        /* Index-aligned terhadap bars() SAAT EMIT (kontrak Vela) */
-        points: barsArr.map((b) => ({ time: b.time, value: m.get(snap(b.time)) ?? null })),
-        style: { color: p.color, width: 2, lineStyle: 'solid' as const },
+        xloc: 'bar_time',
+        x1: t1, y1: t.entryPrice, x2: t2, y2,
+        extend: 'none',
+        color: isOpen ? WIN : col,
+        invisible: false,
+        width: 2,
+        style: isOpen ? 'solid' : 'dotted',
+        arrowLeft: false,
+        arrowRight: false,
+      })
+      /* Panah entry ala Strategy Tester TradingView */
+      if (t.side === 'long') {
+        labels.push({ id: `ltxb-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t1, y: t.entryPrice, yloc: 'belowbar', text: 'BUY', style: 'arrowup', color: WIN, textColor: '#ffffff', size: 'tiny', textAlign: 'center', fontFamily: 'default' })
+      } else {
+        labels.push({ id: `ltxs-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t1, y: t.entryPrice, yloc: 'abovebar', text: 'SELL', style: 'arrowdown', color: LOSS, textColor: '#ffffff', size: 'tiny', textAlign: 'center', fontFamily: 'default' })
       }
-    })
-    ctx?.emit?.({ series })
+      /* Label TP/SL di harga exit — style_none ala label.new Bos */
+      if (!isOpen) {
+        labels.push({ id: `ltxe-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t2, y: y2, yloc: 'price', text: win ? 'TP' : 'SL', style: 'none', noFill: true, textColor: col, size: 'tiny', textAlign: 'center', fontFamily: 'default' })
+      }
+    }
+    ctx?.emit?.({ series, ...(lines.length ? { lines } : {}), ...(labels.length ? { labels } : {}) })
   } catch { /* jangan biarkan satu emit mengguncang chart */ }
 }
 
@@ -158,6 +222,7 @@ function createProtectedInstance() {
   let lastEmit = 0
   let lastFail = 0 // backoff: jangan hammer server saat gagal
   let lastPlots: ProtectedPlot[] | null = null
+  let lastTrades: ProtectedTrade[] = [] // visual garis/label per trade
   let lastBarsSig = '' // anti re-emit sia-sia saat bars tak berubah
   const reemitTimers: ReturnType<typeof setTimeout>[] = []
 
@@ -171,7 +236,7 @@ function createProtectedInstance() {
   const scheduleReEmits = () => {
     clearTimers()
     for (const d of [700, 1800, 3500, 6000]) {
-      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey) } catch { /* diam */ } }, d))
+      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey, lastTrades) } catch { /* diam */ } }, d))
     }
   }
 
@@ -184,8 +249,8 @@ function createProtectedInstance() {
       const sig = `${barsArr.length}:${barsArr[0]?.time ?? 0}:${barsArr[barsArr.length - 1]?.time ?? 0}`
       if (sig === lastBarsSig) return
       lastBarsSig = sig
-      emitProtectedPlots(c, lastPlots, scriptKey)
-    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey) } catch { /* diam */ } }
+      emitProtectedPlots(c, lastPlots, scriptKey, lastTrades)
+    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey, lastTrades) } catch { /* diam */ } }
   }
 
   const run = async (force: boolean) => {
@@ -198,6 +263,7 @@ function createProtectedInstance() {
     const cached = protectedPlotCache.get(ck)
     if (cached && Date.now() - cached.at < 45000) {
       lastPlots = cached.plots
+      lastTrades = Array.isArray(cached.trades) ? cached.trades : []
       lastBarsSig = '' // paksa emit ulang utk ctx baru
       maybeEmit(c)
       return
@@ -215,8 +281,10 @@ function createProtectedInstance() {
       if (res.ok) {
         const j: any = await res.json()
         if (Array.isArray(j?.plots) && j.plots.length) {
-          protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots })
+          const tradesArr: ProtectedTrade[] = Array.isArray(j?.trades) ? j.trades : []
+          protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots, trades: tradesArr })
           lastPlots = j.plots
+          lastTrades = tradesArr
           lastBarsSig = ''
           if (j?.meta?.stats) emitProtectedStats(scriptKey, j.meta.stats as ProtectedStats)
           maybeEmit(c)
@@ -249,6 +317,7 @@ function createProtectedInstance() {
       ctx = c
       scriptKey = String(inputs?.scriptId || inputs?.slug || '')
       lastPlots = null
+      lastTrades = []
       lastBarsSig = ''
       run(true)
     },
@@ -262,7 +331,7 @@ function createProtectedInstance() {
     onViewport: () => { if (lastPlots && ctx) maybeEmit(ctx) },
     setInputs: (i: Record<string, any>) => {
       const s = String(i?.scriptId || i?.slug || '')
-      if (s && s !== scriptKey) { scriptKey = s; lastPlots = null; lastBarsSig = ''; run(true) }
+      if (s && s !== scriptKey) { scriptKey = s; lastPlots = null; lastTrades = []; lastBarsSig = ''; run(true) }
     },
     suspend: () => { /* tetap hidup — data murah dari cache */ },
     resume: () => { if (lastPlots && ctx) maybeEmit(ctx); else run(false) },

@@ -38,6 +38,19 @@ export interface PineRunResult {
   title?: string
   overlay?: boolean
   plots?: PlotSeries[]
+  /** Trade strategy (HANYA skrip default): bahan visual chart ala
+      TradingView — garis entry→exit dotted + label TP/SL + panah
+      entry (replika line.new/label.new Pine Bos, digambar client).
+      time dalam ms; exit null = posisi masih terbuka. */
+  trades?: Array<{
+    side: 'long' | 'short'
+    entryTime: number
+    entryPrice: number
+    exitTime: number | null
+    exitPrice: number | null
+    pnl: number
+    reason: 'sl' | 'tp' | 'session' | 'daily_dd' | 'open'
+  }>
   /** Alert bawaan engine (script memakai alert()/alertcondition) */
   engineAlerts?: Array<{ message: string; time: number; barIndex: number }>
   /** Statistik performa strategy (HANYA skrip default — tabel khas
@@ -145,6 +158,18 @@ export async function runDefaultStrategyPine(
   )
   const barsMs = barsSec.map((b) => ({ ...b, time: b.time * 1000 }))
   const plots = synthesizeTradePlots(barsMs, trades)
+  /* Trade mentah → visual chart ala line.new/label.new Pine Bos
+     (client menggambar: garis entry→exit dotted hijau/merah + label
+     TP/SL + panah BUY/SELL). Posisi terbuka → exit null. */
+  const tradesPayload = trades.map((t) => ({
+    side: t.side,
+    entryTime: Number(t.entry?.time) || 0,
+    entryPrice: Number(t.entry?.price) || 0,
+    exitTime: t.exit?.time != null ? Number(t.exit.time) : null,
+    exitPrice: t.exit?.price != null ? Number(t.exit.price) : null,
+    pnl: Number(t.pnl) || 0,
+    reason: t.reason,
+  }))
   /* Tabel performa ala TradingView (Bos: indikator luxtrade harus
      kelihatan sebagai script master dia — Net P&L s.d. status). */
   const money = (v: number) => `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`
@@ -162,7 +187,7 @@ export async function runDefaultStrategyPine(
     openPos: stats.openPos,
     paused: stats.paused,
   }
-  return { ok: true, title: 'Luxtradee Candle Impulsif', overlay: true, plots, engineAlerts, stats: statsPayload }
+  return { ok: true, title: 'Luxtradee Candle Impulsif', overlay: true, plots, trades: tradesPayload, engineAlerts, stats: statsPayload }
 }
 
 /**
