@@ -122,35 +122,71 @@ async function fetchBinancePrice(bSymbol: string): Promise<number | null> {
   }
 }
 
-/** Harga spot gold/silver dengan fallback 2 LAPIS — KEDUANYA
-    SPOT-LEVEL (tidak ada lagi fallback futures yang skala-nya beda):
-    1. gold-api.com (primer — spot grade dealer)
-    2. PAXG/USDT binance-vision (token 1:1 emas fisik, track spot ±0.2%)
-    Yahoo futures SENGAJA DIBUANG dari rantai spot: GC=F beda level
-    $10-40 dari spot (basis futures) → mem-patch sejarah spot dgn
-    futures = ekor candle melompat (bug "candle kebawah" Bos).
-    Cache sukses 10 dtk: polling tick 3 dtk dari banyak client tidak
-    boleh nembak 2 sumber per request (subrequest CF Workers terbatas). */
+/** Harga spot gold/silver — rantai 4 LAPIS, SEMUA GRATIS & KEYLESS
+    (permintaan Bos: "coba benerin make api apa ya yang gratis" —
+    production CF Workers sering gagal ke 1 sumber, jadi rantainya
+    digandakan; drift-guard di patchTail tetap melindungi skala):
+    1. gold-api.com        — spot dealer (primer)
+    2. XAUT/USDT binance   — Tether Gold, token 1:1 emas fisik
+    3. PAXG/USDT binance   — token 1:1 emas fisik (track spot ±0.2%)
+    4. Yahoo quote tick    — GC=F/SI=F (REGULAR MARKET PRICE)
+    Yahoo futures TETAP PALING AKHIR: GC=F bisa beda level $10-40
+    dari spot (basis futures) — mem-patch sejarah spot dgn futures
+    = ekor candle melompat (bug "candle kebawah" Bos). Karena itu
+    patch-nya selalu melewati drift-guard 0.35% di patchTailWithSpot:
+    bila Yahoo terlalu jauh → patch DITOLAK (tail diam, TIDAK lompat).
+    Cache sukses 10 dtk + cooldown gagal 8 dtk: polling tick 3 dtk
+    dari banyak client tidak boleh nembak 4 sumber per request
+    (subrequest CF Workers terbatas). */
 let goldSpotCache: { price: number; at: number; src: string } | null = null
+let goldSpotFailAt = 0
 const GOLD_SPOT_CACHE_MS = 10_000
+const GOLD_SPOT_FAIL_COOLDOWN_MS = 8_000
 
 async function fetchGoldSpotPrice(apiSym: string): Promise<{ price: number; src: string } | null> {
   const now = Date.now()
   if (goldSpotCache && now - goldSpotCache.at < GOLD_SPOT_CACHE_MS) {
     return { price: goldSpotCache.price, src: goldSpotCache.src }
   }
+  /* Cooldown gagal: semua sumber baru saja mati → jangan nembak 4
+     upstream tiap poll 3 dtk (hemat subrequest, upstream tetap ramah). */
+  if (goldSpotFailAt && now - goldSpotFailAt < GOLD_SPOT_FAIL_COOLDOWN_MS) return null
+
+  /* 1) gold-api — spot dealer */
   const direct = await fetchGoldApiPrice(apiSym)
   if (direct != null) {
     goldSpotCache = { price: direct, at: now, src: 'gold-api' }
     return { price: direct, src: 'gold-api' }
   }
+
   if (apiSym === 'XAU') {
+    /* 2) XAUT/USDT — Tether Gold (token 1:1 emas fisik) */
+    const xaut = await fetchBinancePrice('XAUTUSDT')
+    if (xaut != null) {
+      goldSpotCache = { price: xaut, at: now, src: 'xaut-binance' }
+      return { price: xaut, src: 'xaut-binance' }
+    }
+    /* 3) PAXG/USDT — token 1:1 emas fisik */
     const paxg = await fetchBinancePrice('PAXGUSDT')
     if (paxg != null) {
       goldSpotCache = { price: paxg, at: now, src: 'paxg-binance' }
       return { price: paxg, src: 'paxg-binance' }
     }
   }
+
+  /* 4) Yahoo quote tick (GC=F/SI=F) — PALING AKHIR, se-skala dgn
+     sejarah Yahoo dan dijaga drift-guard saat mem-patch sejarah
+     spot-grade (TradingView/TwelveData). Keyless & gratis. */
+  const tickSym = apiSym === 'XAU' ? 'XAUUSD' : apiSym === 'XAG' ? 'XAGUSD' : ''
+  if (tickSym) {
+    const tick = await fetchYahooQuoteTick(tickSym)
+    if (tick && tick.price > 0) {
+      goldSpotCache = { price: tick.price, at: now, src: 'yahoo-tick' }
+      return { price: tick.price, src: 'yahoo-tick' }
+    }
+  }
+
+  goldSpotFailAt = now
   return null
 }
 
@@ -228,7 +264,7 @@ export async function patchTailWithSpot(
   }
 
   const spotRes = await fetchGoldSpotPrice(g)
-  if (!spotRes) { console.warn('[spot-live] XAU/XAG spot tak tersedia (gold-api & PAXG gagal) — tail tanpa patch'); return bars }
+  if (!spotRes) { console.warn('[spot-live] XAU/XAG spot tak tersedia (4 lapis gagal) — tail tanpa patch'); return bars }
   const spot = spotRes.price
   console.log(`[spot-live] spot ${g} dari ${spotRes.src} = ${spot}`)
   const valid = validatePrice(s, spot)
@@ -278,11 +314,22 @@ export async function patchTailWithSpot(
   }
 
   /* b) TIP: bila bar terakhir masih segar → WAKTU bar itu yang jadi
-     tip (anchor sumber). Bila basi → isi bucket kosong sampai bucket
-     berjalan (CAP 60 — Yahoo telat jauh tetap sampai ujung). */
+     tip (anchor sumber). Bila basi → ISI GRID KOSONG di depan, tapi
+     PROYEKSI IKUT GRID SUMBER (fix "kadang ilang"): dulu tip melompat
+     ke bucket UTC (floor(now/iv)) — sumber ber-anchor geser (4h
+     TradingView mulai 01:00, bukan 00:00) menghasilkan bar sintetis
+     yang BENTROK dgn bar sumber berikutnya (dobel/ilang). Sekarang
+     bar disintesis = last.time + k×iv (grid sumber sendiri), capped
+     60 bucket — anchor konsisten dgn sejarah → tak pernah dobel. */
   const decimals = s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 2
   const prevClose0 = Number.isFinite(last.close) && last.close > 0 ? last.close : valid
-  const tipTime = tipIsRecent ? last.time : currentBucket
+  let tipTime: number
+  if (tipIsRecent) {
+    tipTime = last.time
+  } else {
+    const step = Math.floor((nowSec - last.time) / intervalSec) // bucket berjalan pd grid sumber (≤ now)
+    tipTime = last.time + Math.max(step, 1) * intervalSec
+  }
   const missing = Math.floor((tipTime - last.time) / intervalSec)
   if (missing > 0) {
     const startT = Math.max(last.time + intervalSec, tipTime - 59 * intervalSec)
@@ -363,7 +410,15 @@ export async function patchTailYahooLive(
 
   const decimals = s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 2
   const prevClose0 = Number.isFinite(last.close) && last.close > 0 ? last.close : valid
-  const tipTime = tipIsRecent ? last.time : currentBucket
+  /* proyeksi grid sumber (lihat catatan patchTailWithSpot — anti
+     bar sintetis bentrok dgn anchor sumber → "kadang ilang") */
+  let tipTime: number
+  if (tipIsRecent) {
+    tipTime = last.time
+  } else {
+    const step = Math.floor((nowSec - last.time) / intervalSec)
+    tipTime = last.time + Math.max(step, 1) * intervalSec
+  }
   const missing = Math.floor((tipTime - last.time) / intervalSec)
   if (missing > 0) {
     const startT = Math.max(last.time + intervalSec, tipTime - 59 * intervalSec)

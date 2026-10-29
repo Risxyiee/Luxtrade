@@ -657,16 +657,23 @@ export default function VelaChartTerminal({
       if (needProtected) {
         restoredProtectedRef.current = true
         try {
-          /* kunci = id ATAU slug (default auto-load pakai slug) */
-          const keys = new Set<string>([DEFAULT_PINE_SLUG])
-          for (const id of stored?.protected || []) keys.add(String(id))
-          for (const s of protectedScripts) {
-            if ((stored?.protected || []).includes(s.id) || s.slug === DEFAULT_PINE_SLUG) keys.add(s.id)
-          }
           /* default punya dua kunci ekuivalen (slug & id) — jangan
              pasang dobel: satu saja cukup */
           const defMeta = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
           const defKeys = new Set<string>([DEFAULT_PINE_SLUG, ...(defMeta ? [defMeta.id] : [])])
+          /* kunci = id ATAU slug (default auto-load pakai slug).
+             Bila daftar skrip TIDAK tersedia (belum login / API gagal),
+             id UUID lain JANGAN di-restore — tanpa daftar kita tak bisa
+             membedakan UUID default sesi lama dari skrip Pro sungguhan
+             (dahulu menghasilkan instance "LTX Pro" dobel di legend). */
+          const keys = new Set<string>([DEFAULT_PINE_SLUG])
+          for (const id of stored?.protected || []) {
+            if (!defMeta && String(id) !== DEFAULT_PINE_SLUG) continue
+            keys.add(String(id))
+          }
+          for (const s of protectedScripts) {
+            if ((stored?.protected || []).includes(s.id) || s.slug === DEFAULT_PINE_SLUG) keys.add(s.id)
+          }
           /* baca scriptId instance yang SUDAH ada di chart (persist Vela) */
           const have = new Set<string>()
           try {
@@ -704,6 +711,38 @@ export default function VelaChartTerminal({
             chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: key } })
             setActiveProtected((m) => ({ ...m, [key]: true }))
           }
+
+          /* ---- 3) REKONSILIASI ANTI-DOBEL (fix "LTX Pro" 2× di legend):
+             persist internal Vela bisa memulihkan instance protected
+             SETELAH restore kita jalan → dua instance dgn scriptId
+             ekuivalen tampil bersamaan (garis Entry/SL/TP digambar
+             dua kali). Pindai berkala 3× — equivalent (slug/id
+             default) disisakan SATU; id lain persis satu per kunci. */
+          const reconcile = (attempts: number) => {
+            if (attempts <= 0) return
+            setTimeout(() => {
+              try {
+                const c2: any = (wsRef.current as any)?.chart
+                if (c2 && typeof c2.indicators === 'function') {
+                  const prot = ((c2.indicators() || []) as any[]).filter((h) => h?.nativeType === PROTECTED_TYPE)
+                  const seenDef = new Set<string>() // slug+uuid default = satu
+                  const seenOther = new Set<string>()
+                  for (const h of prot) {
+                    const sid = String(h?.inputValues?.()?.scriptId || '')
+                    if (!sid) continue // tak terbaca → biarkan (guard restore lain)
+                    if (defKeys.has(sid)) {
+                      if (seenDef.size >= 1) { try { h.remove() } catch { /* diam */ } }
+                      else seenDef.add(sid)
+                    } else if (seenOther.has(sid)) {
+                      try { h.remove() } catch { /* diam */ }
+                    } else seenOther.add(sid)
+                  }
+                }
+              } catch { /* diam */ }
+              reconcile(attempts - 1)
+            }, 2500)
+          }
+          reconcile(3)
         } catch { /* diam — chip manual tetap tersedia */ }
       }
     }, 2000)
