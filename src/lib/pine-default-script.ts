@@ -8,11 +8,15 @@
  *
  * Tujuan:
  *  1. Source Pine "Luxtradee Candle Impulsif" — strategy() VERBATIM
- *     100% paste Bos ("Impulsive Breakout XAUUSD v5 (Prop Firm & API
- *     Safe)") — TANPA perubahan apa pun juga (judul asli dipakai):
- *     sesi WIB 07.30–22.00, anti-fakeout body 83%, ADX anti-sideways,
- *     breakout 2-bar, SL/TP dari pip, paksa tutup saat sesi berakhir,
- *     lock drawdown harian, jeda rentetan kalah + trade bayangan.
+ *     100% paste Bos "Impulsive Breakout XAUUSD v5 (Clean Native)"
+ *     (revisi Bos: "kalau ga tampil sl tp pine scrip ganti ini
+ *     isinya semuanya jangan ada yang diubah") — TANPA perubahan
+ *     apa pun: TANPA line.new/label.new/plotshape (Native Marker
+ *     Mode) supaya mesin Vela mengeluarkan NATIVE MARKER-nya,
+ *     sesi WIB 07.30–22.00, anti-fakeout body 83%, ADX
+ *     anti-sideways, breakout 2-bar, SL/TP dari pip, paksa tutup
+ *     saat sesi berakhir, lock drawdown harian, jeda rentetan
+ *     kalah + trade bayangan.
  *  2. Chart: engine headless TIDAK punya plot() di skrip ini, jadi
  *     segmen Entry/SL/TP di-sintesis dari TRADES engine (lihat
  *     synthesizeTradePlots di pine-protected.ts) — klik indikator
@@ -37,11 +41,11 @@ export { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION }
 /* ============================================================
    SOURCE PINE — VERBATIM 100% paste Bos (tidak ada satu karakter
    pun yang diubah: judul strategy, input, komentar, semua utuh).
-   Judul: "Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)".
+   Judul: "Impulsive Breakout XAUUSD v5 (Clean Native)".
    ============================================================ */
 export const DEFAULT_PINE_SOURCE = `// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/ MPL-2.0
 //@version=6
-strategy("Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)", overlay=true, initial_capital=10000, currency=currency.USD, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, calc_on_order_fills=true, commission_type=strategy.commission.cash_per_contract, commission_value=0.035, slippage=20, max_lines_count=500, max_labels_count=500)
+strategy("Impulsive Breakout XAUUSD v5 (Clean Native)", overlay=true, initial_capital=10000, currency=currency.USD, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, calc_on_order_fills=true, commission_type=strategy.commission.cash_per_contract, commission_value=0.035, slippage=20)
 
 // --- Inputs Utama ---
 slPipsInput = input.int(200, "Stop Loss (Pips)", minval=1, tooltip="Jarak stop loss dalam pip; default XAUUSD 200 pip = 20.0 harga.")
@@ -66,7 +70,7 @@ dailyMaxLossPctInput = input.float(5.0, "Batas Drawdown Harian (%)", minval=0.1,
 // --- Batas Loss Beruntun (Strict Pause Prop Firm) ---
 maxLossStreakInput = input.int(2, "Batas Loss Beruntun (Max Loss Streak)", minval=1, group="Proteksi Loss Beruntun", tooltip="Jika loss berturut-turut mencapai 2x, robot LANGSUNG PAUSE global dan memantau sinyal bayangan.")
 
-// FIX MUTLAK (CE10123 & CE10275): Menggunakan Unix Milliseconds murni untuk 1 Januari 2020
+// Menggunakan Unix Milliseconds murni untuk 1 Januari 2020
 startTimeInput = input.time(1577836800000, "Tanggal Mulai Backtest", group="Periode")
 tablePosInput = input.string("Bottom Right", "Posisi Tabel", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left", "Middle Center"], group="Tampilan")
 
@@ -165,7 +169,7 @@ if paused and shadowDir == 0
         shadowSL := close + stopDistance
         shadowTP := close - targetDistance
 
-// --- Eksekusi Strategy ---
+// --- Eksekusi Strategy (Native Marker Mode) ---
 canEnter = strategy.position_size == 0 and not paused
 longSignal = canEnter and rawLong
 shortSignal = canEnter and rawShort
@@ -179,22 +183,12 @@ if shortSignal
     strategy.exit("SELL Exit", from_entry="SELL", stop=close + stopDistance, limit=close - targetDistance)
 
 if forceCloseEndSession and not inSession and strategy.position_size != 0
-    strategy.close_all(comment="Sesi Selesai (22:00 WIB)")
+    strategy.close_all(comment="Sesi Selesai")
 
 if dailyLossLocked and strategy.position_size != 0
     strategy.close_all(comment="Daily DD Limit")
 
-// --- Garis visualisasi entry-ke-exit ---
-tradeClosed = strategy.position_size[1] != 0 and strategy.position_size == 0 and strategy.closedtrades > 0
-if tradeClosed
-    lastTrade = strategy.closedtrades - 1
-    entryPrice = strategy.closedtrades.entry_price(lastTrade)
-    exitPrice = strategy.closedtrades.exit_price(lastTrade)
-    entryBar = strategy.closedtrades.entry_bar_index(lastTrade)
-    exitBar = strategy.closedtrades.exit_bar_index(lastTrade)
-    isWin = strategy.closedtrades.profit(lastTrade) > 0
-    line.new(entryBar, entryPrice, exitBar, exitPrice, xloc=xloc.bar_index, color=isWin ? color.green : color.red, style=line.style_dotted, width=2)
-    label.new(exitBar, exitPrice, text=isWin ? "TP" : "SL", xloc=xloc.bar_index, style=label.style_none, textcolor=isWin ? color.green : color.red, size=size.tiny)
+// HAPUS SEMUA KODE PLOTSHAPE DAN LINE.NEW DI SINI AGAR MESIN VELA BISA MENGELUARKAN NATIVE MARKER-NYA
 
 // --- Statistik Drawdown & Tabel Performa (Ukuran Tiny) ---
 var float equityPeak = na
@@ -284,9 +278,9 @@ export async function ensureDefaultScript(): Promise<{ id: string } | null> {
     if (sel?.data?.id) {
       const id = String(sel.data.id)
       cachedDefault = { id, at: Date.now() }
-      /* Migrasi sekali: source berubah (v5 verbatim → judul
-         "Luxtradee Candle Impulsif") → mutakhirkan nama, deskripsi,
-         source, rules sekalian. */
+      /* Migrasi sekali: source berubah (v5 verbatim → "Clean Native"
+         — tanpa line.new/label.new, Native Marker Mode) → mutakhirkan
+         nama, deskripsi, source, rules sekalian. */
       const cur = await supabase
         .from('protected_scripts')
         .select('source')
@@ -303,7 +297,7 @@ export async function ensureDefaultScript(): Promise<{ id: string } | null> {
             alert_rules: DEFAULT_PINE_ALERT_RULES,
           })
           .eq('id', id)
-        console.log('[pine-default] skrip default dimutakhirkan (strategy v5 verbatim — judul Luxtradee Candle Impulsif)')
+        console.log('[pine-default] skrip default dimutakhirkan (v5 Clean Native verbatim — judul Bos, Native Marker Mode)')
       }
       return cachedDefault
     }
