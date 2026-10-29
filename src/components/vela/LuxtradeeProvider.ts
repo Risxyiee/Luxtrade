@@ -23,11 +23,15 @@
  *
  * Vela memanggil:
  *   getBars(ticker, timeframe, range)  → sejarah candle (wajib)
+ *   subscribe(ticker, timeframe, onBar) → TICK LIVE — polling 3 detik
  *   info()                             → metadata (capabilities)
  *   listSymbols()                      → daftar simbol (symbol search)
- * Live ticks: /api/candles berbasis REST → capabilities.stream = false,
- * feed Vela otomatis POLLING getBars (dok: "otherwise the feed polls
- * getBars") — tanpa WebSocket pun chart tetap hidup.
+ * LIVE (permintaan Bos — "data chart candle masih sm kek binance untuk
+ * forex saya gasuka"): capabilities.stream = true + subscribe() yang
+ * mempoll TAIL candle tiap 3 DETIK via /api/candles?nocache (server
+ * punya micro-cache 2.5s supaya upstream tidak banjir). Hasilnya ujung
+ * candle Close/High/Low bergerak dinamis layaknya websocket Binance —
+ * tanpa WebSocket pun.
  */
 
 import type {
@@ -77,11 +81,37 @@ const SYMBOLS: SymbolDescriptor[] = [
 
 const SYMBOL_SET = new Set(SYMBOLS.map((s) => s.ticker))
 
+/** Interval polling tick live (ms) — permintaan Bos: 3 detik. */
+const LIVE_POLL_MS = 3000
+
 /** Konversi epoch detik/ms campuran → epoch ms (Vela: Millis). */
 function toMillis(t: number | string): number {
   const n = typeof t === 'string' ? Number(t) : t
   if (!Number.isFinite(n) || n <= 0) return Date.now()
   return n < 1e12 ? n * 1000 : n // < 1e12 ≈ sebelum 2001 dalam ms → pasti detik
+}
+
+/** Baris API { time(sec|ms|iso), open, high, low, close, volume? } → OHLCV Vela. */
+function rowsToOHLCV(rows: any[]): OHLCV[] {
+  const bars: OHLCV[] = (rows || [])
+    .map((r) => {
+      const raw = r.time ?? r.timestamp ?? r.date
+      const ms = typeof raw === 'string' && !/^\d+(\.\d+)?$/.test(raw)
+        ? new Date(raw).getTime()
+        : toMillis(raw)
+      return {
+        time: ms,
+        open: Number(r.open), high: Number(r.high),
+        low: Number(r.low), close: Number(r.close),
+        volume: r.volume != null ? Number(r.volume) : undefined,
+      }
+    })
+    .filter((b) => Number.isFinite(b.time) && Number.isFinite(b.open) && Number.isFinite(b.close))
+    .sort((a, b) => a.time - b.time)
+  /* Dedup by open-time (kontrak Vela: sorted + de-duplicated) */
+  const seen = new Map<number, OHLCV>()
+  for (const b of bars) seen.set(b.time, b)
+  return [...seen.values()]
 }
 
 export class LuxtradeeForexProvider implements DataProvider {
@@ -92,7 +122,7 @@ export class LuxtradeeForexProvider implements DataProvider {
     return {
       name: 'luxtradee',
       displayName: 'Luxtradee FX',
-      capabilities: { enumerate: true, stream: false, symbolInfo: false },
+      capabilities: { enumerate: true, stream: true, symbolInfo: false },
     }
   }
 
@@ -142,26 +172,77 @@ export class LuxtradeeForexProvider implements DataProvider {
     })
     if (!res.ok) throw new Error(`/api/candles HTTP ${res.status}`)
     const json: any = await res.json()
-    const rows: any[] = Array.isArray(json?.data) ? json.data : []
-    /* Baris { time(sec|ms|iso), open, high, low, close, volume? } → OHLCV Vela */
-    const bars: OHLCV[] = rows
-      .map((r) => {
-        const raw = r.time ?? r.timestamp ?? r.date
-        const ms = typeof raw === 'string' && !/^\d+(\.\d+)?$/.test(raw)
-          ? new Date(raw).getTime()
-          : toMillis(raw)
-        return {
-          time: ms,
-          open: Number(r.open), high: Number(r.high),
-          low: Number(r.low), close: Number(r.close),
-          volume: r.volume != null ? Number(r.volume) : undefined,
+    return rowsToOHLCV(Array.isArray(json?.data) ? json.data : [])
+  }
+
+  /* ============================================================
+     SUBSCRIBE — TICK LIVE (polling 3 detik)
+     ============================================================
+     Vela memanggil ini begitu chart siap (capabilities.stream=true).
+     Tiap 3 detik ambil TAIL candle (nocache → server micro-cache 2.5s)
+     lalu kirim bar terakhir via onBar: ujung candle (O/H/L/C) bergerak
+     live layaknya websocket Binance, dan saat bar baru terbentuk Vela
+     otomatis menutup bar lama & membuka bar baru.
+     Pause saat tab tersembunyi (hemat request), lanjut saat kembali. */
+  subscribe(ticker: string, timeframe: string, onBar: (bar: OHLCV) => void): () => void {
+    const raw = ticker.trim().toUpperCase()
+    const clean = raw ? normalizeSymbol(raw) : ''
+    const interval = TF_MAP[timeframe] || '1h'
+    if (!SYMBOL_SET.has(clean)) return () => {} // simbol di luar daftar → tanpa live
+
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let lastKey = ''
+
+    const schedule = () => {
+      if (stopped || timer) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      timer = setTimeout(() => { timer = null; void tick() }, LIVE_POLL_MS)
+    }
+
+    const tick = async () => {
+      if (stopped) return
+      try {
+        const res = await fetch(`/api/candles?symbol=${encodeURIComponent(clean)}&interval=${encodeURIComponent(interval)}&limit=3&nocache=true&_t=${Date.now()}`, {
+          headers: { accept: 'application/json' },
+          cache: 'no-store',
+        })
+        if (res.ok) {
+          const json: any = await res.json()
+          const bars = rowsToOHLCV(Array.isArray(json?.data) ? json.data : [])
+          const last = bars[bars.length - 1]
+          if (last) {
+            const key = `${last.time}|${last.open}|${last.high}|${last.low}|${last.close}`
+            if (key !== lastKey) {
+              lastKey = key
+              onBar(last) // forming candle ATAU bar baru tertutup — Vela paham keduanya
+            }
+          }
         }
-      })
-      .filter((b) => Number.isFinite(b.time) && Number.isFinite(b.open) && Number.isFinite(b.close))
-      .sort((a, b) => a.time - b.time)
-    /* Dedup by open-time (kontrak Vela: sorted + de-duplicated) */
-    const seen = new Map<number, OHLCV>()
-    for (const b of bars) seen.set(b.time, b)
-    return [...seen.values()]
+      } catch { /* jaringan gagal — poll berikutnya mencoba lagi */ }
+      schedule()
+    }
+
+    const onVisibility = () => {
+      if (typeof document === 'undefined') return
+      if (document.hidden) {
+        if (timer) { clearTimeout(timer); timer = null }
+      } else if (!stopped) {
+        void tick() // langsung segar saat user kembali ke tab
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility)
+    }
+    void tick() // tick pertama segera (sinkron dgn sejarah yang baru dimuat)
+
+    return () => {
+      stopped = true
+      if (timer) { clearTimeout(timer); timer = null }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
+    }
   }
 }

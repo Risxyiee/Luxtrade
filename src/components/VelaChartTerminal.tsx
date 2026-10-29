@@ -33,6 +33,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert, Trash2 } from 'lucide-react'
 import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
+import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
+import {
+  consumePendingTradeHighlight,
+  TRADE_HIGHLIGHT_EVENT,
+  type TradeMarkerPayload,
+} from '@/lib/trade-highlight'
 
 /* ---------- Luxtradee Pine® presets (muncul di indicator picker) ---------- */
 const PINE_PRESETS = [
@@ -186,6 +192,46 @@ function ensureProtectedNativeRegistered(register: (d: any) => void) {
 const PINE_TEMPLATE = `//@version=6
 indicator("Luxtradee Skrip Saya", overlay=true)
 plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
+
+/* ============================================================
+   AUTO-SAVE INDIKATOR (localStorage) — permintaan Bos:
+   "kalau keluar halaman chart semua kembali, semua pengaturan chart
+   pine hilang harus masukin lagi" → state indikator aktif + draft
+   editor Pine disimpan dan dipanggil ulang setiap terminal dibuka.
+   ============================================================ */
+const INDICATOR_STORE_KEY = 'luxtradee_active_indicators'
+const PINE_DRAFT_KEY = 'luxtradee_pine_draft'
+
+interface StoredIndicatorState { v: 1; presets: number[]; protected: string[]; savedAt: number }
+
+function loadStoredIndicators(): StoredIndicatorState | null {
+  try {
+    const raw = localStorage.getItem(INDICATOR_STORE_KEY)
+    if (!raw) return null
+    const j = JSON.parse(raw)
+    if (!j || !Array.isArray(j.presets) || !Array.isArray(j.protected)) return null
+    return {
+      v: 1,
+      presets: j.presets.filter((n: any) => Number.isInteger(n) && n >= 0 && n < PINE_PRESETS.length).slice(0, PINE_PRESETS.length),
+      protected: j.protected.filter((s: any) => typeof s === 'string' && s).slice(0, 12),
+      savedAt: Number(j.savedAt) || 0,
+    }
+  } catch { return null }
+}
+
+function saveStoredIndicators(state: { presets: number[]; protected: string[] }) {
+  try {
+    localStorage.setItem(INDICATOR_STORE_KEY, JSON.stringify({ v: 1, presets: state.presets, protected: state.protected, savedAt: Date.now() }))
+  } catch { /* storage penuh / private mode — diam */ }
+}
+
+/** Timeframe Vela (menit, string) → ms per bar — utk jendela viewport marker trade. */
+const TF_MS: Record<string, number> = {
+  '5': 5 * 60_000, '15': 15 * 60_000, '30': 30 * 60_000, '60': 60 * 60_000,
+  '120': 2 * 3_600_000, '240': 4 * 3_600_000,
+  '1D': 86_400_000, 'D': 86_400_000, '1440': 86_400_000,
+  '1W': 604_800_000, 'W': 604_800_000, '10080': 604_800_000,
+}
 
 interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
@@ -352,9 +398,11 @@ export default function VelaChartTerminal({
           import('@luxalgo/vela'),
         ])
         if (dead || !hostRef.current) return
-        /* Native indicator untuk hasil Protected Pine (server-computed)
+        /* Native indicator utk hasil Protected Pine (server-computed)
+           + Trade Marker (klik Riwayat Trade → garis/marker di chart)
            — daftar SEBELUM chart dibuat supaya addNativeIndicator hidup */
         ensureProtectedNativeRegistered((velaCore as any).registerNativeIndicator)
+        registerTradeMarkerNative((velaCore as any).registerNativeIndicator)
         const ws = new WS(hostRef.current, {
           layout: false, // satu chart penuh
           symbol: defaultSymbol,
@@ -428,33 +476,219 @@ export default function VelaChartTerminal({
   }, [loadAlertSubs])
   useEffect(() => { refreshQuotas() }, [refreshQuotas])
 
-  /* ---------- Default Pine aktif otomatis (SEMUA user bisa lihat) ----------
-     Impulsive Breakout XAUUSD v4 (master Bos) dipasang sendiri begitu
-     chart siap — free melihat garis Entry/SL/TP, Pro bisa 🔔 alert.
-     Anti-dobel: bila persist Vela sudah memulihkannya, skip. */
-  const autoAddedRef = useRef(false)
+  /* ============================================================
+     AUTO-SAVE & RESTORE INDIKATOR (localStorage) — permintaan Bos:
+     "kalau keluar halaman chart semua kembali, semua pengaturan
+     chart pine hilang harus masukin lagi" + Pine Master otomatis
+     termuat secara DEFAULT saat terminal dibuka.
+     ============================================================
+     - Preset Pine (EMA/RSI/VWAP) = script indicator "external" yang
+       TIDAK di-persist Vela → kita panggil ulang sendiri dari
+       localStorage.
+     - Protected Pine = native indicator (di-persist Vela bila
+       tersimpan) → yang belum ada kita tambahkan; yang sudah
+       dipulihkan persist cukup ditandai aktif.
+     - Pine Master (Impulsive Breakout XAUUSD v4) SELALU dimuat
+       walau state lama tidak memuatnya (default Bos). */
+  const restoredRef = useRef(false) // write-guard: state aman ditulis ke localStorage
+  const restoredPresetsRef = useRef(false)
+  const restoredProtectedRef = useRef(false)
+  const [restoreRetry, setRestoreRetry] = useState(0)
   useEffect(() => {
-    if (booting || autoAddedRef.current) return
-    if (!protectedScripts.length) return
-    const def = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
-    if (!def) return
-    autoAddedRef.current = true
-    const t = setTimeout(() => {
-      try {
-        const chart: any = (wsRef.current as any)?.chart
-        if (!chart || typeof chart.addNativeIndicator !== 'function') return
-        const present: string[] = typeof chart.presentNativeIndicators === 'function'
-          ? chart.presentNativeIndicators()
-          : []
-        if (!present.includes(PROTECTED_TYPE)) {
-          chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: def.id } })
+    if (booting) return
+    /* Restore dua BAGIAN yang saling lepas (fix bug lama: sebelumnya
+       seluruh restore menunggu daftar protected — bila API list gagal/
+       401, preset EMA/RSI/VWAP ikut tidak dipulihkan = "pengaturan
+       hilang"). Sekarang:
+       - PRESETS     → dipulihkan segera setelah chart siap.
+       - PROTECTED   → dipulihkan begitu daftar skrip tersedia
+                       (termasuk Pine Master default). */
+    const needPresets = !restoredPresetsRef.current
+    const needProtected = protectedScripts.length > 0 && !restoredProtectedRef.current
+    if (!needPresets && !needProtected) return
+    const t = setTimeout(async () => {
+      /* Tunggu chart siap (maks ±20 detik) — boot bisa lambat saat
+         compile/dev; kalau belum siap juga, retry otomatis via
+         restoreRetry (efek terpicu ulang, refs belum terisi). */
+      let chart: any = null
+      for (let i = 0; i < 20; i++) {
+        chart = (wsRef.current as any)?.chart
+        if (chart && typeof chart.addNativeIndicator === 'function') break
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      if (!chart || typeof chart.addNativeIndicator !== 'function') {
+        setRestoreRetry((n) => n + 1)
+        return
+      }
+      restoredRef.current = true
+      const stored = loadStoredIndicators()
+      const def = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
+
+      /* ---- 1) RESTORE preset Pine dari localStorage ---- */
+      if (needPresets) {
+        restoredPresetsRef.current = true
+        const presetIdx = stored ? stored.presets : []
+        for (const i of presetIdx) {
+          try {
+            const handles = ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]
+            const already = handles.some((h) => h?.source === PINE_PRESETS[i].script)
+            if (!already) await runOnChart(PINE_PRESETS[i].script)
+            setActivePresets((m) => ({ ...m, [i]: true }))
+          } catch { /* satu preset gagal → lanjut yang lain */ }
         }
-        setActiveProtected((m) => ({ ...m, [def.id]: true }))
-      } catch { /* diam — user masih bisa klik chip manual */ }
-    }, 2500)
+      }
+
+      /* ---- 2) RESTORE protected — Pine Master selalu dijamin ada ---- */
+      if (needProtected) {
+        restoredProtectedRef.current = true
+        try {
+          const wanted = stored
+            ? protectedScripts.filter((s) => stored.protected.includes(s.id) || (def && s.id === def.id))
+            : protectedScripts.filter((s) => def && s.id === def.id)
+          /* baca scriptId instance yang SUDAH ada di chart (persist Vela) */
+          const have = new Set<string>()
+          try {
+            for (const h of ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]) {
+              if (h?.nativeType === PROTECTED_TYPE) have.add(String(h?.inputValues?.()?.scriptId || ''))
+            }
+          } catch { /* diam */ }
+          const present: string[] = typeof chart.presentNativeIndicators === 'function'
+            ? chart.presentNativeIndicators()
+            : []
+          const presentCount = present.filter((x) => x === PROTECTED_TYPE).length
+          for (const s of wanted) {
+            if (have.has(s.id)) {
+              setActiveProtected((m) => ({ ...m, [s.id]: true })) // sudah dipulihkan persist
+              continue
+            }
+            if (presentCount > 0 && have.size < presentCount) {
+              /* persist memulihkan instance tapi id tak terbaca —
+                 jangan tambah dobel, cukup tandai aktif */
+              setActiveProtected((m) => ({ ...m, [s.id]: true }))
+              continue
+            }
+            chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
+            setActiveProtected((m) => ({ ...m, [s.id]: true }))
+          }
+        } catch { /* diam — chip manual tetap tersedia */ }
+      }
+    }, 2000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booting, protectedScripts])
+  }, [booting, protectedScripts, restoreRetry])
+
+  /* ---------- Tulis state → localStorage tiap perubahan ----------
+     (hanya SETELAH restore pertama selesai — jangan menimpa state
+     tersimpan dengan state kosong sebelum restore jalan). */
+  useEffect(() => {
+    if (!restoredRef.current) return
+    const presets = Object.entries(activePresets).filter(([, v]) => v).map(([k]) => Number(k))
+    const prot = Object.entries(activeProtected).filter(([, v]) => v).map(([k]) => k)
+    saveStoredIndicators({ presets, protected: prot })
+  }, [activePresets, activeProtected])
+
+  /* ---------- Draft editor Pine ikut tersimpan (tak hilang saat pindah menu) ---------- */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PINE_DRAFT_KEY)
+      if (!raw) return
+      const j = JSON.parse(raw)
+      if (typeof j?.name === 'string' && j.name.trim()) setPineName(j.name)
+      if (typeof j?.source === 'string' && j.source.trim()) setPineSource(j.source)
+    } catch { /* diam */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { localStorage.setItem(PINE_DRAFT_KEY, JSON.stringify({ name: pineName, source: pineSource, savedAt: Date.now() })) } catch { /* diam */ }
+    }, 600)
+    return () => clearTimeout(t)
+  }, [pineName, pineSource])
+
+  /* ============================================================
+     KLIK RIWAYAT TRADE → MARKER CHART (fitur Bos)
+     highlightTradeOnChart: lompat ke timestamp trade, gambar garis
+     Entry (biru) / Exit (putih) / SL (merah) / TP (hijau) + marker
+     panah Buy/Sell + callout di candle terkait.
+     ============================================================ */
+  const [tradeHighlightMsg, setTradeHighlightMsg] = useState<string | null>(null)
+  const highlightTradeOnChart = useCallback(async (t: TradeMarkerPayload): Promise<boolean> => {
+    const chart: any = (wsRef.current as any)?.chart
+    if (!chart || typeof chart.addNativeIndicator !== 'function') return false // terminal belum siap
+    try {
+      /* 0) singkirkan marker trade sebelumnya (tipe multi-instance) */
+      try {
+        for (const h of ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]) {
+          if (h?.nativeType === TRADE_MARKER_TYPE) { try { h.remove() } catch { /* diam */ } }
+        }
+      } catch { /* diam */ }
+
+      /* 1) pindah simbol bila trade bukan simbol chart sekarang */
+      const cur = String(chart.symbol || '').split(':').pop()?.toUpperCase() || ''
+      const want = String(t.symbol || '').split(':').pop()?.toUpperCase() || cur
+      if (want && cur && want !== cur && typeof chart.setSymbol === 'function') {
+        chart.setSymbol(want)
+        await new Promise((r) => setTimeout(r, 1400)) // beri waktu candle termuat
+      }
+
+      /* 2) pasang marker: garis Entry/Exit/SL/TP + panah Buy/Sell + callout */
+      chart.addNativeIndicator(TRADE_MARKER_TYPE, {
+        inputs: {
+          entryPrice: t.entryPrice || 0,
+          exitPrice: t.exitPrice || 0,
+          slPrice: t.slPrice || 0,
+          tpPrice: t.tpPrice || 0,
+          timestamp: t.timestamp || 0,
+          side: t.type === 'SELL' ? 'SELL' : 'BUY',
+          symbol: want || cur || '',
+          label: t.label || '',
+        },
+      })
+
+      /* 3) arahkan viewport ke sekitar timestamp transaksi */
+      if (typeof chart.setVisibleRange === 'function' && t.timestamp > 0) {
+        const barMs = TF_MS[String(chart.timeframe || '60')] || 3_600_000
+        try { chart.setVisibleRange({ from: t.timestamp - barMs * 40, to: t.timestamp + barMs * 20 }) } catch { /* diam */ }
+      }
+      return true
+    } catch { return false }
+  }, [])
+
+  /* ---------- Konsumsi pesan highlight (Riwayat Trade / Jurnal / chat) ---------- */
+  useEffect(() => {
+    if (booting) return
+    let alive = true
+    const run = async (t: TradeMarkerPayload) => {
+      /* tunggu chart + sejarah siap (maks ±8 detik) sebelum menggambar */
+      for (let i = 0; i < 20 && alive; i++) {
+        const chart: any = (wsRef.current as any)?.chart
+        let n = 0
+        try { n = (chart?.bars?.() || []).length } catch { /* diam */ }
+        if (chart && n > 5) break
+        await new Promise((r) => setTimeout(r, 400))
+      }
+      if (!alive) return
+      const ok = await highlightTradeOnChart(t)
+      if (!ok) return // chart belum siap → pesan tetap menunggu di localStorage
+      try { consumePendingTradeHighlight({ remove: true }) } catch { /* diam */ }
+      const when = t.timestamp > 0 ? new Date(t.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+      setTradeHighlightMsg(`📍 Trade ${t.type} ${t.symbol} @ ${t.entryPrice}${when ? ` · ${when}` : ''} dimuat ke chart`)
+      setTimeout(() => setTradeHighlightMsg(null), 8000)
+    }
+    /* pesan tertunda (user datang dari tab lain) */
+    const pending = consumePendingTradeHighlight({ remove: false })
+    if (pending) void run(pending)
+    /* pesan live (chart sedang terbuka — mis. klik trade di chat) */
+    const onEvt = (e: Event) => {
+      const d = (e as CustomEvent).detail
+      if (d && typeof d.entryPrice === 'number' && typeof d.timestamp === 'number') void run(d as TradeMarkerPayload)
+    }
+    window.addEventListener(TRADE_HIGHLIGHT_EVENT, onEvt)
+    return () => {
+      alive = false
+      window.removeEventListener(TRADE_HIGHLIGHT_EVENT, onEvt)
+    }
+  }, [booting, highlightTradeOnChart])
 
   /* ---------- Aksi alert otomatis (klik 🔔 → aktif + test / toggle / hapus) ---------- */
   const openAlertDialog = useCallback((s: ProtectedScriptMeta) => {
@@ -601,22 +835,36 @@ export default function VelaChartTerminal({
   const quotaLabel = (q: QuotaBadge | null, unit: string) =>
     !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
 
-  /* ---------- Preset chip: tambah indikator Luxtradee ke chart ----------
+  /* ---------- Preset chip: tambah/lepas indikator Luxtradee ----------
      Free: 1 indikator (EMA 20/50). Pro: semua terbuka. Kuota nyata
-     (alert & Pine edit) tetap dijaga server-side di API. */
+     (alert & Pine edit) tetap dijaga server-side di API.
+     Klik chip AKTIF → indikator dilepas dari chart (state ikut). */
   const isProUser = alertQuota?.isPro === true
   const runPreset = useCallback(async (i: number) => {
     if (presetBusy !== null) return
+    /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart --- */
+    if (activePresets[i]) {
+      setPresetBusy(i); setPresetMsg(null)
+      try {
+        const chart: any = (wsRef.current as any)?.chart
+        const handles = ((typeof chart?.indicators === 'function' ? chart.indicators() : []) || []) as any[]
+        const h = handles.find((x) => x?.source === PINE_PRESETS[i].script)
+        if (h) { try { h.remove() } catch { /* diam */ } }
+        setActivePresets((m) => ({ ...m, [i]: false }))
+        setPresetMsg(`✕ ${PINE_PRESETS[i].name.replace('Luxtradee — ', '')} dilepas dari chart.`)
+      } finally { setPresetBusy(null) }
+      return
+    }
     setPresetBusy(i); setPresetMsg(null)
     const err = await runOnChart(PINE_PRESETS[i].script)
     const short = PINE_PRESETS[i].name.replace('Luxtradee — ', '')
     if (err) setPresetMsg(`⚠️ ${short}: ${err}`)
     else {
       setActivePresets((s) => ({ ...s, [i]: true }))
-      setPresetMsg(`✅ ${short} tampil di chart.`)
+      setPresetMsg(`✅ ${short} tampil di chart. Klik chipnya lagi untuk melepas.`)
     }
     setPresetBusy(null)
-  }, [presetBusy, runOnChart])
+  }, [presetBusy, activePresets, runOnChart])
 
   const lockedPresetMsg = (i: number) => {
     const names = PINE_PRESETS.slice(FREE_INDICATOR_LIMIT).map((x) => x.name.replace('Luxtradee — ', ''))
@@ -629,6 +877,19 @@ export default function VelaChartTerminal({
      Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403. */
   const addProtected = useCallback(async (s: ProtectedScriptMeta) => {
     if (protectedBusy) return
+    /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart --- */
+    if (activeProtected[s.id]) {
+      setProtectedBusy(s.id); setProtectedMsg(null)
+      try {
+        const chart: any = (wsRef.current as any)?.chart
+        const handles = ((typeof chart?.indicators === 'function' ? chart.indicators() : []) || []) as any[]
+        const h = handles.find((x) => x?.nativeType === PROTECTED_TYPE && String(x?.inputValues?.()?.scriptId || '') === s.id)
+        if (h) { try { h.remove() } catch { /* diam */ } }
+        setActiveProtected((m) => ({ ...m, [s.id]: false }))
+        setProtectedMsg(`✕ ${s.name} dilepas dari chart. (Pine Master akan muncul lagi otomatis saat terminal dibuka berikutnya.)`)
+      } finally { setProtectedBusy(null) }
+      return
+    }
     setProtectedBusy(s.id); setProtectedMsg(null)
     try {
       const chart: any = (wsRef.current as any)?.chart
@@ -642,7 +903,7 @@ export default function VelaChartTerminal({
     } catch (x: any) {
       setProtectedMsg('⚠️ ' + String(x?.message || x).slice(0, 120))
     } finally { setProtectedBusy(null) }
-  }, [protectedBusy])
+  }, [protectedBusy, activeProtected])
 
   return (
     <div className="space-y-2">
@@ -774,6 +1035,13 @@ export default function VelaChartTerminal({
             <Button size="sm" variant="outline" className="mt-1" onClick={() => window.location.reload()}>
               Muat ulang
             </Button>
+          </div>
+        )}
+
+        {/* ---------- Badge: trade dari Riwayat/Jurnal dimuat ke chart ---------- */}
+        {tradeHighlightMsg && (
+          <div className="absolute left-2 top-2 z-30 max-w-[85%] rounded-lg border border-sky-400/30 bg-sky-400/10 backdrop-blur px-2.5 py-1.5 text-[11px] text-sky-100 shadow-lg" role="status">
+            {tradeHighlightMsg}
           </div>
         )}
 

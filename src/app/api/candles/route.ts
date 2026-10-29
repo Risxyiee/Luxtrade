@@ -79,6 +79,20 @@ const CACHE_TTL_DEFAULT = 5 * 60 * 1000
 const CACHE_TTL_SHORT = 60 * 1000 // 5m/15m
 const CACHE_TTL_PRICE = 30 * 1000
 
+/* LIVE micro-cache — khusus polling tick 3 detik dari chart Vela
+   (provider.subscribe). TTL 2.5 detik: N client polling tiap 3 detik
+   digabung jadi ±1 fetch upstream per 2.5s per (symbol,interval) —
+   sumber (TradingView WS/TwelveData/Yahoo) tidak banjir request. */
+const liveCache = new Map<string, CacheEntry>()
+const LIVE_TTL = 2500
+
+function getLiveCached(key: string): CacheEntry | null {
+  const entry = liveCache.get(key)
+  if (entry && Date.now() - entry.timestamp < LIVE_TTL) return entry
+  liveCache.delete(key)
+  return null
+}
+
 function getCacheTtl(interval: string, limit: number): number {
   if (limit <= 1) return CACHE_TTL_PRICE
   if (interval === '5m' || interval === '15m') return CACHE_TTL_SHORT
@@ -133,6 +147,36 @@ async function setKvCache(key: string, data: Ohlcv[], source: string, ttlSeconds
 }
 
 /* ============================================================
+   RANTAI SUMBER BERSAMA — TradingView → TwelveData → Yahoo
+   Dipakai jalur normal & jalur live (polling tick).
+   ============================================================ */
+async function fetchChain(
+  symbol: string,
+  interval: string,
+  limit: number,
+): Promise<{ bars: Ohlcv[]; source: string } | null> {
+  /* 0) TRADING VIEW (keyless, grade broker) */
+  try {
+    const tv = await fetchTradingViewCandles(symbol, interval, limit)
+    if (tv && tv.length) return { bars: tv, source: 'tradingview' }
+  } catch { /* lanjut */ }
+
+  /* 1) TWELVE DATA (spot-grade, mendekati feed broker) */
+  try {
+    const td = await fetchTwelveDataCandles(symbol, interval, limit)
+    if (td && td.length) return { bars: td, source: 'twelvedata' }
+  } catch { /* lanjut */ }
+
+  /* 2) YAHOO FINANCE (publik, keyless → tanpa risiko 401) */
+  try {
+    const yf: YahooCandle[] | null = await fetchYahooChart(symbol, interval, limit, limit <= 1)
+    if (yf && yf.length) return { bars: yf, source: 'yahoo-finance' }
+  } catch { /* lanjut */ }
+
+  return null
+}
+
+/* ============================================================
    MAIN HANDLER
    ============================================================ */
 export async function GET(request: NextRequest) {
@@ -163,6 +207,54 @@ export async function GET(request: NextRequest) {
     const cacheKey = `${validSymbol}:${interval}:${limit}`
     const kvTtlSeconds = limit <= 1 ? 30 : (interval === '5m' || interval === '15m') ? 60 : 300
 
+    /* ---- JALUR LIVE (polling tick 3 detik, tail saja) ----
+       nocache + limit kecil = poll candle terakhir dari provider Vela.
+       Pakai micro-cache 2.5s agar banyak client berbagi satu fetch
+       upstream; jawaban TANPA cache HTTP (no-store) supaya ujung
+       candle bergerak mulus layaknya feed broker. */
+    if (nocache && limit <= 3) {
+      const liveKey = `${validSymbol}:${interval}`
+      const hit = getLiveCached(liveKey)
+      if (hit) {
+        return NextResponse.json({
+          success: true, symbol: validSymbol, interval,
+          data: hit.data.slice(-limit), source: hit.source + '-live',
+          fetchedAt: new Date(hit.timestamp).toISOString(), stale: false,
+        }, { headers: { 'Cache-Control': 'no-store' } })
+      }
+      const tail = await fetchChain(validSymbol, interval, Math.max(limit, 3))
+      if (tail && tail.bars.length) {
+        liveCache.set(liveKey, { data: tail.bars, timestamp: Date.now(), source: tail.source })
+        if (liveCache.size > 300) {
+          const oldest = [...liveCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
+          if (oldest) liveCache.delete(oldest[0])
+        }
+        /* segarkan juga cache utama (bar terbaru berguna utk reload) */
+        if (tail.bars.length >= 30) setCache(`${validSymbol}:${interval}:300`, tail.bars, tail.source)
+        return NextResponse.json({
+          success: true, symbol: validSymbol, interval,
+          data: tail.bars.slice(-limit), source: tail.source,
+          fetchedAt: new Date().toISOString(),
+        }, { headers: { 'Cache-Control': 'no-store' } })
+      }
+      /* semua sumber gagal → jatuh ke cache utama (stale pun lebih baik
+         dari kosong untuk ujung candle; chart tetap jalan) */
+      const staleHit = cache.get(`${validSymbol}:${interval}:300`) || cache.get(cacheKey)
+      if (staleHit) {
+        return NextResponse.json({
+          success: true, symbol: validSymbol, interval,
+          data: staleHit.data.slice(-limit), source: staleHit.source + '-stale',
+          fetchedAt: new Date(staleHit.timestamp).toISOString(), stale: true,
+        }, { headers: { 'Cache-Control': 'no-store' } })
+      }
+      return NextResponse.json({
+        success: false, symbol: validSymbol, interval, data: [],
+        source: 'unavailable', unavailable: true,
+        message: `Data live ${validSymbol} sedang tidak dapat diakses.`,
+        fetchedAt: new Date().toISOString(),
+      }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    }
+
     /* ---- Cache in-memory ---- */
     if (!nocache) {
       const cached = getCached(cacheKey, interval, limit)
@@ -192,50 +284,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    /* ---- SUMBER 0: TRADING VIEW (keyless, grade broker) ---- */
-    const tv = await fetchTradingViewCandles(validSymbol, interval, limit)
-    if (tv && tv.length) {
-      setCache(cacheKey, tv, 'tradingview')
-      await setKvCache(cacheKey, tv, 'tradingview', kvTtlSeconds)
-      console.log(`[Candles] ✓ ${tv.length} candles TradingView (${validSymbol} ${interval})`)
+    /* ---- RANTAI SUMBER: TradingView → TwelveData → Yahoo ----
+       (urutan FINAL Bos — "binaance yang dibuang"; limit<=1 →
+       Yahoo liveTick aktif sbg harga real-time) */
+    const chain = await fetchChain(validSymbol, interval, limit)
+    if (chain) {
+      setCache(cacheKey, chain.bars, chain.source)
+      await setKvCache(cacheKey, chain.bars, chain.source, kvTtlSeconds)
+      console.log(`[Candles] ✓ ${chain.bars.length} candles ${chain.source} (${validSymbol} ${interval})`)
       return NextResponse.json({
-        success: true, symbol: validSymbol, interval, data: tv,
-        source: 'tradingview',
-        fetchedAt: new Date().toISOString(),
-      })
-    }
-
-    /* ---- SUMBER 1: TWELVE DATA (spot-grade, mendekati feed broker) ----
-       Tanpa key / quota habis → null → lanjut Yahoo. limit<=1 tetap
-       aman: cache price 30s + rate limiter 7 req/menit di lib. */
-    const td = await fetchTwelveDataCandles(validSymbol, interval, limit)
-    if (td && td.length) {
-      setCache(cacheKey, td, 'twelvedata')
-      await setKvCache(cacheKey, td, 'twelvedata', kvTtlSeconds)
-      console.log(`[Candles] ✓ ${td.length} candles Twelve Data (${validSymbol} ${interval})`)
-      return NextResponse.json({
-        success: true, symbol: validSymbol, interval, data: td,
-        source: 'twelvedata',
-        fetchedAt: new Date().toISOString(),
-      })
-    }
-
-    /* ---- SUMBER 2: YAHOO FINANCE (publik, keyless → tanpa risiko 401) ----
-       limit<=1 → liveTick aktif (regularMarketPrice sbg harga real-time) */
-    const yf: YahooCandle[] | null = await fetchYahooChart(validSymbol, interval, limit, limit <= 1)
-    if (yf && yf.length) {
-      setCache(cacheKey, yf, 'yahoo-finance')
-      await setKvCache(cacheKey, yf, 'yahoo-finance', kvTtlSeconds)
-      console.log(`[Candles] ✓ ${yf.length} candles Yahoo Finance (${validSymbol} ${interval})`)
-      return NextResponse.json({
-        success: true, symbol: validSymbol, interval, data: yf,
-        source: 'yahoo-finance',
+        success: true, symbol: validSymbol, interval, data: chain.bars,
+        source: chain.source,
         fetchedAt: new Date().toISOString(),
       })
     }
 
     /* ---- SEMUA SUMBER GAGAL — respons jujur (TANPA mock) ---- */
-    console.error(`[Candles] ❌ Yahoo Finance gagal utk ${validSymbol} ${interval}`)
+    console.error(`[Candles] ❌ semua sumber gagal utk ${validSymbol} ${interval}`)
     return NextResponse.json({
       success: false,
       symbol: validSymbol,

@@ -170,6 +170,7 @@ export default function TabContent({
               onEdit={onEdit}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
+              onGoToChart={() => setActiveTab?.('chart')}
               language={language}
             />
           )}

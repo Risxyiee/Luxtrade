@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon, Copy, FileDown, ChevronDown, Plus, Upload } from 'lucide-react'
+import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon, Copy, FileDown, ChevronDown, Plus, Upload, CandlestickChart } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 import { useMotionSafe } from '@/hooks/use-motion-safe'
@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils-currency'
 import { safeParseTags } from '@/lib/parseUtils'
+import { buildTradeMarkerPayload, requestTradeHighlight } from '@/lib/trade-highlight'
 import type { Trade } from '@/types'
 
 // ==================== TRADES TAB COMPONENT ====================
@@ -25,6 +26,8 @@ interface TradesTabProps {
   onEdit: (trade: Trade) => void
   onDelete: (trade: Trade) => void
   onDuplicate?: (trade: Trade) => void
+  /** Muat trade ke chart terminal (pindah tab chart + gambar marker Entry/SL/TP). */
+  onGoToChart?: () => void
   language?: 'id' | 'en'
 }
 
@@ -36,6 +39,7 @@ function TradesTab({
   onEdit,
   onDelete,
   onDuplicate,
+  onGoToChart,
   language = 'id'
 }: TradesTabProps) {
   const { repeatCount } = useMotionSafe()
@@ -556,7 +560,20 @@ function TradesTab({
                     }
 
                     return (
-                    <tr key={trade.id} className="border-b border-lux-border dark:border-blue-900/20 hover:bg-lux-surface-hover dark:hover:bg-white/5 transition-colors">
+                    <tr key={trade.id}
+                      onClick={() => {
+                        /* KLIK BARIS RIWAYAT TRADE → marker chart (Bos):
+                           garis Entry/SL/TP + panah Buy/Sell di candle-nya,
+                           lalu otomatis pindah ke tab Grafik Langsung. */
+                        try {
+                          requestTradeHighlight(buildTradeMarkerPayload(trade))
+                          toast.success(language === 'id' ? `📍 Trade ${trade.symbol} dimuat ke chart` : `📍 Trade ${trade.symbol} loaded on chart`)
+                        } catch { /* diam */ }
+                        onGoToChart?.()
+                      }}
+                      className="border-b border-lux-border dark:border-blue-900/20 hover:bg-lux-surface-hover dark:hover:bg-white/5 transition-colors cursor-pointer"
+                      title={language === 'id' ? 'Klik untuk melihat trade ini di chart' : 'Click to view this trade on the chart'}
+                    >
                       <td className="p-4 font-bold">{trade.symbol}</td>
                       <td className="p-4">
                         <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs">
@@ -619,8 +636,8 @@ function TradesTab({
                       <td className={`p-4 text-right font-bold ${trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trade.profit_loss >= 0 ? '+' : ''}{formatCurrency(trade.profit_loss)}
                       </td>
-                      {/* Actions */}
-                      <td className="p-4">
+                      {/* Actions (tidak ikut klik baris — tombol punya aksi masing-masing) */}
+                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {/* Journal Link */}
                           {trade.linked_journal_id && (
@@ -637,6 +654,21 @@ function TradesTab({
                             aria-label={language === 'id' ? 'Lihat trade' : 'View trade'}
                           >
                             <ViewIcon className="w-4 h-4" />
+                          </button>
+                          {/* Lihat di Chart — muat trade ke terminal (marker Entry/SL/TP + panah Buy/Sell) */}
+                          <button
+                            onClick={() => {
+                              try {
+                                requestTradeHighlight(buildTradeMarkerPayload(trade))
+                                toast.success(language === 'id' ? `Trade ${trade.symbol} dimuat ke chart` : `Trade ${trade.symbol} loaded on chart`)
+                              } catch { /* diam */ }
+                              onGoToChart?.()
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-sky-400 transition-colors"
+                            title={language === 'id' ? 'Lihat di Chart — garis Entry/SL/TP + marker di candle-nya' : 'View on Chart — entry/SL/TP lines + marker on its candle'}
+                            aria-label={language === 'id' ? `Lihat trade ${trade.symbol} di chart` : `View trade ${trade.symbol} on chart`}
+                          >
+                            <CandlestickChart className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => onEdit(trade)}
