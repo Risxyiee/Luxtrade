@@ -40,12 +40,13 @@ export type LuxCandle = YahooCandle
 
 /**
  * Sumber candle TERPADU untuk server (compile-pine, alert runner, dll).
- * STICKY SOURCE (lib bersama source-sticky.ts — SAMA dengan /api/candles):
- * sumber sukses terakhir utk (symbol,interval) dicoba dulu — supaya
- * BACKTEST PINE dihitung pada skala harga yang SAMA dengan chart
- * (spot OANDA vs futures GC=F beda $10–40 → garis Entry/SL/TP bisa
- * geser kalau sumbernya beda). Urutan kanonik: TradingView (keyless)
- * → Twelve Data (key) → Yahoo (keyless). Return null bila semua gagal.
+ * METALS SCALE-LOCK: XAUUSD/XAGUSD SELALU Yahoo (GC=F/SI=F) dulu —
+ * sama persis dengan /api/candles — supaya BACKTEST PINE dihitung
+ * pada skala harga & bucket waktu yang SAMA dengan chart (spot
+ * OANDA vs futures GC=F beda $10–40 + anchor bucket beda → garis
+ * Entry/SL/TP bisa hilang/geser kalau sumbernya campur).
+ * Non-metals: TradingView (keyless) → Twelve Data (key) → Yahoo
+ * (keyless) dengan sticky source. Return null bila semua gagal.
  */
 export async function fetchServerCandles(
   symbol: string,
@@ -55,12 +56,31 @@ export async function fetchServerCandles(
   const errors: string[] = []
   const stickyKey = `${symbol}:${interval}`
 
-  const CHAIN: Array<{ name: string; run: () => Promise<LuxCandle[] | null> }> = [
-    { name: 'tradingview', run: () => fetchTradingViewCandles(symbol, interval, limit) },
-    { name: 'twelvedata', run: () => fetchTwelveDataCandles(symbol, interval, limit) },
-    { name: 'yahoo-finance', run: () => fetchYahooChart(symbol, interval, limit, false) },
-  ]
-  const sticky = await readStickySource(stickyKey)
+  /* ============================================================
+     METALS SCALE-LOCK — WAJIB SAMA dengan /api/candles (route.ts):
+     logam DIKUNCI ke Yahoo GC=F/SI=F di pull MANA PUN (chart &
+     runner). Dulu: compile-pine menarik sendiri dan bisa dapat
+     TradingView OANDA spot sementara chart dapat Yahoo GC=F —
+     skala beda ±$13 + anchor bucket beda → plot Entry/SL/TP
+     gagal match bar chart → garis tak muncul ("pine ga ada
+     entry sl tp"). Yahoo-first deterministik = skala PASTI seragam.
+     ============================================================ */
+  const METALS_SCALE_LOCK = new Set(['XAUUSD', 'XAGUSD'])
+  const isMetal = METALS_SCALE_LOCK.has(symbol)
+
+  const CHAIN: Array<{ name: string; run: () => Promise<LuxCandle[] | null> }> = isMetal
+    ? [
+        { name: 'yahoo-finance', run: () => fetchYahooChart(symbol, interval, limit, false) },
+        { name: 'tradingview', run: () => fetchTradingViewCandles(symbol, interval, limit) },
+        { name: 'twelvedata', run: () => fetchTwelveDataCandles(symbol, interval, limit) },
+      ]
+    : [
+        { name: 'tradingview', run: () => fetchTradingViewCandles(symbol, interval, limit) },
+        { name: 'twelvedata', run: () => fetchTwelveDataCandles(symbol, interval, limit) },
+        { name: 'yahoo-finance', run: () => fetchYahooChart(symbol, interval, limit, false) },
+      ]
+
+  const sticky = isMetal ? null : await readStickySource(stickyKey)
   const ordered = sticky
     ? [...CHAIN.filter((c) => c.name === sticky), ...CHAIN.filter((c) => c.name !== sticky)]
     : CHAIN
@@ -69,7 +89,7 @@ export async function fetchServerCandles(
     try {
       const bars = await c.run()
       if (bars && bars.length) {
-        void writeStickySource(stickyKey, c.name)
+        if (!isMetal) void writeStickySource(stickyKey, c.name)
         return { bars, source: c.name }
       }
       if (c.name === 'twelvedata' && process.env.TWELVE_DATA_API_KEY) errors.push('TwelveData: tidak ada data')

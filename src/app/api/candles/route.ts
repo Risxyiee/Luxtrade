@@ -140,8 +140,11 @@ function setCache(key: string, data: Ohlcv[], source: string) {
    v4 → agregasi 2h/4h kini bucket-aligned (buang entri lama yg
    batas group-nya geser — penyebab candle 2h/4h melompat).
    v5 → rantai spot 4 lapis + proyeksi grid sumber (tail patch) —
-   buang entri KV lama yg ekornya tak ter-patch/campur skala. */
-const KV_CACHE_VER = 'v5'
+   buang entri KV lama yg ekornya tak ter-patch/campur skala.
+   v6 → METALS SCALE-LOCK (logam Yahoo GC=F/SI=F di semua TF &
+   pull) — buang entri KV lama yg masih campur skala spot↔futures
+   (penyebab "chart gajelas antar TF" & "Entry/SL/TP ga muncul"). */
+const KV_CACHE_VER = 'v6'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {
@@ -193,33 +196,60 @@ const SOURCE_FETCHERS: Record<string, (s: string, i: string, l: number) => Promi
 }
 const SOURCE_ORDER = ['tradingview', 'twelvedata', 'yahoo-finance']
 
+/* ============================================================
+   METALS SCALE-LOCK (fix "chart masih gajelas antar TF beda-beda"
+   + "pine ga ada Entry/SL/TP") — DIAGNOSIS PRODUKSI 2026:
+   TradingView sering DITOLAK dari IP Cloudflare Workers, tapi
+   KADANG berhasil → satu TF dapat OANDA spot ($4035) sementara TF
+   lain / pull compile-pine dapat Yahoo GC=F futures ($4048) —
+   beda skala ±$13 dan beda anchor bucket (4h TV mulai 01:00 UTC,
+   Yahoo 00:00). Akibatnya: harga antar TF beda-beda, dan plot
+   Entry/SL/TP Pine (dihitung server dari pull TERPISAH) gagal
+   match waktu bar chart → semua null → garis TIDAK PERNAH muncul.
+   SOLUSI: logam (XAUUSD/XAGUSD) DIKUNCI ke SATU skala — Yahoo
+   GC=F/SI=F — di SEMUA pull (chart & Pine runner & tail), tanpa
+   sticky: deterministik, gratis, keyless, deep 5000 bar, dan
+   overlay tail otomatis pakai tick Yahoo se-skala (patchTailYahoo
+   Live). TradingView/TwelveData hanya fallback bila Yahoo mati.
+   ============================================================ */
+const METALS_SCALE_LOCK = new Set(['XAUUSD', 'XAGUSD'])
+const SOURCE_ORDER_METALS = ['yahoo-finance', 'tradingview', 'twelvedata']
+
 async function fetchChain(
   symbol: string,
   interval: string,
   limit: number,
 ): Promise<{ bars: Ohlcv[]; source: string } | null> {
   const stickyKey = `${symbol}:${interval}`
+  const isMetal = METALS_SCALE_LOCK.has(symbol)
 
-  /* 0) STICKY — sumber sukses terakhir dicoba DULU (anti ganti-ganti
-        skala antar request) */
-  const sticky = await readStickySource(stickyKey)
-  if (sticky && SOURCE_FETCHERS[sticky]) {
-    try {
-      const bars = await SOURCE_FETCHERS[sticky](symbol, interval, limit)
-      if (bars && bars.length) {
-        void writeStickySource(stickyKey, sticky)
-        return { bars, source: sticky }
-      }
-    } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
+  /* METALS SCALE-LOCK: tanpa sticky — urutan tetap Yahoo dulu di
+     SEMUA isolate & TF, jadi skala kagak bisa campur lagi. */
+  let sticky: string | null = null
+  if (!isMetal) {
+    /* 0) STICKY — sumber sukses terakhir dicoba DULU (anti ganti-ganti
+          skala antar request) */
+    sticky = await readStickySource(stickyKey)
+    if (sticky && SOURCE_FETCHERS[sticky]) {
+      try {
+        const bars = await SOURCE_FETCHERS[sticky](symbol, interval, limit)
+        if (bars && bars.length) {
+          void writeStickySource(stickyKey, sticky)
+          return { bars, source: sticky }
+        }
+      } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
+    }
   }
 
-  /* 1..3) URUTAN KANONIK: TradingView → TwelveData → Yahoo */
-  for (const source of SOURCE_ORDER) {
-    if (source === sticky) continue // sudah dicoba di atas
+  /* 1..3) URUTAN: metals → Yahoo (GC=F/SI=F) → TradingView → TwelveData;
+     non-metals → TradingView → TwelveData → Yahoo */
+  const order = isMetal ? SOURCE_ORDER_METALS : SOURCE_ORDER
+  for (const source of order) {
+    if (source === sticky) continue // sudah dicoba di atas (non-metals)
     try {
       const bars = await SOURCE_FETCHERS[source](symbol, interval, limit)
       if (bars && bars.length) {
-        void writeStickySource(stickyKey, source)
+        if (!isMetal) void writeStickySource(stickyKey, source)
         return { bars, source }
       }
     } catch { /* lanjut sumber berikutnya */ }
