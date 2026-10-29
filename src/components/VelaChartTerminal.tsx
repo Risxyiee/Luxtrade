@@ -124,16 +124,26 @@ const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[] 
 function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string) {
   try {
     const barsArr: Array<{ time: number }> = typeof ctx?.bars === 'function' ? ctx.bars() : []
+    /* BUCKET-TOLERANT MATCHING (fix "pine ga ada Entry/SL/TP"):
+       dulu nilai plot di-match ke bar dgn kesamaan waktu PERSIS —
+       kalau candle server datang dari sumber ber-anchor beda
+       (mis. 4h TradingView mulai 01:00 UTC vs Yahoo 00:00) SATU
+       MS pun selisih → semua nilai null → garis blank total.
+       Sekarang kedua sisi di-snap ke awal bucket TF (floor), jadi
+       selisih kecil anchor tetap mendarat di bar yang sama. */
+    const tfKey = String(ctx?.timeframe || '60')
+    const bucketMs = TF_MS[tfKey] || 3_600_000
+    const snap = (t: number) => Math.floor(t / bucketMs) * bucketMs
     const series = plots.map((p) => {
       const m = new Map<number, number | null>()
-      for (const d of p.data) m.set(d.time, d.value)
+      for (const d of p.data) if (d.value != null) m.set(snap(d.time), d.value)
       return {
         id: `ltxp-${scriptId}-${p.key}`,
         title: p.title,
         paneId: 'price',
         kind: 'line' as const,
         /* Index-aligned terhadap bars() SAAT EMIT (kontrak Vela) */
-        points: barsArr.map((b) => ({ time: b.time, value: m.get(b.time) ?? null })),
+        points: barsArr.map((b) => ({ time: b.time, value: m.get(snap(b.time)) ?? null })),
         style: { color: p.color, width: 2, lineStyle: 'solid' as const },
       }
     })
