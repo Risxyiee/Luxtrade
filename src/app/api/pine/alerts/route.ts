@@ -20,6 +20,8 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { normalizePineInterval, sanitizeSymbol } from '@/lib/pine-alert-runner'
+import { ensureDefaultScript } from '@/lib/pine-default-script'
+import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,11 +100,13 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 2) BODY */
+    /* 2) BODY — scriptId boleh UUID ATAU slug default (auto-resolve ke
+       UUID via ensureDefaultScript — kolom script_id butuh baris skrip). */
     const body = await request.json().catch(() => null) as
       { scriptId?: string; symbol?: string; timeframe?: string; interval?: string; enabled?: boolean } | null
-    const scriptId = String(body?.scriptId || '').trim()
-    if (!UUID_RE.test(scriptId)) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
+    let scriptId = String(body?.scriptId || '').trim()
+    const isDefaultSlug = scriptId === DEFAULT_PINE_SLUG
+    if (!UUID_RE.test(scriptId) && !isDefaultSlug) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
 
     const symbol = sanitizeSymbol(String(body?.symbol || ''))
     if (symbol.length < 3) return NextResponse.json({ error: 'Simbol tidak valid — contoh: XAUUSD, BTCUSDT, US100' }, { status: 400 })
@@ -110,8 +114,14 @@ export async function POST(request: NextRequest) {
     const timeframe = normalizePineInterval(String(body?.timeframe || body?.interval || '1h'))
     const enabled = body?.enabled !== false // default aktif
 
-    /* 3) SKRIP HARUS ADA & AKTIF (source tak pernah dikirim ke client) */
+    /* 3) SKRIP HARUS ADA & AKTIF (source tak pernah dikirim ke client)
+       Slug default → auto-seed dulu supaya FK script_id valid. */
     const supabase = admin()
+    if (isDefaultSlug) {
+      const seeded = await ensureDefaultScript().catch(() => null)
+      if (seeded?.id) scriptId = seeded.id
+      else return NextResponse.json({ error: 'Skrip default belum ter-seed di database — coba lagi sebentar (Supabase sedang tidak terjangkau).' }, { status: 503 })
+    }
     const { data: script, error: sErr } = await supabase
       .from('protected_scripts')
       .select('id, name')

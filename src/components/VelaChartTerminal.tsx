@@ -27,12 +27,12 @@
  * WebGL/canvas sejak konstruktor.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert, Trash2 } from 'lucide-react'
-import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
+import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import {
   consumePendingTradeHighlight,
@@ -316,8 +316,15 @@ function tfToAlert(tf: string): string {
   const t = String(tf || '').trim()
   return TF_TO_ALERT[t] || (/^\d+m$|^\d+h$|^1d$|^1w$/.test(t) ? t : '1h')
 }
-/** Hasil test alert → kalimat manusiawi untuk dialog */
+/** Hasil test alert → kalimat manusiawi untuk dialog.
+    FIX: dulu run gagal (candle kosong / engine error) TETAP tampil
+    "✅ Berjalan normal" — Bos tes tele tidak ada notif tanpa tahu
+    penyebabnya. Sekarang: error pipeline + alasan kirim ditampilkan
+    apa adanya (jujur), baru pesan sukses. */
 function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
+  if (tj?.ok === false || tj?.error) {
+    return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi tiap 5 menit.` }
+  }
   if (tj?.telegramBound !== true) {
     return { kind: 'warn', text: '✅ Alert aktif, tapi Telegram belum terhubung — buka Settings → Telegram agar sinyal bisa terkirim.' }
   }
@@ -325,6 +332,11 @@ function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
   if (tj?.sent > 0 && n > 0 && !tj?.testMessage) return { kind: 'ok', text: '🚀 Sinyal ditemukan & terkirim ke Telegram! Alert tetap aktif 24 jam.' }
   if (tj?.sent > 0 && tj?.testMessage) return { kind: 'ok', text: '🧪 Tes pipeline BERHASIL — cek Telegram kamu (pesan tes sudah masuk). Alert aktif 24 jam, dicek otomatis tiap 5 menit.' }
   if (tj?.sent > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke Telegram. Alert aktif 24 jam.` }
+  /* sent === 0 tapi pipeline OK — tampilkan ALASAN nyata dari runner */
+  const reason = Array.isArray(tj?.perUser) && tj.perUser.length && tj.perUser[0]?.reason
+    ? String(tj.perUser[0].reason)
+    : ''
+  if (/telegram/i.test(reason)) return { kind: 'warn', text: `⚠️ Pengecekan jalan, tapi pengiriman Telegram gagal (${reason}). Cek bot & chat_id di Settings → Telegram.` }
   return { kind: 'ok', text: '✅ Berjalan normal — belum ada sinyal di bar terakhir. Alert dicek server otomatis tiap 5 menit, 24 jam.' }
 }
 
@@ -637,6 +649,17 @@ export default function VelaChartTerminal({
               setActiveProtected((m) => ({ ...m, [key]: true })) // sudah dipulihkan persist
               continue
             }
+            /* Guard ANTI-DOBEL default: bila daftar skrip kosong (API
+               gagal) tapi persist Vela sudah memulihkan instance dgn id
+               tak dikenal — itu hampir pasti UUID default dr sesi lama.
+               Jangan tambah instance slug lagi (garis Entry/SL/TP dobel). */
+            if (defKeys.has(key) && !defMeta) {
+              const unknown = [...have].filter((id) => id && !keys.has(id))
+              if (unknown.length > 0 && presentCount > 0) {
+                setActiveProtected((m) => ({ ...m, [key]: true }))
+                continue
+              }
+            }
             if (presentCount > 0 && have.size < presentCount) {
               /* persist memulihkan instance tapi id tak terbaca —
                  jangan tambah dobel, cukup tandai aktif */
@@ -821,6 +844,12 @@ export default function VelaChartTerminal({
       })
       const tj: any = await t.json().catch(() => null)
       if (!t.ok) {
+        /* 502 = pipeline gagal (candle/engine) → tampilkan alasan NYATA,
+           bukan pura-pura "berjalan normal" (keluhan Bos) */
+        if (t.status === 502 && tj?.error) {
+          setAlertDlgMsg(alertTestMsg(tj))
+          return
+        }
         setAlertDlgMsg({ kind: 'ok', text: `✅ Alert aktif 24 jam — dicek otomatis tiap 5 menit. (Test gagal: ${String(tj?.error || t.status)})` })
         return
       }
@@ -961,7 +990,23 @@ export default function VelaChartTerminal({
   /* ---------- Indikator Eksklusif (Protected Pine — Pro) ----------
      Source tidak pernah keluar dari server: chip ini hanya menambah
      NATIVE indicator yang menggambar hasil plot dari /api/compile-pine.
-     Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403. */
+     Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403.
+
+     visibleProtected: chip DEFAULT (Luxtradee Candle Impulsif) SELALU
+     disertakan — bila daftar API belum datang/gagal, fallback meta
+     dari kode dipakai (id = slug; server compile-pine menerima dua-duanya). */
+  const visibleProtected = useMemo<ProtectedScriptMeta[]>(() => {
+    const rest = protectedScripts.filter((s) => s.slug !== DEFAULT_PINE_SLUG && s.id !== DEFAULT_PINE_SLUG)
+    /* Chip default SELALU ada di urutan pertama — pakai baris DB (id
+       UUID) bila tersedia; kalau belum, fallback meta dari kode
+       (id = slug — server compile-pine & alerts menerima dua-duanya). */
+    const dbDefault = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG || s.id === DEFAULT_PINE_SLUG)
+    const def: ProtectedScriptMeta = dbDefault || {
+      id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG, name: DEFAULT_PINE_NAME, description: DEFAULT_PINE_DESCRIPTION,
+    }
+    return [def, ...rest]
+  }, [protectedScripts])
+
   const addProtected = useCallback(async (s: ProtectedScriptMeta) => {
     if (protectedBusy) return
     const isDef = s.slug === DEFAULT_PINE_SLUG
@@ -1057,11 +1102,15 @@ export default function VelaChartTerminal({
 
       {/* ---------- Indikator Eksklusif (Protected Pine® — Pro) ----------
           Skrip master Bos: source tak pernah ke browser, user hanya
-          melihat garis + sinyal. Free melihat chip terkunci. */}
-      {protectedScripts.length > 0 && (
+          melihat garis + sinyal. Free melihat chip terkunci.
+          CHIP DEFAULT SELALU TAMPIL (fix Bos: "klik pineku keluar di
+          chart") — walau API daftar skrip gagal/lambat/belum login,
+          chip ⚡ Luxtradee Candle Impulsif tetap ada dan bisa diklik
+          (server compile-pine mengeksekusi slug tanpa DB). */}
+      {visibleProtected.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wider text-purple-300/50">Eksklusif</span>
-          {protectedScripts.map((s) => {
+          {visibleProtected.map((s) => {
             const isDefaultScript = s.slug === DEFAULT_PINE_SLUG
             const active = !!activeProtected[s.id] || (isDefaultScript && !!activeProtected[DEFAULT_PINE_SLUG])
             /* Free: skrip DEFAULT tetap bisa dilihat (permintaan Bos),
@@ -1172,9 +1221,20 @@ export default function VelaChartTerminal({
                 <div className="min-h-0 overflow-y-auto kscroll space-y-1">
                   <div className="text-[10px] text-white/40 uppercase tracking-wider">Skrip tersimpan</div>
                   {pineScripts.map((s) => (
-                    <button key={s.id} onClick={() => { setPineName(s.name); setPineSource(s.source) }}
-                      className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate">
-                      📄 {s.name}
+                    <button key={s.id} onClick={async () => {
+                      /* KLIK = LANGSUNG JALAN di chart (fix Bos: "kalau
+                         user klik pineku keluar di chart") — dulu hanya
+                         mengisi editor, user harus klik Save lagi. */
+                      setPineName(s.name); setPineSource(s.source)
+                      const err = await runOnChart(s.source)
+                      setPineMsg(err
+                        ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }
+                        : { kind: 'ok', text: `▶ ${s.name} tampil di chart.` })
+                    }}
+                      className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate"
+                      title={`Klik untuk menjalankan "${s.name}" di chart`}
+                      aria-label={`Jalankan ${s.name} di chart`}>
+                      ▶ {s.name}
                     </button>
                   ))}
                 </div>

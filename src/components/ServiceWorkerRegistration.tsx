@@ -37,6 +37,7 @@ export default function ServiceWorkerRegistration() {
 
     let updateIntervalId: ReturnType<typeof setInterval> | null = null
     let mounted = true
+    let visibilityCleanup: (() => void) | null = null
 
     const handleSWUpdates = async () => {
       try {
@@ -71,15 +72,33 @@ export default function ServiceWorkerRegistration() {
           })
         })
 
-        // Handle controller change (new SW took over)
+        // Handle controller change (new SW took over) — RELOAD SEKALI
+        // agar page memakai bundle BARU. Fix "chart sama kek awal":
+        // dulu SW baru aktif tapi halaman lama terus jalan sampai user
+        // refresh manual → perbaikan tak pernah terlihat.
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('[SW] Controller changed — new SW is active')
+          console.log('[SW] Controller changed — reloading for fresh bundle')
+          try {
+            if (sessionStorage.getItem('ltx_sw_reloaded') !== '1') {
+              sessionStorage.setItem('ltx_sw_reloaded', '1')
+              window.location.reload()
+            }
+          } catch { /* private mode — biarkan tanpa reload */ }
         })
 
         // Check for updates periodically — with cleanup
         updateIntervalId = setInterval(() => {
           reg!.update().catch(() => {})
         }, SW_UPDATE_INTERVAL)
+
+        // Cek update SAAT TAB KEMBALI FOKUS — user yang meninggalkan
+        // tab lalu kembali (pola pemakaian trader) langsung dapat
+        // versi terbaru tanpa menunggu interval 30 menit.
+        const onVisible = () => {
+          if (document.visibilityState === 'visible') reg!.update().catch(() => {})
+        }
+        document.addEventListener('visibilitychange', onVisible)
+        visibilityCleanup = () => document.removeEventListener('visibilitychange', onVisible)
 
         // ─── Periodic Background Sync Registration ───────────────────────────
         // Register the 'update-data' tag so the SW receives periodicsync events.
@@ -125,8 +144,8 @@ export default function ServiceWorkerRegistration() {
         clearInterval(updateIntervalId)
         updateIntervalId = null
       }
+      try { visibilityCleanup?.() } catch { /* diam */ }
     }
   }, [])
-
   return null
 }

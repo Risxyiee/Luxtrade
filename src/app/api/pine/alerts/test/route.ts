@@ -22,6 +22,8 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
 import { sendTelegramToUser } from '@/lib/pine-protected'
+import { ensureDefaultScript, DEFAULT_PINE_SOURCE } from '@/lib/pine-default-script'
+import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,25 +43,53 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 2) BODY */
+    /* 2) BODY — scriptId boleh UUID skrip ATAU slug default
+       "impulsive-breakout-xauusd" (fix: chip default dengan id slug
+       sebelumnya ditolak 400 → tes alert Pine tidak pernah sampai
+       Telegram bila daftar skrip dari DB gagal). */
     const body = await request.json().catch(() => null) as
       { scriptId?: string; symbol?: string; timeframe?: string; interval?: string } | null
-    const scriptId = String(body?.scriptId || '').trim()
-    if (!UUID_RE.test(scriptId)) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
+    const scriptIdRaw = String(body?.scriptId || '').trim()
+    const isDefaultSlug = scriptIdRaw === DEFAULT_PINE_SLUG
+    if (!UUID_RE.test(scriptIdRaw) && !isDefaultSlug) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
     const symbol = sanitizeSymbol(String(body?.symbol || ''))
     if (symbol.length < 3) return NextResponse.json({ error: 'Simbol tidak valid — contoh: XAUUSD, BTCUSDT, US100' }, { status: 400 })
     const interval = normalizePineInterval(String(body?.timeframe || body?.interval || '1h'))
 
-    /* 3) MUAT SKRIP (service role — source tetap di server) */
+    /* 3) MUAT SKRIP (service role — source tetap di server)
+       Slug default → ensureDefaultScript() (auto-seed, dapat UUID);
+       bila Supabase sedang tidak terjangkau, pakai baris sintetis
+       dari kode — replika TS default TIDAK butuh DB untuk jalan. */
     const supabase = getSupabaseAdmin()
     if (!supabase) return NextResponse.json({ error: 'Server belum terhubung Supabase (service role)' }, { status: 500 })
-    const { data: script, error: sErr } = await supabase
-      .from('protected_scripts')
-      .select('id, slug, name, source, alert_rules')
-      .eq('id', scriptId)
-      .eq('is_active', true)
-      .maybeSingle()
-    if (sErr || !script) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
+    let script: RunnerScript | null = null
+    if (isDefaultSlug) {
+      const seeded = await ensureDefaultScript().catch(() => null)
+      if (seeded?.id) {
+        const { data } = await supabase
+          .from('protected_scripts')
+          .select('id, slug, name, source, alert_rules')
+          .eq('id', seeded.id)
+          .eq('is_active', true)
+          .maybeSingle()
+        if (data) script = data as RunnerScript
+      }
+      if (!script) {
+        script = {
+          id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG, name: DEFAULT_PINE_NAME,
+          source: DEFAULT_PINE_SOURCE, alert_rules: [],
+        }
+      }
+    } else {
+      const { data, error: sErr } = await supabase
+        .from('protected_scripts')
+        .select('id, slug, name, source, alert_rules')
+        .eq('id', scriptIdRaw)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (sErr || !data) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
+      script = data as RunnerScript
+    }
 
     /* 4) TELEGRAM USER — bila belum terhubung, evaluasi tetap jalan
        (hasil pemicu dilaporkan ke UI, tanpa kirim/log) */
@@ -74,6 +104,21 @@ export async function POST(request: NextRequest) {
       [{ userId, chatId: chatId || '0' }],
       { send: telegramBound, writeLog: telegramBound },
     )
+
+    /* 5b) JUJUR — kegagalan pipeline TIDAK dibungkus "berjalan normal".
+       Dulu: run gagal (candle kosong / engine error) tetap 200 ok → UI
+       menampilkan "✅ Berjalan normal — belum ada sinyal" padahal
+       TIDAK ADA pengecekan yang jalan (keluhan Bos: tes tele tidak
+       muncul apa-apa). Sekarang: error = HTTP 502 + alasan jelas. */
+    if (!out.ok) {
+      return NextResponse.json({
+        ok: false,
+        error: out.error || 'Evaluasi alert gagal',
+        telegramBound,
+        candleSource: out.candleSource,
+        evaluatedAt: new Date().toISOString(),
+      }, { status: 502 })
+    }
 
     /* 6) JAMINAN TES (fix: "tes alert pine ga ada notif") —
        Evaluasi bar terakhir hampir selalu TANPA sinyal (entry hanya
@@ -109,6 +154,7 @@ export async function POST(request: NextRequest) {
       sent: out.sent,
       testMessage,
       telegramBound,
+      perUser: out.perUser,
       candleSource: out.candleSource,
       evaluatedAt: new Date().toISOString(),
     })

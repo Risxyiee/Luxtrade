@@ -34,8 +34,26 @@ const nextConfig: NextConfig = {
   // Enable static export for Capacitor (generates 'out/' directory)
   ...(isCapacitorBuild ? { output: 'export' as const } : {}),
 
+  // BUILD ID UNIK PER BUILD — fix "chart sama kek awal padahal udah diperbaiki".
+  // Dulu konstan 'luxtrade-v1' → semua deploy dianggap build yang sama:
+  // router cache / RSC prefetch / prerender manifest tidak ke-invalidate
+  // → browser & CDN bisa melanjutkan bundle lama. Sekarang tiap build
+  // dapat id baru → chunk lama pasti usang → client selalu segar.
   generateBuildId: async () => {
-    return 'luxtrade-v1'
+    return `luxtrade-${Date.now().toString(36)}`
+  },
+
+  // sw.js WAJIB no-store — kalau ke-cache browser/CDN, Service Worker
+  // baru tak pernah terunduh → user terjebak versi lama berhari-hari.
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+        ],
+      },
+    ]
   },
 };
 

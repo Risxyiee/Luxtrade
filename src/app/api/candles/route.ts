@@ -64,6 +64,7 @@ import {
 } from '@/lib/market/yahoo'
 import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 import { fetchTradingViewCandles } from '@/lib/market/tradingview'
+import { overlaySpotTail, hasSpotOverlay } from '@/lib/market/spot-live'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -238,7 +239,12 @@ export async function GET(request: NextRequest) {
        nocache + limit kecil = poll candle terakhir dari provider Vela.
        Pakai micro-cache 2.5s agar banyak client berbagi satu fetch
        upstream; jawaban TANPA cache HTTP (no-store) supaya ujung
-       candle bergerak mulus layaknya feed broker. */
+       candle bergerak mulus layaknya feed broker.
+       FIX "CANDLE GA GERAK" (produksi): TradingView sering ditolak
+       dari IP Workers & TwelveData butuh key → sisa Yahoo telat
+       10–20 menit → ujung candle diam. Overlay SPOT keyless real-time
+       (gold-api utk XAU/XAG, binance-vision utk crypto) mengoreksi
+       ujung candle SEBELUM dikirim ke chart. */
     if (nocache && limit <= 3) {
       const liveKey = `${validSymbol}:${interval}`
       const hit = getLiveCached(liveKey)
@@ -251,16 +257,28 @@ export async function GET(request: NextRequest) {
       }
       const tail = await fetchChain(validSymbol, interval, Math.max(limit, 3))
       if (tail && tail.bars.length) {
-        liveCache.set(liveKey, { data: tail.bars, timestamp: Date.now(), source: tail.source })
+        /* Overlay spot real-time utk simbol yang didukung (XAU/XAG/
+           crypto) — Yahoo telat = ujung candle diam. Simbol lain
+           apa adanya. */
+        const overlayWanted = hasSpotOverlay(validSymbol)
+        let liveBars = tail.bars
+        let liveSource = tail.source
+        if (overlayWanted) {
+          try {
+            const patched = await overlaySpotTail(validSymbol, interval, tail.bars, Math.max(limit, 3))
+            if (patched?.bars?.length) { liveBars = patched.bars; liveSource = patched.source }
+          } catch { /* overlay gagal → tail apa adanya */ }
+        }
+        liveCache.set(liveKey, { data: liveBars, timestamp: Date.now(), source: liveSource })
         if (liveCache.size > 300) {
           const oldest = [...liveCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
           if (oldest) liveCache.delete(oldest[0])
         }
         /* segarkan juga cache utama (bar terbaru berguna utk reload) */
-        if (tail.bars.length >= 30) setCache(`${validSymbol}:${interval}:300`, tail.bars, tail.source)
+        if (liveBars.length >= 30) setCache(`${validSymbol}:${interval}:300`, liveBars, liveSource)
         return NextResponse.json({
           success: true, symbol: validSymbol, interval,
-          data: tail.bars.slice(-limit), source: tail.source,
+          data: liveBars.slice(-limit), source: liveSource,
           fetchedAt: new Date().toISOString(),
         }, { headers: { 'Cache-Control': 'no-store' } })
       }
