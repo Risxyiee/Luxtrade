@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (!supabase) return NextResponse.json({ error: 'Server belum terhubung Supabase (service role)' }, { status: 500 })
     const { data: script, error: sErr } = await supabase
       .from('protected_scripts')
-      .select('id, name, source, alert_rules')
+      .select('id, slug, name, source, alert_rules')
       .eq('id', scriptId)
       .eq('is_active', true)
       .maybeSingle()

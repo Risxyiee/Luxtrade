@@ -35,14 +35,14 @@ cleanupOutdatedCaches()
 // ─── Offline Fallback ─────────────────────────────────────────────────────────
 
 const OFFLINE_URL = '/offline.html'
-// v7: purge semua cache v6 — perbaikan besar chart (Pine v5 Candle
-// Impulsif + datafeed 5000 bar) tidak terlihat user lama karena HTML
-// lama ter-serve dari PAGES_CACHE saat jaringan lambat (timeout 3s
-// keburu jatuh ke cache). Versi naik → semua cache lama dibuang sekali.
-const CACHE_NAME = 'luxtradee-offline-v7'
-const STATIC_CACHE = 'luxtradee-static-v7'
-const PAGES_CACHE = 'luxtradee-pages-v7'
-const API_CACHE = 'luxtradee-api-v7'
+// v8: purge semua cache v7 — permintaan Bos "reset chache siapa tau masi
+// chache lama" + paste strategy verbatim v5 (Luxtradee Candle Impulsif).
+// HTML PAGES_CACHE v7 yang ter-cache sebelum deploy terakhir bikin user
+// lama masih lihat bundle lawas. Versi naik → semua cache v7 dibuang sekali.
+const CACHE_NAME = 'luxtradee-offline-v8'
+const STATIC_CACHE = 'luxtradee-static-v8'
+const PAGES_CACHE = 'luxtradee-pages-v8'
+const API_CACHE = 'luxtradee-api-v8'
 
 const sw = self as unknown as ServiceWorkerGlobalScope
 
