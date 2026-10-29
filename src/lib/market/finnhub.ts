@@ -2,9 +2,11 @@
  * ============================================================
  * finnhub.ts — fetcher candle Finnhub (butuh FINNHUB_API_KEY)
  * ============================================================
- * Sumber candle ke-2 Luxtradee (urutan: TradingView → Finnhub →
- * TwelveData → Yahoo). API resmi Finnhub — forex via OANDA:,
- * crypto via BINANCE:. TANPA key → langsung null (skip, bukan error).
+ * PARKIR (keputusan Bos): TIDAK DIPAKAI di rantai candle — urutan
+ * final rantai adalah TradingView → TwelveData → Yahoo (Binance
+ * dihapus). File ini dipertahankan bila kelak Bos ingin memakai
+ * Finnhub lagi. API resmi Finnhub — forex via OANDA:, crypto
+ * via BINANCE:. TANPA key → langsung null (skip, bukan error).
  *
  * Endpoint:
  *   /api/v1/forex/candle?symbol=OANDA:XAU_USD&resolution=60&count=300

@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
     console.log('   Interval:', interval)
     console.log('   Limit:', limit)
 
-    // Fetch OHLC via rantai server Luxtradee (TradingView → Finnhub →
-    // TwelveData → Yahoo) — BINANCE DIBUANG (keputusan Bos)
+    // Fetch OHLC via rantai server Luxtradee (TradingView → TwelveData
+    // → Yahoo) — urutan FINAL Bos, BINANCE DIBUANG
     const cd = await fetchServerCandles(symbol.toUpperCase(), interval, Math.min(parseInt(limit) || 150, 500))
     if (!cd || !cd.bars.length) {
       throw new Error('Data candle tidak tersedia dari semua sumber')

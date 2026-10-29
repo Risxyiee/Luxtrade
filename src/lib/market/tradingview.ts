@@ -2,8 +2,8 @@
  * ============================================================
  * tradingview.ts — fetcher candle TradingView (websocket, keyless)
  * ============================================================
- * Sumber candle UTAMA Luxtradee (urutan: TradingView → Finnhub →
- * TwelveData → Yahoo). Protokol websocket publik di balik website
+ * Sumber candle UTAMA Luxtradee (urutan FINAL Bos: TradingView →
+ * TwelveData → Yahoo — BINANCE DIBUANG). Protokol websocket publik
  * TradingView (token tamu `unauthorized_user_token`) — tanpa akun,
  * tanpa API key, data grade broker (OANDA:XAUUSD, BINANCE:BTCUSDT).
  *

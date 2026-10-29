@@ -9,7 +9,7 @@
  *     (evaluasi langsung 1 grup untuk 1 user)
  *
  * Alur per grup (script, symbol, timeframe):
- *   1. fetchServerCandles (TD → Yahoo → Binance, keyless)
+ *   1. fetchServerCandles (TradingView → TwelveData → Yahoo, keyless)
  *   2. runPineHeadless    (source TIDAK pernah keluar dari server)
  *   3. Kumpulkan pemicu: event engine alert() pada bar terakhir
  *      + alert_rules declaratif (cross_above/cross_below/above/below)
@@ -145,7 +145,7 @@ export async function runAlertGroup(
 
   if (!users.length) { outcome.ok = true; return outcome }
 
-  /* 1) Candle server (Twelve Data → Yahoo → Binance — keyless) */
+  /* 1) Candle server (TradingView → TwelveData → Yahoo — keyless) */
   const cd = await fetchServerCandles(symbol, interval, 300)
   if (!cd || !cd.bars.length) {
     outcome.error = `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server`
