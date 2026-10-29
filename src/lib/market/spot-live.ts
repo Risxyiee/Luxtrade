@@ -9,22 +9,29 @@
  *   key — sisa YAHOO yang datanya FX/Gold TERTINGGAL 10–20 MENIT.
  *   Akibatnya ujung candle "diam" padahal market bergerak.
  *
- * SOLUSI: overlay sumber SPOT KEYLESS yang REAL-TIME, dipakai HANYA
- * untuk mengoreksi ujung candle (tail) — sejarah tetap dari rantai
- * utama (grade lebih baik):
- *   - XAUUSD / XAGUSD → api.gold-api.com/price/{XAU|XAG}
- *     (spot grade dealer, update detik-an — sudah dipakai agent-proposals)
+ * SOLUSI (REVISI — ATURAN EMAS: EKOR WAJIB SE-SKALA DENGAN SEJARAH):
+ *   Dulu ekor dipatch harga spot gold-api walau sejarah bisa dari
+ *   Yahoo GC=F (FUTURES — beda level ±$10-40 dari spot!) → ekor
+ *   candle "melompat ke bawah" (keluhan Bos) dan chart pindah-pindah
+ *   level saat sumber rantai bergantian ("kek setan"). Sekarang patch
+ *   mengikuti SKALA SUMBER SEJARAH:
+ *   - Sejarah SPOT-GRADE (TradingView OANDA / TwelveData) → patch
+ *     harga spot gold-api (XAU/XAG, keyless, detik-an).
+ *   - Sejarah YAHOO (GC=F/SI=F futures) → patch dengan TICK YAHOO
+ *     SENDIRI (meta.regularMarketPrice — level PASTI sama dgn
+ *     sejarahnya, update nyaris real-time saat bursa buka).
  *   - Crypto (BTCUSDT dll) → data-api.binance.vision klines
- *     (mirror publik resmi Binance, OHLC penuh real-time, tanpa key)
+ *     (OHLC penuh real-time, tanpa key).
  *
  * SEMUA keyless → tidak menambah env baru. Gagal overlay = pakai
- * tail apa adanya (tidak pernah bikin jalur live mati).
+ * tail apa adanya (tidak pernah bikin jalur live mati) — dan patch
+ * yang lintas-skala (drift > guard) DITOLAK, bukan dipaksakan.
  *
  * HANYA untuk server (API route).
  */
 
 import type { YahooCandle } from './yahoo'
-import { validatePrice, fetchYahooChart } from './yahoo'
+import { validatePrice, fetchYahooQuoteTick } from './yahoo'
 
 /* ---------- Interval kanonik → detik per bar ----------
    Menerima DUA format: kanonik ('5m','1h',…) dan format Vela dari
@@ -69,6 +76,11 @@ export function isCryptoLiveSymbol(symbol: string): boolean {
   return CRYPTO_BINANCE_RE.test(String(symbol || '').trim().toUpperCase())
 }
 
+/* Sumber sejarah ber-SKALA SPOT (level = harga dealer/spot): patch boleh
+   pakai harga spot gold-api. Sumber lain (yahoo = futures GC=F/SI=F)
+   HARUS dipatch tick dari sumbernya sendiri — bukan spot. */
+const SPOT_GRADE_SOURCES = new Set(['tradingview', 'twelvedata'])
+
 /** Simbol punya overlay spot real-time? (gold-api / binance-vision) */
 export function hasSpotOverlay(symbol: string): boolean {
   const s = String(symbol || '').trim().toUpperCase()
@@ -110,30 +122,17 @@ async function fetchBinancePrice(bSymbol: string): Promise<number | null> {
   }
 }
 
-/** Harga spot gold/silver dengan FALLBACK BERLAPIS (log produksi Bos:
-    "XAU/XAG spot tak tersedia — tail tanpa patch" = gold-api DAN PAXG
-    gagal bersamaan dari egress Cloudflare Workers → candle diam):
+/** Harga spot gold/silver dengan fallback 2 LAPIS — KEDUANYA
+    SPOT-LEVEL (tidak ada lagi fallback futures yang skala-nya beda):
     1. gold-api.com (primer — spot grade dealer)
-    2. PAXG/USDT binance-vision (token 1:1 emas fisik, track ±0.5%)
-    3. YAHOO futures (GC=F/SI=F) regularMarketPrice — sumber yang
-       TERBUKTI selalu terjangkau dari Cloudflare Workers (rantai utama
-       candle memakainya), meta regularMarketPrice menyala tiap tick
-       bursa → jauh lebih segar dari candle historisnya.
+    2. PAXG/USDT binance-vision (token 1:1 emas fisik, track spot ±0.2%)
+    Yahoo futures SENGAJA DIBUANG dari rantai spot: GC=F beda level
+    $10-40 dari spot (basis futures) → mem-patch sejarah spot dgn
+    futures = ekor candle melompat (bug "candle kebawah" Bos).
     Cache sukses 10 dtk: polling tick 3 dtk dari banyak client tidak
-    boleh nembak 3 sumber per request (subrequest CF Workers terbatas). */
+    boleh nembak 2 sumber per request (subrequest CF Workers terbatas). */
 let goldSpotCache: { price: number; at: number; src: string } | null = null
 const GOLD_SPOT_CACHE_MS = 10_000
-
-/** Tick terbaru Yahoo futures (GC=F utk XAU, SI=F utk XAG) —
-    liveTick=true → bar sintetis dari meta.regularMarketPrice. */
-async function fetchYahooFuturesTick(symbol: 'XAUUSD' | 'XAGUSD'): Promise<number | null> {
-  try {
-    const bars = await fetchYahooChart(symbol, '5m', 1, true)
-    const last = bars && bars.length ? bars[bars.length - 1] : null
-    if (last && Number.isFinite(last.close) && last.close > 0) return last.close
-  } catch { /* diam — fallback berikutnya */ }
-  return null
-}
 
 async function fetchGoldSpotPrice(apiSym: string): Promise<{ price: number; src: string } | null> {
   const now = Date.now()
@@ -151,12 +150,6 @@ async function fetchGoldSpotPrice(apiSym: string): Promise<{ price: number; src:
       goldSpotCache = { price: paxg, at: now, src: 'paxg-binance' }
       return { price: paxg, src: 'paxg-binance' }
     }
-  }
-  const ySym = apiSym === 'XAU' ? 'XAUUSD' : 'XAGUSD'
-  const yf = await fetchYahooFuturesTick(ySym)
-  if (yf != null) {
-    goldSpotCache = { price: yf, at: now, src: 'yahoo-futures' }
-    return { price: yf, src: 'yahoo-futures' }
   }
   return null
 }
@@ -235,7 +228,7 @@ export async function patchTailWithSpot(
   }
 
   const spotRes = await fetchGoldSpotPrice(g)
-  if (!spotRes) { console.warn('[spot-live] XAU/XAG spot tak tersedia (3 sumber gagal) — tail tanpa patch'); return bars }
+  if (!spotRes) { console.warn('[spot-live] XAU/XAG spot tak tersedia (gold-api & PAXG gagal) — tail tanpa patch'); return bars }
   const spot = spotRes.price
   console.log(`[spot-live] spot ${g} dari ${spotRes.src} = ${spot}`)
   const valid = validatePrice(s, spot)
@@ -244,15 +237,26 @@ export async function patchTailWithSpot(
   const nowSec = Math.floor(Date.now() / 1000)
   const currentBucket = Math.floor(nowSec / intervalSec) * intervalSec
 
-  /* a) buang bar tak selaras bucket di ekor (artefak Yahoo tick) */
-  const cleaned = bars.filter((b) => Number.isFinite(b.time) && b.time > 0 && b.time % intervalSec === 0)
+  /* a) buang bar tak selaras bucket di ekor (artefak Yahoo tick) —
+     KECUALI bar terakhir yang masih berada dalam window bucket
+     BERJALAN: sumber seperti TradingView punya ANCHOR bucket sendiri
+     (4h-nya mulai 01:00 UTC, bukan 00:00) — bar itu sah sebagai candle
+     berjalan; memaksakan anchor UTC justru menciptakan candle kembar
+     ("kadang ilang"). KONVENSI TIP MENGIKUTI SUMBER. */
+  const windowStart = nowSec - intervalSec
+  const rawLast = bars[bars.length - 1]
+  const tipIsRecent = Number.isFinite(rawLast?.time) &&
+    rawLast.time > windowStart && rawLast.time <= nowSec + 60
+  const cleaned = bars.filter((b, idx) =>
+    Number.isFinite(b.time) && b.time > 0 &&
+    (b.time % intervalSec === 0 || (idx === bars.length - 1 && tipIsRecent)),
+  )
 
-  /* Kalau SEMUA bar Yahoo adalah artefak tick (tak ada satu pun
-     selaras bucket — sering terjadi di 1h/2h/4h) → TETAP kirim ujung
-     candle hidup: sintesis bar bucket BERJALAN dari spot. Tanpa ini
-     candle 1h "diam" walau harga bergerak. */
+  /* Kalau SEMUA bar adalah artefak tick (tak ada satu pun layak) →
+     TETAP kirim ujung candle hidup: sintesis bar bucket BERJALAN
+     dari spot. Tanpa ini candle "diam" walau harga bergerak. */
   if (!cleaned.length) {
-    console.warn('[spot-live] bar Yahoo tak selaras bucket — sintesis bar berjalan dari spot')
+    console.warn('[spot-live] bar sumber tak layak — sintesis bar berjalan dari spot')
     return [{
       time: currentBucket,
       open: valid, high: valid, low: valid, close: valid,
@@ -262,34 +266,34 @@ export async function patchTailWithSpot(
   const out = [...cleaned]
   const last = out[out.length - 1]
 
-  /* sanity: spot vs close terakhir harus wajar (< 15% — anti salah-sumber) */
+  /* sanity KETAT: spot vs close terakhir — XAU/XAG beda sumber spot
+     normalnya < 0.15% ($2-6). Drift lebih (mis. mencampur futures
+     GC=F dgn spot) → TOLAK patch: ekor melompat = chart rusak. */
   if (Number.isFinite(last.close) && last.close > 0) {
     const drift = Math.abs(spot - last.close) / last.close
-    if (drift > 0.15) {
-      console.warn('[spot-live] drift > 15% (', last.close, '→', spot, ') — tail tanpa patch')
-      return bars // data aneh → biarkan tail apa adanya
+    if (drift > 0.0035) {
+      console.warn('[spot-live] drift', (drift * 100).toFixed(2) + '%', '(', last.close, '→', spot, ') — tail tanpa patch (anti lompat skala)')
+      return bars // beda skala → biarkan tail apa adanya
     }
   }
 
-  /* b) isi bucket kosong (Yahoo telat buka bar baru) — CAP 60 bucket:
-     kalau Yahoo telat jauh (mis. > 1 jam), isi HANYA 60 bucket
-     TERAKHIR supaya ujung candle selalu sampai bucket berjalan;
-     sejarah sebelum gap menyusul dari rantai utama saat refresh.
-     (Guard lama "bail kalau gap > 12" bikin patch GAGAL SENYAP —
-     Yahoo 5m sering telat > 1 jam → candle tetap diam.) */
+  /* b) TIP: bila bar terakhir masih segar → WAKTU bar itu yang jadi
+     tip (anchor sumber). Bila basi → isi bucket kosong sampai bucket
+     berjalan (CAP 60 — Yahoo telat jauh tetap sampai ujung). */
   const decimals = s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 2
   const prevClose0 = Number.isFinite(last.close) && last.close > 0 ? last.close : valid
-  const missing = Math.floor((currentBucket - last.time) / intervalSec)
+  const tipTime = tipIsRecent ? last.time : currentBucket
+  const missing = Math.floor((tipTime - last.time) / intervalSec)
   if (missing > 0) {
-    const startT = Math.max(last.time + intervalSec, currentBucket - 59 * intervalSec)
-    for (let t = startT; t <= currentBucket; t += intervalSec) {
+    const startT = Math.max(last.time + intervalSec, tipTime - 59 * intervalSec)
+    for (let t = startT; t <= tipTime; t += intervalSec) {
       out.push({ time: t, open: prevClose0, high: valid, low: valid, close: valid })
     }
   }
 
   /* c) patch bar berjalan dgn harga spot terbaru */
   const tip = out[out.length - 1]
-  if (tip && tip.time === currentBucket) {
+  if (tip && tip.time === tipTime) {
     tip.close = Number(spot.toFixed(decimals))
     if (Number.isFinite(tip.high)) tip.high = Math.max(tip.high, tip.close)
     if (Number.isFinite(tip.low)) tip.low = Math.min(tip.low, tip.close)
@@ -298,10 +302,92 @@ export async function patchTailWithSpot(
   return out
 }
 
+/* ============================================================
+   4) PATCH TAIL YAHOO — tick dari SUMBER YAHOO SENDIRI
+   ============================================================
+   Sejarah dari Yahoo (GC=F/SI=F futures) TIDAK BOLEH dipatch harga
+   spot (beda basis $10-40 → ekor melompat). Sebagai gantinya ekor
+   dipatch regularMarketPrice Yahoo — level PASTI se-skala dgn
+   sejarahnya dan bergerak nyaris real-time saat bursa buka.
+   Dipakai juga sebagai penyelamat "candle ga gerak" ketika gold-api
+   tidak tersedia dari egress Cloudflare. */
+
+/** Tick Yahoo harus cukup segar: bursa tutup (weekend/holiday) →
+    regularMarketTime diam → JANGAN sintesis (biar tidak pindah level). */
+const YAHOO_TICK_MAX_AGE_SEC = 15 * 60
+
+export async function patchTailYahooLive(
+  symbol: string,
+  interval: string,
+  bars: YahooCandle[],
+): Promise<YahooCandle[]> {
+  const s = String(symbol || '').trim().toUpperCase()
+  const intervalSec = INTERVAL_SECONDS[normInterval(interval)]
+  if (!intervalSec || !Array.isArray(bars) || !bars.length) return bars
+
+  const tick = await fetchYahooQuoteTick(s)
+  if (!tick) { console.warn('[spot-live] yahoo-tick gagal diambil — tail tanpa patch'); return bars }
+  if (tick.time < Date.now() / 1000 - YAHOO_TICK_MAX_AGE_SEC) { console.warn('[spot-live] yahoo-tick basi (', Math.floor(Date.now() / 1000 - tick.time), 's ) — tail tanpa patch'); return bars } // market tutup
+  const valid = validatePrice(s, tick.price)
+  if (valid == null) { console.warn('[spot-live] yahoo-tick di luar rentang wajar:', tick.price); return bars }
+
+  const nowSec = Math.floor(Date.now() / 1000)
+  const currentBucket = Math.floor(nowSec / intervalSec) * intervalSec
+
+  /* buang bar tak selaras bucket di ekor (artefak tick) — bar terakhir
+     yang masih dalam window berjalan TETAP disimpan (anchor sumber) */
+  const windowStart = nowSec - intervalSec
+  const rawLast = bars[bars.length - 1]
+  const tipIsRecent = Number.isFinite(rawLast?.time) &&
+    rawLast.time > windowStart && rawLast.time <= nowSec + 60
+  const cleaned = bars.filter((b, idx) =>
+    Number.isFinite(b.time) && b.time > 0 &&
+    (b.time % intervalSec === 0 || (idx === bars.length - 1 && tipIsRecent)),
+  )
+  if (!cleaned.length) {
+    return [{ time: currentBucket, open: valid, high: valid, low: valid, close: valid }]
+  }
+
+  const out = [...cleaned]
+  const last = out[out.length - 1]
+
+  /* sanity: tick Yahoo vs close sejarah Yahoo — sama sumber, normalnya
+     < 0.5% (gap antar-sesi). Lebih → aneh, jangan patch. */
+  if (Number.isFinite(last.close) && last.close > 0) {
+    const drift = Math.abs(valid - last.close) / last.close
+    if (drift > 0.02) {
+      console.warn('[spot-live] yahoo-tick drift', (drift * 100).toFixed(2) + '%', '— tail tanpa patch')
+      return bars
+    }
+  }
+
+  const decimals = s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 2
+  const prevClose0 = Number.isFinite(last.close) && last.close > 0 ? last.close : valid
+  const tipTime = tipIsRecent ? last.time : currentBucket
+  const missing = Math.floor((tipTime - last.time) / intervalSec)
+  if (missing > 0) {
+    const startT = Math.max(last.time + intervalSec, tipTime - 59 * intervalSec)
+    for (let t = startT; t <= tipTime; t += intervalSec) {
+      out.push({ time: t, open: prevClose0, high: valid, low: valid, close: valid })
+    }
+  }
+
+  const tip = out[out.length - 1]
+  if (tip && tip.time === tipTime) {
+    tip.close = Number(valid.toFixed(decimals))
+    if (Number.isFinite(tip.high)) tip.high = Math.max(tip.high, tip.close)
+    if (Number.isFinite(tip.low)) tip.low = Math.min(tip.low, tip.close)
+  }
+  return out
+}
+
 /**
  * OVERLAY TAIL UTAMA — dipanggil jalur live /api/candles?nocache.
- *   - Crypto  → tail penuh dari binance-vision (OHLC real-time)
- *   - XAU/XAG → tail dari rantai utama dipatch harga spot gold-api
+ * ATURAN EMAS: patch HARUS se-skala dengan sejarah (parameter `source`
+ * = sumber sejarah dari fetchChain):
+ *   - Crypto                     → tail penuh binance-vision (real-time)
+ *   - XAU/XAG, sumber spot-grade → harga spot gold-api
+ *   - XAU/XAG, sumber lain (Yahoo futures) → tick Yahoo sendiri
  * Gagal semua → bars apa adanya (tanpa error).
  */
 export async function overlaySpotTail(
@@ -309,19 +395,28 @@ export async function overlaySpotTail(
   interval: string,
   bars: YahooCandle[],
   limit: number,
+  source = '',
 ): Promise<{ bars: YahooCandle[]; source: string }> {
   const s = String(symbol || '').trim().toUpperCase()
 
   if (isCryptoLiveSymbol(s)) {
     const tail = await fetchCryptoTail(s, interval, limit)
     if (tail && tail.length) return { bars: tail, source: 'binance-spot' }
-    return { bars, source: 'yahoo-finance' }
+    return { bars, source: source || 'yahoo-finance' }
   }
 
   if (GOLD_API_SYMBOLS[s]) {
-    const patched = await patchTailWithSpot(s, interval, bars)
-    return { bars: patched, source: patched === bars ? 'yahoo-finance' : 'goldapi-spot' }
+    if (SPOT_GRADE_SOURCES.has(String(source || '').toLowerCase())) {
+      /* sejarah spot-grade (TradingView/TwelveData) → patch spot gold-api */
+      const patched = await patchTailWithSpot(s, interval, bars)
+      return { bars: patched, source: patched === bars ? (source || 'tradingview') : 'goldapi-spot' }
+    }
+    /* sejarah Yahoo (futures) / sumber tak dikenal → tick Yahoo sendiri
+       (se-skala — anti ekor melompat) */
+    console.log('[spot-live] overlay yahoo-branch:', s, interval, 'src=', source, 'bars=', bars.length)
+    const patched = await patchTailYahooLive(s, interval, bars)
+    return { bars: patched, source: source || 'yahoo-finance' }
   }
 
-  return { bars, source: 'yahoo-finance' }
+  return { bars, source: source || 'yahoo-finance' }
 }

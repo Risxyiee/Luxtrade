@@ -94,7 +94,11 @@ registerRoute(
     cacheName: STATIC_CACHE,
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 200,
+        // FIX "kadang ilang": 200 entri terlalu kecil — chunk route Next.js
+        // bisa ratusan; eviksi LRU membuat chunk lama hilang lalu halaman
+        // lama (cache navigasi) minta chunk yang sudah terbuang → 404 →
+        // ChunkLoadError → crash. 600 entri + auto-reload GlobalErrorBoundary.
+        maxEntries: 600,
         maxAgeSeconds: 365 * 24 * 60 * 60,
       }),
       new CacheableResponsePlugin({

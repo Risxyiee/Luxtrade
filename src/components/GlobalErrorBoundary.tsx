@@ -23,13 +23,64 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
+  /* ----------------------------------------------------------
+     AUTO-RECOVERY ChunkLoadError (fix "chart kadang ilang"):
+     setelah deploy baru, browser yang memegang HTML/chunk lama
+     (cache service worker / tab terbuka) mencoba memuat chunk
+     versi lama yang sudah tidak ada → ChunkLoadError → crash
+     sampai user reload MANUAL. Sekarang: reload OTOMATIS SEKALI
+     (loop-guard sessionStorage 15 detik) supaya aplikasi pulih
+     sendiri tanpa campur tangan user.
+     ---------------------------------------------------------- */
+  private isChunkError(e?: Error): boolean {
+    if (!e) return false
+    const name = e.name || ''
+    const msg = e.message || ''
+    return (
+      name === 'ChunkLoadError' ||
+      /Loading (chunk|CSS chunk)/i.test(msg) ||
+      /dynamically imported module/i.test(msg) ||
+      /Importing a module script failed/i.test(msg) ||
+      /error loading dynamically imported module/i.test(msg)
+    )
+  }
+
+  private autoReloadOnce() {
+    try {
+      const KEY = 'ltx_chunkload_auto_reload'
+      const now = Date.now()
+      const last = Number(sessionStorage.getItem(KEY) || 0)
+      if (now - last < 15000) return // anti-loop: maks 1× per 15 detik
+      sessionStorage.setItem(KEY, String(now))
+      console.warn('♻️ [GLOBAL ERROR] ChunkLoadError terdeteksi → auto-reload (cache lama pasca deploy)')
+      window.location.reload()
+    } catch { /* private mode — biarkan UI manual */ }
+  }
+
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('🔴 [GLOBAL ERROR] componentDidCatch:', { error, errorInfo })
     this.setState({ error, errorInfo })
+    if (this.isChunkError(error)) {
+      this.autoReloadOnce()
+      return // reload segera — jangan tunggu render fallback
+    }
   }
 
   render() {
     if (this.state.hasError) {
+      /* ChunkLoadError → kemungkinan besar cache lama pasca deploy;
+         auto-reload sudah dipicu di componentDidCatch — tampilkan
+         fallback minimal (bukan layar merah menyeramkan). */
+      if (this.isChunkError(this.state.error)) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-[#05070d] p-6">
+            <div className="text-center space-y-2">
+              <div className="w-7 h-7 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" aria-hidden="true" />
+              <div className="text-white/60 text-xs">Memuat versi terbaru Luxtradee…</div>
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="min-h-screen bg-red-950 flex items-center justify-center p-6">
           <div className="max-w-2xl w-full bg-red-900/50 border border-red-500 rounded-xl p-8">

@@ -8,12 +8,11 @@
  *
  * Tujuan:
  *  1. Source Pine "Luxtradee Candle Impulsif" — strategy() VERBATIM
- *     dari Bos ("Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)"):
+ *     100% paste Bos ("Impulsive Breakout XAUUSD v5 (Prop Firm & API
+ *     Safe)") — TANPA perubahan apa pun juga (judul asli dipakai):
  *     sesi WIB 07.30–22.00, anti-fakeout body 83%, ADX anti-sideways,
  *     breakout 2-bar, SL/TP dari pip, paksa tutup saat sesi berakhir,
  *     lock drawdown harian, jeda rentetan kalah + trade bayangan.
- *     Satu-satunya perubahan dari paste Bos: JUDUL strategy() →
- *     "Luxtradee Candle Impulsif" (permintaan Bos, logika 0 berubah).
  *  2. Chart: engine headless TIDAK punya plot() di skrip ini, jadi
  *     segmen Entry/SL/TP di-sintesis dari TRADES engine (lihat
  *     synthesizeTradePlots di pine-protected.ts) — klik indikator
@@ -36,12 +35,13 @@ import {
 export { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION }
 
 /* ============================================================
-   SOURCE PINE — strategy() verbatim Bos (v5, Prop Firm & API Safe).
-   PERUBAHAN SATU-SATUNYA dari paste Bos: judul strategy() menjadi
-   "Luxtradee Candle Impulsif". Logika, input, proteksi: identik.
+   SOURCE PINE — VERBATIM 100% paste Bos (tidak ada satu karakter
+   pun yang diubah: judul strategy, input, komentar, semua utuh).
+   Judul: "Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)".
    ============================================================ */
-export const DEFAULT_PINE_SOURCE = `//@version=6
-strategy("Luxtradee Candle Impulsif", overlay=true, initial_capital=10000, currency=currency.USD, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, calc_on_order_fills=true, commission_type=strategy.commission.cash_per_contract, commission_value=0.035, slippage=20, max_lines_count=500, max_labels_count=500)
+export const DEFAULT_PINE_SOURCE = `// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/ MPL-2.0
+//@version=6
+strategy("Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)", overlay=true, initial_capital=10000, currency=currency.USD, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1, calc_on_order_fills=true, commission_type=strategy.commission.cash_per_contract, commission_value=0.035, slippage=20, max_lines_count=500, max_labels_count=500)
 
 // --- Inputs Utama ---
 slPipsInput = input.int(200, "Stop Loss (Pips)", minval=1, tooltip="Jarak stop loss dalam pip; default XAUUSD 200 pip = 20.0 harga.")

@@ -246,6 +246,19 @@ export class LuxtradeeForexProvider implements DataProvider {
     let stopped = false
     let timer: ReturnType<typeof setTimeout> | null = null
     let lastKey = ''
+    /* GUARD SKALA SISI CLIENT (fix Bos: "kadang kebawah") — baris
+       terakhir anti lompat level: poll tick datang tiap 3 dtk, jadi
+       harga pada bucket yang SAMA hampir tak mungkin geser > 0.35%
+       (campur skala spot↔futures lintas-isolate = lompatan ±0.3–1.2%).
+       Bar baru (bucket maju) masih boleh sampai 2.5%/bucket. */
+    let lastAccepted: OHLCV | null = null
+    const scaleGuardOk = (prev: OHLCV | null, next: OHLCV): boolean => {
+      if (!prev || !Number.isFinite(prev.close) || prev.close <= 0) return true
+      if (!Number.isFinite(next.close) || next.close <= 0) return false
+      const drift = Math.abs(next.close - prev.close) / prev.close
+      if (next.time === prev.time) return drift <= 0.0035 // bucket sama = tick 3 dtk
+      return drift <= 0.025 // bucket baru → gerak wajar per-bar
+    }
 
     const schedule = () => {
       if (stopped || timer) return
@@ -267,8 +280,15 @@ export class LuxtradeeForexProvider implements DataProvider {
           if (last) {
             const key = `${last.time}|${last.open}|${last.high}|${last.low}|${last.close}`
             if (key !== lastKey) {
-              lastKey = key
-              onBar(last) // forming candle ATAU bar baru tertutup — Vela paham keduanya
+              /* GUARD SKALA: bar yang melompat level (campur sumber
+                 spot↔futures antar isolate) DIBUANG — chart tidak
+                 pernah tiba-tiba "kebawah"/"keatas". Poll berikutnya
+                 mencoba lagi; history refresh 60 dtk menyelaraskan. */
+              if (scaleGuardOk(lastAccepted, last)) {
+                lastAccepted = last
+                lastKey = key
+                onBar(last) // forming candle ATAU bar baru tertutup — Vela paham keduanya
+              }
             }
           }
         }
