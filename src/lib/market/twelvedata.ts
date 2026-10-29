@@ -120,7 +120,17 @@ export function parseTdDatetimeUtc(s: string): number {
 
 /* ============================================================
    FETCH utama — return null pada SEMUA kegagalan (fallback Yahoo)
-   ============================================================ */
+   ============================================================
+   KEDALAMAN (Bos: 3.000–5.000 bar history, bukan lagi 500):
+   - Twelve Data menerima outputsize sampai 5000 bar DALAM SATU
+     REQUEST → 3000/5000 bar terpenuhi tanpa pagination.
+   - Permintaan >5000 → loop PAGINATION resmi TD: meta.previous_close
+     dari respons dipakai sbg kursor halaman berikutnya; halaman-halaman
+     digabung, di-dedup per open-time, lalu diurut KRONOLOGIS
+     (ascending lama → baru) sebelum dikembalikan.
+   - Free tier 8 req/min: tiap halaman makan jatah rate limiter;
+     bila jatah habis di tengah jalan → data parsial yang sudah ada
+     tetap dikembalikan (tidak pernah buang hasil). */
 export async function fetchTwelveDataCandles(
   symbol: string,
   interval: string,
@@ -135,57 +145,88 @@ export async function fetchTwelveDataCandles(
   if (!tdSym || !tdIv) return null
   if (!rateOk()) return null // kuota 8/min terjaga — Yahoo ambil alih
 
-  const url =
-    `${TD_BASE}?symbol=${encodeURIComponent(tdSym)}` +
-    `&interval=${encodeURIComponent(tdIv)}` +
-    `&outputsize=${Math.min(Math.max(limit, 1), 500)}` +
-    `&timezone=UTC&apikey=${encodeURIComponent(key)}`
+  const want = Math.min(Math.max(limit, 1), 20000)
+  const PAGE = 5000 // maksimum resmi outputsize TD per request
+  const maxPages = Math.min(Math.ceil(want / PAGE), 6)
 
-  try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 10_000)
-    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
-    clearTimeout(tid)
+  const all: LuxCandle[] = []
+  let cursor: string | null = null
 
-    if (res.status === 429 || res.status === 401 || res.status === 402 || res.status === 403) {
-      // quota / plan / key salah → pendinginkan TD, jangan hammer
+  for (let page = 0; page < maxPages && all.length < want; page++) {
+    const remaining = want - all.length
+    const url =
+      `${TD_BASE}?symbol=${encodeURIComponent(tdSym)}` +
+      `&interval=${encodeURIComponent(tdIv)}` +
+      `&outputsize=${Math.min(remaining, PAGE)}` +
+      `&timezone=UTC&apikey=${encodeURIComponent(key)}` +
+      (cursor ? `&previous_close=${encodeURIComponent(cursor)}` : '')
+
+    let json: any
+    try {
+      const controller = new AbortController()
+      const tid = setTimeout(() => controller.abort(), 10_000)
+      const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+      clearTimeout(tid)
+
+      if (res.status === 429 || res.status === 401 || res.status === 402 || res.status === 403) {
+        // quota / plan / key salah → pendinginkan TD, jangan hammer
+        enterCooldown()
+        console.warn(`[TwelveData] HTTP ${res.status} (${tdSym} ${tdIv}) → cooldown 60s, fallback Yahoo`)
+        return all.length ? all : null // parsial tetap dipakai bila ada
+      }
+      if (!res.ok) {
+        enterCooldown()
+        return all.length ? all : null
+      }
+
+      json = await res.json()
+    } catch (x: any) {
       enterCooldown()
-      console.warn(`[TwelveData] HTTP ${res.status} (${tdSym} ${tdIv}) → cooldown 60s, fallback Yahoo`)
-      return null
-    }
-    if (!res.ok) {
-      enterCooldown()
-      return null
+      console.warn(`[TwelveData] fetch gagal (${tdSym}): ${String(x?.message || x).slice(0, 100)} → fallback Yahoo`)
+      return all.length ? all : null
     }
 
-    const json: any = await res.json()
     /* Bentuk error TD: { code, message, status: "error" } */
     if (json?.status === 'error' || json?.code === 429 || json?.code === 401) {
       enterCooldown()
       console.warn(`[TwelveData] API error utk ${tdSym}: ${String(json?.message || '').slice(0, 120)} → fallback Yahoo`)
-      return null
+      return all.length ? all : null
     }
-    const values: any[] = Array.isArray(json?.values) ? json.values : []
-    if (!values.length) return null // simbol tak tersedia di plan ini → Yahoo
 
-    /* values datang TERBARU dulu → balik ke urutan waktu naik */
-    const out: LuxCandle[] = values
-      .map((v) => ({
+    const values: any[] = Array.isArray(json?.values) ? json.values : []
+    if (!values.length) break // habis / simbol tak tersedia di plan ini
+
+    /* values datang TERBARU dulu → dinormalisasi di merge bawah */
+    for (const v of values) {
+      all.push({
         time: parseTdDatetimeUtc(v?.datetime),
         open: Number(v?.open), high: Number(v?.high),
         low: Number(v?.low), close: Number(v?.close),
         volume: v?.volume != null && String(v.volume) !== '' ? Number(v.volume) : undefined,
-      }))
-      .filter((c) =>
-        Number.isFinite(c.time) && Number.isFinite(c.open) && Number.isFinite(c.close) &&
-        c.open > 0 && c.close > 0 && c.high >= c.low,
-      )
-      .sort((a, b) => a.time - b.time)
+      })
+    }
 
-    return out.length ? out : null
-  } catch (x: any) {
-    enterCooldown()
-    console.warn(`[TwelveData] fetch gagal (${tdSym}): ${String(x?.message || x).slice(0, 100)} → fallback Yahoo`)
-    return null
+    /* Kursor pagination: meta.previous_close = datetime tepat sebelum
+       bar tertua di halaman ini. Tidak ada → history habis. */
+    const nextCursor = json?.meta?.previous_close
+    if (!nextCursor || String(nextCursor).trim() === '' || String(nextCursor) === 'null') break
+    cursor = String(nextCursor)
+
+    /* Halaman berikutnya butuh jatah rate — habis → berhenti elegan */
+    if (page + 1 < maxPages && all.length < want && !rateOk()) break
   }
+
+  /* MERGE KRONOLOGIS — dedup per open-time, urut ASCENDING (lama→baru).
+     Kontrak Vela: sorted + de-duplicated. */
+  const seen = new Map<number, LuxCandle>()
+  for (const c of all) {
+    if (Number.isFinite(c.time) && c.time > 0 &&
+        Number.isFinite(c.open) && Number.isFinite(c.close) &&
+        c.open > 0 && c.close > 0 && c.high >= c.low) {
+      seen.set(c.time, c)
+    }
+  }
+  if (!seen.size) return null
+  const out = [...seen.values()].sort((a, b) => a.time - b.time)
+  return out.length ? out : null
 }

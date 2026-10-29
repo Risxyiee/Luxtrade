@@ -27,6 +27,13 @@ const WS_URL = 'wss://data.tradingview.com/socket.io/websocket?from=chart%2F'
 const ORIGIN = 'https://www.tradingview.com'
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 const ATTEMPT_TIMEOUT_MS = 9000
+/* TIMEOUT ADAPTIF — series besar butuh napas lebih (Bos: 3.000–5.000
+   bar per request, bukan lagi 500). Baseline 9s + 1.5s per 1000 bar,
+   mentok 20s. */
+const ATTEMPT_TIMEOUT_MAX_MS = 20000
+function attemptTimeoutMs(count: number): number {
+  return Math.min(ATTEMPT_TIMEOUT_MS + Math.floor(Math.max(count, 0) / 1000) * 1500, ATTEMPT_TIMEOUT_MAX_MS)
+}
 
 /* ---------- Simbol Luxtradee → kandidat simbol TradingView ---------- */
 const CRYPTO_RE = /^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|LINK|LTC|TRX|TON|SUI|PEPE)(USDT?|USD)$/i
@@ -158,7 +165,7 @@ async function runOneAttempt(tvSymbol: string, tf: string, count: number): Promi
       try { handle?.close() } catch { /* diam */ }
       resolve(result)
     }
-    const timer = setTimeout(() => done(bars.length ? bars : null), ATTEMPT_TIMEOUT_MS)
+    const timer = setTimeout(() => done(bars.length ? bars : null), attemptTimeoutMs(count))
 
     let handle: WSHandle | null = null
     connectTradingView()
@@ -209,7 +216,11 @@ export async function fetchTradingViewCandles(
 ): Promise<YahooCandle[] | null> {
   const tf = TV_INTERVALS[interval]
   if (!tf) return null
-  const count = Math.min(Math.max(limit, 60), 3000)
+  /* KEDALAMAN (Bos): sampai 5000 bar per percobaan — series websocket
+     publik TV mampu; kalau server memotong, bar yang datang tetap
+     dipakai (done(bars) saat timeout — tidak pernah null gara-gara
+     count tidak tercapai). */
+  const count = Math.min(Math.max(limit, 60), 5000)
 
   for (const tvSymbol of tvCandidates(symbol)) {
     try {

@@ -151,6 +151,101 @@ const YAHOO_INTERVALS: Record<string, { iv: string; range: string; agg?: number 
   '1w': { iv: '1wk', range: '2y' },
 }
 
+/* ============================================================
+   KEDALAMAN HISTORY per interval (permintaan Bos: 3.000–5.000 bar,
+   BUKAN lagi 500) — batas keras Yahoo per interval:
+   - 5m/15m/30m : data hanya tersedia 60 HARI terakhir → akumulasi
+                  penuh window itu (≈ 4.000+ bar utk 24/5 market).
+   - 1h         : tersedia sampai 730 HARI → paging 180 hari/halaman,
+                  5000 bar tercapai ±6 bulan ke belakang.
+   - 1d/1wk     : sejarah penuh (paging jauh tidak perlu).
+   chunkDays = lebar satu halaman period1/period2 — cukup kecil agar
+   Yahoo tidak memotong respons, cukup besar agar paging efisien. */
+const YAHOO_DEPTH: Record<string, { maxDays: number; chunkDays: number }> = {
+  '5m': { maxDays: 60, chunkDays: 30 },
+  '15m': { maxDays: 60, chunkDays: 60 },
+  '30m': { maxDays: 60, chunkDays: 60 },
+  '1h': { maxDays: 730, chunkDays: 180 },
+  '2h': { maxDays: 730, chunkDays: 180 },
+  '4h': { maxDays: 730, chunkDays: 180 },
+  '1d': { maxDays: 730, chunkDays: 730 },
+  '1w': { maxDays: 1825, chunkDays: 1825 },
+}
+
+/** Satu halaman chart Yahoo (range ATAU period1/period2) → rows + meta.
+    Meta (regularMarketPrice/regularMarketTime) dipakai utk liveTick
+    polling harga TANPA request tambahan. */
+async function fetchYahooPage(
+  ySym: string, iv: string, opts: { range?: string; period1?: number; period2?: number }, symbol: string,
+): Promise<{ rows: YahooCandle[]; meta: any } | null> {
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return null
+  const qs = opts.range
+    ? `interval=${iv}&range=${opts.range}&includePrePost=false`
+    : `interval=${iv}&period1=${opts.period1}&period2=${opts.period2}&includePrePost=false`
+  const path = `/v8/finance/chart/${encodeURIComponent(ySym)}?${qs}`
+  for (const host of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
+    try {
+      const controller = new AbortController()
+      const tid = setTimeout(() => controller.abort(), 10000)
+      const res = await fetch(`${host}${path}`, {
+        headers: {
+          // Realistic browser UA — hindari bot detection Yahoo
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+        },
+        signal: controller.signal,
+        cache: 'no-store',
+      })
+      clearTimeout(tid)
+      if (!res.ok) continue // → host berikutnya
+      const json = await res.json()
+      const result = json?.chart?.result?.[0]
+      if (!result) continue // body tidak berisi chart → host berikutnya
+      return { rows: parseYahooChart(json, symbol), meta: result.meta || {} }
+    } catch { continue }
+  }
+  return null
+}
+
+/** Parse body /v8/finance/chart → candle (validasi harga, rounding desimal) */
+function parseYahooChart(json: any, symbol: string): YahooCandle[] {
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return []
+  const result = json?.chart?.result?.[0]
+  if (!result) return []
+  const timestamps: number[] = result.timestamp || []
+  const quote = result.indicators?.quote?.[0]
+  if (!quote || !timestamps.length) return []
+
+  const candles: YahooCandle[] = []
+  for (let i = 0; i < timestamps.length; i++) {
+    const open = quote.open?.[i]
+    const high = quote.high?.[i]
+    const low = quote.low?.[i]
+    const close = quote.close?.[i]
+    if (open == null || high == null || low == null || close == null) continue
+    if (high < low || open <= 0) continue
+    if (validatePrice(symbol, close) === null) continue
+    candles.push({
+      time: timestamps[i],
+      open: parseFloat(open.toFixed(info.decimals)),
+      high: parseFloat(high.toFixed(info.decimals)),
+      low: parseFloat(low.toFixed(info.decimals)),
+      close: parseFloat(close.toFixed(info.decimals)),
+      volume: Number.isFinite(Number(quote.volume?.[i])) ? Number(quote.volume?.[i]) : undefined,
+    })
+  }
+  return candles
+}
+
+/** Gabungkan halaman-halaman → dedup per open-time + urut KRONOLOGIS (lama→baru) */
+function mergeChronological(pages: YahooCandle[][]): YahooCandle[] {
+  const seen = new Map<number, YahooCandle>()
+  for (const page of pages) for (const c of page) seen.set(c.time, c)
+  return [...seen.values()].sort((a, b) => a.time - b.time)
+}
+
 /** Gabungkan n candle 1 jam jadi 1 candle n-jam (baris rapi terurut) */
 function aggregate(candles: YahooCandle[], n: number): YahooCandle[] {
   const out: YahooCandle[] = []
@@ -174,6 +269,15 @@ function aggregate(candles: YahooCandle[], n: number): YahooCandle[] {
  * Dua host publik dicoba berurutan (query1 → query2) — bila satu
  * edge menolak request datacenter (crumb/bot filter), host kedua
  * tetap menjawab; tanpa API key → tidak ada skenario 401 auth.
+ *
+ * KEDALAMAN (Bos: 3.000–5.000 bar, bukan lagi 500):
+ *   - limit ≤ 400 (traffic watchlist/polling) → SATU request `range`
+ *     seperti dulu — cepat, hemat.
+ *   - limit > 400 (chart Vela + Pine backtest) → PAGINATION mundur
+ *     pakai period1/period2: halaman chunkDays hari digali sampai
+ *     jumlah bar terpenuhi ATAU batas window interval (60d intraminut,
+ *     730d untuk 1h) tercapai. Halaman digabung via mergeChronological
+ *     → array AKHIR KRONOLOGIS (ascending lama → baru), dedup.
  * @param symbol  simbol kanonik (XAUUSD, EURUSD, US100, …)
  * @param interval format kanonik ('5m','1h','1d', …)
  * @param limit   jumlah candle maksimum
@@ -190,88 +294,79 @@ export async function fetchYahooChart(
   if (!info || !ySym) return null
 
   const cfg = YAHOO_INTERVALS[interval] || YAHOO_INTERVALS['1h']
-  const path =
-    `/v8/finance/chart/${encodeURIComponent(ySym)}` +
-    `?interval=${cfg.iv}&range=${cfg.range}&includePrePost=false`
+  const depth = YAHOO_DEPTH[interval] || YAHOO_DEPTH['1h']
+  const want = Math.max(limit, 1)
+  const deep = want > 400
 
-  for (const host of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
-    try {
-      const controller = new AbortController()
-      const tid = setTimeout(() => controller.abort(), 10000)
-      const res = await fetch(`${host}${path}`, {
-        headers: {
-          // Realistic browser UA — hindari bot detection Yahoo
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-        },
-        signal: controller.signal,
-        cache: 'no-store',
-      })
-      clearTimeout(tid)
+  const pages: YahooCandle[][] = []
+  let liveMeta: any = null
 
-      if (!res.ok) {
-        console.warn(`[Yahoo] HTTP ${res.status} untuk ${symbol} (${ySym}) via ${host}`)
-        continue // → host berikutnya
+  if (!deep) {
+    /* ---- FAST PATH: satu request range (perilaku lama) ---- */
+    const page = await fetchYahooPage(ySym, cfg.iv, { range: cfg.range }, symbol)
+    if (page) {
+      if (page.rows.length) pages.push(page.rows)
+      liveMeta = page.meta
+    }
+  } else {
+    /* ---- DEEP PATH: paging mundur period1/period2 ----
+       Dari "sekarang" ke belakang per chunkDays hari sampai bar
+       terkumpul ≥ want, window habis, ATAU Yahoo berhenti menyodok
+       data (2 halaman kosong berurutan). */
+    const nowSec = Math.floor(Date.now() / 1000)
+    const oldestAllowed = nowSec - depth.maxDays * 86400
+    const chunk = depth.chunkDays * 86400
+    const maxPages = Math.ceil((depth.maxDays * 86400) / chunk) + 1
+    let period2 = nowSec
+    let emptyStreak = 0
+
+    for (let page = 0; page < maxPages; page++) {
+      const period1 = Math.max(period2 - chunk, oldestAllowed)
+      const resp = await fetchYahooPage(ySym, cfg.iv, { period1, period2 }, symbol)
+      const rows = resp?.rows || []
+      if (rows.length) {
+        pages.push(rows)
+        emptyStreak = 0
+      } else {
+        emptyStreak++
+        /* Halaman kosong: bila sudah punya data → sejarah di bawahnya
+           pasti habis (window terlalu tua utk interval ini) → stop.
+           Bila belum punya apa-apa → coba satu halaman lagi. */
+        if (pages.length || emptyStreak >= 2) break
       }
-
-      const json = await res.json()
-      const result = json?.chart?.result?.[0]
-      if (!result) continue // body tidak berisi chart → host berikutnya
-
-      const meta = result.meta || {}
-      const currentPrice = meta.regularMarketPrice
-      const lastTradeTime = meta.regularMarketTime
-
-      const timestamps: number[] = result.timestamp || []
-      const quote = result.indicators?.quote?.[0]
-      if (!quote || !timestamps.length) continue
-
-      const candles: YahooCandle[] = []
-      for (let i = 0; i < timestamps.length; i++) {
-        const open = quote.open?.[i]
-        const high = quote.high?.[i]
-        const low = quote.low?.[i]
-        const close = quote.close?.[i]
-        if (open == null || high == null || low == null || close == null) continue
-        if (high < low || open <= 0) continue
-        if (validatePrice(symbol, close) === null) continue
-        candles.push({
-          time: timestamps[i],
-          open: parseFloat(open.toFixed(info.decimals)),
-          high: parseFloat(high.toFixed(info.decimals)),
-          low: parseFloat(low.toFixed(info.decimals)),
-          close: parseFloat(close.toFixed(info.decimals)),
-          volume: Number.isFinite(Number(quote.volume?.[i])) ? Number(quote.volume?.[i]) : undefined,
-        })
-      }
-
-      if (candles.length === 0) continue
-
-      // Agregasi 2h/4h dari candle 1h
-      const aggregated = cfg.agg ? aggregate(candles, cfg.agg) : candles
-      aggregated.sort((a, b) => a.time - b.time)
-
-      // Live tick: regularMarketPrice lebih baru dari candle terakhir (polling harga)
-      if (liveTick && currentPrice && lastTradeTime && currentPrice > 0 && aggregated.length) {
-        const last = aggregated[aggregated.length - 1]
-        if (lastTradeTime > last.time && validatePrice(symbol, currentPrice) !== null) {
-          aggregated.push({
-            time: lastTradeTime,
-            open: last.close,
-            high: Math.max(last.high, currentPrice),
-            low: Math.min(last.low, currentPrice),
-            close: parseFloat(currentPrice.toFixed(info.decimals)),
-          })
-        }
-      }
-
-      return aggregated.slice(-limit) // sukses — langsung keluar
-    } catch (err: any) {
-      console.warn(`[Yahoo] error ${symbol} via ${host}: ${err?.message || err}`)
-      continue // → host berikutnya
+      if (!liveMeta && resp?.meta) liveMeta = resp.meta // halaman TERBARU
+      if (pages.reduce((s, p) => s + p.length, 0) >= want) break
+      if (period1 <= oldestAllowed) break
+      period2 = period1 - 1
     }
   }
 
-  // Semua host gagal — null jujur (penelepon memutuskan fallback/503)
-  return null
+  if (!pages.length) return null
+
+  /* MERGE KRONOLOGIS lintas halaman → agregasi 2h/4h → potong limit */
+  const merged = mergeChronological(pages)
+  const aggregated = cfg.agg ? aggregate(merged, cfg.agg) : merged
+  aggregated.sort((a, b) => a.time - b.time)
+  if (!aggregated.length) return null
+
+  let out = aggregated.slice(-want)
+
+  /* Live tick: regularMarketPrice lebih baru dari candle terakhir
+     (polling harga) — dari meta respons, TANPA request tambahan */
+  const currentPrice = Number(liveMeta?.regularMarketPrice)
+  const lastTradeTime = Number(liveMeta?.regularMarketTime)
+  if (liveTick && currentPrice > 0 && lastTradeTime > 0 && out.length) {
+    const last = out[out.length - 1]
+    if (lastTradeTime > last.time && validatePrice(symbol, currentPrice) !== null) {
+      out.push({
+        time: lastTradeTime,
+        open: last.close,
+        high: Math.max(last.high, currentPrice),
+        low: Math.min(last.low, currentPrice),
+        close: parseFloat(currentPrice.toFixed(info.decimals)),
+      })
+    }
+  }
+
+  return out
 }
