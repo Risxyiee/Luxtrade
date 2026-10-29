@@ -88,6 +88,12 @@ const INTERVALS: Record<string, string> = {
   '1w': '1w', '1W': '1w', 'W': '1w', '10080': '1w',
 }
 
+/* Interval kanonik → detik per bar (untuk cek kesegaran base live) */
+const CANON_INTERVAL_SEC: Record<string, number> = {
+  '5m': 300, '15m': 900, '30m': 1800, '1h': 3600,
+  '2h': 7200, '4h': 14400, '1d': 86400, '1w': 604800,
+}
+
 /* ============================================================
    CACHE in-memory + KV Cloudflare
    ============================================================ */
@@ -307,35 +313,69 @@ export async function GET(request: NextRequest) {
           fetchedAt: new Date(hit.timestamp).toISOString(), stale: false,
         }, { headers: { 'Cache-Control': 'no-store' } })
       }
-      /* BASE sejarah dari cache utama (mem dulu, lalu KV ≤15 menit) */
+      /* ============================================================
+         BASE sejarah WAJIB SEGAR (fix Bos: "datanya chart ga real
+         time"). AKAR BUG: dulu base :300 dibaca TANPA cek usia —
+         lebih parah lagi, tiap poll 3 dtk entri itu DITULIS-ULANG
+         (timestamp segar, isi basi) → isolate hidup berjam-jam membuat
+         base makin tua → spot menjauh >0.35% dari close base →
+         drift-guard MENOLAK seluruh patch → ujung candle BEKU tanpa
+         pernah pulih. Sekarang base dianggap sah hanya bila BAR
+         TERAKHIRNYA masih muda (≤ max(2.5×interval, 2 menit)) — base
+         basi diperlakukan sama seperti tidak ada cache: fetch fresh.
+         ============================================================ */
+      const ivSecLIVE = CANON_INTERVAL_SEC[interval] || 3600
+      const baseMaxAgeSec = Math.max(ivSecLIVE * 2.5, 120)
+      const baseIsFresh = (bars: Ohlcv[] | null | undefined): bars is Ohlcv[] =>
+        Array.isArray(bars) && bars.length > 0 &&
+        Number.isFinite(bars[bars.length - 1]?.time) &&
+        Date.now() / 1000 - bars[bars.length - 1].time <= baseMaxAgeSec
+
       let baseBars: Ohlcv[] | null = null
       let baseSource = ''
       const mem300 = cache.get(`${validSymbol}:${interval}:300`)
-      if (mem300) { baseBars = mem300.data; baseSource = mem300.source }
-      else {
+      if (mem300 && baseIsFresh(mem300.data)) { baseBars = mem300.data; baseSource = mem300.source }
+      if (!baseBars) {
         const kv300 = await getKvCache(`${validSymbol}:${interval}:300`)
-        if (kv300 && Date.now() - kv300.timestamp < 15 * 60 * 1000) {
+        if (kv300 && Date.now() - kv300.timestamp < 15 * 60 * 1000 && baseIsFresh(kv300.data)) {
           baseBars = kv300.data
           baseSource = kv300.source
         }
       }
-      /* Logam/crypto (ber-overlay): cukup patch BASE cached — ujung
-         candle tetap bergerak real-time tanpa 1 fetch upstream per
-         3 detik. Forex: fetch fresh (tail benar-benar baru). */
-      const tail = (baseBars && baseBars.length && hasSpotOverlay(validSymbol))
+      /* Logam/crypto (ber-overlay): base SEGAR cukup di-patch ujungnya —
+         candle bergerak real-time tanpa 1 fetch upstream per 3 detik.
+         Base basi / forex → fetch fresh via fetchChain. */
+      const overlayWanted = hasSpotOverlay(validSymbol)
+      let tail = (baseBars && baseBars.length && overlayWanted)
         ? { bars: baseBars, source: baseSource }
         : await fetchChain(validSymbol, interval, Math.max(limit, 3))
       if (tail && tail.bars.length) {
         /* Overlay spot real-time SE-SKALA DENGAN SUMBER SEJARAH (fix
            "candle kebawah"): TradingView/TwelveData → gold-api spot;
            Yahoo (futures) → tick Yahoo sendiri; crypto → binance-vision. */
-        const overlayWanted = hasSpotOverlay(validSymbol)
         let liveBars = tail.bars
         let liveSource = tail.source
         if (overlayWanted) {
           try {
             const patched = await overlaySpotTail(validSymbol, interval, tail.bars, Math.max(limit, 3), tail.source)
             if (patched?.bars?.length) { liveBars = patched.bars; liveSource = patched.source }
+            /* PATCH DITOLAK drift-guard + tail masih dari BASE CACHE →
+               base basi-beku. Jangan biarkan ujung menggantung di data
+               mati: SATU kali fetch fresh lalu patch ulang — poll
+               berikutnya memakai base segar (micro-cache 2.5s melindungi
+               upstream dari banjir retry). */
+            if (patched?.bars === tail.bars && baseBars && tail.bars === baseBars) {
+              const fresh = await fetchChain(validSymbol, interval, Math.max(limit, 3))
+              if (fresh?.bars?.length) {
+                let retryBars = fresh.bars
+                try {
+                  const retry = await overlaySpotTail(validSymbol, interval, fresh.bars, Math.max(limit, 3), fresh.source)
+                  if (retry?.bars?.length) { retryBars = retry.bars; liveSource = retry.source }
+                } catch { liveSource = fresh.source }
+                liveBars = retryBars
+                tail = fresh
+              }
+            }
           } catch { /* overlay gagal → tail apa adanya */ }
         }
         liveCache.set(liveKey, { data: liveBars, timestamp: Date.now(), source: liveSource })
@@ -343,10 +383,11 @@ export async function GET(request: NextRequest) {
           const oldest = [...liveCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
           if (oldest) liveCache.delete(oldest[0])
         }
-        /* segarkan juga cache utama — HANYA bila chain benar-benar
-           mengembalikan sejarah dalam (≥300 bar): jangan pernah
-           menimpa cache :300 dengan tail 3-bar / isian sintetis. */
-        if (tail.bars.length >= 300) setCache(`${validSymbol}:${interval}:300`, liveBars, liveSource)
+        /* segarkan juga cache utama — HANYA bila hasilnya BENAR-BENAR
+           segar (bar terakhir muda) & cukup dalam (≥300 bar): jangan
+           pernah menimpa cache :300 dgn tail 3-bar / base basi /
+           isian sintetis mati (dulu inilah yang bikin candle "diam"). */
+        if (tail.bars.length >= 300 && baseIsFresh(liveBars)) setCache(`${validSymbol}:${interval}:300`, liveBars, liveSource)
         return NextResponse.json({
           success: true, symbol: validSymbol, interval,
           data: liveBars.slice(-limit), source: liveSource,
