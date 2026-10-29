@@ -5,6 +5,6 @@
  */
 
 export const DEFAULT_PINE_SLUG = 'impulsive-breakout-xauusd'
-export const DEFAULT_PINE_NAME = 'Impulsive Breakout XAUUSD v4'
+export const DEFAULT_PINE_NAME = 'Luxtradee Candle Impulsif'
 export const DEFAULT_PINE_DESCRIPTION =
-  'Skrip master Luxtradee: breakout impulsif XAUUSD — sesi WIB 07.30–22.00, anti-fakeout body 83%, filter ADX anti-sideways, SL/TP otomatis dari pip. User gratis MELIHAT garis Entry/SL/TP di chart; alert otomatis ke Telegram khusus Pro (klik 🔔).'
+  'Skrip master Luxtradee v5 (Prop Firm & API Safe): breakout impulsif XAUUSD — sesi WIB 07.30–22.00, anti-fakeout body 83%, filter ADX anti-sideways, SL/TP otomatis dari pip, paksa tutup posisi 22:00, lock drawdown harian 5%, jeda otomatis setelah 2× loss beruntun + mode pantau trade bayangan. Free MELIHAT segmen Entry/SL/TP tiap trade di chart; alert otomatis ke Telegram khusus Pro (klik 🔔).'

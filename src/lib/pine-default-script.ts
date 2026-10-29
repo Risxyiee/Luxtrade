@@ -7,9 +7,14 @@
  * yang mengembalikan isi file ini ke browser.
  *
  * Tujuan:
- *  1. Source Pine "Impulsive Breakout XAUUSD v4" (port indicator
- *     dari strategy master Bos — logika sinyal identik, format
- *     kompatibel engine headless: menghasilkan plot + alert()).
+ *  1. Source Pine "Luxtradee Candle Impulsif" — PORT indicator
+ *     dari strategy master Bos "Impulsive Breakout XAUUSD v5
+ *     (Prop Firm & API Safe)": logika sinyal IDENTIK (sesi WIB
+ *     07.30–22.00, anti-fakeout body 83%, ADX anti-sideways,
+ *     breakout 2-bar, SL/TP dari pip, paksa tutup saat sesi
+ *     berakhir, lock drawdown harian, jeda rentetan kalah +
+ *     trade bayangan), format kompatibel engine headless
+ *     (menghasilkan plot + alert()).
  *  2. ensureDefaultScript() — auto-seed ke tabel protected_scripts
  *     (upsert by slug) SEHINGGA BOS TIDAK PERLU SQL MANUAL.
  *     Dipanggil route compile-pine (GET/POST) & daftar alert.
@@ -25,48 +30,64 @@ import {
 export { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION }
 
 /* ============================================================
-   SOURCE PINE — port indicator dari strategy master Bos v4.
+   SOURCE PINE — port indicator dari strategy master Bos v5.
    Perbedaan dari strategy asli (SENGAJA, agar jalan headless):
    - indicator() bukan strategy() → tidak butuh akun simulasi
-   - posisi disimulasikan dengan var (identik: 1 posisi, SL
-     prioritas bila dobel, jeda rentetan kalah + trade bayangan)
+   - posisi & ekuitah disimulasikan dengan var (identik: 1
+     posisi, SL prioritas bila dobel, force close 22:00 WIB,
+     lock DD harian 5%, jeda rentetan kalah + trade bayangan)
    - ADX dihitung manual (Wilder) — setara ta.dmi
-   - sesi WIB via aritmetika epoch (setara input.session)
+   - sesi WIB via aritmetika epoch (setara hour(time,"GMT+7"))
+   - SEGMENT HISTORIS: Entry/SL/TP digambar dari bar entry
+     sampai bar exit tiap trade (setara line.new + label di
+     strategy asli) — bukan hanya saat posisi terbuka. Karena
+     pyramiding=0, trade TIDAK pernah tumpang tindih sehingga
+     satu series per level cukup (jeda antar segmen = na).
    - alert() per entry → sinyal Telegram (server hanya terima
      bar TERAKHIR — anti spam historis)
    ============================================================ */
 export const DEFAULT_PINE_SOURCE = `//@version=6
-indicator("Impulsive Breakout XAUUSD v4", overlay=true)
+indicator("Luxtradee Candle Impulsif", overlay=true)
 
 // ============================================================
-// LUXTRADEE MASTER — Impulsive Breakout XAUUSD v4 (viewer)
-// Port indicator dari strategy master Bos: logika sinyal identik
-// (sesi WIB, anti-fakeout, ADX, breakout 2-bar, simulasi posisi
-// + jeda rentetan kalah). Sinyal alert() -> Telegram user Pro.
+// LUXTRADEE MASTER — Luxtradee Candle Impulsif
+// Port indicator dari strategy master Bos v5 (Prop Firm & API
+// Safe): sesi WIB 07.30–22.00, anti-fakeout body 83%, ADX,
+// breakout 2-bar, SL/TP pip, force close 22:00, lock DD harian,
+// jeda rentetan kalah + trade bayangan. Sinyal alert() -> Telegram.
 // ============================================================
 
-// --- Inputs (identik strategy master) ---
+// --- Inputs (identik strategy master v5) ---
 slPipsInput = input.int(200, "Stop Loss (Pips)", minval=1)
 tpPipsInput = input.int(400, "Target Profit (Pips)", minval=1)
 pricePerPipInput = input.float(0.1, "Nilai 1 pip dalam harga", minval=0.000001, step=0.1)
 bodyPercentInput = input.int(83, "Min Body % (Anti-Fakeout)", minval=1, maxval=100)
-sessStartInput = input.int(730, "Jam Mulai Sesi (WIB HHMM)", minval=0, maxval=2359)
-sessEndInput = input.int(2200, "Jam Selesai Sesi (WIB HHMM)", minval=0, maxval=2359)
+startHourWIB = input.int(7, "Jam Mulai (WIB)", minval=0, maxval=23)
+startMinWIB = input.int(30, "Menit Mulai (WIB)", minval=0, maxval=59)
+endHourWIB = input.int(22, "Jam Selesai (WIB)", minval=0, maxval=23)
+endMinWIB = input.int(0, "Menit Selesai (WIB)", minval=0, maxval=59)
+forceCloseEndSession = input.bool(true, "Paksa Tutup Posisi Saat Sesi Berakhir (22:00 WIB)")
 useSidewaysFilterInput = input.bool(true, "Hindari Market Sideways")
 adxDiLengthInput = input.int(10, "ADX DI Length", minval=1)
 adxSmoothingInput = input.int(14, "ADX Smoothing", minval=1)
-minAdxInput = input.float(17, "ADX Minimum", minval=1.0, step=0.5)
-useStreakPauseInput = input.bool(true, "Aktifkan jeda rentetan kalah")
-streakPauseNInput = input.int(2, "Batas kalah beruntun (N)", minval=1)
+minAdxInput = input.float(17.0, "ADX Minimum", minval=1.0, step=0.5)
+dailyMaxLossPctInput = input.float(5.0, "Batas Drawdown Harian (%)", minval=0.1, maxval=100.0, step=0.1)
+maxLossStreakInput = input.int(2, "Batas Loss Beruntun (Max Loss Streak)", minval=1)
 
-// --- Waktu WIB (GMT+7) via aritmetika epoch ---
+// --- Waktu WIB (GMT+7) via aritmetika epoch (setara hour/minute(time,"GMT+7")) ---
 wibMs = time + 7 * 3600000
 wibHour = int(math.floor(wibMs / 3600000.0)) % 24
 wibMin = int(math.floor(wibMs / 60000.0)) % 60
-wibHHMM = wibHour * 100 + wibMin
-inSession = wibHHMM >= sessStartInput and wibHHMM < sessEndInput
+currentMinWIB = wibHour * 60 + wibMin
+sessionStartMin = startHourWIB * 60 + startMinWIB
+sessionEndMin = endHourWIB * 60 + endMinWIB
+inSession = currentMinWIB >= sessionStartMin and currentMinWIB < sessionEndMin
 
-// --- Konversi pip ---
+// --- Hari trading WIB (setara time("D","0000-2359","GMT+7")) — reset ekuitas harian ---
+dayIdx = int(math.floor(wibMs / 86400000.0))
+newTradingDay = na(dayIdx[1]) or dayIdx != dayIdx[1]
+
+// --- Konversi pip (harga absolut — API Safe) ---
 stopDistance = slPipsInput * pricePerPipInput
 targetDistance = tpPipsInput * pricePerPipInput
 
@@ -100,7 +121,7 @@ var float adxW = na
 adxW := na(adxW) ? dx : (adxW * (adxLen - 1) + dx) / adxLen
 isTrending = not useSidewaysFilterInput or (not na(adxW) and adxW >= minAdxInput)
 
-// --- State simulasi posisi (mirror strategy master) ---
+// --- State simulasi posisi + ekuitas (mirror strategy master v5) ---
 var int posDir = 0
 var float entryP = na
 var float slP = na
@@ -111,30 +132,88 @@ var bool paused = false
 var int shadowDir = 0
 var float shadowSL = na
 var float shadowTP = na
+var float simEquity = 10000.0
+var float dayStartEquity = 10000.0
+var bool dailyLossLocked = false
+// Level trade TERAKHIR utk segmen historis (setara line.new entry->exit)
+var float lastEntryP = na
+var float lastSlP = na
+var float lastTpP = na
+// Trade ditutup PADA bar ini (plot segmen masih digambar di bar exit)
+bool endedThisBar = false
+
+if newTradingDay
+    dayStartEquity := simEquity
+    dailyLossLocked := false
+
+if simEquity <= dayStartEquity - dayStartEquity * dailyMaxLossPctInput / 100.0
+    dailyLossLocked := true
 
 // 1) Exit posisi aktif pada bar ini (SL prioritas bila dobel — konservatif)
 if posDir == 1
     if low <= slP
+        simEquity := simEquity + (slP - entryP)
         effLossStreak := effLossStreak + 1
         currentWinStreak := 0
+        endedThisBar := true
         posDir := 0
-        if useStreakPauseInput and effLossStreak >= streakPauseNInput
+        if effLossStreak >= maxLossStreakInput
             paused := true
+            shadowDir := 0
     else if high >= tpP
+        simEquity := simEquity + (tpP - entryP)
         currentWinStreak := currentWinStreak + 1
         effLossStreak := 0
+        endedThisBar := true
         posDir := 0
 if posDir == -1
     if high >= slP
+        simEquity := simEquity + (entryP - slP)
         effLossStreak := effLossStreak + 1
         currentWinStreak := 0
+        endedThisBar := true
         posDir := 0
-        if useStreakPauseInput and effLossStreak >= streakPauseNInput
+        if effLossStreak >= maxLossStreakInput
             paused := true
+            shadowDir := 0
     else if low <= tpP
+        simEquity := simEquity + (entryP - tpP)
         currentWinStreak := currentWinStreak + 1
         effLossStreak := 0
+        endedThisBar := true
         posDir := 0
+
+// 1b) Paksa tutup akhir sesi (22:00 WIB) — setara strategy.close_all
+if forceCloseEndSession and not inSession and posDir != 0
+    forcePnl = posDir == 1 ? close - entryP : entryP - close
+    simEquity := simEquity + forcePnl
+    if forcePnl < 0
+        effLossStreak := effLossStreak + 1
+        currentWinStreak := 0
+        if effLossStreak >= maxLossStreakInput
+            paused := true
+            shadowDir := 0
+    else if forcePnl > 0
+        currentWinStreak := currentWinStreak + 1
+        effLossStreak := 0
+    endedThisBar := true
+    posDir := 0
+
+// 1c) Lock drawdown harian — tutup posisi & stop trading hari ini
+if dailyLossLocked and posDir != 0
+    lockPnl = posDir == 1 ? close - entryP : entryP - close
+    simEquity := simEquity + lockPnl
+    if lockPnl < 0
+        effLossStreak := effLossStreak + 1
+        currentWinStreak := 0
+        if effLossStreak >= maxLossStreakInput
+            paused := true
+            shadowDir := 0
+    else if lockPnl > 0
+        currentWinStreak := currentWinStreak + 1
+        effLossStreak := 0
+    endedThisBar := true
+    posDir := 0
 
 // 2) Pantau trade bayangan saat jeda (TP bayangan = lanjut trading)
 if paused and shadowDir == 1
@@ -152,12 +231,23 @@ if paused and shadowDir == -1
         effLossStreak := 0
         shadowDir := 0
 
-// 3) Sinyal mentah (identik master)
-baseOk = inSession and isTrending
+// 3) Sinyal mentah (identik master v5)
+baseOk = inSession and not dailyLossLocked and (not useSidewaysFilterInput or isTrending)
 rawLong = baseOk and close > lookbackHigh and isImpulsive and close > open
 rawShort = baseOk and close < lookbackLow and isImpulsive and close < open
 
-// 4) Entry baru + alert (sinyal Telegram untuk user Pro)
+// 4) Entry bayangan saat jeda (dipantau tanpa uang — identik v5)
+if paused and shadowDir == 0 and posDir == 0
+    if inSession and close > lookbackHigh and isImpulsive and close > open
+        shadowDir := 1
+        shadowSL := close - stopDistance
+        shadowTP := close + targetDistance
+    else if inSession and close < lookbackLow and isImpulsive and close < open
+        shadowDir := -1
+        shadowSL := close + stopDistance
+        shadowTP := close - targetDistance
+
+// 5) Entry baru + alert (sinyal Telegram utk user Pro)
 canEnter = posDir == 0 and not paused
 longSignal = canEnter and rawLong
 shortSignal = canEnter and rawShort and not longSignal
@@ -166,29 +256,27 @@ if longSignal
     entryP := close
     slP := close - stopDistance
     tpP := close + targetDistance
+    lastEntryP := entryP
+    lastSlP := slP
+    lastTpP := tpP
     alert("BUY @ " + str.tostring(close) + " | SL " + str.tostring(slP) + " | TP " + str.tostring(tpP), alert.freq_once_per_bar)
 if shortSignal
     posDir := -1
     entryP := close
     slP := close + stopDistance
     tpP := close - targetDistance
+    lastEntryP := entryP
+    lastSlP := slP
+    lastTpP := tpP
     alert("SELL @ " + str.tostring(close) + " | SL " + str.tostring(slP) + " | TP " + str.tostring(tpP), alert.freq_once_per_bar)
 
-// 5) Entry bayangan saat jeda (dipantau tanpa uang)
-if paused and shadowDir == 0 and posDir == 0
-    if rawLong
-        shadowDir := 1
-        shadowSL := close - stopDistance
-        shadowTP := close + targetDistance
-    else if rawShort
-        shadowDir := -1
-        shadowSL := close + stopDistance
-        shadowTP := close - targetDistance
-
-// 6) PLOT — garis Entry / SL / TP selama posisi hidup
-plot(posDir != 0 ? entryP : na, title="Entry", color=color.green, linewidth=2)
-plot(posDir != 0 ? slP : na, title="Stop Loss", color=color.red, linewidth=1)
-plot(posDir != 0 ? tpP : na, title="Take Profit", color=color.aqua, linewidth=1)
+// 6) PLOT — segmen Entry/SL/TP dari bar entry s.d. bar exit tiap
+//    trade (setara line.new + label TP/SL strategy asli). Jeda
+//    antar segmen = na. Posisi terbuka = garis menjulur ke bar ini.
+inTradeSeg = posDir != 0 or endedThisBar
+plot(inTradeSeg ? lastEntryP : na, title="Entry", color=color.green, linewidth=2)
+plot(inTradeSeg ? lastSlP : na, title="Stop Loss", color=color.red, linewidth=1)
+plot(inTradeSeg ? lastTpP : na, title="Take Profit", color=color.aqua, linewidth=1)
 // Plot STATE tersembunyi (prefix _ — disaring dari chart, dipakai
 // alert_rules server: transisi 0->1 = entry baru)
 plot(posDir == 1 ? 1.0 : 0.0, title="_LongState", display=display.none)
@@ -207,12 +295,12 @@ const DEFAULT_PINE_ALERT_RULES = [
   {
     type: 'cross_above', a: '_LongState', b: 0.5,
     signal: 'ENTRY_LONG',
-    message: 'Impulsive Breakout: sinyal BUY terkonfirmasi (breakout impulsif + filter sesi/ADX)',
+    message: 'Luxtradee Candle Impulsif: sinyal BUY terkonfirmasi (breakout impulsif + filter sesi/ADX)',
   },
   {
     type: 'cross_above', a: '_ShortState', b: 0.5,
     signal: 'ENTRY_SHORT',
-    message: 'Impulsive Breakout: sinyal SELL terkonfirmasi (breakdown impulsif + filter sesi/ADX)',
+    message: 'Luxtradee Candle Impulsif: sinyal SELL terkonfirmasi (breakdown impulsif + filter sesi/ADX)',
   },
 ]
 
@@ -235,8 +323,8 @@ export async function ensureDefaultScript(): Promise<{ id: string } | null> {
     if (sel?.data?.id) {
       const id = String(sel.data.id)
       cachedDefault = { id, at: Date.now() }
-      /* Migrasi sekali: skrip lama tanpa alert_rules → isi rules +
-         source terbaru (tidak menimpa bila rules sudah ada). */
+      /* Migrasi sekali: skrip lama tanpa rules / source lama v4 →
+         mutakhirkan nama, deskripsi, source, rules sekalian. */
       const cur = await supabase
         .from('protected_scripts')
         .select('alert_rules, source')
@@ -248,9 +336,14 @@ export async function ensureDefaultScript(): Promise<{ id: string } | null> {
       if (rulesEmpty || sourceStale) {
         await supabase
           .from('protected_scripts')
-          .update({ source: DEFAULT_PINE_SOURCE, alert_rules: DEFAULT_PINE_ALERT_RULES })
+          .update({
+            name: DEFAULT_PINE_NAME,
+            description: DEFAULT_PINE_DESCRIPTION,
+            source: DEFAULT_PINE_SOURCE,
+            alert_rules: DEFAULT_PINE_ALERT_RULES,
+          })
           .eq('id', id)
-        console.log('[pine-default] skrip default dimutakhirkan (source/rules)')
+        console.log('[pine-default] skrip default dimutakhirkan (v5 Candle Impulsif — source/rules/nama)')
       }
       return cachedDefault
     }

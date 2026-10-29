@@ -35,11 +35,14 @@ cleanupOutdatedCaches()
 // ─── Offline Fallback ─────────────────────────────────────────────────────────
 
 const OFFLINE_URL = '/offline.html'
-// v6: purge semua cache v5 — cache API lama berisi response basi (bug CacheFirst)
-const CACHE_NAME = 'luxtradee-offline-v6'
-const STATIC_CACHE = 'luxtradee-static-v6'
-const PAGES_CACHE = 'luxtradee-pages-v6'
-const API_CACHE = 'luxtradee-api-v6'
+// v7: purge semua cache v6 — perbaikan besar chart (Pine v5 Candle
+// Impulsif + datafeed 5000 bar) tidak terlihat user lama karena HTML
+// lama ter-serve dari PAGES_CACHE saat jaringan lambat (timeout 3s
+// keburu jatuh ke cache). Versi naik → semua cache lama dibuang sekali.
+const CACHE_NAME = 'luxtradee-offline-v7'
+const STATIC_CACHE = 'luxtradee-static-v7'
+const PAGES_CACHE = 'luxtradee-pages-v7'
+const API_CACHE = 'luxtradee-api-v7'
 
 const sw = self as unknown as ServiceWorkerGlobalScope
 
@@ -168,7 +171,9 @@ registerRoute(
 
 // ─── Navigation / HTML — NetworkFirst with fast timeout + Offline Fallback ────
 // This is the KEY route for PWABuilder offline capability:
-// 1. Try network (3s timeout)
+// 1. Try network (10s timeout — v7: 3s KEPENDEK, user jaringan lambat
+//    selalu dapat HTML LAMA dari cache sehingga update tak terlihat;
+//    offline tetap jatuh ke cache SEKETIKA karena request error instan)
 // 2. Cache fallback (previously visited pages)
 // 3. /offline.html fallback (pre-cached, always available)
 
@@ -176,7 +181,7 @@ registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
     cacheName: PAGES_CACHE,
-    networkTimeoutSeconds: 3,
+    networkTimeoutSeconds: 10,
     plugins: [
       new CacheableResponsePlugin({
         statuses: [0, 200],

@@ -28,10 +28,20 @@ import {
   fetchServerCandles,
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
-import { ensureDefaultScript } from '@/lib/pine-default-script'
+import { ensureDefaultScript, DEFAULT_PINE_SOURCE, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-script'
 import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
+
+/* ============================================================
+   CACHE PLOT SERVER (in-memory, 3 menit) — run engine Pine mahal
+   (CPU): fetch 2000 candle + eksekusi skrip per bar. Plot hasil run
+   praktis tak berubah dalam hitungan menit, jadi SEMUA client yang
+   memakai (skrip, simbol, tf) sama berbagi SATU run — penting di
+   Cloudflare Workers (budget CPU ketat) & saat banyak user online.
+   ============================================================ */
+const plotServerCache = new Map<string, { at: number; payload: any }>()
+const PLOT_CACHE_TTL_MS = 3 * 60 * 1000
 
 /* Vela timeframe kanonik (menit, string) → format interval server */
 const TF_NORMALIZE: Record<string, string> = {
@@ -77,7 +87,7 @@ export async function GET(request: NextRequest) {
     const isPro = await readIsPro(auth.user.id)
 
     const supabase = getSupabaseAdmin()
-    /* Auto-seed skrip default (Impulsive Breakout XAUUSD v4) —
+    /* Auto-seed skrip default (Luxtradee Candle Impulsif v5) —
        tanpa SQL manual: user free pun langsung melihat chip-nya. */
     try { await ensureDefaultScript() } catch { /* best-effort */ }
     let scripts: Array<{ id: string; slug: string; name: string; description: string | null }> = []
@@ -89,6 +99,11 @@ export async function GET(request: NextRequest) {
         .order('sort_order', { ascending: true })
       if (!error && Array.isArray(data)) scripts = data
       else if (error) console.error('[compile-pine] list gagal:', error.message)
+    }
+    /* TANPA DB → tetap tampilkan skrip default (meta dari kode,
+       source tidak pernah keluar server) — chip & auto-load tetap hidup. */
+    if (!scripts.length) {
+      scripts = [{ id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG, name: DEFAULT_PINE_NAME, description: DEFAULT_PINE_DESCRIPTION }]
     }
     return NextResponse.json({ isPro, scripts })
   } catch (x: any) {
@@ -120,17 +135,35 @@ export async function POST(request: NextRequest) {
     const interval = normalizeInterval(String(body?.interval || body?.timeframe || '60'))
     if (!symbol) return NextResponse.json({ error: 'symbol wajib diisi' }, { status: 400 })
 
-    /* 4) MUAT SKRIP (service role — tabel terkunci dari client) */
+    /* 4) MUAT SKRIP (service role — tabel terkunci dari client)
+       scriptId bisa UUID ATAU slug. TANPA DB: skrip DEFAULT tetap
+       jalan dari KODE (source tetap tidak pernah ke browser) —
+       chart tetap menggambar Entry/SL/TP walau Supabase sedang
+       tidak terjangkau (fix: chip diklik tapi garis tak muncul
+       tanpa penjelasan). */
     const supabase = getSupabaseAdmin()
-    if (!supabase) return NextResponse.json({ error: 'Server belum terhubung Supabase (service role)' }, { status: 500 })
-    let q = supabase.from('protected_scripts').select('id, slug, name, description, source, alert_rules').eq('is_active', true)
-    if (body?.scriptId) q = q.eq('id', String(body.scriptId))
-    else if (body?.slug) q = q.eq('slug', String(body.slug))
-    else return NextResponse.json({ error: 'scriptId atau slug wajib' }, { status: 400 })
-    const { data: row, error: rowErr } = await q.maybeSingle() as { data: ProtectedScriptRow | null; error: any }
-    if (rowErr || !row) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const idOrSlug = String(body?.scriptId || body?.slug || '').trim()
+    if (!idOrSlug) return NextResponse.json({ error: 'scriptId atau slug wajib' }, { status: 400 })
+    let row: ProtectedScriptRow | null = null
+    if (supabase) {
+      let q = supabase.from('protected_scripts').select('id, slug, name, description, source, alert_rules').eq('is_active', true)
+      q = UUID_RE.test(idOrSlug) ? q.eq('id', idOrSlug) : q.eq('slug', idOrSlug)
+      const { data, error: rowErr } = await q.maybeSingle() as { data: ProtectedScriptRow | null; error: any }
+      if (rowErr) console.error('[compile-pine] muat skrip gagal:', rowErr?.message)
+      row = data || null
+    }
+    const isDefault = (row?.slug || idOrSlug) === DEFAULT_PINE_SLUG
+    if (!row && isDefault) {
+      /* FALLBACK TANPA DB — source default dari kode (server only) */
+      row = {
+        id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG,
+        name: DEFAULT_PINE_NAME, description: DEFAULT_PINE_DESCRIPTION,
+        source: DEFAULT_PINE_SOURCE, alert_rules: null,
+      }
+    }
+    if (!row) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
 
-    const isDefault = row.slug === DEFAULT_PINE_SLUG
     if (!isPro && !isDefault) {
       return NextResponse.json({
         error: 'Indikator terproteksi Luxtradee khusus member Pro. Upgrade untuk mengaktifkan skrip sinyal eksklusif ini.',
@@ -138,7 +171,15 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 5) CANDLE SERVER (TradingView → TwelveData → Yahoo — urutan FINAL Bos)
+    /* 5) CACHE PLOT SERVER — hit ke cache = tanpa fetch candle &
+       tanpa run engine (CPU nol, respons instan). */
+    const cacheKey = `${row.id}:${symbol}:${interval}`
+    const cached = plotServerCache.get(cacheKey)
+    if (cached && Date.now() - cached.at < PLOT_CACHE_TTL_MS) {
+      return NextResponse.json({ ...cached.payload, cached: true })
+    }
+
+    /* 6) CANDLE SERVER (TradingView → TwelveData → Yahoo — urutan FINAL Bos)
        DEPTH 2000 bar (Bos: backtest salah krn data pendek — 300 bar 1h
        cuma ±2 minggu sehingga sinyal cuma muncul 2×; 2000 bar 1h ≈
        3–4 bulan → sampel backtest layak). Server-candles menarik
@@ -148,7 +189,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })
     }
 
-    /* 6) HEADLESS RUN — source tetap di server */
+    /* 7) HEADLESS RUN — source tetap di server */
     const run = await runPineHeadless(row.source, symbol, interval, cd.bars)
     if (!run.ok || !run.plots?.length) {
       return NextResponse.json({ error: run.error || 'Skrip tidak menghasilkan plot' }, { status: 422 })
@@ -160,7 +201,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Skrip tidak menghasilkan plot' }, { status: 422 })
     }
 
-    /* 7) ALERT — hanya user Pro (free hanya lihat, tanpa notifikasi).
+    /* 8) ALERT — hanya user Pro (free hanya lihat, tanpa notifikasi).
        Dedupe per-bar via pine_alert_log. */
     const signalsSent = isPro
       ? await detectAndDispatch({
@@ -170,15 +211,21 @@ export async function POST(request: NextRequest) {
         })
       : 0
 
-    /* 8) RESPONS — plots SAJA. Tanpa source. Tanpa editor. */
-    return NextResponse.json({
+    /* 9) RESPONS — plots SAJA. Tanpa source. Tanpa editor. */
+    const payload = {
       success: true,
       isPro,
       meta: { title: run.title || row.name, overlay: run.overlay !== false, source: cd.source },
       plots: visiblePlots,
       signalsSent,
       fetchedAt: new Date().toISOString(),
-    })
+    }
+    plotServerCache.set(cacheKey, { at: Date.now(), payload })
+    if (plotServerCache.size > 120) {
+      const oldest = [...plotServerCache.entries()].sort((a, b) => a[1].at - b[1].at)[0]
+      if (oldest) plotServerCache.delete(oldest[0])
+    }
+    return NextResponse.json(payload)
   } catch (x: any) {
     console.error('[compile-pine] unhandled:', x)
     return NextResponse.json({ error: String(x?.message || x).slice(0, 140) }, { status: 500 })
