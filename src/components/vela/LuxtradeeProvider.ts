@@ -22,10 +22,15 @@
  *     dilayani feed Luxtradee via /api/candles.
  *
  * Vela memanggil:
- *   getBars(ticker, timeframe, range)  → sejarah candle (wajib)
+ *   getBars(ticker, timeframe, range)  → sejarah candle DEEP 5000 bar
+ *                                        (5m–1h; TF lain sesuai map)
  *   subscribe(ticker, timeframe, onBar) → TICK LIVE — polling 3 detik
  *   info()                             → metadata (capabilities)
  *   listSymbols()                      → daftar simbol (symbol search)
+ * DEPTH (permintaan Bos — "minimal 3.000–5.000 historical candles,
+ * bukan hanya 500"): chart scroll kiri tembus berminggu-minggu,
+ * backtest Pine multi-bulan. Cache sisi klien 60 detik mencegah
+ * penarikan ulang payload besar pada getBars terulang.
  * LIVE (permintaan Bos — "data chart candle masih sm kek binance untuk
  * forex saya gasuka"): capabilities.stream = true + subscribe() yang
  * mempoll TAIL candle tiap 3 DETIK via /api/candles?nocache (server
@@ -91,7 +96,9 @@ function toMillis(t: number | string): number {
   return n < 1e12 ? n * 1000 : n // < 1e12 ≈ sebelum 2001 dalam ms → pasti detik
 }
 
-/** Baris API { time(sec|ms|iso), open, high, low, close, volume? } → OHLCV Vela. */
+/** Baris API { time(sec|ms|iso), open, high, low, close, volume? } → OHLCV Vela.
+    GARANSI URUTAN: sort ASCENDING berdasarkan waktu (lama → baru) +
+    dedup per open-time — kontrak datafeed Vela. */
 function rowsToOHLCV(rows: any[]): OHLCV[] {
   const bars: OHLCV[] = (rows || [])
     .map((r) => {
@@ -114,9 +121,49 @@ function rowsToOHLCV(rows: any[]): OHLCV[] {
   return [...seen.values()]
 }
 
+/** Potong array bar sesuai BarRange dari Vela (from/to/limit opsional). */
+function sliceRange(bars: OHLCV[], range?: BarRange): OHLCV[] {
+  let out = bars
+  if (range?.from && out.length) {
+    const filtered = out.filter((b) => b.time >= range.from!)
+    if (filtered.length) out = filtered
+  }
+  if (range?.to && out.length) {
+    const filtered = out.filter((b) => b.time <= range.to!)
+    if (filtered.length) out = filtered
+  }
+  if (range?.limit && out.length > range.limit) out = out.slice(-range.limit)
+  return out
+}
+
+/* ============================================================
+   KEDALAMAN HISTORY (permintaan Bos — verbatim: "minimal 3.000
+   hingga 5.000 historical candles ke belakang, terutama timeframe
+   1h / 15m, BUKAN hanya 500"):
+   - 5m–1h : DEPTH 5000 bar → backtest Pine & analisa multi-bulan
+             memakai data penuh, bukan cuplikan 300 bar.
+   - 2h/4h : diagregasi dari 1h di server → depth mengikuti
+             ketersediaan (3000/2000 bar ≈ 6–12 bulan).
+   - 1d/1w : 1000/500 bar (≈ 4–10 tahun).
+   Server /api/candles menarik penuh (TradingView series 1×req,
+   TwelveData outputsize 5000 + pagination, Yahoo period paging). */
+const TF_DEPTH: Record<string, number> = {
+  '5m': 5000, '15m': 5000, '30m': 5000, '1h': 5000,
+  '2h': 3000, '4h': 2000, '1d': 1000, '1w': 500,
+}
+
+/* TTL cache sejarah sisi klien — getBars terulang (toggle indikator,
+   ganti symbol lalu kembali, resubscribe) TIDAK menarik ulang payload
+   5000 bar dari server; cukup dari memori browser. */
+const DEPTH_CACHE_TTL_MS = 60_000
+
+type DepthCacheEntry = { bars: OHLCV[]; ts: number }
+
 export class LuxtradeeForexProvider implements DataProvider {
   /** Cache in-flight per (symbol,tf) — cegah double-fetch saat boot. */
   private inflight = new Map<string, Promise<OHLCV[]>>()
+  /** Cache sejarah deep (5000 bar) per (symbol,tf) — TTL 60 detik. */
+  private depthCache = new Map<string, DepthCacheEntry>()
 
   info(): ProviderInfo {
     return {
@@ -140,30 +187,36 @@ export class LuxtradeeForexProvider implements DataProvider {
     if (!SYMBOL_SET.has(clean)) return [] // simbol di luar daftar → park (feed Vela yang tangani)
 
     const interval = TF_MAP[timeframe] || '1h'
-    /* 1D/1W butuh depth lebih kecil; intraminut lebih besar (ambil 300 bar) */
-    const limit = interval === '1w' ? 160 : interval === '1d' ? 300 : 300
+    /* KEDALAMAN PENUH (Bos): 5000 bar utk 5m–1h dst. — BUKAN lagi 300. */
+    const limit = TF_DEPTH[interval] || 5000
 
     const key = `${clean}:${interval}`
+
+    /* 1) Cache sejarah fresh → sajikan dari memori (hemat ±500KB/reload) */
+    const hit = this.depthCache.get(key)
+    if (hit && Date.now() - hit.ts < DEPTH_CACHE_TTL_MS) {
+      return sliceRange(hit.bars, range)
+    }
+
+    /* 2) In-flight dedup → boot chart tidak dobel fetch */
     let p = this.inflight.get(key)
     if (!p) {
       p = this.fetchCandles(clean, interval, limit)
       this.inflight.set(key, p)
       p.finally(() => this.inflight.delete(key)).catch(() => {})
     }
-    let bars = await p
+    const bars = await p
 
-    /* range.from diminta (deep history / backfill)? Vela minta window lama —
-       potong sesuai permintaan bila data mencakupnya. */
-    if (range?.from && bars.length) {
-      const filtered = bars.filter((b) => b.time >= range.from!)
-      if (filtered.length) bars = filtered
+    /* Simpan utk pemakaian ulang dalam 60 detik */
+    if (bars.length) {
+      this.depthCache.set(key, { bars, ts: Date.now() })
+      if (this.depthCache.size > 24) {
+        const oldest = [...this.depthCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0]
+        if (oldest) this.depthCache.delete(oldest[0])
+      }
     }
-    if (range?.to && bars.length) {
-      const filtered = bars.filter((b) => b.time <= range.to!)
-      if (filtered.length) bars = filtered
-    }
-    if (range?.limit && bars.length > range.limit) bars = bars.slice(-range.limit)
-    return bars
+
+    return sliceRange(bars, range)
   }
 
   private async fetchCandles(symbol: string, interval: string, limit: number): Promise<OHLCV[]> {

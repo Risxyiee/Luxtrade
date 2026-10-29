@@ -40,6 +40,17 @@
  *
  * Cache: in-memory (TTL per-interval) + KV Cloudflare (cross-isolate)
  *
+ * KEDALAMAN HISTORY (Task — permintaan Bos, "minimal 3.000–5.000
+ * historical candles ke belakang, terutama 1h/15m — BUKAN cuma 500"):
+ *   - Param limit/outputsize diterima sampai 5000 bar per request.
+ *   - Sumber dalam rantai menarik penuh: TradingView ws series
+ *     1×request ≤5000 bar; Twelve Data outputsize ≤5000 (+pagination
+ *     previous_close bila minta lebih); Yahoo period1/period2 paging
+ *     (15m/30m window 60 hari, 1h sampai 730 hari) → akumulasi
+ *     3–6 bulan candle tergabung KRONOLOGIS (ascending lama→baru).
+ *   - Chart Vela (LuxtradeeForexProvider) meminta depth 5000 utk
+ *     5m–1h → backtest Pine & scroll kiri tembus berminggu-minggu.
+ *
  * Kontrak respons (sama dengan /api/forex):
  *   { success, symbol, interval, data: [{time,open,high,low,close,volume?}], source, fetchedAt }
  */
@@ -55,6 +66,11 @@ import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 import { fetchTradingViewCandles } from '@/lib/market/tradingview'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
+/* KEDALAMAN MAKSIMUM HISTORY per request (Bos: 3.000–5.000 bar,
+   bukan lagi 500). Melebihi ini → klien harus memecah request. */
+const MAX_LIMIT = 5000
 
 /* Interval kanonik + format Vela ('60','240','1D',…) */
 const INTERVALS: Record<string, string> = {
@@ -184,7 +200,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const rawSymbol = searchParams.get('symbol') || 'XAUUSD'
     const rawInterval = searchParams.get('interval') || searchParams.get('timeframe') || '1h'
-    const limit = Math.min(parseInt(searchParams.get('limit') || searchParams.get('outputsize') || '300'), 500)
+    /* KEDALAMAN: default 300 (kompatibel pemanggil lama), tapi klien
+       boleh minta sampai 5000 bar — chart Vela meminta depth penuh. */
+    const limit = Math.min(
+      Math.max(parseInt(searchParams.get('limit') || searchParams.get('outputsize') || '300') || 300, 1),
+      MAX_LIMIT,
+    )
     const nocache = searchParams.get('nocache') === 'true'
 
     const symbol = normalizeSymbol(rawSymbol)

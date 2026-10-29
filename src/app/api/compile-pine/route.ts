@@ -138,8 +138,12 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 5) CANDLE SERVER (TradingView → TwelveData → Yahoo — urutan FINAL Bos) */
-    const cd = await fetchServerCandles(symbol, interval, 300)
+    /* 5) CANDLE SERVER (TradingView → TwelveData → Yahoo — urutan FINAL Bos)
+       DEPTH 2000 bar (Bos: backtest salah krn data pendek — 300 bar 1h
+       cuma ±2 minggu sehingga sinyal cuma muncul 2×; 2000 bar 1h ≈
+       3–4 bulan → sampel backtest layak). Server-candles menarik
+       penuh: TV series ≤5000, TD outputsize 5000, Yahoo period paging. */
+    const cd = await fetchServerCandles(symbol, interval, 2000)
     if (!cd) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })
     }
