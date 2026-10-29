@@ -123,9 +123,31 @@ function rma(src: Array<number | null>, len: number, varSeed = false): Array<num
   return out
 }
 
+export interface DefaultRunStats {
+  netProfit: number // setelah komisi
+  netPct: number // relasi initialCapital
+  closedTrades: number
+  winRate: number // %
+  profitFactor: number | null // grossWin / |grossLoss|
+  maxLossStreak: number
+  maxWinStreak: number
+  maxDailyDD: number
+  maxDailyDDPct: number
+  maxOverallDD: number
+  maxOverallDDPct: number
+  firstTradeTimeMs: number | null
+  testStartMs: number
+  paused: boolean // status akhir (jeda / aktif)
+  openPos: boolean // posisi masih terbuka di bar terakhir
+}
+
 export interface DefaultRunResult {
   trades: DefaultRunnerTrade[]
   engineAlerts: Array<{ message: string; time: number; barIndex: number }>
+  /** Statistik performa ala tabel strategy() TradingView —
+      dirender jadi tabel di pojok chart (Bos: "km malah buat
+      indikator sendiri" → tampilan khas script master harus ada). */
+  stats: DefaultRunStats
 }
 
 /**
@@ -184,6 +206,32 @@ export function runDefaultStrategy(
   let shadowSL = 0
   let shadowTP = 0
 
+  /* ---- Statistik (ala tabel strategy Bos) ---- */
+  let grossWin = 0
+  let grossLoss = 0
+  let equityPeak = cfg.initialCapital
+  let maxOverallDD = 0
+  let maxOverallDDPct = 0
+  let maxDailyDD = 0
+  let maxDailyDDPct = 0
+  let maxLossStreakSeen = 0
+  let maxWinStreakSeen = 0
+  let firstTradeTimeMs: number | null = null
+
+  const trackStats = () => {
+    if (equity > equityPeak) equityPeak = equity
+    const odd = Math.max(0, equityPeak - equity)
+    if (odd > maxOverallDD) {
+      maxOverallDD = odd
+      maxOverallDDPct = equityPeak > 0 ? (odd / equityPeak) * 100 : 0
+    }
+    const ddd = Math.max(0, dayStartEquity - equity)
+    if (ddd > maxDailyDD) {
+      maxDailyDD = ddd
+      maxDailyDDPct = dayStartEquity > 0 ? (ddd / dayStartEquity) * 100 : 0
+    }
+  }
+
   // posisi aktif
   let posDir: 0 | 1 | -1 = 0
   let entryPrice = 0
@@ -200,17 +248,23 @@ export function runDefaultStrategy(
   const closed = (t: DefaultRunnerTrade) => {
     trades.push(t)
     equity += t.pnl
+    if (firstTradeTimeMs == null) firstTradeTimeMs = t.entry.time
+    if (t.pnl >= 0) grossWin += t.pnl
+    else grossLoss += Math.abs(t.pnl)
     if (t.pnl < 0) {
       lossStreak += 1
       winStreak = 0
+      if (lossStreak > maxLossStreakSeen) maxLossStreakSeen = lossStreak
       if (lossStreak >= cfg.maxLossStreak) { paused = true; shadowDir = 0 }
     } else if (t.pnl > 0) {
       lossStreak = 0
       winStreak += 1
+      if (winStreak > maxWinStreakSeen) maxWinStreakSeen = winStreak
     } else {
       lossStreak = 0
       winStreak = 0
     }
+    trackStats()
   }
 
   const engineAlerts: Array<{ message: string; time: number; barIndex: number }> = []
@@ -274,7 +328,7 @@ export function runDefaultStrategy(
     const wibMs = tMs + 7 * 3600000
     const curDayIdx = Math.floor(wibMs / 86400000)
     const newTradingDay = dayIdx == null || curDayIdx !== dayIdx
-    if (newTradingDay) { dayIdx = curDayIdx; dayStartEquity = equity; dailyLossLocked = false }
+    if (newTradingDay) { dayIdx = curDayIdx; dayStartEquity = equity; dailyLossLocked = false; trackStats() }
     if (equity <= dayStartEquity - dayStartEquity * cfg.dailyMaxLossPct / 100) dailyLossLocked = true
 
     /* 2) Indikator & sinyal mentah (identik Pine) */
@@ -333,5 +387,27 @@ export function runDefaultStrategy(
     void last
   }
 
-  return { trades, engineAlerts }
+  const netProfit = equity - cfg.initialCapital
+  const stats: DefaultRunStats = {
+    netProfit,
+    netPct: (netProfit / cfg.initialCapital) * 100,
+    closedTrades: trades.filter((t) => t.exit != null).length,
+    winRate: 0,
+    profitFactor: grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? null : 0),
+    maxLossStreak: maxLossStreakSeen,
+    maxWinStreak: maxWinStreakSeen,
+    maxDailyDD,
+    maxDailyDDPct,
+    maxOverallDD,
+    maxOverallDDPct,
+    firstTradeTimeMs,
+    testStartMs: barsSec.length ? barsSec[0].time * 1000 : 0,
+    paused,
+    openPos: posDir !== 0,
+  }
+  const closedTrades = trades.filter((t) => t.exit != null && t.pnl !== 0)
+  stats.closedTrades = closedTrades.length
+  stats.winRate = closedTrades.length ? (closedTrades.filter((t) => t.pnl > 0).length / closedTrades.length) * 100 : 0
+
+  return { trades, engineAlerts, stats }
 }

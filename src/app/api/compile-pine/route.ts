@@ -218,11 +218,18 @@ export async function POST(request: NextRequest) {
         })
       : 0
 
-    /* 9) RESPONS — plots SAJA. Tanpa source. Tanpa editor. */
+    /* 9) RESPONS — plots SAJA. Tanpa source. Tanpa editor.
+       Stats (tabel performa ala TradingView) ikut utk skrip default —
+       dirender client sebagai tabel pojok chart. */
     const payload = {
       success: true,
       isPro,
-      meta: { title: run.title || row.name, overlay: run.overlay !== false, source: cd.source },
+      meta: {
+        title: run.title || row.name,
+        overlay: run.overlay !== false,
+        source: cd.source,
+        ...(run.stats ? { stats: run.stats } : {}),
+      },
       plots: visiblePlots,
       signalsSent,
       fetchedAt: new Date().toISOString(),

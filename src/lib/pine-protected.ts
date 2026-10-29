@@ -19,7 +19,6 @@
 
 import { fetchServerCandles, intervalSeconds } from '@/lib/market/server-candles'
 import { runDefaultStrategy } from '@/lib/pine-default-runner'
-
 /* ============================================================
    1) HEADLESS PINE ENGINE — compute plots tanpa browser
    ============================================================ */
@@ -41,6 +40,9 @@ export interface PineRunResult {
   plots?: PlotSeries[]
   /** Alert bawaan engine (script memakai alert()/alertcondition) */
   engineAlerts?: Array<{ message: string; time: number; barIndex: number }>
+  /** Statistik performa strategy (HANYA skrip default — tabel khas
+      TradingView utk chart: Net P&L, win rate, PF, streak, DD, dst.) */
+  stats?: Record<string, string | number | boolean | null>
 }
 
 const PALETTE = ['#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#38bdf8', '#fb7185']
@@ -138,12 +140,29 @@ export async function runDefaultStrategyPine(
   barsSec: Array<{ time: number; open: number; high: number; low: number; close: number; volume?: number }>,
 ): Promise<PineRunResult> {
   if (!barsSec.length) return { ok: false, error: 'Tidak ada candle untuk dieksekusi' }
-  const { trades, engineAlerts } = runDefaultStrategy(
+  const { trades, engineAlerts, stats } = runDefaultStrategy(
     barsSec.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })),
   )
   const barsMs = barsSec.map((b) => ({ ...b, time: b.time * 1000 }))
   const plots = synthesizeTradePlots(barsMs, trades)
-  return { ok: true, title: 'Luxtradee Candle Impulsif', overlay: true, plots, engineAlerts }
+  /* Tabel performa ala TradingView (Bos: indikator luxtrade harus
+     kelihatan sebagai script master dia — Net P&L s.d. status). */
+  const money = (v: number) => `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`
+  const pct = (v: number) => `${v >= 0 ? '' : '-'}${Math.abs(v).toFixed(2)}%`
+  const dayFmt = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric' })
+  const statsPayload: Record<string, string | number | boolean | null> = {
+    netProfit: `${money(stats.netProfit)} (${pct(stats.netPct)})`,
+    trades: `${stats.closedTrades} / ${stats.winRate.toFixed(1)}%`,
+    profitFactor: stats.profitFactor == null ? '-' : stats.profitFactor.toFixed(2),
+    streaks: `${stats.maxLossStreak} / ${stats.maxWinStreak}`,
+    dailyDD: `${money(stats.maxDailyDD)} (${stats.maxDailyDDPct.toFixed(2)}%)`,
+    overallDD: `${money(stats.maxOverallDD)} (${stats.maxOverallDDPct.toFixed(2)}%)`,
+    testStart: stats.testStartMs ? dayFmt.format(new Date(stats.testStartMs)) : '-',
+    firstTrade: stats.firstTradeTimeMs ? dayFmt.format(new Date(stats.firstTradeTimeMs)) : '-',
+    openPos: stats.openPos,
+    paused: stats.paused,
+  }
+  return { ok: true, title: 'Luxtradee Candle Impulsif', overlay: true, plots, engineAlerts, stats: statsPayload }
 }
 
 /**
@@ -425,8 +444,17 @@ export function evaluateAlertRules(
    ============================================================ */
 
 export async function sendTelegramToUser(chatId: string, html: string): Promise<boolean> {
+  return (await sendTelegramToUserVerbose(chatId, html)).ok
+}
+
+/** Versi VERBOSE — alasan penolakan Telegram TIDAK dibuang (fix
+    "tes tele pine ga berfungsi tanpa jejak": Unauthorized = token
+    salah, "chat not found" = chat_id salah — semua kini terlihat). */
+export async function sendTelegramToUserVerbose(chatId: string, html: string): Promise<{ ok: boolean; description?: string }> {
   const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim()
-  if (!token || !chatId) return false
+  if (!token || !chatId) {
+    return { ok: false, description: !token ? 'TELEGRAM_BOT_TOKEN belum diset di server' : 'chat_id kosong' }
+  }
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
@@ -434,9 +462,11 @@ export async function sendTelegramToUser(chatId: string, html: string): Promise<
       body: JSON.stringify({ chat_id: chatId, text: html.slice(0, 4000), parse_mode: 'HTML', disable_web_page_preview: true }),
       cache: 'no-store',
     })
-    return res.ok
-  } catch {
-    return false
+    const body: any = await res.json().catch(() => null)
+    if (res.ok && body?.ok === true) return { ok: true }
+    return { ok: false, description: String(body?.description || `HTTP ${res.status}`).slice(0, 140) }
+  } catch (x: any) {
+    return { ok: false, description: String(x?.message || x).slice(0, 140) }
   }
 }
 
