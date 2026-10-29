@@ -138,8 +138,10 @@ function setCache(key: string, data: Ohlcv[], source: string) {
    ingin membuang SEMUA entri lama sekaligus: kunci lama jadi yatim
    & kedaluwarsa sendiri (TTL ≤ 300s), tanpa flush manual Cloudflare.
    v4 → agregasi 2h/4h kini bucket-aligned (buang entri lama yg
-   batas group-nya geser — penyebab candle 2h/4h melompat). */
-const KV_CACHE_VER = 'v4'
+   batas group-nya geser — penyebab candle 2h/4h melompat).
+   v5 → rantai spot 4 lapis + proyeksi grid sumber (tail patch) —
+   buang entri KV lama yg ekornya tak ter-patch/campur skala. */
+const KV_CACHE_VER = 'v5'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {

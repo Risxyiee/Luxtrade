@@ -2151,3 +2151,20 @@ E2E BROWSER (agent-browser, dev sandbox):
 - lint exit 0.
 
 LANGKAH BOS: push → tunggu deploy CF ±3-5 menit → hard-refresh (Ctrl+Shift+R) sekali → chart harus stabil satu skala, pineku terpasang otomatis, cron tidak error scheduled().
+
+## Round 2: Rantai Spot 4 Lapis (Free API) + Proyeksi Grid Sumber + Anti-Dobel "LTX Pro" (2026-10-29)
+Tanggal: 2026-10-29 · Status: working tree → commit & push (deploy CF auto)
+
+Laporan Bos: (1) pine saya terpasang default — ganti isi luxtradee candle impulsively ke ini (v5 paste penuh), (2) chart masih kek setan kadang ilang kadang kebawah candlenya masih gabener, (3) coba benerin make api apa ya yang gratis.
+
+STATUS PINE DEFAULT: TERPASANG — DEFAULT_PINE_SOURCE (pine-default-script.ts) = paste verbatim v5 "Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)", auto-load otomatis saat terminal dibuka (restore by slug tanpa nunggu API) + localStorage persist. Diverifikasi E2E: chip "✓ Luxtradee Candle Impulsif" aktif sendiri, tabel performa tampil. Tidak ada perubahan lagi di sisi ini.
+
+ROOT CAUSE SISA "KEK SETAN" (verifikasi ronde ini):
+1. SPOT 2 LAPIS KURANG: warn produksi "[spot-live] XAU/XAG spot tak tersedia (gold-api & PAXG gagal)" = kedua sumber tumbang bersamaan dari egress CF Workers → tail tanpa patch → candle diam lalu lompat saat history refresh ("kadang kebawah"). FIX spot-live.ts: rantai 4 LAPIS SEMUA GRATIS/KEYLESS — gold-api → XAUT/USDT (Tether Gold, binance-vision; BARU, teruji 4025.25) → PAXG/USDT → Yahoo quote tick (GC=F/SI=F, PALING AKHIR; drift-guard 0.35% di patchTail tetap menolak patch lintas-skala jadi Yahoo tak pernah bikin lompat). Cooldown gagal 8 dtk (anti nembak 4 upstream tiap poll 3 dtk saat semua down).
+2. PROYEKSI TIP BUKAN UTC PAKSA: fill gap dulu melompat ke bucket UTC (floor(now/iv)) — sumber ber-anchor geser (TV 4h mulai 01:00) → bar sintetis BENTROK bar sumber berikutnya (dobel/ilang). FIX patchTailWithSpot & patchTailYahooLive: tip basi diproyeksikan last.time + k×iv (grid sumber sendiri, ≤ now) → anchor konsisten dgn sejarah, tak pernah dobel.
+3. INSTANCE "LTX Pro" DOBEL DI LEGEND: persist internal Vela memulihkan instance protected SETELAH restore kita jalan (+2 dtk) → guard `have` masih kosong → tambah lagi = 2 garis Entry/SL/TP. FIX VelaChartTerminal: (a) daftar skrip tak tersedia → UUID lain tak di-restore (tak bisa dibedakan dr UUID default sesi lama); (b) REKONSILIASI berkala 3× tiap 2.5 dtk — scriptId ekuivalen (slug/id default = satu kunci) disisakan SATU instance. Terbukti E2E: legend "LTX Pro" 2× → 1×.
+4. KV_CACHE_VER v4 → v5: buang entri KV lama yang ekornya tak ter-patch/campur skala (keluhan "max bar masih sama" pasca deploy).
+
+UJI: lint exit 0; tsc bersih utk file tersentuh; E2E agent-browser /dashboard/chart — chart 1h XAUUSD utuh (tanpa ilang/kebawah), harga tag 4028.70→4027.90 mengikuti spot goldapi, source respons "goldapi-spot-live", chip default aktif otomatis, tabel performa v5 tampil, LTX Pro 1×; console bersih dr error chart (sisa warning pre-existing SW/LCP).
+
+LANGKAH BOS: push → deploy CF ±3-5 mnt → hard-refresh sekali → cek log CF: warn spot-live harus hilang / berganti "[spot-live] spot XAU dari …" (gold-api/xaut/paxg/yahoo-tick).
