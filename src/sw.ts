@@ -35,14 +35,13 @@ cleanupOutdatedCaches()
 // ─── Offline Fallback ─────────────────────────────────────────────────────────
 
 const OFFLINE_URL = '/offline.html'
-// v8: purge semua cache v7 — permintaan Bos "reset chache siapa tau masi
-// chache lama" + paste strategy verbatim v5 (Luxtradee Candle Impulsif).
-// HTML PAGES_CACHE v7 yang ter-cache sebelum deploy terakhir bikin user
-// lama masih lihat bundle lawas. Versi naik → semua cache v7 dibuang sekali.
-const CACHE_NAME = 'luxtradee-offline-v8'
-const STATIC_CACHE = 'luxtradee-static-v8'
-const PAGES_CACHE = 'luxtradee-pages-v8'
-const API_CACHE = 'luxtradee-api-v8'
+// v9: purge semua cache v8 — build ID kini unik per deploy + sw.js
+// no-store; naikkan versi supaya client lama (yang masih pegang SW v8
+// dengan HTML/bundle lawas) langsung dibuang sekali saat SW v9 aktif.
+const CACHE_NAME = 'luxtradee-offline-v9'
+const STATIC_CACHE = 'luxtradee-static-v9'
+const PAGES_CACHE = 'luxtradee-pages-v9'
+const API_CACHE = 'luxtradee-api-v9'
 
 const sw = self as unknown as ServiceWorkerGlobalScope
 
