@@ -18,6 +18,7 @@
  */
 
 import { fetchServerCandles, intervalSeconds } from '@/lib/market/server-candles'
+import { runDefaultStrategy } from '@/lib/pine-default-runner'
 
 /* ============================================================
    1) HEADLESS PINE ENGINE — compute plots tanpa browser
@@ -73,6 +74,79 @@ function scanPlotColors(source: string): Record<string, string> {
 }
 
 /**
+ * Sintesis segmen Entry/SL/TP dari TRADES strategy() — Permintaan Bos:
+ * "itu ganti pine ke ini baru namain Luxtradee Candle Impulsif" — source
+ * default sekarang strategy() VERBATIM (tanpa plot()), jadi chart perlu
+ * menggambar "log entry sl tp" dari daftar trade engine:
+ *   - Entry      (hijau)  : harga entry, dari bar entry s.d. bar exit
+ *   - Stop Loss  (merah)  : harga exit utk trade rugi (pnl < 0)
+ *   - Take Profit (aqua)  : harga exit utk trade untung (pnl >= 0)
+ * Posisi masih terbuka → garis Entry menjulur ke bar terakhir.
+ * Mirip line.new + label TP/SL di TradingView, tapi server-side.
+ */
+function synthesizeTradePlots(
+  bars: Array<{ time: number }>,
+  trades: any[],
+): PlotSeries[] {
+  const idxOf = new Map<number, number>()
+  bars.forEach((b, i) => idxOf.set(Number(b.time), i))
+  const n = bars.length
+  const entry = new Array<number | null>(n).fill(null)
+  const loss = new Array<number | null>(n).fill(null)
+  const win = new Array<number | null>(n).fill(null)
+  for (const tr of trades) {
+    try {
+      const eT = Number(tr?.entry?.time)
+      const eP = Number(tr?.entry?.price)
+      const start = idxOf.get(eT)
+      if (start == null || !Number.isFinite(eP)) continue
+      let end = tr?.exit?.time != null ? idxOf.get(Number(tr.exit.time)) : null
+      if (end == null) end = n - 1 // posisi masih terbuka
+      const s = Math.min(start, end)
+      const t = Math.max(start, end)
+      for (let i = s; i <= t; i++) entry[i] = eP
+      const xP = Number(tr?.exit?.price)
+      if (Number.isFinite(xP)) {
+        const target = Number(tr?.pnl) < 0 ? loss : win
+        for (let i = s; i <= t; i++) target[i] = xP
+      }
+    } catch { /* trade aneh — lewati */ }
+  }
+  const toSeries = (arr: Array<number | null>, key: string, title: string, color: string): PlotSeries => ({
+    key, title, kind: 'line', color,
+    data: bars.map((b, i) => ({ time: Number(b.time), value: arr[i] })),
+  })
+  return [
+    toSeries(entry, 'Entry', 'Entry', '#22ab94'),
+    toSeries(loss, 'StopLoss', 'Stop Loss', '#ef5350'),
+    toSeries(win, 'TakeProfit', 'Take Profit', '#26c6da'),
+  ]
+}
+
+/**
+ * Jalankan REPLIKA TypeScript strategy default (Luxtradee Candle
+ * Impulsif) — jalur EKSEKUSI resmi untuk skrip default di produksi.
+ * Engine PineTS tidak bisa jalan di Cloudflare Workers (eval dilarang
+ * → "Code generation from strings disallowed"), jadi skrip default
+ * dieksekusi lewat replika TS 100% tanpa eval (logika identik —
+ * lihat pine-default-runner.ts). Source Pine verbatim tetap tersimpan
+ * di protected_scripts / DEFAULT_PINE_SOURCE (tidak pernah ke browser).
+ */
+export async function runDefaultStrategyPine(
+  _symbol: string,
+  _timeframe: string,
+  barsSec: Array<{ time: number; open: number; high: number; low: number; close: number; volume?: number }>,
+): Promise<PineRunResult> {
+  if (!barsSec.length) return { ok: false, error: 'Tidak ada candle untuk dieksekusi' }
+  const { trades, engineAlerts } = runDefaultStrategy(
+    barsSec.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })),
+  )
+  const barsMs = barsSec.map((b) => ({ ...b, time: b.time * 1000 }))
+  const plots = synthesizeTradePlots(barsMs, trades)
+  return { ok: true, title: 'Luxtradee Candle Impulsif', overlay: true, plots, engineAlerts }
+}
+
+/**
  * Jalankan source Pine di server (headless) atas `bars`.
  * bars: epoch DETIK (bentuk server-candles) — dikonversi ke ms
  * (kontrak Vela OHLCV time = Millis).
@@ -122,10 +196,6 @@ export async function runPineHeadless(
         const snap = await session?.getContext?.(['plots', 'meta', 'trades'])
         const plotsRaw: Record<string, any> = snap?.plots || {}
         const keys = Object.keys(plotsRaw)
-        if (!keys.length) {
-          resolve({ ok: false, error: 'Skrip berjalan, tetapi tidak menghasilkan plot (tambahkan plot(...))' })
-          return
-        }
 
         /* ---- strategy() trades → sinyal ala alert() ----
            Klasifikasi pesan mengikuti regex collectTriggers:
@@ -162,23 +232,33 @@ export async function runPineHeadless(
             }
           } catch { /* trade aneh — lewati */ }
         }
-        const plots: PlotSeries[] = keys.map((k, i) => {
-          const pts = Array.isArray(plotsRaw[k]) ? plotsRaw[k] : []
-          /* Judul = title Pine (kunci engine biasanya memakainya);
-             kunci generik plot_N → "Plot n". Warna ikut deklarasi Pine. */
-          const isGenericKey = /^plot_?\d*$/i.test(k)
-          const title = isGenericKey ? `Plot ${i + 1}` : k
-          return {
-            key: k,
-            title,
-            kind: 'line' as const,
-            color: colorMap[k] || PALETTE[i % PALETTE.length],
-            data: pts
-              .map((p: any) => ({ time: Number(p?.time), value: p?.value == null ? null : Number(p.value) }))
-              .filter((p: any) => Number.isFinite(p.time))
-              .map((p: any) => ({ time: p.time, value: Number.isFinite(p.value) ? p.value : null })),
-          }
-        })
+        let plots: PlotSeries[]
+        if (keys.length) {
+          plots = keys.map((k, i) => {
+            const pts = Array.isArray(plotsRaw[k]) ? plotsRaw[k] : []
+            /* Judul = title Pine (kunci engine biasanya memakainya);
+               kunci generik plot_N → "Plot n". Warna ikut deklarasi Pine. */
+            const isGenericKey = /^plot_?\d*$/i.test(k)
+            const title = isGenericKey ? `Plot ${i + 1}` : k
+            return {
+              key: k,
+              title,
+              kind: 'line' as const,
+              color: colorMap[k] || PALETTE[i % PALETTE.length],
+              data: pts
+                .map((p: any) => ({ time: Number(p?.time), value: p?.value == null ? null : Number(p.value) }))
+                .filter((p: any) => Number.isFinite(p.time))
+                .map((p: any) => ({ time: p.time, value: Number.isFinite(p.value) ? p.value : null })),
+            }
+          })
+        } else if (trades.length) {
+          /* strategy() VERBATIM tanpa plot() → segmen Entry/SL/TP dari trades
+             (Luxtradee Candle Impulsif — permintaan Bos). */
+          plots = synthesizeTradePlots(bars, trades)
+        } else {
+          resolve({ ok: false, error: 'Skrip berjalan, tetapi tidak menghasilkan plot (tambahkan plot(...))' })
+          return
+        }
         resolve({
           ok: true,
           title: String(snap?.meta?.title || 'Luxtradee Pro Script'),

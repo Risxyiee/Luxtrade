@@ -24,7 +24,7 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import {
-  runPineHeadless, evaluateAlertRules, sendTelegramToUser, formatSignalMessage,
+  runPineHeadless, runDefaultStrategyPine, evaluateAlertRules, sendTelegramToUser, formatSignalMessage,
   fetchServerCandles,
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
@@ -189,8 +189,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server` }, { status: 502 })
     }
 
-    /* 7) HEADLESS RUN — source tetap di server */
-    const run = await runPineHeadless(row.source, symbol, interval, cd.bars)
+    /* 7) HEADLESS RUN — source tetap di server.
+       Skrip DEFAULT (Luxtradee Candle Impulsif) dieksekusi lewat
+       REPLIKA TypeScript tanpa eval — engine PineTS memakai kodegen
+       yang DILARANG Cloudflare Workers (HTTP 422 "Code generation
+       from strings disallowed"), jadi tanpa ini klik indikator selalu
+       gagal di produksi. Skrip lain tetap lewat engine. */
+    const run = row.slug === DEFAULT_PINE_SLUG
+      ? await runDefaultStrategyPine(symbol, interval, cd.bars)
+      : await runPineHeadless(row.source, symbol, interval, cd.bars)
     if (!run.ok || !run.plots?.length) {
       return NextResponse.json({ error: run.error || 'Skrip tidak menghasilkan plot' }, { status: 422 })
     }

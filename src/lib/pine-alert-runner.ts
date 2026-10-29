@@ -20,14 +20,16 @@
  */
 
 import {
-  runPineHeadless, evaluateAlertRules, sendTelegramToUser, formatSignalMessage,
+  runPineHeadless, runDefaultStrategyPine, evaluateAlertRules, sendTelegramToUser, formatSignalMessage,
   fetchServerCandles,
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export interface RunnerScript {
   id: string
+  slug?: string
   name: string
   source: string
   alert_rules: AlertRule[] | null
@@ -153,8 +155,13 @@ export async function runAlertGroup(
   }
   outcome.candleSource = cd.source
 
-  /* 2) Headless run — source tetap di server */
-  const run = await runPineHeadless(script.source, symbol, interval, cd.bars)
+  /* 2) Headless run — source tetap di server.
+     Skrip DEFAULT (Luxtradee Candle Impulsif) dieksekusi lewat
+     REPLIKA TypeScript (tanpa eval — Cloudflare Workers melarang
+     kodegen; engine PineTS selalu 422 di produksi). */
+  const run = script.slug === DEFAULT_PINE_SLUG
+    ? await runDefaultStrategyPine(symbol, interval, cd.bars)
+    : await runPineHeadless(script.source, symbol, interval, cd.bars)
   if (!run.ok || !run.plots?.length) {
     outcome.error = run.error || 'Skrip tidak menghasilkan plot'
     return outcome
