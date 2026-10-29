@@ -3,12 +3,14 @@
  * /api/cron/pine-alerts — Runner alert Pine 24 jam (Task 44)
  * ============================================================
  * Dipanggil GitHub Actions tiap 5 menit (workflow
- * pine-alerts-cron.yml) ATAU manual:
+ * pine-alerts-cron.yml) ATAU cron Cloudflare tiap 15 menit
+ * (worker-entry.ts — backup bila GHA tidak terkonfigurasi) ATAU manual:
  *   curl -X POST -H "x-cron-secret: <SECRET>" https://luxtradee.web.id/api/cron/pine-alerts
  *
  * Alur:
- *   1. Gate secret (env PINE_ALERT_CRON_SECRET — kosong = endpoint
- *      mati total, aman default).
+ *   1. Gate secret (env PINE_ALERT_CRON_SECRET, fallback CRON_SECRET
+ *      supaya cron internal CF jalan tanpa setup tambahan — kosong
+ *      dua-duanya = endpoint mati total, aman default).
  *   2. Baca semua langganan enabled dari pine_alert_subscriptions.
  *   3. Saring: user Pro aktif + Telegram terhubung + skrip aktif.
  *   4. Grup per (script, symbol, timeframe) → 1× fetch candle +
@@ -39,13 +41,18 @@ function isProRow(p: { is_pro?: boolean; subscription_until?: string | null; pro
 }
 
 async function handle(request: NextRequest) {
-  /* 1) SECRET GATE */
-  const secret = String(process.env.PINE_ALERT_CRON_SECRET || '').trim()
+  /* 1) SECRET GATE — PINE_ALERT_CRON_SECRET (GHA) dulu, fallback
+     CRON_SECRET (dipakai cron CF internal worker-entry). Dengan ini
+     alert otomatis tetap hidup walau Bos belum set secret khusus. */
+  const secret = String(process.env.PINE_ALERT_CRON_SECRET || process.env.CRON_SECRET || '').trim()
   if (!secret) {
-    return NextResponse.json({ error: 'PINE_ALERT_CRON_SECRET belum diset — endpoint cron dinonaktifkan' }, { status: 403 })
+    return NextResponse.json({ error: 'PINE_ALERT_CRON_SECRET/CRON_SECRET belum diset — endpoint cron dinonaktifkan' }, { status: 403 })
   }
   const provided = String(
-    request.headers.get('x-cron-secret') || new URL(request.url).searchParams.get('secret') || '',
+    request.headers.get('x-cron-secret')
+    || new URL(request.url).searchParams.get('secret')
+    || (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+    || '',
   ).trim()
   if (provided !== secret) return NextResponse.json({ error: 'Secret salah' }, { status: 401 })
 

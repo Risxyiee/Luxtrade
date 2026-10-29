@@ -21,7 +21,7 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
-import { sendTelegramToUser } from '@/lib/pine-protected'
+import { sendTelegramToUserVerbose } from '@/lib/pine-protected'
 import { ensureDefaultScript, DEFAULT_PINE_SOURCE } from '@/lib/pine-default-script'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME } from '@/lib/pine-default-meta'
 
@@ -92,11 +92,20 @@ export async function POST(request: NextRequest) {
     }
 
     /* 4) TELEGRAM USER — bila belum terhubung, evaluasi tetap jalan
-       (hasil pemicu dilaporkan ke UI, tanpa kirim/log) */
+       (hasil pemicu dilaporkan ke UI, tanpa kirim/log).
+       FIX "tes tele pine ga berfungsi" (Bos): dulu test HANYA pakai
+       profiles.telegram_chat_id — profile kosong = DIAM TOTAL walau
+       tes ke /api/send-alert normal (itu punya fallback env).
+       Sekarang: pesan TES boleh pakai chat default server (env
+       TELEGRAM_CHAT_ID — sama seperti send-alert); ALERT OTOMATIS
+       tetap WAJIB telegram pribadi terhubung. */
     const { data: prof } = await supabase
       .from('profiles').select('telegram_chat_id').eq('id', userId).maybeSingle()
-    const chatId = String((prof as any)?.telegram_chat_id || '').trim()
-    const telegramBound = !!chatId
+    const profileChat = String((prof as any)?.telegram_chat_id || '').trim()
+    const envChat = String(process.env.TELEGRAM_CHAT_ID || '').trim()
+    const chatId = profileChat || envChat
+    const telegramBound = !!profileChat
+    const testViaDefault = !profileChat && !!envChat
 
     /* 5) RUN — send/writeLog hanya bila Telegram terhubung */
     const out = await runAlertGroup(
@@ -126,13 +135,17 @@ export async function POST(request: NextRequest) {
        bila TIDAK ADA pesan yang terkirim dari langkah 5, kirim pesan
        TES eksplisit 🧪 — pipeline Pine→Telegram terbukti langsung.
        Pesan tes TIDAK masuk dedupe/log (bukan sinyal — cron 5 menit
-       tidak akan terganggu). */
+       tidak akan terganggu).
+       JUJUR (fix kedua): dulu kirim tes GAGAL = respons tetap "berjalan
+       normal" — Bos tidak tahu pipeline-nya mati. Sekarang alasan
+       penolakan Telegram (Unauthorized / chat not found / dst.)
+       diteruskan apa adanya sebagai HTTP 502. */
     let testMessage = false
-    if (telegramBound && out.ok && out.sent === 0) {
+    if ((telegramBound || testViaDefault) && out.ok && out.sent === 0) {
       const nTrig = out.triggers.length
       const note = nTrig > 0
         ? `ada ${nTrig} sinyal di bar ini tapi sudah pernah dikirim (dedupe anti-spam per-bar)`
-        : 'belum ada sinyal di bar terakhir — alert tetap berjalan otomatis tiap 5 menit, 24 jam'
+        : 'belum ada sinyal di bar terakhir — alert tetap berjalan otomatis 24 jam (GHA tiap 5 menit + cron CF tiap 15 menit)'
       const html = [
         `🧪 <b>TES ALERT LUXTRADEE — BERHASIL</b>`,
         ``,
@@ -143,8 +156,20 @@ export async function POST(request: NextRequest) {
         ``,
         `<i>Pesan ini adalah tes pipeline — bukan sinyal trading.</i>`,
       ].join('\n')
-      const okTg = await sendTelegramToUser(chatId, html)
-      if (okTg) { out.sent = 1; testMessage = true }
+      const tg = await sendTelegramToUserVerbose(chatId, html)
+      if (tg.ok) { out.sent = 1; testMessage = true }
+      else {
+        return NextResponse.json({
+          ok: false,
+          error: `Telegram menolak pesan tes: ${tg.description || 'alasan tidak diketahui'}${testViaDefault ? ' (dikirim ke chat default server — Telegram pribadi belum terhubung)' : ''}`,
+          telegramBound,
+          testViaDefault,
+          triggers: [],
+          sent: 0,
+          candleSource: out.candleSource,
+          evaluatedAt: new Date().toISOString(),
+        }, { status: 502 })
+      }
     }
 
     return NextResponse.json({
@@ -153,6 +178,7 @@ export async function POST(request: NextRequest) {
       triggers: out.triggers.map((t) => ({ signal: t.signal, price: t.price, time: t.time, message: t.message })),
       sent: out.sent,
       testMessage,
+      testViaDefault,
       telegramBound,
       perUser: out.perUser,
       candleSource: out.candleSource,

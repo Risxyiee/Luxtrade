@@ -24,7 +24,7 @@
  */
 
 import type { YahooCandle } from './yahoo'
-import { validatePrice } from './yahoo'
+import { validatePrice, fetchYahooChart } from './yahoo'
 
 /* ---------- Interval kanonik → detik per bar ----------
    Menerima DUA format: kanonik ('5m','1h',…) dan format Vela dari
@@ -110,16 +110,53 @@ async function fetchBinancePrice(bSymbol: string): Promise<number | null> {
   }
 }
 
-/** Harga spot gold/silver dengan FALLBACK: gold-api (primer) →
-    PAXG/USDT binance-vision utk XAU (token 1:1 emas fisik, track
-    XAUUSD ±0.5%) — gold-api kadang timeout; tanpa fallback overlay
-    mati sementara → candle diam lagi. */
-async function fetchGoldSpotPrice(apiSym: string): Promise<number | null> {
+/** Harga spot gold/silver dengan FALLBACK BERLAPIS (log produksi Bos:
+    "XAU/XAG spot tak tersedia — tail tanpa patch" = gold-api DAN PAXG
+    gagal bersamaan dari egress Cloudflare Workers → candle diam):
+    1. gold-api.com (primer — spot grade dealer)
+    2. PAXG/USDT binance-vision (token 1:1 emas fisik, track ±0.5%)
+    3. YAHOO futures (GC=F/SI=F) regularMarketPrice — sumber yang
+       TERBUKTI selalu terjangkau dari Cloudflare Workers (rantai utama
+       candle memakainya), meta regularMarketPrice menyala tiap tick
+       bursa → jauh lebih segar dari candle historisnya.
+    Cache sukses 10 dtk: polling tick 3 dtk dari banyak client tidak
+    boleh nembak 3 sumber per request (subrequest CF Workers terbatas). */
+let goldSpotCache: { price: number; at: number; src: string } | null = null
+const GOLD_SPOT_CACHE_MS = 10_000
+
+/** Tick terbaru Yahoo futures (GC=F utk XAU, SI=F utk XAG) —
+    liveTick=true → bar sintetis dari meta.regularMarketPrice. */
+async function fetchYahooFuturesTick(symbol: 'XAUUSD' | 'XAGUSD'): Promise<number | null> {
+  try {
+    const bars = await fetchYahooChart(symbol, '5m', 1, true)
+    const last = bars && bars.length ? bars[bars.length - 1] : null
+    if (last && Number.isFinite(last.close) && last.close > 0) return last.close
+  } catch { /* diam — fallback berikutnya */ }
+  return null
+}
+
+async function fetchGoldSpotPrice(apiSym: string): Promise<{ price: number; src: string } | null> {
+  const now = Date.now()
+  if (goldSpotCache && now - goldSpotCache.at < GOLD_SPOT_CACHE_MS) {
+    return { price: goldSpotCache.price, src: goldSpotCache.src }
+  }
   const direct = await fetchGoldApiPrice(apiSym)
-  if (direct != null) return direct
+  if (direct != null) {
+    goldSpotCache = { price: direct, at: now, src: 'gold-api' }
+    return { price: direct, src: 'gold-api' }
+  }
   if (apiSym === 'XAU') {
     const paxg = await fetchBinancePrice('PAXGUSDT')
-    if (paxg != null) return paxg
+    if (paxg != null) {
+      goldSpotCache = { price: paxg, at: now, src: 'paxg-binance' }
+      return { price: paxg, src: 'paxg-binance' }
+    }
+  }
+  const ySym = apiSym === 'XAU' ? 'XAUUSD' : 'XAGUSD'
+  const yf = await fetchYahooFuturesTick(ySym)
+  if (yf != null) {
+    goldSpotCache = { price: yf, at: now, src: 'yahoo-futures' }
+    return { price: yf, src: 'yahoo-futures' }
   }
   return null
 }
@@ -128,7 +165,10 @@ async function fetchGoldSpotPrice(apiSym: string): Promise<number | null> {
 export async function fetchSpotPrice(symbol: string): Promise<number | null> {
   const s = String(symbol || '').trim().toUpperCase()
   const g = GOLD_API_SYMBOLS[s]
-  if (g) return fetchGoldSpotPrice(g)
+  if (g) {
+    const r = await fetchGoldSpotPrice(g)
+    return r?.price ?? null
+  }
   if (isCryptoLiveSymbol(s)) return fetchBinancePrice(s.replace(/USD$/i, 'USDT').replace(/USDTUSDT/i, 'USDT'))
   return null
 }
@@ -194,8 +234,10 @@ export async function patchTailWithSpot(
     return bars
   }
 
-  const spot = await fetchGoldSpotPrice(g)
-  if (spot == null) { console.warn('[spot-live] XAU/XAG spot tak tersedia — tail tanpa patch'); return bars }
+  const spotRes = await fetchGoldSpotPrice(g)
+  if (!spotRes) { console.warn('[spot-live] XAU/XAG spot tak tersedia (3 sumber gagal) — tail tanpa patch'); return bars }
+  const spot = spotRes.price
+  console.log(`[spot-live] spot ${g} dari ${spotRes.src} = ${spot}`)
   const valid = validatePrice(s, spot)
   if (valid == null) { console.warn('[spot-live] spot di luar rentang wajar', s, spot); return bars }
 

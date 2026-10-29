@@ -92,6 +92,30 @@ function emitProtectedStatus(key: string, message: string) {
   try { window.dispatchEvent(new CustomEvent(PROTECTED_STATUS_EVENT, { detail: { key, message } })) } catch { /* diam */ }
 }
 
+/* Event STATISTIK performa (tabel ala strategy() TradingView) — server
+   compile-pine mengirim meta.stats utk skrip default; dirender sebagai
+   tabel di pojok KANAN-BAWAH chart (posisi default tablePos Pine Bos:
+   "Bottom Right") → indikator Luxtradee kelihatan sebagai script
+   master utuh, bukan "indikator sendiri". */
+export interface ProtectedStats {
+  netProfit?: string
+  trades?: string
+  profitFactor?: string
+  streaks?: string
+  dailyDD?: string
+  overallDD?: string
+  testStart?: string
+  firstTrade?: string
+  openPos?: boolean
+  paused?: boolean
+  symbol?: string
+  interval?: string
+}
+const PROTECTED_STATS_EVENT = 'ltx-protected-stats'
+function emitProtectedStats(key: string, stats: ProtectedStats) {
+  try { window.dispatchEvent(new CustomEvent(PROTECTED_STATS_EVENT, { detail: { key, stats } })) } catch { /* diam */ }
+}
+
 /* Cache plot per (scriptKey, symbol, tf) — 45 detik. Refetch ringan
    ini sekaligus jadi loop LISTENER alert: tiap refresh, server
    mengevaluasi ulang sinyal Entry/SL/TP → Telegram user Pro. */
@@ -184,6 +208,7 @@ function createProtectedInstance() {
           protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots })
           lastPlots = j.plots
           lastBarsSig = ''
+          if (j?.meta?.stats) emitProtectedStats(scriptKey, j.meta.stats as ProtectedStats)
           maybeEmit(c)
           lastEmit = Date.now()
           c.setStatus?.('live')
@@ -323,7 +348,10 @@ function tfToAlert(tf: string): string {
     apa adanya (jujur), baru pesan sukses. */
 function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
   if (tj?.ok === false || tj?.error) {
-    return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi tiap 5 menit.` }
+    return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi otomatis.` }
+  }
+  if (tj?.testViaDefault) {
+    return { kind: 'warn', text: '🧪 Pesan tes BERHASIL terkirim — tapi ke chat Telegram DEFAULT server. Telegram pribadimu belum terhubung: buka Settings → Telegram agar alert otomatis masuk ke chat kamu sendiri.' }
   }
   if (tj?.telegramBound !== true) {
     return { kind: 'warn', text: '✅ Alert aktif, tapi Telegram belum terhubung — buka Settings → Telegram agar sinyal bisa terkirim.' }
@@ -462,6 +490,13 @@ export default function VelaChartTerminal({
   const [alertInterval, setAlertInterval] = useState('1h')
   const [alertSaving, setAlertSaving] = useState(false)
   const [alertDlgMsg, setAlertDlgMsg] = useState<{ kind: 'ok' | 'err' | 'warn'; text: string } | null>(null)
+
+  /* ---------- Tabel performa skrip default (ala strategy Bos) ----------
+     Server compile-pine mengirim meta.stats saat indikator default
+     aktif → tabel Net P&L s.d. Status tampil di kanan-bawah chart
+     (posisi tablePos Pine master: "Bottom Right"). */
+  const [protectedStats, setProtectedStats] = useState<{ key: string; stats: ProtectedStats } | null>(null)
+  const [statsDismissed, setStatsDismissed] = useState(false)
 
   /* ---------- Boot Vela workspace (sekali) ---------- */
   useEffect(() => {
@@ -713,6 +748,19 @@ export default function VelaChartTerminal({
     }
     window.addEventListener(PROTECTED_STATUS_EVENT, onStatus)
     return () => window.removeEventListener(PROTECTED_STATUS_EVENT, onStatus)
+  }, [])
+
+  /* ---------- Stats performa protected → tabel chart ---------- */
+  useEffect(() => {
+    const onStats = (e: Event) => {
+      const d = (e as CustomEvent)?.detail
+      if (d?.key && d?.stats) {
+        setProtectedStats({ key: String(d.key), stats: d.stats as ProtectedStats })
+        setStatsDismissed(false) // skrip ganti simbol/TF → tabel segar lagi
+      }
+    }
+    window.addEventListener(PROTECTED_STATS_EVENT, onStats)
+    return () => window.removeEventListener(PROTECTED_STATS_EVENT, onStats)
   }, [])
 
   /* ============================================================
@@ -1023,6 +1071,9 @@ export default function VelaChartTerminal({
         })
         if (h) { try { h.remove() } catch { /* diam */ } }
         setActiveProtected((m) => ({ ...m, [s.id]: false, ...(isDef ? { [DEFAULT_PINE_SLUG]: false } : {}) }))
+        if (protectedStats && (protectedStats.key === s.id || (isDef && protectedStats.key === DEFAULT_PINE_SLUG))) {
+          setProtectedStats(null) // indikator dilepas → tabel ikut hilang
+        }
         setProtectedMsg(`✕ ${s.name} dilepas dari chart. (Pine Master akan muncul lagi otomatis saat terminal dibuka berikutnya.)`)
       } finally { setProtectedBusy(null) }
       return
@@ -1040,7 +1091,7 @@ export default function VelaChartTerminal({
     } catch (x: any) {
       setProtectedMsg('⚠️ ' + String(x?.message || x).slice(0, 120))
     } finally { setProtectedBusy(null) }
-  }, [protectedBusy, activeProtected])
+  }, [protectedBusy, activeProtected, protectedStats])
 
   return (
     <div className="space-y-2">
@@ -1183,6 +1234,43 @@ export default function VelaChartTerminal({
         {tradeHighlightMsg && (
           <div className="absolute left-2 top-2 z-30 max-w-[85%] rounded-lg border border-sky-400/30 bg-sky-400/10 backdrop-blur px-2.5 py-1.5 text-[11px] text-sky-100 shadow-lg" role="status">
             {tradeHighlightMsg}
+          </div>
+        )}
+
+        {/* ---------- Tabel performa skrip default (ala strategy TradingView) ----------
+            Muncul saat indikator default aktif & server mengirim stats —
+            posisi KANAN-BAWAH persis tablePos Pine master Bos. */}
+        {protectedStats && !statsDismissed && !booting && !!activeProtected[protectedStats.key] && (
+          <div className="absolute right-2 bottom-2 z-20 w-[190px] rounded-lg border border-purple-400/25 bg-[#0a0f16]/92 backdrop-blur px-2.5 py-2 shadow-xl" role="status" aria-label="Tabel performa Luxtradee Candle Impulsif">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <span className="text-[10px] font-bold text-purple-200 tracking-wide truncate">⚡ Impulsive Breakout XAUUSD v5</span>
+              <button onClick={() => setStatsDismissed(true)} className="text-white/35 hover:text-white shrink-0" aria-label="Tutup tabel performa">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="space-y-0.5 text-[10px] leading-snug">
+              {[
+                ['Net P&L', protectedStats.stats.netProfit, Number(String(protectedStats.stats.netProfit || '').replace(/[^0-9.\-]/g, '')) >= 0],
+                ['Trade / WR', protectedStats.stats.trades, null],
+                ['Profit factor', protectedStats.stats.profitFactor, null],
+                ['Loss / Win streak', protectedStats.stats.streaks, null],
+                ['DD harian', protectedStats.stats.dailyDD, false],
+                ['DD total', protectedStats.stats.overallDD, false],
+                ['Mulai uji', protectedStats.stats.testStart, null],
+                ['Trade pertama', protectedStats.stats.firstTrade, null],
+              ].map(([label, value, good]) => (
+                <div key={String(label)} className="flex items-center justify-between gap-2">
+                  <span className="text-white/40 shrink-0">{String(label)}</span>
+                  <span className={`font-semibold truncate ${good === null ? 'text-white/85' : (good ? 'text-emerald-300' : 'text-orange-300')}`} title={String(value ?? '-')}>{String(value ?? '-')}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-white/10 mt-1">
+                <span className="text-white/40">Status</span>
+                <span className={`font-semibold ${protectedStats.stats.paused ? 'text-orange-300' : 'text-emerald-300'}`}>
+                  {protectedStats.stats.paused ? 'JEDA (streak)' : protectedStats.stats.openPos ? 'POSISI TERBUKA' : 'Trading aktif'}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 

@@ -1,4 +1,21 @@
 ---
+Task ID: 47
+Agent: main (Z)
+Task: Fix candle live mati + Pine master Bos verbatim + tabel performa + alert tele jujur + cron backup
+
+Work Log (laporan Bos: "candle ga gerak, tes tele pine ga berfungsi, km malah buat indikator sendiri, user pro bisa notif tele"):
+- Verifikasi script tersimpan == paste Bos v5: DIFF PENUH = identik 100% (hanya judul strategy "Luxtradee Candle Impulsif" — permintaan Bos sebelumnya + header lisensi). Replika TS (pine-default-runner) tetap jalur eksekusi produksi (engine PineTS = eval → dilarang CF Workers).
+- spot-live.ts: fallback spot XAU/XAG jadi 3 lapis (gold-api → PAXG binance → YAHOO futures GC=F/SI=F regularMarketPrice — sumber yang terbukti selalu terjangkau dari CF Workers) + cache sukses 10 dtk + log sumber yang menang. Log produksi "[spot-live] XAU/XAG spot tak tersedia" = 2 sumber lama gagal bersamaan.
+- pine-default-runner.ts: hitung STATS lengkap ala tabel strategy TradingView (netProfit/PF/streak/DD harian/DD total/trade pertama/paused/openPos).
+- pine-protected.ts: PineRunResult.stats + runDefaultStrategyPine kirim statsPayload terformat + sendTelegramToUserVerbose (alasan penolakan Telegram tidak dibuang lagi).
+- compile-pine: payload meta.stats → client.
+- VelaChartTerminal: TABEL PERFORMA kanan-bawah chart (posisi tablePos Pine Bos "Bottom Right") saat indikator default aktif — judul "⚡ Impulsive Breakout XAUUSD v5"; hilang saat chip dilepas.
+- alerts/test: chat fallback env TELEGRAM_CHAT_ID utk PESAN TES saja (telegramBound tetap profile) + kirim tes gagal = HTTP 502 dengan alasan Telegram apa adanya (dulu diam "berjalan normal") + flag testViaDefault.
+- cron/pine-alerts: secret fallback PINE_ALERT_CRON_SECRET || CRON_SECRET + terima Bearer → bisa dipicu cron CF internal.
+- worker-entry.ts + patch-cf-worker-cron.mjs: '/api/cron/pine-alerts' masuk jadwal */15 (backup GHA 5 menit).
+- Verifikasi: lint bersih; tsc hanya error pre-existing file lain; live tail /api/candles nocache = source goldapi-spot & close BERGERAK antar poll (4026.9 → 4032.6); gate 401/403 benar; landing render OK; /dashboard/chart redirect login (chart butuh sesi).
+
+---
 Task ID: 3
 Agent: main
 Task: Fix news & economic calendar to show real data instead of sample
