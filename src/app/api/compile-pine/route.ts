@@ -219,8 +219,9 @@ export async function POST(request: NextRequest) {
       : 0
 
     /* 9) RESPONS — plots SAJA. Tanpa source. Tanpa editor.
-       Stats (tabel performa ala TradingView) ikut utk skrip default —
-       dirender client sebagai tabel pojok chart. */
+       Stats (tabel performa ala TradingView) + TRADES (garis
+       entry→exit + label TP/SL ala line.new/label.new Pine Bos)
+       ikut utk skrip default — dirender client di chart. */
     const payload = {
       success: true,
       isPro,
@@ -231,6 +232,7 @@ export async function POST(request: NextRequest) {
         ...(run.stats ? { stats: run.stats } : {}),
       },
       plots: visiblePlots,
+      ...(Array.isArray(run.trades) && run.trades.length ? { trades: run.trades } : {}),
       signalsSent,
       fetchedAt: new Date().toISOString(),
     }
