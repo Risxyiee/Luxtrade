@@ -115,3 +115,10 @@ ios/Pods/
 ios/App/App/public/
 shot-*.png
 landing-check.png
+
+# Screenshot E2E/testing (jangan pernah commit lagi)
+/.screenshots/
+/e2e-*.png
+/prod-*.png
+/test-*.png
+/tmp-*.png

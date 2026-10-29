@@ -21,6 +21,7 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
+import { sendTelegramToUser } from '@/lib/pine-protected'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,11 +75,39 @@ export async function POST(request: NextRequest) {
       { send: telegramBound, writeLog: telegramBound },
     )
 
+    /* 6) JAMINAN TES (fix: "tes alert pine ga ada notif") —
+       Evaluasi bar terakhir hampir selalu TANPA sinyal (entry hanya
+       sesekali), jadi tombol Tes dulu sering diam total. Sekarang:
+       bila TIDAK ADA pesan yang terkirim dari langkah 5, kirim pesan
+       TES eksplisit 🧪 — pipeline Pine→Telegram terbukti langsung.
+       Pesan tes TIDAK masuk dedupe/log (bukan sinyal — cron 5 menit
+       tidak akan terganggu). */
+    let testMessage = false
+    if (telegramBound && out.ok && out.sent === 0) {
+      const nTrig = out.triggers.length
+      const note = nTrig > 0
+        ? `ada ${nTrig} sinyal di bar ini tapi sudah pernah dikirim (dedupe anti-spam per-bar)`
+        : 'belum ada sinyal di bar terakhir — alert tetap berjalan otomatis tiap 5 menit, 24 jam'
+      const html = [
+        `🧪 <b>TES ALERT LUXTRADEE — BERHASIL</b>`,
+        ``,
+        `📐 Script: <b>${script.name}</b>`,
+        `💱 Pair: <b>${symbol}</b> (${interval})`,
+        `📡 Sumber candle: ${out.candleSource || 'server'}`,
+        `ℹ️ ${note}.`,
+        ``,
+        `<i>Pesan ini adalah tes pipeline — bukan sinyal trading.</i>`,
+      ].join('\n')
+      const okTg = await sendTelegramToUser(chatId, html)
+      if (okTg) { out.sent = 1; testMessage = true }
+    }
+
     return NextResponse.json({
       ok: out.ok,
       error: out.error,
       triggers: out.triggers.map((t) => ({ signal: t.signal, price: t.price, time: t.time, message: t.message })),
       sent: out.sent,
+      testMessage,
       telegramBound,
       candleSource: out.candleSource,
       evaluatedAt: new Date().toISOString(),
