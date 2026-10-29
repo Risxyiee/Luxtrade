@@ -110,11 +110,25 @@ async function fetchBinancePrice(bSymbol: string): Promise<number | null> {
   }
 }
 
+/** Harga spot gold/silver dengan FALLBACK: gold-api (primer) →
+    PAXG/USDT binance-vision utk XAU (token 1:1 emas fisik, track
+    XAUUSD ±0.5%) — gold-api kadang timeout; tanpa fallback overlay
+    mati sementara → candle diam lagi. */
+async function fetchGoldSpotPrice(apiSym: string): Promise<number | null> {
+  const direct = await fetchGoldApiPrice(apiSym)
+  if (direct != null) return direct
+  if (apiSym === 'XAU') {
+    const paxg = await fetchBinancePrice('PAXGUSDT')
+    if (paxg != null) return paxg
+  }
+  return null
+}
+
 /** Harga spot real-time (null bila simbol tanpa overlay / sumber gagal) */
 export async function fetchSpotPrice(symbol: string): Promise<number | null> {
   const s = String(symbol || '').trim().toUpperCase()
   const g = GOLD_API_SYMBOLS[s]
-  if (g) return fetchGoldApiPrice(g)
+  if (g) return fetchGoldSpotPrice(g)
   if (isCryptoLiveSymbol(s)) return fetchBinancePrice(s.replace(/USD$/i, 'USDT').replace(/USDTUSDT/i, 'USDT'))
   return null
 }
@@ -180,7 +194,7 @@ export async function patchTailWithSpot(
     return bars
   }
 
-  const spot = await fetchGoldApiPrice(g)
+  const spot = await fetchGoldSpotPrice(g)
   if (spot == null) { console.warn('[spot-live] XAU/XAG spot tak tersedia — tail tanpa patch'); return bars }
   const valid = validatePrice(s, spot)
   if (valid == null) { console.warn('[spot-live] spot di luar rentang wajar', s, spot); return bars }
