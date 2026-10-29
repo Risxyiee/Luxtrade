@@ -191,7 +191,17 @@ export async function patchTailWithSpot(
   /* a) buang bar tak selaras bucket di ekor (artefak Yahoo tick) */
   const cleaned = bars.filter((b) => Number.isFinite(b.time) && b.time > 0 && b.time % intervalSec === 0)
 
-  if (!cleaned.length) { console.warn('[spot-live] semua bar Yahoo tak selaras bucket — tail tanpa patch'); return bars }
+  /* Kalau SEMUA bar Yahoo adalah artefak tick (tak ada satu pun
+     selaras bucket — sering terjadi di 1h/2h/4h) → TETAP kirim ujung
+     candle hidup: sintesis bar bucket BERJALAN dari spot. Tanpa ini
+     candle 1h "diam" walau harga bergerak. */
+  if (!cleaned.length) {
+    console.warn('[spot-live] bar Yahoo tak selaras bucket — sintesis bar berjalan dari spot')
+    return [{
+      time: currentBucket,
+      open: valid, high: valid, low: valid, close: valid,
+    }]
+  }
 
   const out = [...cleaned]
   const last = out[out.length - 1]
