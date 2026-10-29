@@ -2090,3 +2090,17 @@ E2E BROWSER (agent-browser, server dev sandbox — sering dibunuh sesi lain, diu
 - CATATAN JUJUR: build OpenNext penuh TIDAK bisa dituntaskan di sandbox (esbuild OOM — RAM 4GB kurang utk langkah bundling; bukan masalah kode — next build lolos). Full login E2E tidak mungkin lokal (Supabase service-role tidak ada di .env sandbox).
 
 LANGKAH BOS (sekali): push → pantau build CF sampai HIJAU (±3-5 mnt). Kalau build CF merah, cek log: kemungkinan "Asset too large" (sudah ada auto-purge) atau RAM builder — bukan kode. Setelah deploy baru live: cron 0 1/3 + */15 tidak lagi error "no scheduled()", chart otomatis memuat Pine default, dan tes alert 🧪 sampai Telegram.
+
+## Fix Bulk: Candle Live Real-Time + Cron CF + Tes Alert Jujur + Anti Cache Basi (2026-10-29)
+Tanggal: 2026-10-29 · Push: 8cea0e66, 855024a5, c86d87d4 · Produksi terverifikasi live
+
+Laporan Bos: (1) log CF "Handler does not export a scheduled() function" (cron 0 3 * * *), (2) candle ga gerak, (3) tes tele indikator pine ga berfungsi, (4) klik pineku harusnya langsung keluar di chart, (5) Pro bisa notif tele.
+
+ROOT CAUSE + FIX:
+- CANDLE GA GERAK: jalur live /api/candles?nocache jatuh ke Yahoo (TV ws ditolak IP CF Workers; TD tanpa key) — Yahoo FX/Gold telat 10–20 MENIT (terukur: tip 10 menit di belakang). FIX src/lib/market/spot-live.ts: overlay SPOT keyless real-time — XAU/XAG → api.gold-api.com (fallback PAXG/USDT binance-vision bila timeout), crypto → data-api.binance.vision klines OHLC penuh; gap-fill cap 60 bucket, buang artefak tick tak selaras bucket, sintesis bar bucket berjalan bila 1h/2h/4h tick-only, drift guard 15%, normalisasi interval Vela ('5'→'5m' — penyebab patch gagal senyap). Terbukti produksi: source goldapi-spot, tip = bucket berjalan, harga = spot live (Yahoo 4042.9 vs spot 4034.5).
+- CRON CF: deploy bisa memakai .open-next/worker.js (template OpenNext TANPA scheduled) sebagai main → cron fire tapi mati senyap. scripts/patch-cf-worker-cron.mjs (wired ke build + build:clean) menyuntik scheduled() + CRON_ROUTES identik worker-entry.ts ke worker generated — idempotent; jalur deploy mana pun pasti punya cron handler (tes: sintaks + import + callable + idempotent).
+- TES ALERT JUJUR: /api/pine/alerts/test dulu 200 walau pipeline gagal → UI "berjalan normal" palsu. Sekarang 502 + alasan; UI alertTestMsg tampil error pipeline + reason per-user.
+- PINEKU → CHART: skrip tersimpan diklik = langsung compile ke chart; chip default SELALU tampil (fallback meta slug); guard anti-dobel instance default; slug default diterima alerts/test (auto-seed UUID).
+- ANTI CACHE BASI: generateBuildId unik per build (dulu konstan 'luxtrade-v1' → router cache tak invalidate); /sw.js no-store; SW cache v9; auto-reload saat SW baru aktif; cek update saat tab fokus.
+
+UJI: lint bersih; unit overlay (1h tick-only → synth bucket 08:00 @ spot ✓, 5m gap-fill 12 bucket tip berjalan ✓); E2E browser nyata (terminal boot, chip toggle, polling 3 dtk terkonfirmasi di network, harga tip = spot); produksi: goldapi-spot 5m+1h, depth 5000 bar tak regresi.
