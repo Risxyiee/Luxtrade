@@ -65,6 +65,7 @@ import {
 import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 import { fetchTradingViewCandles } from '@/lib/market/tradingview'
 import { overlaySpotTail, hasSpotOverlay } from '@/lib/market/spot-live'
+import { readStickySource, writeStickySource } from '@/lib/market/source-sticky'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -132,10 +133,13 @@ function setCache(key: string, data: Ohlcv[], source: string) {
 }
 
 /* VERSI CACHE KV — RESET (permintaan Bos: "reset cache siapa tau
-   masih cache lama"). Naikkan versi ini setiap ingin membuang SEMUA
-   entri lama sekaligus: kunci lama jadi yatim & kedaluwarsa sendiri
-   (TTL ≤ 300s), tanpa flush manual Cloudflare. */
-const KV_CACHE_VER = 'v2'
+   masih cache lama"; juga membuang entri campuran skala lama
+   GC=F-vs-spot penyebab ekor melompat). Naikkan versi ini setiap
+   ingin membuang SEMUA entri lama sekaligus: kunci lama jadi yatim
+   & kedaluwarsa sendiri (TTL ≤ 300s), tanpa flush manual Cloudflare.
+   v4 → agregasi 2h/4h kini bucket-aligned (buang entri lama yg
+   batas group-nya geser — penyebab candle 2h/4h melompat). */
+const KV_CACHE_VER = 'v4'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {
@@ -172,29 +176,52 @@ async function setKvCache(key: string, data: Ohlcv[], source: string, ttlSeconds
 /* ============================================================
    RANTAI SUMBER BERSAMA — TradingView → TwelveData → Yahoo
    Dipakai jalur normal & jalur live (polling tick).
+
+   STICKY SOURCE (lib bersama source-sticky.ts, dipakai juga oleh
+   server-candles utk backtest Pine): sumber yang terakhir SUKSES
+   untuk (symbol,interval) diingat 15 menit dan DICOBA DULU di
+   request berikutnya — chart konsisten satu skala harga (anti
+   lompat spot↔futures antar request); failover tetap jalan bila
+   sumber sticky benar-benar mati.
    ============================================================ */
+const SOURCE_FETCHERS: Record<string, (s: string, i: string, l: number) => Promise<Ohlcv[] | null>> = {
+  tradingview: (s, i, l) => fetchTradingViewCandles(s, i, l),
+  twelvedata: (s, i, l) => fetchTwelveDataCandles(s, i, l),
+  'yahoo-finance': (s, i, l) => fetchYahooChart(s, i, l, l <= 1),
+}
+const SOURCE_ORDER = ['tradingview', 'twelvedata', 'yahoo-finance']
+
 async function fetchChain(
   symbol: string,
   interval: string,
   limit: number,
 ): Promise<{ bars: Ohlcv[]; source: string } | null> {
-  /* 0) TRADING VIEW (keyless, grade broker) */
-  try {
-    const tv = await fetchTradingViewCandles(symbol, interval, limit)
-    if (tv && tv.length) return { bars: tv, source: 'tradingview' }
-  } catch { /* lanjut */ }
+  const stickyKey = `${symbol}:${interval}`
 
-  /* 1) TWELVE DATA (spot-grade, mendekati feed broker) */
-  try {
-    const td = await fetchTwelveDataCandles(symbol, interval, limit)
-    if (td && td.length) return { bars: td, source: 'twelvedata' }
-  } catch { /* lanjut */ }
+  /* 0) STICKY — sumber sukses terakhir dicoba DULU (anti ganti-ganti
+        skala antar request) */
+  const sticky = await readStickySource(stickyKey)
+  if (sticky && SOURCE_FETCHERS[sticky]) {
+    try {
+      const bars = await SOURCE_FETCHERS[sticky](symbol, interval, limit)
+      if (bars && bars.length) {
+        void writeStickySource(stickyKey, sticky)
+        return { bars, source: sticky }
+      }
+    } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
+  }
 
-  /* 2) YAHOO FINANCE (publik, keyless → tanpa risiko 401) */
-  try {
-    const yf: YahooCandle[] | null = await fetchYahooChart(symbol, interval, limit, limit <= 1)
-    if (yf && yf.length) return { bars: yf, source: 'yahoo-finance' }
-  } catch { /* lanjut */ }
+  /* 1..3) URUTAN KANONIK: TradingView → TwelveData → Yahoo */
+  for (const source of SOURCE_ORDER) {
+    if (source === sticky) continue // sudah dicoba di atas
+    try {
+      const bars = await SOURCE_FETCHERS[source](symbol, interval, limit)
+      if (bars && bars.length) {
+        void writeStickySource(stickyKey, source)
+        return { bars, source }
+      }
+    } catch { /* lanjut sumber berikutnya */ }
+  }
 
   return null
 }
@@ -216,7 +243,15 @@ export async function GET(request: NextRequest) {
     const nocache = searchParams.get('nocache') === 'true'
 
     const symbol = normalizeSymbol(rawSymbol)
-    const interval = INTERVALS[rawInterval] ? rawInterval : '1h'
+    /* NORMALISASI KE KANONIK (fix akar "chart kek setan"): dulu nilai
+       RAW Vela ('5','60','240','1D',…) diteruskan apa adanya ke
+       fetchChain → YAHOO_INTERVALS['240'] dsb. TIDAK ADA → diam-diam
+       fallback '1h' → chart 4h/5m/2h menampilkan DATA 1H dengan
+       bucket waktu tak selaras; poll live (bucket 4h/5m ASLI) tak
+       pernah cocok → candle melompat/ilang/kebawah. Sekarang satu
+       kali di sini: '240'→'4h', '5'→'5m', dst. — SEMUA lapisan
+       (sumber, cache, overlay spot, backtest Pine) memakai kanonik. */
+    const interval = INTERVALS[rawInterval] || '1h'
 
     if (!FOREX_SYMBOLS[symbol]) {
       console.warn(`[Candles] Simbol tidak didukung: "${rawSymbol}" → "${symbol}"`)
@@ -257,15 +292,15 @@ export async function GET(request: NextRequest) {
       }
       const tail = await fetchChain(validSymbol, interval, Math.max(limit, 3))
       if (tail && tail.bars.length) {
-        /* Overlay spot real-time utk simbol yang didukung (XAU/XAG/
-           crypto) — Yahoo telat = ujung candle diam. Simbol lain
-           apa adanya. */
+        /* Overlay spot real-time SE-SKALA DENGAN SUMBER SEJARAH (fix
+           "candle kebawah"): TradingView/TwelveData → gold-api spot;
+           Yahoo (futures) → tick Yahoo sendiri; crypto → binance-vision. */
         const overlayWanted = hasSpotOverlay(validSymbol)
         let liveBars = tail.bars
         let liveSource = tail.source
         if (overlayWanted) {
           try {
-            const patched = await overlaySpotTail(validSymbol, interval, tail.bars, Math.max(limit, 3))
+            const patched = await overlaySpotTail(validSymbol, interval, tail.bars, Math.max(limit, 3), tail.source)
             if (patched?.bars?.length) { liveBars = patched.bars; liveSource = patched.source }
           } catch { /* overlay gagal → tail apa adanya */ }
         }
@@ -274,8 +309,10 @@ export async function GET(request: NextRequest) {
           const oldest = [...liveCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
           if (oldest) liveCache.delete(oldest[0])
         }
-        /* segarkan juga cache utama (bar terbaru berguna utk reload) */
-        if (liveBars.length >= 30) setCache(`${validSymbol}:${interval}:300`, liveBars, liveSource)
+        /* segarkan juga cache utama — HANYA bila chain benar-benar
+           mengembalikan sejarah dalam (≥300 bar): jangan pernah
+           menimpa cache :300 dengan tail 3-bar / isian sintetis. */
+        if (tail.bars.length >= 300) setCache(`${validSymbol}:${interval}:300`, liveBars, liveSource)
         return NextResponse.json({
           success: true, symbol: validSymbol, interval,
           data: liveBars.slice(-limit), source: liveSource,

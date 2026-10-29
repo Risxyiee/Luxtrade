@@ -2121,3 +2121,33 @@ ROOT CAUSE + FIX:
 - ANTI CACHE BASI: generateBuildId unik per build (dulu konstan 'luxtrade-v1' → router cache tak invalidate); /sw.js no-store; SW cache v9; auto-reload saat SW baru aktif; cek update saat tab fokus.
 
 UJI: lint bersih; unit overlay (1h tick-only → synth bucket 08:00 @ spot ✓, 5m gap-fill 12 bucket tip berjalan ✓); E2E browser nyata (terminal boot, chip toggle, polling 3 dtk terkonfirmasi di network, harga tip = spot); produksi: goldapi-spot 5m+1h, depth 5000 bar tak regresi.
+
+## Fix Total: Pine v5 Verbatim Default + Akar "Chart Kek Setan" (scale/anchor/bucket) + File Hantu Chart (2026-10-29)
+Tanggal: 2026-10-29 · Status: working tree → commit & push (deploy CF auto)
+
+Laporan Bos: (1) "saya mau pine saya terpasang default — ganti isi luxtradee candle impulsively ke ini" (+ paste Pine v5 penuh), (2) "chart masih kek setan kadang ilang kadang kebawah candlenya masih gabener", (3) "coba benerin make api apa ya yang gratis".
+
+TEMUAN KRITIS: perbaikan ronde lalu (pine v5 verbatim di pine-default-script.ts, sticky source, PAXG fallback, yahoo-tick patch, KV v3, auto-reload ChunkLoadError, SW 600 entri) MASIH DI WORKING TREE — TIDAK pernah ter-commit → produksi jalan kode lama (warn lama "[spot-live] XAU/XAG spot tak tersedia — tail tanpa patch" tanpa keterangan sumber = bukti versi basi). Semua kini ikut commit ini.
+
+ROOT CAUSE BARU "KEK SETAN" (3 lapis, semuanya ditemukan & diperbaiki ronde ini):
+1. ROUTE KIRIM INTERVAL RAW KE CHAIN: /api/candles mem-pertahankan '240'/'5'/'1D' (format Vela) lalu fetchYahooChart('…','240',…) → YAHOO_INTERVALS['240'] TIDAK ADA → fallback senyap '1h' → chart 4h/2h/5m menampilkan DATA 1H dengan timestamp tak cocok; poll live (bucket 4h/5m ASLI) tak pernah match → candle lompat/ilang/kebawah. FIX: normalisasi SEKALI di handler (interval = INTERVALS[rawInterval] || '1h') — semua lapisan (sumber/cache/overlay/backtest) kini kanonik.
+2. AGREGASI 2h/4h ANCHOR GESER: aggregate() mengelompokkan dari index-0 (slice i..i+n) → batas group tergantung bar pertama data & BISA GESER antar request/halaman. FIX: grouping ke bucket asli floor(time/(n*3600)) — 4h selalu 00/04/08/12/16/20 UTC; gap akhir pekan otomatis memutus group.
+3. BAR TERBENTUK YAHOO MELAYANG: bar berjalan Yahoo bertimestamp waktu trade terakhir (10:21:17, bukan 10:00) → chart melihat bar melayang, poll live (bucket-aligned) tak pernah cocok. FIX: align bucket bar terakhir di fetchYahooChart (floor + merge bila bucket sudah ada; 1w tidak disentuh).
+4. TIP LIVE IKUT ANCHOR SUMBER: TradingView 4h ber-anchor +3600 (bukan UTC) — patch live memaksakan bucket UTC menciptakan candle kembar. FIX patchTailWithSpot & patchTailYahooLive: bar terakhir yang masih dalam window berjalan dipertahankan & jadi TIP (anchor sumber); filter artefak hanya utk bar basi; fill gap mengikuti anchor.
+5. GUARD SKALA CLIENT (lapis terakhir): LuxtradeeProvider.subscribe menolak bar poll yang lompat level (bucket sama > 0.35% dalam 3 dtk = mustahil; bucket baru > 2.5%) — campur skala spot↔futures lintas-isolate tak mungkin menggambar lagi.
+6. CACHE :300 TAK PERNAH DITIMPA TAIL: dulu setCache(:300, liveBars) saat liveBars≥30 → isian sintetis bisa menimpa sejarah. FIX: hanya bila chain benar-benar ≥300 bar. KV_CACHE_VER → v4 (buang entri 2h/4h lama anchor geser).
+7. FILE HANTU TERJAWAB: src/app/dashboard/chart/page.tsx = halaman chart LAMA (paywall "Indikator Terkunci 80% Momentum") pernah dihapus lalu KEMBALI via commit revert lama (c2f2285c) + commit UUID. Bukti git log --follow. FIX (tanpa hapus — anti di-restore lagi): isinya DIGANTI jembatan ke ChartTab (VelaChartTerminal) → /dashboard/chart kini terminal asli dgn pineku default; free TIDAK lagi ter-paywall.
+
+FREE API (pertanyaan Bos) — rantai live kini 4 lapis SEMUA GRATIS TANPA KEY:
+gold-api.com (spot XAU/XAG, detik-an) → PAXG/USDT binance-vision (emas token 1:1) → tick Yahoo sendiri (regularMarketPrice, se-skala sejarah Yahoo) → binance-vision klines (crypto). Sticky source 15 menit (mem+KV) menjaga skala konsisten. Terbukti di log sandbox: gold-api timeout → PAXG 4036.03 otomatis.
+
+PINE DEFAULT (VERBATIM 100%): DEFAULT_PINE_SOURCE = paste Bos v5 "Impulsive Breakout XAUUSD v5 (Prop Firm & API Safe)" — TANPA perubahan satu karakter pun (judul asli, MPL header, semua input/komentar utuh). ensureDefaultScript auto-seed + auto-migrate source di protected_scripts. Replika TS (pine-default-runner) = model eksekusi v5: 83% body, ADX≥17, sesi WIB 07:30–22:00 + force close, SL 200/TP 400 pips, DD harian 5%, pause 2× loss + trade bayangan; menghasilkan garis Entry/SL/TP + tabel performa + engineAlerts → Telegram (Pro saja; free lihat chart saja).
+
+E2E BROWSER (agent-browser, dev sandbox):
+- /dashboard/chart = terminal Vela penuh (bukan lagi paywall lama) ✅
+- Chip "✓ Luxtradee Candle Impulsif" AKTIF OTOMATIS tanpa klik ✅; garis LTX Pro + tabel performa v5 tampil (Net P&L $212.97/2.13%, 43 trade/WR 51.2%, PF 1.53, Status JEDA(streak)) ✅
+- ChunkLoadError pasca nuke .next → auto-reload GlobalErrorBoundary memulihkan sendiri ✅ (bukti fix "kadang ilang")
+- API: 1h/4h/5m semua bucket-aligned ✅; 4h live poll tip = anchor TV + patch spot goldapi ✅; depth 5000 bar (Des 2025→Okt 2026) ✅; harga ekor bergerak 4041.4→4042.1→4042.2 ✅
+- lint exit 0.
+
+LANGKAH BOS: push → tunggu deploy CF ±3-5 menit → hard-refresh (Ctrl+Shift+R) sekali → chart harus stabil satu skala, pineku terpasang otomatis, cron tidak error scheduled().

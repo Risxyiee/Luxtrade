@@ -246,22 +246,73 @@ function mergeChronological(pages: YahooCandle[][]): YahooCandle[] {
   return [...seen.values()].sort((a, b) => a.time - b.time)
 }
 
-/** Gabungkan n candle 1 jam jadi 1 candle n-jam (baris rapi terurut) */
+/** Gabungkan n candle 1 jam jadi 1 candle n-jam.
+    REVISI (fix Bos: "kadang ilang kadang kebawah" di TF 2h/4h):
+    dulu grouping dari INDEX-0 (slice i..i+n) → batas group tergantung
+    bar pertama dalam data (07:00, 11:00, …) dan BISA GESER antar
+    request/halaman → candle 2h/4h melompat-lompat. Sekarang grouping
+    ke BUCKET ASLI (floor(time/(n*3600))): 4h selalu 00/04/08/12/16/20
+    UTC — konsisten dengan sintesis bucket live (spot-live) & chart.
+    Bonus: gap akhir pekan otomatis memutus group (tidak mencampur
+    Jumat malam + Senin pagi dalam satu candle). */
 function aggregate(candles: YahooCandle[], n: number): YahooCandle[] {
   const out: YahooCandle[] = []
-  for (let i = 0; i < candles.length; i += n) {
-    const group = candles.slice(i, i + n)
-    if (!group.length) break
-    out.push({
-      time: group[0].time,
-      open: group[0].open,
-      high: Math.max(...group.map((g) => g.high)),
-      low: Math.min(...group.map((g) => g.low)),
-      close: group[group.length - 1].close,
-      volume: group.reduce((s, g) => s + (g.volume || 0), 0),
-    })
+  const bucketSec = n * 3600
+  let curKey: number | null = null
+  let cur: YahooCandle | null = null
+  for (const c of candles) {
+    if (!Number.isFinite(c.time) || c.time <= 0) continue
+    const key = Math.floor(c.time / bucketSec)
+    if (cur == null || key !== curKey) {
+      if (cur) out.push(cur)
+      curKey = key
+      cur = {
+        time: key * bucketSec,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.volume,
+      }
+    } else {
+      cur.high = Math.max(cur.high, c.high)
+      cur.low = Math.min(cur.low, c.low)
+      cur.close = c.close
+      cur.volume = (cur.volume || 0) + (c.volume || 0)
+    }
   }
+  if (cur) out.push(cur)
   return out
+}
+
+/**
+ * TICK LIVE RINGAN dari meta chart Yahoo (TANPA request tambahan berat).
+ * Ambil regularMarketPrice + regularMarketTime via SATU request kecil
+ * (interval 1h, range 1d ≈ 23 bar) — untuk overlay ekor candle live:
+ * level harga PASTI SAMA dengan sejarah Yahoo (sumber identik) sehingga
+ * ekor tidak pernah "melompat" skala (futures GC=F ≠ spot gold-api).
+ * Return null bila Yahoo gagal — penelepon pakai tail apa adanya.
+ */
+let quoteTickCache: { symbol: string; price: number; time: number; at: number } | null = null
+
+export async function fetchYahooQuoteTick(
+  symbol: string,
+): Promise<{ price: number; time: number } | null> {
+  const now = Date.now()
+  if (quoteTickCache && quoteTickCache.symbol === symbol && now - quoteTickCache.at < 5000) {
+    return { price: quoteTickCache.price, time: quoteTickCache.time }
+  }
+  const ySym = YAHOO_SYMBOLS[symbol]
+  const info = FOREX_SYMBOLS[symbol]
+  if (!ySym || !info) return null
+  const page = await fetchYahooPage(ySym, '1h', { range: '1d' }, symbol)
+  const meta = page?.meta
+  const price = Number(meta?.regularMarketPrice)
+  const time = Number(meta?.regularMarketTime)
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(time) || time <= 0) return null
+  if (validatePrice(symbol, price) === null) return null
+  quoteTickCache = { symbol, price, time, at: now }
+  return { price: parseFloat(price.toFixed(info.decimals)), time }
 }
 
 /**
@@ -350,6 +401,35 @@ export async function fetchYahooChart(
   if (!aggregated.length) return null
 
   let out = aggregated.slice(-want)
+
+  /* ALIGN BUCKET BAR TERBENTUK (fix "kadang ilang"): bar berjalan
+     Yahoo kadang bertimestamp WAKTU TRADE TERAKHIR (mis. 10:21:17),
+     bukan pembukaan bucket (10:00) → chart melihat bar melayang dan
+     poll live (selalu bucket-aligned) tidak pernah cocok dengannya.
+     Lantai-kan ke pembukaan bucket utk interval intraday & harian;
+     bila bucket itu sudah ada sebelumnya, gabungkan OHLC-nya.
+     (1w tidak disentuh — minggu Yahoo mulai Senin, bukan kelipatan
+     epoch 604800 yang berbilang Kamis.) */
+  const BUCKET_SEC: Record<string, number> = {
+    '5m': 300, '15m': 900, '30m': 1800, '1h': 3600,
+    '2h': 7200, '4h': 14400, '1d': 86400,
+  }
+  const bucketSec = BUCKET_SEC[interval]
+  if (bucketSec && out.length) {
+    const lb = out[out.length - 1]
+    if (Number.isFinite(lb?.time) && lb.time > 0 && lb.time % bucketSec !== 0) {
+      const aligned = Math.floor(lb.time / bucketSec) * bucketSec
+      const prev = out[out.length - 2]
+      if (prev && prev.time === aligned) {
+        prev.high = Math.max(prev.high, lb.high)
+        prev.low = Math.min(prev.low, lb.low)
+        prev.close = lb.close
+        out.pop()
+      } else {
+        lb.time = aligned
+      }
+    }
+  }
 
   /* Live tick: regularMarketPrice lebih baru dari candle terakhir
      (polling harga) — dari meta respons, TANPA request tambahan */
