@@ -130,6 +130,12 @@ function setCache(key: string, data: Ohlcv[], source: string) {
   }
 }
 
+/* VERSI CACHE KV — RESET (permintaan Bos: "reset cache siapa tau
+   masih cache lama"). Naikkan versi ini setiap ingin membuang SEMUA
+   entri lama sekaligus: kunci lama jadi yatim & kedaluwarsa sendiri
+   (TTL ≤ 300s), tanpa flush manual Cloudflare. */
+const KV_CACHE_VER = 'v2'
+
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {
     let kv: any = null
@@ -139,7 +145,7 @@ async function getKvCache(key: string): Promise<CacheEntry | null> {
       kv = (ctx as any)?.env?.luxtradee_kv
     } catch {}
     if (!kv) return null
-    const raw = await kv.get(`candles:${key}`, 'text')
+    const raw = await kv.get(`candles:${KV_CACHE_VER}:${key}`, 'text')
     return raw ? (JSON.parse(raw) as CacheEntry) : null
   } catch {
     return null
@@ -156,7 +162,7 @@ async function setKvCache(key: string, data: Ohlcv[], source: string, ttlSeconds
     } catch {}
     if (!kv) return
     const entry: CacheEntry = { data, timestamp: Date.now(), source }
-    await kv.put(`candles:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
+    await kv.put(`candles:${KV_CACHE_VER}:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
   } catch {
     // KV tidak tersedia — skip
   }

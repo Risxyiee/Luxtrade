@@ -113,13 +113,54 @@ export async function runPineHeadless(
       clearTimeout(timer)
       if (failMsg) { try { session?.stop?.() } catch {} ; resolve({ ok: false, error: failMsg }); return }
       try {
-        /* getContext → snapshot plots: Record<key, {time, value}[]> */
-        const snap = await session?.getContext?.(['plots', 'meta'])
+        /* getContext → snapshot plots + trades: Record<key, {time,value}[]>
+           TRADES (adaptasi strategy() — probe terverifikasi): engine
+           TIDAK memicu onAlert utk strategy.entry/exit, tapi setiap
+           trade tersedia di context. Dipetakan jadi engineAlerts
+           (ENTRY_LONG/ENTRY_SHORT/STOP_LOSS/TAKE_PROFIT) sehingga
+           skrip strategy() Bos ikut memicu alert Telegram. */
+        const snap = await session?.getContext?.(['plots', 'meta', 'trades'])
         const plotsRaw: Record<string, any> = snap?.plots || {}
         const keys = Object.keys(plotsRaw)
         if (!keys.length) {
           resolve({ ok: false, error: 'Skrip berjalan, tetapi tidak menghasilkan plot (tambahkan plot(...))' })
           return
+        }
+
+        /* ---- strategy() trades → sinyal ala alert() ----
+           Klasifikasi pesan mengikuti regex collectTriggers:
+           TP|TAKE PROFIT → TAKE_PROFIT, SL|STOP LOSS → STOP_LOSS,
+           BUY|LONG → ENTRY_LONG, SELL|SHORT → ENTRY_SHORT.
+           Kata sisi (BUY/SELL) taruh PALING DEPAN; entry.id hanya
+           dekorasi & dibersihkan dari kata arah agar tidak mengubah
+           klasifikasi regex. */
+        const trades: any[] = Array.isArray(snap?.trades) ? snap.trades : []
+        for (const tr of trades) {
+          try {
+            const side = String(tr?.side || 'long').toLowerCase()
+            const isShort = side === 'short'
+            const e = tr?.entry
+            if (e && Number.isFinite(Number(e.time))) {
+              const idx = bars.findIndex((b) => b.time === Number(e.time))
+              const idSafe = String(e.id || '').replace(/buy|sell|long|short/gi, '').trim()
+              engineAlerts.push({
+                message: `STRATEGY ${isShort ? 'SELL SHORT' : 'BUY LONG'} entry ${idSafe ? `(${idSafe}) ` : ''}@ ${String(e.price ?? '')}`,
+                time: Number(e.time),
+                barIndex: idx,
+              })
+            }
+            const ex = tr?.exit
+            if (ex && Number.isFinite(Number(ex.time))) {
+              const idx = bars.findIndex((b) => b.time === Number(ex.time))
+              const isLoss = Number(tr?.pnl) < 0
+              const idSafe = String(ex.id || '').replace(/buy|sell|long|short|stop|take|profit|loss/gi, '').trim()
+              engineAlerts.push({
+                message: `STRATEGY ${isLoss ? 'STOP LOSS' : 'TAKE PROFIT'} exit ${idSafe ? `(${idSafe}) ` : ''}@ ${String(ex.price ?? '')}`,
+                time: Number(ex.time),
+                barIndex: idx,
+              })
+            }
+          } catch { /* trade aneh — lewati */ }
         }
         const plots: PlotSeries[] = keys.map((k, i) => {
           const pts = Array.isArray(plotsRaw[k]) ? plotsRaw[k] : []

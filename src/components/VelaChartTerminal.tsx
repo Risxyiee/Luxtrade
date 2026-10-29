@@ -258,8 +258,9 @@ function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
     return { kind: 'warn', text: '✅ Alert aktif, tapi Telegram belum terhubung — buka Settings → Telegram agar sinyal bisa terkirim.' }
   }
   const n = Array.isArray(tj?.triggers) ? tj.triggers.length : 0
-  if (tj?.sent > 0) return { kind: 'ok', text: '🚀 Sinyal ditemukan & terkirim ke Telegram! Alert tetap aktif 24 jam.' }
-  if (n > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke Telegram. Alert aktif 24 jam.` }
+  if (tj?.sent > 0 && n > 0 && !tj?.testMessage) return { kind: 'ok', text: '🚀 Sinyal ditemukan & terkirim ke Telegram! Alert tetap aktif 24 jam.' }
+  if (tj?.sent > 0 && tj?.testMessage) return { kind: 'ok', text: '🧪 Tes pipeline BERHASIL — cek Telegram kamu (pesan tes sudah masuk). Alert aktif 24 jam, dicek otomatis tiap 5 menit.' }
+  if (tj?.sent > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke Telegram. Alert aktif 24 jam.` }
   return { kind: 'ok', text: '✅ Berjalan normal — belum ada sinyal di bar terakhir. Alert dicek server otomatis tiap 5 menit, 24 jam.' }
 }
 
