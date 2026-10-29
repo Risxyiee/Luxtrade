@@ -2168,3 +2168,23 @@ ROOT CAUSE SISA "KEK SETAN" (verifikasi ronde ini):
 UJI: lint exit 0; tsc bersih utk file tersentuh; E2E agent-browser /dashboard/chart — chart 1h XAUUSD utuh (tanpa ilang/kebawah), harga tag 4028.70→4027.90 mengikuti spot goldapi, source respons "goldapi-spot-live", chip default aktif otomatis, tabel performa v5 tampil, LTX Pro 1×; console bersih dr error chart (sisa warning pre-existing SW/LCP).
 
 LANGKAH BOS: push → deploy CF ±3-5 mnt → hard-refresh sekali → cek log CF: warn spot-live harus hilang / berganti "[spot-live] spot XAU dari …" (gold-api/xaut/paxg/yahoo-tick).
+
+## Ganti Pine Default → v5 "(Clean Native)" Verbatim — Fix "Pine Ga Ada Entry/SL/TP" (2026-10-29)
+Tanggal: 2026-10-29 · Status: working tree → commit & push (deploy CF auto)
+
+Laporan Bos: "kenapa pine nya ga ada entry sl tp gitu?" + "kalau ga tampil sl tp pine scrip ganti ini isinya semuanya jangan ada yang diubah" (+ paste Pine v5 "Impulsive Breakout XAUUSD v5 (Clean Native)" penuh).
+
+YANG DILAKUKAN:
+- DEFAULT_PINE_SOURCE (pine-default-script.ts) DIGANTI SELURUHNYA = paste Bos "Impulsive Breakout XAUUSD v5 (Clean Native)" — VERBATIM 100%, diverifikasi skrip diff byte-per-byte: 11.442 karakter / 204 baris IDENTIK dgn paste Bos (0 karakter diubah). Perbedaan vs versi lama (semua milik paste Bos sendiri): judul strategy → "(Clean Native)", max_lines_count/max_labels_count dihapus, komentar "FIX MUTLAK CE10123 & CE10275" dipersingkat, "Eksekusi Strategy (Native Marker Mode)", close_all comment "Sesi Selesai", BLOK line.new/label.new DIHAPUS + komentar "HAPUS SEMUA KODE PLOTSHAPE DAN LINE.NEW DI SINI AGAR MESIN VELA BISA MENGELUARKAN NATIVE MARKER-NYA" — persis instruksi Bos, tanpa campur tangan.
+- ensureDefaultScript auto-migrate: produksi otomatis menimpa source lama di protected_scripts (name+description+source) pada request pertama — tanpa SQL manual.
+- pine-default-meta.ts: description disesuaikan (Clean Native — tanpa line.new/label.new, native marker mesin chart); nama chip tetap "Luxtradee Candle Impulsif" (instruksi Bos sebelumnya).
+- Replika TS (pine-default-runner.ts) TIDAK disentuh — logika trading Clean Native identik v5 (hanya visualisasi & judul yang berubah), jalur server compile-pine tetap valid.
+
+VERIFIKASI (cek dulu baru push):
+1. VERBATIM: diff byte-per-byte source-in-kode vs teks Bos → OK IDENTIK 100%.
+2. PIPELINE RESMI (chip/auto-load → POST /api/compile-pine): runDefaultStrategyPine atas 1999 bar XAUUSD 1h nyata → plot "Entry" 184 titik bernilai, "Stop Loss" 80, "Take Profit" 104 + stats lengkap (Net $150.77/1.51%, 39 trade/WR 46.2%, PF 1.38) + 78 engineAlerts → garis Entry/SL/TP tergambar.
+3. MESIN VELA (jalur pineku editor): source Clean Native di-compile PineTS → COMPILE OK, meta.title="Impulsive Breakout XAUUSD v5 (Clean Native)", 30 trade dari 1499 bar 1h → native marker (entry/exit + SL/TP) bisa dikeluarkan mesin (inilah tujuan Clean Native Bos).
+4. E2E BROWSER: /dashboard/chart boot ✓, chip "✓ Luxtradee Candle Impulsif" AKTIF OTOMATIS tanpa klik ✓ (auto-load by slug + persist). Catatan: POST compile-pine 401 di sandbox karena env Supabase tidak tersedia lokal (batasan sandbox, bukan kode — produksi punya service role).
+5. lint exit 0.
+
+LANGKAH BOS: push → deploy CF ±3-5 menit → hard-refresh sekali → klik pineku / buka chart: judul baru "(Clean Native)" terpasang, Entry/SL/TP keluar dari marker native mesin Vela (tanpa line.new).
