@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, FileText, RotateCcw, HelpCircle, Phone, Mail, Send, MapPin, Clock, AlertCircle, Globe, Shield } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -462,7 +463,7 @@ function FAQContent() {
         <p className="text-white/40 text-xs mb-4">Hubungi kami langsung melalui Discord atau Email</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href="https://discord.gg/KkYYFP9nC"
+            href={DISCORD_INVITE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-semibold transition-colors shadow-lg shadow-[#5865F2]/20"
@@ -514,7 +515,7 @@ function ContactContent() {
 
         {/* Discord */}
         <a
-          href="https://discord.gg/KkYYFP9nC"
+          href={DISCORD_INVITE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#5865F2]/30 transition-colors"
@@ -550,7 +551,7 @@ function ContactContent() {
 
         {/* Discord */}
         <a
-          href="https://discord.gg/KkYYFP9nC"
+          href={DISCORD_INVITE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#5865F2]/30 transition-colors"
@@ -615,7 +616,7 @@ function ContactContent() {
           Untuk respon tercepat, hubungi kami langsung melalui Discord. Kami biasanya membalas dalam hitungan menit.
         </p>
         <a
-          href="https://discord.gg/KkYYFP9nC"
+          href={DISCORD_INVITE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold text-sm transition-all shadow-lg shadow-[#5865F2]/20 active:scale-95"
@@ -688,7 +689,7 @@ function PrivacyContent() {
       <div className="mt-8 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
         <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang privasi?</h4>
         <p className="text-white/40 text-sm">
-          Hubungi kami di <a href="mailto:support@luxtradee.web.id" className="text-[#8a2be2] hover:underline">support@luxtradee.web.id</a> atau melalui <a href="https://discord.gg/KkYYFP9nC" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">Discord</a>.
+          Hubungi kami di <a href="mailto:support@luxtradee.web.id" className="text-[#8a2be2] hover:underline">support@luxtradee.web.id</a> atau melalui <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">Discord</a>.
         </p>
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { X, ChevronRight, MessageSquare } from 'lucide-react'
@@ -101,7 +102,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                   {language === 'id' ? 'Komunitas' : 'Community'}
                 </p>
                 <a
-                  href="https://discord.gg/JwMxsmMqG"
+                  href={DISCORD_INVITE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[14px] bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useRef, useEffect, useState } from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { motion } from 'framer-motion'
 import { Rocket, ShieldCheck, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
@@ -262,7 +263,7 @@ export default function FinalCTA({ language = 'id' }: FinalCTAProps) {
         {/* Discord Community Link */}
         <div className="flex flex-col items-center gap-2 mt-4">
           <a
-            href="https://discord.gg/JwMxsmMqG"
+            href={DISCORD_INVITE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] rounded-xl hover:bg-[#5865F2]/20 transition-colors"

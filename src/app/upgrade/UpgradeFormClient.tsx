@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import {
   ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
@@ -102,7 +103,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
   // Pay — manual transfer via Discord
   const handlePay = () => {
     if (!selectedPlan) return
-    window.open('https://discord.gg/KkYYFP9nC', '_blank')
+    window.open(DISCORD_INVITE_URL, '_blank')
   }
 
   if (success) return (

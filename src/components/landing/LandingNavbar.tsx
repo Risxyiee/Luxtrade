@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -78,7 +79,7 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
 
           <div className="flex items-center gap-2">
             <a
-              href="https://discord.gg/JwMxsmMqG"
+              href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"
@@ -89,7 +90,7 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
             </a>
             <LanguageSwitcher />
             <a
-              href="https://discord.gg/JwMxsmMqG"
+              href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Discord"

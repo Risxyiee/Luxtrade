@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { PRICING, formatRupiah } from '@/lib/pricing'
 
 export type Language = 'id' | 'en'
 
@@ -114,17 +115,17 @@ const translations = {
 
     // Pricing
     'pricing.title': 'Investasi Kecil, Perubahan Besar di Akun Kamu',
-    'pricing.subtitle': 'Satu bulan Elite Pro cuma Rp 49.000 — harga normal Rp 100.000, sekarang diskon. Kurang dari satu loss yang seharusnya bisa kamu hindari kalau jurnalnya rapi.',
+    'pricing.subtitle': `Satu bulan Elite Pro cuma ${formatRupiah(PRICING.PRO_30_DAYS)} — harga normal ${formatRupiah(PRICING.PRO_30_DAYS_ORIGINAL)}, sekarang diskon. Kurang dari satu loss yang seharusnya bisa kamu hindari kalau jurnalnya rapi.`,
     'pricing.free.title': 'GRATIS',
     'pricing.free.price': 'Rp 0 / Selamanya',
     'pricing.free.desc': 'Untuk pemula yang ingin mulai',
     'pricing.pro.title': 'ELITE PRO',
-    'pricing.pro.price': 'Rp 49.000 / Bulan',
+    'pricing.pro.price': `${formatRupiah(PRICING.PRO_30_DAYS)} / Bulan`,
     'pricing.pro.desc': 'Untuk trader serius yang ingin profit konsisten',
-    'pricing.annual.price': 'Rp 390.000 / Tahun',
+    'pricing.annual.price': `${formatRupiah(PRICING.PRO_ANNUAL)} / Tahun`,
     'pricing.annual.savings': 'Hemat 2 Bulan',
     'pricing.lifetime.title': 'LIFETIME ULTRA',
-    'pricing.lifetime.price': 'Rp 299.000 / Sekali Bayar',
+    'pricing.lifetime.price': `${formatRupiah(PRICING.PRO_LIFETIME)} / Sekali Bayar`,
     'pricing.lifetime.promo': 'PROMO MERDEKA TRADER - HARGA SPESIAL!',
     'pricing.lifetime.desc': 'Akses seumur hidup dengan harga promo',
     'pricing.cta.free': 'Mulai Gratis',
@@ -148,12 +149,12 @@ const translations = {
     'paywall.free.price': 'Rp 0',
     'paywall.free.period': 'Selamanya',
     'paywall.pro.title': 'ELITE PRO',
-    'paywall.pro.price': 'Rp 49.000',
+    'paywall.pro.price': formatRupiah(PRICING.PRO_30_DAYS),
     'paywall.pro.period': '/ Bulan',
-    'paywall.annual.price': 'Rp 390.000',
+    'paywall.annual.price': formatRupiah(PRICING.PRO_ANNUAL),
     'paywall.annual.price_en': '$39.99',
     'paywall.lifetime.title': 'LIFETIME ULTRA',
-    'paywall.lifetime.price': 'Rp 299.000',
+    'paywall.lifetime.price': formatRupiah(PRICING.PRO_LIFETIME),
     'paywall.lifetime.period': '/ Sekali Bayar',
     'paywall.lifetime.promo': 'PROMO MERDEKA TRADER - SISA 30 SLOT!',
     'paywall.buy': 'Beli Sekarang',

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { notifyPaymentConfirmation } from '@/lib/admin-notify'
 import { PRICING, formatRupiah } from '@/lib/pricing'
 
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
         accountHolder: PAYMENT_CONFIG.accountHolder,
         amount: PAYMENT_CONFIG.amount,
       },
-      discordLink: 'https://discord.gg/KkYYFP9nC',
+      discordLink: DISCORD_INVITE_URL,
       message: 'Payment details generated successfully',
     })
   } catch (error) {

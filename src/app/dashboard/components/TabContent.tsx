@@ -30,6 +30,8 @@ const CommunityTab = dynamic(() => import('../tabs/CommunityTab').then(m => ({ d
 const ChartTab = dynamic(() => import('@/components/ChartTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const OnboardingTab = dynamic(() => import('../tabs/OnboardingTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const PropFirmGuardTab = dynamic(() => import('../tabs/PropFirmGuardTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+// P1: tab Affiliate kini ter-wire (dulu 1.115 baris yatim tanpa pemakaian)
+const AffiliateTab = dynamic(() => import('../tabs/AffiliateTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
 // Lazy-loaded feature components
 const TradingScore = dynamic(() => import('@/components/TradingScore').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -292,6 +294,14 @@ export default function TabContent({
 
           {activeTab === 'propfirm' && (
             <PropFirmGuardTab language={language} />
+          )}
+
+          {activeTab === 'affiliate' && (
+            <AffiliateTab
+              isPro={isPro}
+              onUpgrade={() => setPlanSelectionModalOpen(true)}
+              language={language}
+            />
           )}
     </div>
   )
