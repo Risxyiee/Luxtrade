@@ -2413,3 +2413,24 @@ ignoreBuildErrors); lint bersih.
 - Fix tipe murni (perilaku identik): sisanya (lihat pesan commit).
 - REPO KINI: tsc --noEmit = 0 error, eslint = bersih. ignoreBuildErrors jadi
   tak lagi menutupi error baru (gerbang tsc tetap disarankan pre-push).
+
+## VERIFIKASI FINAL TUGAS A: Email Karyawan Terkirim = Bukti Runtime (2026-10-30)
+- Bos konfirmasi: "saya udah cek karyawan email terkirim" → jalur karyawan AI
+  (/api/execute-action → SEND_WINBACK_EMAIL / SEND_UPGRADE_OFFER /
+  BROADCAST_MAINTENANCE) pakai sendEmail() @/lib/email yang SAMA dgn admin
+  broadcast → RESEND_API_KEY di CF resmi TERBUKTI VALID + jalur api.resend.com
+  TERBUKTI RUNTIME di produksi. Risiko operasional (key lama) RESMI TERTUTUP.
+- Rantai yang kini terbukti end-to-end: sesi admin Bos (approve aksi karyawan)
+  → requireAdmin/getAuthenticatedUser ✓ → sendEmail → Resend API ✓ → inbox ✓.
+- Probe DB tambahan (anon key): email_broadcasts ADA (42501 RLS, bukan 42P01),
+  profiles.email_verified/is_pro/email_verify_token ADA, GRANT service_role
+  ter-cover migrasi 019 (ALL TABLES + default privileges).
+- Temuan legacy tercatat (TIDAK dihapus — prinsip "kalau ragu gausah dihapus"):
+  /api/email-campaigns action=send query kolom users.email_marketing_consent
+  yang TIDAK ADA di DB (42703) → bakal 500 kalau dipanggil. Route ini admin-
+  gated + tidak dipakai UI mana pun + sudah digantikan /api/admin/email-broadcast
+  → dead code ber-auth, biarkan; canary master-autonomous tetap expect 401/403.
+- Re-verifikasi Tugas B: bunx tsc --noEmit → EXIT 0 (0 error repo-wide) ✓.
+- STATUS: TUGAS A ✓ 100% + TUGAS B ✓ 100%. Kandidat lanjutan: migrasi 020
+  (unique constraint pine_alerts + upsert, dari temuan #4 Tugas B) / opsi C
+  (E2E audit fitur dashboard lain) — menunggu pesanan Bos.
