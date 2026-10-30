@@ -10,6 +10,17 @@ import { createAdminClient, createAdminClientAsync, getSupabaseAdminAuth } from 
 
 let _adminClient: ReturnType<typeof createAdminClient> | null = null
 let _initSucceeded = false
+let _cachedAt = 0
+
+// TTL cache 60 detik (2026-10-30): dulu cache PERMANEN selama isolate hidup —
+// kalau Bos salah paste key lalu memperbaikinya di CF dashboard, isolate lama
+// terus pakai client dengan key LAMA sampai restart (bisa berjam-jam). Dengan
+// TTL, perbaikan secret di CF efektif <= 60 detik tanpa deploy ulang.
+const ADMIN_CACHE_TTL_MS = 60_000
+
+function cacheFresh(): boolean {
+  return _initSucceeded && !!_adminClient && Date.now() - _cachedAt < ADMIN_CACHE_TTL_MS
+}
 
 /**
  * Get the Supabase admin client (lazy-initialized).
@@ -19,8 +30,8 @@ let _initSucceeded = false
  * @returns Supabase admin client, or null if SUPABASE_SERVICE_ROLE_KEY is not configured
  */
 export function getSupabaseAdmin() {
-  // Return cached client if we previously succeeded
-  if (_initSucceeded && _adminClient) return _adminClient
+  // Return cached client if we previously succeeded (max 60s — lihat TTL di atas)
+  if (cacheFresh()) return _adminClient
 
   // Try to create — env vars may now be available at request time
   const client = createAdminClient()
@@ -29,6 +40,7 @@ export function getSupabaseAdmin() {
     // Success! Cache it
     _adminClient = client
     _initSucceeded = true
+    _cachedAt = Date.now()
     return _adminClient
   }
 
@@ -44,14 +56,15 @@ export function getSupabaseAdmin() {
  * @returns Supabase admin client, or null if SUPABASE_SERVICE_ROLE_KEY is not configured
  */
 export async function getSupabaseAdminAsync() {
-  // Return cached client if we previously succeeded
-  if (_initSucceeded && _adminClient) return _adminClient
+  // Return cached client if we previously succeeded (max 60s — lihat TTL di atas)
+  if (cacheFresh()) return _adminClient
 
   // Try sync first (fast path)
   const syncClient = createAdminClient()
   if (syncClient) {
     _adminClient = syncClient
     _initSucceeded = true
+    _cachedAt = Date.now()
     return _adminClient
   }
 
@@ -60,6 +73,7 @@ export async function getSupabaseAdminAsync() {
   if (asyncClient) {
     _adminClient = asyncClient
     _initSucceeded = true
+    _cachedAt = Date.now()
     console.log('[supabase-admin-alt] Admin client initialized via CF ctx.env fallback')
     return _adminClient
   }
