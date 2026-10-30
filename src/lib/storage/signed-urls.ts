@@ -10,6 +10,12 @@ export async function generateSignedUrl(
 ): Promise<string | null> {
   try {
     const supabase = createAdminClient()
+    if (!supabase) {
+      // Dulu: supabase.storage melempar TypeError → ditangkap catch → return null.
+      // Hasil sama, tapi eksplisit + type-safe.
+      console.error(`Error generating signed URL for ${bucket}/${path}: admin client tidak tersedia`)
+      return null
+    }
 
     const { data, error } = await supabase.storage
       .from(bucket)

@@ -134,6 +134,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // TS narrowing guard: `order` dijamin non-null di sini (cek line ~46 + semua
+    // re-assignment selalu punya fallback `|| order` / di dalam if(updated)).
+    // Branch ini mustahil terpicu — murni memuaskan tipe pasca re-assignment.
+    if (!order) {
+      return NextResponse.json({ status: 'UNKNOWN', invoiceNumber })
+    }
+
     // If SakuraPay says expired but our DB still says PENDING
     if (sakuraStatus === 'expired' && order.status === 'PENDING') {
       console.log('⏰ [Order Status] SakuraPay confirms EXPIRED — updating local DB')
@@ -148,16 +155,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Snapshot final: order pasti non-null (guard + fallback di atas). Const baru
+    // dipakai karena re-assignment di blok expired menghapus narrowing TS lagi.
+    const finalOrder = order
+    if (!finalOrder) {
+      return NextResponse.json({ status: 'UNKNOWN', invoiceNumber })
+    }
+
     return NextResponse.json({
-      status: order.status,
-      invoiceNumber: order.invoiceNumber,
-      paidAt: order.paidAt ? order.paidAt.toISOString() : null,
-      createdAt: order.createdAt.toISOString(),
-      expiredAt: order.expiredAt ? order.expiredAt.toISOString() : null,
-      paymentMethod: order.paymentMethod,
-      paymentChannel: order.paymentChannel,
-      plan: order.plan,
-      amount: order.amount,
+      status: finalOrder.status,
+      invoiceNumber: finalOrder.invoiceNumber,
+      paidAt: finalOrder.paidAt ? finalOrder.paidAt.toISOString() : null,
+      createdAt: finalOrder.createdAt.toISOString(),
+      expiredAt: finalOrder.expiredAt ? finalOrder.expiredAt.toISOString() : null,
+      paymentMethod: finalOrder.paymentMethod,
+      paymentChannel: finalOrder.paymentChannel,
+      plan: finalOrder.plan,
+      amount: finalOrder.amount,
     })
   } catch (error: any) {
     console.error('❌ [Order Status] Error:', error.message)

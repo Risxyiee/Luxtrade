@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react'
 import { Trade, TradeFormData, Analytics, emptyFormData } from '../utils/types'
 import { formatLocalDateTime } from '../utils/helpers'
 import { toast } from 'sonner'
@@ -8,7 +9,9 @@ interface TradeHandlersProps {
   selectedTrade: Trade | null
   setSelectedTrade: (trade: Trade | null) => void
   trades: Trade[]
-  setTrades: (trades: Trade[]) => void
+  // Parent (LuxTradeDashboard) pass React useState setter langsung → type harus
+  // Dispatch<SetStateAction<Trade[]>> agar updater function (prev => ...) valid.
+  setTrades: Dispatch<SetStateAction<Trade[]>>
   setAddTradeOpen: (open: boolean) => void
   setEditTradeOpen: (open: boolean) => void
   setDeleteTradeOpen: (open: boolean) => void

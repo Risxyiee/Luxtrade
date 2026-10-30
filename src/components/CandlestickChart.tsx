@@ -32,8 +32,9 @@ function CandlestickChartInner({
     },
     crosshair: {
       mode: CrosshairMode.Normal,
-      vertLine: { color: 'rgba(224, 227, 235, 0.1)', width: 1, style: LineStyle.Dashed, labelBackgroundColor: '#1f2937' },
-      horLine: { color: 'rgba(224, 227, 235, 0.1)', width: 1, style: LineStyle.Dashed, labelBackgroundColor: '#1f2937' },
+      // as const: lightweight-charts v5 mau LineWidth (union literal), bukan number
+      vertLine: { color: 'rgba(224, 227, 235, 0.1)', width: 1 as const, style: LineStyle.Dashed, labelBackgroundColor: '#1f2937' },
+      horLine: { color: 'rgba(224, 227, 235, 0.1)', width: 1 as const, style: LineStyle.Dashed, labelBackgroundColor: '#1f2937' },
     },
     rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
     timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true, secondsVisible: false },

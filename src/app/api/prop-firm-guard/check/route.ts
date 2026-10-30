@@ -396,7 +396,8 @@ export async function POST(request: NextRequest) {
     }
 
     const totalAlerts = results.reduce((sum, r) => sum + r.alertsSent.length, 0)
-    const totalBreaches = results.filter(r => r.breched).length
+    // FIX typo (2026-10-30): dulu 'breched' — selalu undefined → totalBreaches selalu 0
+    const totalBreaches = results.filter(r => r.breached).length
     const totalTargets = results.filter(r => r.profitTargetReached).length
 
     return NextResponse.json({

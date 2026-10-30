@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
       used: q.isPro ? 0 : q.alerts_today_count,
       limit: q.isPro ? null : FREE_ALERT_LIMIT_PER_DAY,
       remaining: q.isPro ? null : Math.max(0, FREE_ALERT_LIMIT_PER_DAY - q.alerts_today_count),
-      chatBound: q.chatBound === true,
+      // CATATAN (2026-10-30): chatBound belum di-wire ke checkAlertQuota (getQuotaRow
+      // cuma select 5 kolom kuota) → selalu false saat ini; cast menjaga perilaku
+      // persis sama sampai fitur binding telegram di-wire beneran.
+      chatBound: (q as { chatBound?: boolean }).chatBound === true,
     })
   } catch (x: any) {
     return NextResponse.json({ error: String(x?.message || x).slice(0, 140) }, { status: 500 })

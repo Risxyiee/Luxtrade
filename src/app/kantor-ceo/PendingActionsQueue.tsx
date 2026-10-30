@@ -121,6 +121,7 @@ export default function PendingActionsQueue() {
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     try {
       const sb = await getClientBrowserAsync()
+      if (!sb) return {} // dulu: sb.auth melempar TypeError → ditangkap catch → sama2 {}
       const { data } = await sb.auth.getSession()
       const token = data?.session?.access_token
       return token ? { Authorization: `Bearer ${token}` } : {}
