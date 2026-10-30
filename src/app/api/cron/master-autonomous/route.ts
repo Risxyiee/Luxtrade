@@ -104,15 +104,16 @@ function resetQuotaTracker(): void {
 
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
-/* SOP Multi-Agent (warisan Task 35/35c): gemma-2-9b:free, llama-3.1-8b:free &
-   glm-4-flash sudah MATI (404) → rantai di bawah TERVERIFIKASI HIDUP.
-   Permintaan "Gemma 2" dipenuhi lewat keluarga Gemma terbaru yang masih hidup
-   di katalog gratis OpenRouter — model mati hanya menghasilkan email templat. */
+/* SOP Multi-Agent: rantai diurutkan dari hasil tes HIDUP terbaru (diag Bos:
+   gemma-4-26b & gemma-4-31b = HTTP 429 free-tier; nemotron & xingchen hidup).
+   Model 429 di urutan depan = tiap panggilan agen buang 2x percobaan →
+   model hidup dulu, gemma di belakang sebagai cadangan saat kuota reset. */
 const OR_LIVE_CHAIN = [
-  'google/gemma-4-26b-a4b-it:free',
-  'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3.5-lightning:free',
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3.5-lightning:free',      // ✅ hidup (339 ms)
+  'nvidia/nemotron-3-ultra-550b-a55b:free',  // ✅ hidup (372 ms)
+  'xingchen-agi/xing4.0-29b-a4b:free',       // ✅ hidup (1527 ms)
+  'google/gemma-4-26b-a4b-it:free',          // ⚠️ 429 free-tier — cadangan
+  'google/gemma-4-31b-it:free',              // ⚠️ 429 free-tier — cadangan
 ]
 const DEFAULT_OR_MODEL = OR_LIVE_CHAIN[0]
 
