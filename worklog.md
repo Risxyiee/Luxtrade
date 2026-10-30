@@ -2280,3 +2280,19 @@ UJI: lint bersih; diff review sebelum push.
 LANGKAH BOS: tunggu deploy ±3-5 mnt → tes /api/contact (form kontak), cek footer Discord,
 cek harga 199rb di halaman upgrade, /admin-secret harus mendarat di /dashboard/admin,
 AdminPanel harus muncul kartu "Kelola Langganan".
+
+### ADDENDUM — AKAR KEMACETAN DEPLOY DITEMUKAN (log build CF dari Bos)
+Bos paste log build CF 12:08 → AKAR MASALAH: src/app/api/email-campaigns/route.ts
+punya IMPORT DOBEL `DISCORD_INVITE_URL` dari '@/lib/site-links' (warisan commit
+92fbd2ca saat unifikasi Discord) → SyntaxError "Identifier has already been
+declared" → `next build` GAGAL → SEMUA deploy sejak 92fbd2ca (10:51) gagal diam-diam.
+Kenapa lolos "lint bersih" kemarin: (1) ESLint ternyata MENG-IGNORE file api/**
+("File ignored because no matching configuration" saat dites langsung) dan
+(2) next.config.ts: eslint.ignoreDuringBuilds=true + typescript.ignoreBuildErrors=true
+→ satu-satunya yang bisa menggagalkan build adalah error PARSE (SyntaxError).
+FIX: import digabung jadi 1 (DISCORD_INVITE_URL + DISCORD_INVITE_TEXT), komentar
+sejarah ditinggal di file. Repo di-scan: tidak ada file lain dg import site-links ganda.
+GERBANG BARU PRE-PUSH: `bunx tsc --noEmit` — tsc mem-parse SEMUA file; SyntaxError
+akan kelihatan. Catatan: masih ada ±30 error TYPE lama (possibly null dll) yang
+DITOLERIR build (ignoreBuildErrors) — bukan penghalang deploy, kandidat dirapikan
+pelan-pelan di P2 (jangan diburu semua sekarang).
