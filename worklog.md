@@ -2320,3 +2320,10 @@ SISANYA: DB plans belum punya baris 6-bulan (199rb) — Midtrans tetap benar
 (getPlanPrice dari kode), sinkron via /api/seed-plans (login admin dulu).
 UJI: tsc NOL penghalang parse (32 error type lama = warisan, ditolerir
 ignoreBuildErrors); lint bersih.
+
+## Deploy Produksi BERES + Jawaban Supabase API Keys (2026-10-30)
+- Fix import dobel (735ff92c) + contact/trial pindah admin client async (ba2b8e83) → build CF SUKSES → 5 commit antrean deploy lolos semua.
+- Probe produksi: /api/contact → 400 (dulu 404 HTML ✓), /api/user/trial → 401 (dulu 404 HTML ✓), footer discord = jV6McFx6R (invite baru live ✓).
+- Bos tanya tab Supabase API Keys kanan/kiri → jawab: KANAN "Legacy anon, service_role API keys" (kode pakai NEXT_PUBLIC_SUPABASE_ANON_KEY + SUPABASE_SERVICE_ROLE_KEY, format JWT eyJ...). Tab kiri (sb_publishable_/sb_secret_) = format baru, TIDAK dipakai kode.
+- PERINGATAN ke Bos: JANGAN klik "Disable JWT-based API keys" — mematikan kunci legacy yang dipakai produksi sekarang → semua API rusak.
+- Pelajaran tervalidasi: tsc --noEmit gerbang wajib pre-push (ESLint ignore api/**).
