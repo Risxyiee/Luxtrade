@@ -2356,3 +2356,11 @@ ignoreBuildErrors); lint bersih.
 - FIX: migrasi 019 (8a10079a) — GRANT contact_messages + ALL TABLES/SEQUENCES public utk service_role + ALTER DEFAULT PRIVILEGES FOR ROLE postgres (cegah kekambuhan). anon/authenticated tidak disentuh (RLS deny-all tetap).
 - STATUS: SQL sudah di-push sbg supabase-migrations/019_fix_service_role_grants.sql — MENUNGGU BOS jalankan di Supabase SQL Editor → lalu Z tes ulang POST /api/contact (harus 200).
 - Catatan anon probe profiles/contact_messages → 42501 permission denied (bukan "violates RLS") konsisten dgn GRANT longgar-nya anon juga tidak ada di project ini — desain keamanan diperketat di sisi grant; service_role wajib dikembalikan karena itu role backend internal.
+
+## AKAR SMTP DITEMUKAN: 535 Authentication credentials invalid (2026-10-30)
+- Bos paste log Auth Supabase (cari by WAKTU 20:17 WIB berhasil — error_id memang tidak terindeks; pelajaran: log Supabase difilter by time window).
+- Log: action=user_confirmation_requested, error="535 \"Authentication credentials invalid\"" → SMTP server REJECT login = kredensial SMTP Resend di Supabase INVALID (API key lama rotate/dihapus, atau username bukan 'resend'). Terjadi SEBELUM kirim email → DNS SPF/MX belum relevan di tahap ini.
+- Contact form: TEREBUKTI FIXED — POST /api/contact → 200 success (SQL 019 GRANT service_role sudah dijalankan Bos, akar 42501 pasti).
+- mailer_autoconfirm=false (config publik) → Confirm email AKTIF → signup mati total sampai SMTP diperbaiki.
+- Instruksi ke Bos: ① Resend API key baru ② SMTP Supabase: smtp.resend.com:465, user 'resend', pass re_... ③ verifikasi domain Resend (SPF+MX kurang; DKIM sudah ada) ④ opsi interim: matikan Confirm email.
+- Menunggu Bos "udah" → Z retest signup.
