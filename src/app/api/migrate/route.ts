@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
 
-// Migration: Add missing columns to trades table
-export async function GET() {
+// Migration: Add missing columns to trades table — ADMIN ONLY (P0 hardening:
+// dulu terbuka publik, membocorkan skema & status kolom DB).
+export async function GET(request: NextRequest) {
   try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
+
     // Check if we can query the trades table
     const { error: checkError } = await supabase
       .from('trades')
@@ -68,8 +73,15 @@ WHERE table_name = 'trades' AND column_name IN ('close_time', 'image_url', 'note
   }
 }
 
-// POST to mark migration as done (frontend confirmation)
-export async function POST() {
+// POST to mark migration as done (frontend confirmation) — ADMIN ONLY
+export async function POST(request: NextRequest) {
+  try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
+  } catch {
+    return NextResponse.json({ success: false, message: 'Auth check failed' }, { status: 500 })
+  }
+
   return NextResponse.json({ 
     success: true, 
     message: 'Migration verified. You can now save trades!'

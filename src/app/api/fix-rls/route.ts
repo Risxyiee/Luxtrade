@@ -1,20 +1,22 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { autoFixRLS } from '@/lib/auto-fix-rls'
+import { requireAdmin } from '@/lib/admin-auth'
 
 /**
- * RLS Health Check endpoint.
+ * RLS Health Check endpoint — ADMIN ONLY.
  *
- * GET /api/fix-rls  — No auth required (visit in browser!)
- * POST /api/fix-rls — Also works
+ * GET /api/fix-rls  — butuh sesi admin (dipakai tombol "Fix RLS" di /dashboard/admin)
+ * POST /api/fix-rls — sama
  *
- * This checks whether the admin client can access critical tables.
- * If tables are inaccessible, it returns:
- *  - Which tables need fixing
- *  - A SQL snippet you can copy-paste into Supabase SQL Editor
- *  - Whether the SUPABASE_SERVICE_ROLE_KEY is configured
+ * SECURITY (P0 hardening): dulu endpoint ini TERBUKA untuk publik
+ * ("No auth required — visit in browser!") dan membocorkan daftar tabel +
+ * SQL GRANT. Sekarang wajib admin.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const result = await autoFixRLS()
 
     // If there are failed tables, include fix SQL
@@ -25,13 +27,14 @@ export async function POST() {
     }
 
     return NextResponse.json(result)
-  } catch (err: any) {
-    return NextResponse.json({ success: false, message: 'RLS check failed', detail: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ success: false, message: 'RLS check failed', detail: message }, { status: 500 })
   }
 }
 
-export async function GET() {
-  return POST()
+export async function GET(request: NextRequest) {
+  return POST(request)
 }
 
 /**

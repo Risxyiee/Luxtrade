@@ -16,7 +16,9 @@ export const config = {
     '/settings',
     '/auth/:path*',
     '/admin-secret',
+    '/admin-secure',
     '/admin-email',
+    '/admin-dashboard-secret',
     '/admin-subscriptions',
     '/admin-subscriptions/:path*',
     '/admin/:path*',
@@ -50,7 +52,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only paths — require login + admin email
-  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-subscriptions', '/admin']
+  // P0 hardening: /admin-secure & /admin-dashboard-secret ditambahkan —
+  // dulu cuma dijaga cek email di client-side (bisa di-override di browser).
+  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-secure', '/admin-dashboard-secret', '/admin-subscriptions', '/admin']
   const isAdminPath = adminPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   // Protected paths — require login
@@ -69,9 +73,15 @@ export async function middleware(request: NextRequest) {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error('[Middleware] Missing Supabase environment variables - letting request through without auth check')
-      // Instead of redirecting, let the request through
-      // The API/page will handle auth internally and show proper error UI
+      // P0 hardening: FAIL-CLOSED untuk jalur admin (dulu: diteruskan begitu saja).
+      // Halaman dashboard/settings biasa tetap diteruskan — page-nya self-auth.
+      console.error('[Middleware] Missing Supabase environment variables — admin path DITOLAK (fail-closed)')
+      if (isAdminPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/auth/login'
+        url.searchParams.set('redirect', pathname)
+        return NextResponse.redirect(url)
+      }
       return NextResponse.next()
     }
 

@@ -28,9 +28,9 @@ export const dynamic = 'force-dynamic'
 async function isAuthorized(request: NextRequest): Promise<boolean> {
   const authHeader = request.headers.get('authorization')?.replace('Bearer ', '')
   const cronSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  // Jika secret diset → wajib cocok. Jika TIDAK diset → allow (cron bisa jalan tanpa auth).
-  if (cronSecret && authHeader !== cronSecret) return false
-  return true
+  // P0 hardening: FAIL-CLOSED — tanpa secret, DITOLAK di produksi (dulu: allow).
+  if (!cronSecret) return process.env.NODE_ENV === 'development'
+  return authHeader === cronSecret
 }
 
 // ─── Snapshot audiens TikTok (DUMMY/STATIS — sumber analytics asli menyusul) ──

@@ -45,8 +45,26 @@ const nextConfig: NextConfig = {
 
   // sw.js WAJIB no-store — kalau ke-cache browser/CDN, Service Worker
   // baru tak pernah terunduh → user terjebak versi lama berhari-hari.
+  // SECURITY HEADERS (P0 hardening):
+  //  - HSTS          : paksa HTTPS 1 tahun (Cloudflare sudah TLS, ini lapisan browser)
+  //  - X-Frame-Options DENY : situs tak bisa di-iframe pihak lain (anti clickjacking)
+  //  - nosniff       : browser wajib hormati Content-Type (anti XSS via MIME sniffing)
+  //  - Referrer-Policy : jangan bocorkan URL penuh ke situs luar
+  //  - Permissions-Policy : kunci kamera/mic/geolokasi ke origin sendiri
+  // (CSP belum dipasang — butuh audit inline script dulu, jangan asal pasang.)
   async headers() {
+    const securityHeaders = [
+      { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self), payment=()' },
+    ]
     return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
       {
         source: '/sw.js',
         headers: [

@@ -302,8 +302,13 @@ async function handleRequest(request: NextRequest) {
   const targetUid = searchParams.get('uid') || undefined
 
   // Auth check — NOTE: ?force=true no longer bypasses auth.
+  // P0 hardening: FAIL-CLOSED — tanpa CRON_SECRET, DITOLAK di produksi (dulu: allow).
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET) {
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'CRON_SECRET not configured — endpoint disabled (fail-closed)' }, { status: 403 })
+    }
+  } else if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

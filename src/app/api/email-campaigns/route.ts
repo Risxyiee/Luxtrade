@@ -1,5 +1,7 @@
+import type { NextRequest } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/admin-auth'
 
 interface EmailCampaign {
   id: string
@@ -417,8 +419,16 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
   return templates[template] || templates['welcome']
 }
 
-export async function GET(request: Request) {
+/**
+ * SECURITY (P0 hardening): dulu GET ?action=send TERBUKA publik — siapapun
+ * bisa men-blast email kampanye ke SELURUH user base & membakar kuota Resend.
+ * Sekarang wajib admin.
+ */
+export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action') || 'list'
     const campaignId = searchParams.get('campaign')
