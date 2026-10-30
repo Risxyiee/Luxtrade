@@ -4,6 +4,7 @@ import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supa
 import { extractJson } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { sendDiscordNotification } from '@/lib/discord'
+import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@/lib/bagas-cooldown'
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -856,18 +857,21 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
 
   // Anti-spam: yang sudah ditawarin (Bagas via ai_pending_actions / COO-CS via
   // ai_pending_tasks) dalam 7 hari terakhir tidak diganggu lagi
-  const sinceCooldown = new Date(Date.now() - 7 * 86400_000).toISOString()
+  // 🔗 UNIFIKASI COOLDOWN: window + parser dari @/lib/bagas-cooldown (satu
+  // sumber kebenaran bareng cron COO & sweep), window ikut executed_at —
+  // proposal lama yang di-ACC telat tetap menghitung dari saat email terkirim.
+  const sinceCooldown = bagasCooldownSince()
   const contacted = new Set<string>()
   try {
     const { data: recentActions } = await admin.from('ai_pending_actions').select('action_payload')
-      .eq('agent_name', 'Bagas').gte('created_at', sinceCooldown).limit(60)
-    for (const r of (recentActions || []) as Array<{ action_payload: { target_emails?: string[] } }>) {
-      for (const e of r.action_payload?.target_emails || []) contacted.add(String(e).toLowerCase())
-    }
-    const { data: recentTasks } = await admin.from('ai_pending_tasks').select('target_user_id')
-      .in('agent_type', ['COO', 'CS']).gte('created_at', sinceCooldown).limit(120)
-    for (const r of (recentTasks || []) as Array<{ target_user_id: string | null }>) {
+      .eq('agent_name', 'Bagas').or(bagasCooldownOrExpr(sinceCooldown)).limit(60)
+    for (const e of emailsFromActionRows(recentActions || [])) contacted.add(e)
+    const { data: recentTasks } = await admin.from('ai_pending_tasks').select('target_user_id,context_data')
+      .in('agent_type', ['COO', 'CS']).or(bagasCooldownOrExpr(sinceCooldown)).limit(120)
+    for (const r of (recentTasks || []) as Array<{ target_user_id: string | null; context_data?: { email?: unknown } | null }>) {
       if (r.target_user_id) contacted.add(r.target_user_id)
+      const em = String(r.context_data?.email ?? '').trim().toLowerCase()
+      if (em.includes('@')) contacted.add(em)
     }
   } catch { /* tabel opsional */ }
 

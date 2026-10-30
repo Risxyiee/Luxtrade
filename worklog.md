@@ -2504,3 +2504,44 @@ ignoreBuildErrors); lint bersih.
   bukan di repo (wrangler.toml tanpa crons) — cek sana kalau cron tak jalan.
 - STATUS: SISTEM KARYAWAN AI AUDIT TUNTAS — auth ketat semua jalur, transport
   email terbukti, DB lengkap. Tidak ada perubahan kode (audit-only).
+
+## UNIFIKASI COOLDOWN BAGAS — Penutup Temuan "DOBEL BAGAS" (2026-10-30, pesanan Bos "unifikasi cd bagas")
+- LANJUTAN saran P2 audit karyawan AI: dulu TIGA jalur Bagas tak saling tahu →
+  lead sama bisa dikontak 2x kalau Bos ACC dua-duanya:
+  ① cron COO (ai_pending_tasks, cooldown 7 hari by user_id — TIDAK cek
+    ai_pending_actions)
+  ② sweep Kantor CEO bagasHotLeadsProposal (ai_pending_actions, dedup cuma
+    24 jam per agent+action_type — TIDAK cek target_emails, TIDAK cek
+    ai_pending_tasks)
+  ③ master-autonomous agentBagas (sudah lintas tabel, tapi logika & window
+    ditulis sendiri — rawan meleset dari jalur lain)
+- SOLUSI: modul bersama src/lib/bagas-cooldown.ts = SATU sumber kebenaran:
+  BAGAS_COOLDOWN_DAYS=7, bagasCooldownSince(), filter PostgREST
+  or=(created_at.gte.X,executed_at.gte.X) (REST + versi supabase-js), parser
+  emailsFromActionRows (baca action_payload.target_emails + context[].email —
+  dua bentuk payload sweep & master) + contactsFromTaskRows (target_user_id +
+  context_data.email).
+- Kunci identitas lead: EMAIL lintas tabel (ai_pending_actions tak simpan
+  user_id) + user_id dalam tasks. Window ikut GREATEST(created_at,
+  executed_at) — draf lama yang di-ACC telat tetap menghitung cooldown dari
+  saat email BENERAN terkirim (kolom executed_at terverifikasi ada di kedua
+  tabel, migrasi 011 & 015).
+- PERUBAHAN PER FILE:
+  ① ai-coo-agent/route.ts: RECONTACT_COOLDOWN_DAYS = BAGAS_COOLDOWN_DAYS;
+    query tasks pakai .or(...); TAMBAHAN query ai_pending_actions
+    agent_name='Bagas' → email set → filter targets; stats +inCooldownActions.
+  ② agent-proposals.ts bagasHotLeadsProposal: kandidat diperluas top-10 →
+    filter lintas antrean (ai_pending_tasks COO via REST or=(...)) → baru
+    slice 3 (dulu: top-3 dipotong SEBELUM filter → lead eligible ke-4/5
+    terbuang); payload/target_emails pakai `eligible`.
+  ③ master-autonomous agentBagas: sinceCooldown = bagasCooldownSince();
+    kedua query pakai .or(...); email tasks (context_data.email) ikut
+    dicek; parser action pakai emailsFromActionRows.
+- ROLLBACK-SAFE: tabel belum ada → query gagal → set kosong → perilaku lama
+  (fail-open, pola cron-supabase). Tidak ada migrasi baru yang dibutuhkan —
+  ini murni logika baca (SELECT), tidak ubah skema.
+- GERBANG: bunx tsc --noEmit EXIT 0 (repo-wide), eslint EXIT 0.
+- EFEK OPERASIONAL: mulai deploy ini, lead yang ada di SALAH SATU antrean
+  (draf COO pending/approved/rejected ATAU proposal Bagas Kantor CEO) tidak
+  akan muncul lagi di jalur lain selama 7 hari — draf ganda mustahil terbentuk,
+  ACC Bos tinggal aman dari kirim dobel.
