@@ -33,7 +33,9 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthRe
       return { user, client: cookieClient }
     }
 
-    console.warn('[getAuthenticatedUser] No user from cookies, trying Bearer token...')
+    // INFO (bukan error): request anonim (bot/probe/curl) tanpa cookie juga
+    // lewat sini sebelum 401 — normal, jangan alarm. Bearer fallback di bawah.
+    console.log('[getAuthenticatedUser] No session cookie, trying Bearer fallback (normal for anonymous requests)...')
 
     // Try Bearer token authentication
     const authHeader = request.headers.get('Authorization')
@@ -47,8 +49,16 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthRe
         return { user: null, client: null, error: 'Server configuration error' }
       }
 
+      // CRITICAL FIX (2026-10-30): JWT user WAJIB nempel di SEMUA request client
+      // ini. Dulu auth.getUser(token) cuma validasi token — query .from()
+      // berikutnya jalan TANPA JWT user → PostgREST anggap anonymous → RLS
+      // auth.uid() null → data kosong / insert gagal (gejala: login sukses
+      // tapi journal/trades kosong saat cookie parsing CF Workers gagal dan
+      // Bearer jadi satu-satunya jalur auth). Dengan global.headers, semua
+      // query PostgREST bawa JWT user → RLS bekerja normal.
       const bearerClient = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${token}` } }
       })
       const result = await bearerClient.auth.getUser(token)
       if (result.data.user) {
