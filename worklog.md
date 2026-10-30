@@ -2243,3 +2243,40 @@ TETAP HIDUP (sengaja — gate middleware lengkap, fungsi unik): /admin-email (to
 UJI: lint bersih; review diff per-file sebelum push.
 LANGKAH BOS: tunggu deploy CF ±3-5 mnt → cek /admin-secret & /admin-secure (harus mendarat di
 /dashboard/admin), toggle EN di landing (harga harus Rp bukan $), klik link Discord di footer.
+
+## P1 Lanjutan: Wire Kelola Langganan + Verifikasi Produksi + Deploy CF Ternyata MACET (2026-10-30)
+Tanggal: 2026-10-30 · Status: commit & push (retrigger deploy CF)
+
+Sesi ini jalan sesuai bekal worklog sebelumnya: `git fetch` dulu → ternyata repo lokal utama
+memang masih snapshot basi (HEAD ed31c7c6 UUID, pricing LEGACY 120rb, site-links.ts hilang,
+api/contact + api/user/trial hilang) → `git reset --hard origin/main` ke 5b29d48d. Bekas
+commit UUID snapshot dibuang (bukan ancestor origin, tidak pernah ter-push, diff stat
+membuktikan isinya murni versi lama yang lebih buruk).
+
+SISA P1 YANG DIKERJAKAN:
+1. /admin-subscriptions TER-WIRE ke AdminPanel: tambah quick action "Kelola Langganan"
+   (ikon CreditCard) di quickActions AdminPanelClient. Alasan wire bukan hapus: panel 1.110
+   baris ini punya fitur unik yang tidak ada di /dashboard/admin — deactivate/cancel
+   langganan, buat langganan manual, sync auth users, lihat slot lifetime. Dulu orphan
+   total (tidak bisa dijangkau dari UI mana pun, hanya lewat ketik URL manual). Middleware
+   sudah lock ADMIN_EMAILS sejak P0. Sesuai keputusan ronde p1-final: tetap hidup; link ini
+   menutup gap "tidak terjangkau". Kandidat konsolidasi penuh jadi tab /dashboard/admin
+   tetap dicatat utk P2 kalau Bos mau.
+2. /admin-email & /admin/ai-staff: sudah ter-wire / ter-lock middleware — tidak disentuh.
+3. /test-promo: dipastikan tidak ada di origin/main (hapus lokal ikut reset) — beres.
+
+VERIFIKASI PRODUKSI (temuan penting!):
+- /api/admin/health-check → 401 ✓ (165b3c8e ter-deploy)
+- /api/contact & /api/user/trial → 404 HTML ✗ (92fbd2ca TIDAK ter-deploy)
+- Footer produksi masih discord.gg/JwMxsmMqG (invite MATI) ✗ (f8d50007 TIDAK ter-deploy)
+- /admin-subscriptions → 307 redirect login ✓ (middleware hidup)
+→ KESIMPULAN: deploy Cloudflare MACET sejak 92fbd2ca (10:51 UTC); 3 commit terakhir
+  (92fbd2ca, f8d50007, 5b29d48d) tidak pernah sampai produksi. Makanya Bos belum lihat
+  harga 199rb & Discord baru. Push commit ini = retrigger build CF. Kalau setelah ±5-8
+  menit produksi masih 404 di /api/contact, Bos perlu buka dashboard Cloudflare
+  (Workers & Pages → build log) untuk lihat penyebab build gagal/antre.
+
+UJI: lint bersih; diff review sebelum push.
+LANGKAH BOS: tunggu deploy ±3-5 mnt → tes /api/contact (form kontak), cek footer Discord,
+cek harga 199rb di halaman upgrade, /admin-secret harus mendarat di /dashboard/admin,
+AdminPanel harus muncul kartu "Kelola Langganan".

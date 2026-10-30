@@ -51,6 +51,11 @@ interface UserProfile {
 // Quick action links configuration
 const quickActions = [
   { href: '/admin-email', label: 'Email Broadcast', icon: Mail },
+  // P1 lanjutan: /admin-subscriptions dulu orphan (nggak bisa dijangkau dari UI mana
+  // pun, cuma lewat ketik URL) padahal punya fitur unik: deactivate/cancel langganan,
+  // buat langganan manual, sync auth users, lihat slot lifetime. Di-wire, bukan
+  // dihapus (kalau ragu gausah dihapus) — middleware sudah lock ADMIN_EMAILS.
+  { href: '/admin-subscriptions', label: 'Kelola Langganan', icon: CreditCard },
   { href: '/kantor-ceo', label: 'Kantor AI (Ruang COO)', icon: Bot },
   { href: '/dashboard/admin/affiliate', label: 'Affiliate', icon: Share2 },
   { href: '/dashboard/admin/promo-codes', label: 'Promo Codes', icon: Tag },
