@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+// P1 lanjutan (2026-10-30): ASYNC admin client — pola PREFERRED utk CF Workers
+// (proses env dari process.env DAN CF ctx.env), senada dgn fix /api/contact.
+import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 
 /**
  * Trial PRO 7 hari — SERVER-SIDE (P1 fix).
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
   }
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
   }

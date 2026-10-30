@@ -2296,3 +2296,27 @@ GERBANG BARU PRE-PUSH: `bunx tsc --noEmit` — tsc mem-parse SEMUA file; SyntaxE
 akan kelihatan. Catatan: masih ada ±30 error TYPE lama (possibly null dll) yang
 DITOLERIR build (ignoreBuildErrors) — bukan penghalang deploy, kandidat dirapikan
 pelan-pelan di P2 (jangan diburu semua sekarang).
+
+### ADDENDUM 2 — Verifikasi Pasca-Deploy: contact 500, diagnosis + hardening
+Deploy sukses (735ff92c): /api/contact hidup (400 JSON), Discord baru tampil,
+trial API 401-locked, admin-secret terkunci. TAPI tes insert NYATA → 500
+"Gagal menyimpan pesan". Diagnosis:
+- Anon key test: 'permission denied for table contact_messages' (42501, BUKAN
+  'does not exist') → tabel ADA + RLS deny-all jalan sesuai desain; SQL 018
+  Bos terbukti sukses dijalankan ✓
+- Newsletter (200) & track (200) TIDAK membuktikan service-role sehat —
+  ternyata newsletter via Prisma @/lib/db, bukan Supabase admin client
+- createAdminClient() sync terbukti NON-null di prod (kalau null, respons beda:
+  'Server configuration error') → key ADA di process.env tapi INSERT gagal.
+  Kandidat: (a) secret SUPABASE_SERVICE_ROLE_KEY di CF berisi key salah
+  (mis. anon key → kena RLS deny-all), (b) key invalid/rotated.
+FIX KODE (lapisan Z): /api/contact & /api/user/trial pindah ke
+getSupabaseAdminAsync() — pola PREFERRED CF Workers (process.env + ctx.env)
++ log insertErr.code utk diagnosis berikutnya. Kalau setelah deploy ini
+insert masih 500, penyebab tinggal 1: ISI SECRET di CF dashboard → Bos cek
+payload JWT secret (bagian tengah base64): "role":"service_role" wajib,
+bukan "anon".
+SISANYA: DB plans belum punya baris 6-bulan (199rb) — Midtrans tetap benar
+(getPlanPrice dari kode), sinkron via /api/seed-plans (login admin dulu).
+UJI: tsc NOL penghalang parse (32 error type lama = warisan, ditolerir
+ignoreBuildErrors); lint bersih.

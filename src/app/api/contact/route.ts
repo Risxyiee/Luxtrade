@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+// P1 lanjutan (2026-10-30): pakai ASYNC admin client — pola PREFERRED utk CF
+// Workers (dokumentasi lib: cek process.env DAN CF ctx.env). Sync dulu dipakai
+// dan insert gagal di produksi (500) padahal tabel contact_messages terbukti
+// ada + RLS deny-all jalan (dicek via anon key: 'permission denied' bukan
+// 'does not exist') — curiga env source/key; async menutup sisi kode.
+import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { rateLimitByEmail } from '@/lib/rate-limit'
 
 /**
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
     })
     if (rl) return rl
 
-    const admin = getSupabaseAdmin()
+    const admin = await getSupabaseAdminAsync()
     if (!admin) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
@@ -68,7 +73,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (insertErr) {
-      console.error('[contact] insert failed:', insertErr.message)
+      // Log kode + hint utk diagnosis (42501 RLS/grant vs 401 key invalid)
+      console.error('[contact] insert failed:', insertErr.code, insertErr.message, insertErr.hint)
       return NextResponse.json(
         { error: 'Gagal menyimpan pesan. Coba lagi atau email langsung ke luxtradee@gmail.com' },
         { status: 500 }
