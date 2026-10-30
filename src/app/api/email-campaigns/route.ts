@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { sendEmail } from '@/lib/email'
+import { DISCORD_INVITE_URL, DISCORD_INVITE_TEXT } from '@/lib/site-links'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/admin-auth'
 
@@ -125,7 +127,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
               </ul>
             </div>
             <div class="footer">
-              <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>
+              <p>Questions? Join our Discord community: <a href="${DISCORD_INVITE_URL}" style="color: #3b82f6;">${DISCORD_INVITE_TEXT}</a></p>
               <p style="margin-top: 10px;">© 2025 LuxTrade. All rights reserved.</p>
             </div>
           </div>
@@ -196,7 +198,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
               <p style="color: #9ca3af; font-size: 14px;">💡 <strong>Pro tip:</strong> Even if you're trading demo accounts, logging trades now will build valuable data for when you start your prop firm challenge.</p>
             </div>
             <div class="footer">
-              <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>
+              <p>Questions? Join our Discord community: <a href="${DISCORD_INVITE_URL}" style="color: #3b82f6;">${DISCORD_INVITE_TEXT}</a></p>
               <p style="margin-top: 10px;">© 2025 LuxTrade. All rights reserved.</p>
             </div>
           </div>
@@ -251,7 +253,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
               <a href="${baseUrl}/dashboard" class="btn">Try AI Analysis →</a>
             </div>
             <div class="footer">
-              <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>
+              <p>Questions? Join our Discord community: <a href="${DISCORD_INVITE_URL}" style="color: #3b82f6;">${DISCORD_INVITE_TEXT}</a></p>
               <p style="margin-top: 10px;">© 2025 LuxTrade. All rights reserved.</p>
             </div>
           </div>
@@ -324,7 +326,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
               <a href="${baseUrl}/dashboard" class="btn">Set Up Drawdown Guard →</a>
             </div>
             <div class="footer">
-              <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>
+              <p>Questions? Join our Discord community: <a href="${DISCORD_INVITE_URL}" style="color: #3b82f6;">${DISCORD_INVITE_TEXT}</a></p>
               <p style="margin-top: 10px;">© 2025 LuxTrade. All rights reserved.</p>
             </div>
           </div>
@@ -407,7 +409,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
               <a href="${baseUrl}/#pricing" class="btn">Upgrade Now →</a>
             </div>
             <div class="footer">
-              <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>
+              <p>Questions? Join our Discord community: <a href="${DISCORD_INVITE_URL}" style="color: #3b82f6;">${DISCORD_INVITE_TEXT}</a></p>
               <p style="margin-top: 10px;">© 2025 LuxTrade. All rights reserved.</p>
             </div>
           </div>

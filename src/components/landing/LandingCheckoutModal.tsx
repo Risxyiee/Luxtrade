@@ -7,7 +7,7 @@ import {
   ShieldCheck, Sparkles, Loader2, Calendar, Zap, Gem,
   Lock, ChevronRight, Mail, Eye, EyeOff, AlertCircle, User
 } from 'lucide-react'
-import { formatRupiah, type PricingPlan } from '@/lib/pricing'
+import { formatRupiah, type PricingPlan, PRICING } from '@/lib/pricing'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import { toast } from 'sonner'
 
@@ -23,20 +23,20 @@ const PLANS = [
   {
     key: 'PRO_30_DAYS' as PricingPlan,
     label: 'Elite Pro', labelEn: 'Elite Pro',
-    price: 49000, originalPrice: 100000, duration: '1 Bulan', durationEn: '1 Month',
+    price: PRICING.PRO_30_DAYS, originalPrice: PRICING.PRO_30_DAYS_ORIGINAL, duration: '1 Bulan', durationEn: '1 Month',
     icon: <Zap className="w-5 h-5" />,
   },
   {
     key: 'PRO_ANNUAL' as PricingPlan,
     label: 'Pro Annual', labelEn: 'Pro Annual',
-    price: 390000, duration: '1 Tahun', durationEn: '1 Year',
+    price: PRICING.PRO_ANNUAL, duration: '1 Tahun', durationEn: '1 Year',
     icon: <Calendar className="w-5 h-5" />,
     badge: 'Hemat 2 Bulan', badgeEn: 'Save 2 Months',
   },
   {
     key: 'PRO_LIFETIME' as PricingPlan,
     label: 'Lifetime Ultra', labelEn: 'Lifetime Ultra',
-    price: 299000, duration: 'Selamanya', durationEn: 'Forever',
+    price: PRICING.PRO_LIFETIME, duration: 'Selamanya', durationEn: 'Forever',
     icon: <Gem className="w-5 h-5" />,
     badge: '30 Slot Saja', badgeEn: 'Only 30 Slots',
   },

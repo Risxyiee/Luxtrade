@@ -1,6 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { X, Crown, Lock, Sparkles, ExternalLink, Check, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -424,7 +425,7 @@ export default function PaywallModal({
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => window.open('https://discord.gg/KkYYFP9nC', '_blank')}
+                          onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                           variant="outline"
                           className="w-full h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 font-semibold transition-all"
                         >
@@ -529,7 +530,7 @@ export default function PaywallModal({
 
                       <div className="pt-3">
                         <Button
-                          onClick={() => window.open('https://discord.gg/KkYYFP9nC', '_blank')}
+                          onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                           variant="ghost"
                           size="sm"
                           className="text-xs text-white/40 hover:text-white/60 hover:bg-white/5"

@@ -28,6 +28,7 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { PRICING, formatRupiah } from '@/lib/pricing'
 
 interface PaywallModalProps {
   isOpen: boolean
@@ -58,9 +59,9 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Shield, title: "Semua Tools Pro", desc: "Heatmap, Analitik, AI Insights, Trading Score, Laporan Mingguan" }
       ],
       price: {
-        monthly: "Rp49.000",
-        monthlyOriginal: "Rp100.000",
-        yearly: "Rp390.000",
+        monthly: formatRupiah(PRICING.PRO_30_DAYS),
+        monthlyOriginal: formatRupiah(PRICING.PRO_30_DAYS_ORIGINAL),
+        yearly: formatRupiah(PRICING.PRO_ANNUAL),
         yearlySave: "Hemat 2 bulan"
       },
       cta: {

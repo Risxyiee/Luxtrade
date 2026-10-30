@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { authFetch } from '@/lib/api-fetch'
+import { PRICING } from '@/lib/pricing'
 
 // Admin email - hardcoded for security
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
@@ -37,10 +38,11 @@ interface AdminUser {
   created_at: string
 }
 
-// PRO price constants
-const PRO_PRICE_30_DAYS = 48000
-const PRO_PRICE_180_DAYS = 749000
-const PRO_PRICE_365_DAYS = 1499000
+// PRO price constants — SUMBER TUNGGAL dari lib/pricing.ts (P1 fix:
+// dulu 48000, tidak sinkron dengan checkout/landing yang pakai 49000)
+const PRO_PRICE_30_DAYS = PRICING.PRO_30_DAYS
+const PRO_PRICE_180_DAYS = 749000 // ⚠️ belum ada di pricing.ts (180hr lebih mahal dari tahunan 390rb — konfirmasi Bos)
+const PRO_PRICE_365_DAYS = PRICING.PRO_ANNUAL
 
 export default function AdminPanel() {
   const { user, profile, loading, signOut } = useAuth()

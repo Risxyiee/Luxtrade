@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -24,30 +25,42 @@ export default function ContactPage() {
     message: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Honeypot anti-spam: field tersembunyi, manusia tidak pernah mengisinya —
+  // bot yang mengisi semua field otomatis akan terdeteksi API.
+  const [honeypot, setHoneypot] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      // Construct mailto link with form data
-      const subject = encodeURIComponent(`[LuxTradee Contact] ${formData.subject}`)
-      const body = encodeURIComponent(
-        `Name: ${formData.name}\n` +
-        `Email: ${formData.email}\n\n` +
-        `Message:\n${formData.message}`
-      )
-      
-      // Open email client
-      window.open(`mailto:luxtradee@gmail.com?subject=${subject}&body=${body}`, '_self')
-      
-      // Show success message
-      toast.success(isEnglish ? 'Opening email client...' : 'Membuka aplikasi email...')
-      
-      // Clear form
-      setFormData({ name: '', email: '', subject: '', message: '' })
+      // P1 fix: pesan kini DISIMPAN ke database (tabel contact_messages via
+      // /api/contact) — dulu cuma buka mailto: dan pesan bisa hilang.
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, website: honeypot }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
+        toast.success(data.message || (isEnglish ? 'Message sent! We will reply via email.' : 'Pesan terkirim! Tim kami akan membalas via email.'))
+        // Clear form
+        setFormData({ name: '', email: '', subject: '', message: '' })
+      } else {
+        // Fallback: buka email client kalau API gagal (jangan sampai pesan hilang)
+        const subject = encodeURIComponent(`[LuxTradee Contact] ${formData.subject}`)
+        const body = encodeURIComponent(
+          `Name: ${formData.name}\n` +
+          `Email: ${formData.email}\n\n` +
+          `Message:\n${formData.message}`
+        )
+        window.open(`mailto:luxtradee@gmail.com?subject=${subject}&body=${body}`, '_self')
+        toast.success(isEnglish ? 'Opening email client...' : 'Membuka aplikasi email...')
+        setFormData({ name: '', email: '', subject: '', message: '' })
+      }
     } catch (error) {
-      toast.error(isEnglish ? 'Failed to open email client' : 'Gagal membuka aplikasi email')
+      toast.error(isEnglish ? 'Failed to send message. Try again or email luxtradee@gmail.com' : 'Gagal mengirim pesan. Coba lagi atau email luxtradee@gmail.com')
     } finally {
       setIsSubmitting(false)
     }
@@ -153,6 +166,17 @@ export default function ContactPage() {
             <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30 p-8">
               <CardContent className="p-0">
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Honeypot — tersembunyi dari manusia, umpan untuk bot */}
+                  <input
+                    type="text"
+                    name="website"
+                    value={honeypot}
+                    onChange={e => setHoneypot(e.target.value)}
+                    style={{ display: 'none' }}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                  />
                   {/* Name Field */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-white font-semibold">
@@ -288,7 +312,7 @@ export default function ContactPage() {
 
                 {/* Discord */}
                 <a
-                  href="https://discord.gg/KkYYFP9nC"
+                  href={DISCORD_INVITE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#5865F2]/30 hover:bg-white/10 transition-all duration-300"

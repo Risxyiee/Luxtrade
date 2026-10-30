@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
+import { PRICING } from '@/lib/pricing'
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
       data: {
         name: 'Elite Pro',
         description: 'Full access to all premium features',
-        price: 49000,
+        price: PRICING.PRO_30_DAYS,
         currency: 'IDR',
         durationMonths: 1,
         isLifetime: false,
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
       data: {
         name: 'Lifetime Ultra',
         description: 'Lifetime access with exclusive VIP features',
-        price: 299000,
+        price: PRICING.PRO_LIFETIME,
         currency: 'IDR',
         durationMonths: null,
         isLifetime: true,

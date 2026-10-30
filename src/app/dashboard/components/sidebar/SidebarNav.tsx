@@ -4,7 +4,7 @@ import {
   BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Lock, Users, CreditCard, CandlestickChart,
-  Rocket, Shield
+  Rocket, Shield, Gift
 } from 'lucide-react'
 
 const menuCategories: Record<string, { label: string; proType?: string }> = {
@@ -40,6 +40,7 @@ const menuItems = [
   { id: 'psychology', label: 'Psychology', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'cyan' },
   { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'lanjutan', proOnly: false },
   { id: 'community', label: 'Community', labelId: 'Komunitas', icon: Users, category: 'lanjutan', proOnly: false },
+  { id: 'affiliate', label: 'Affiliate', labelId: 'Affiliasi', icon: Gift, category: 'lanjutan', proOnly: false },
 ]
 
 interface SidebarNavProps {

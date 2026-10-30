@@ -1,6 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { X, Check, MessageCircle, QrCode, Shield, ExternalLink } from 'lucide-react'
 
 interface PaymentConfirmationModalProps {
@@ -25,7 +26,7 @@ export default function PaymentConfirmationModal({
   }
 
   const handleDiscordClick = () => {
-    window.open('https://discord.gg/KkYYFP9nC', '_blank')
+    window.open(DISCORD_INVITE_URL, '_blank')
   }
 
   if (!isOpen) return null

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
+import { PRICING, formatRupiah } from '@/lib/pricing'
 
 // Admin email - hardcoded for security
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
@@ -565,7 +566,7 @@ export default function AdminSecurePage() {
                                           <Clock className="w-4 h-4 text-amber-400" />
                                           <div>
                                             <div className="font-semibold">1 Bulan</div>
-                                            <div className="text-xs text-gray-500">Rp 49.000</div>
+                                            <div className="text-xs text-gray-500">{formatRupiah(PRICING.PRO_30_DAYS)}</div>
                                           </div>
                                         </button>
                                         <button
@@ -575,7 +576,7 @@ export default function AdminSecurePage() {
                                           <Clock className="w-4 h-4 text-emerald-400" />
                                           <div>
                                             <div className="font-semibold">6 Bulan</div>
-                                            <div className="text-xs text-gray-500">Rp 294.000</div>
+                                            <div className="text-xs text-gray-500">{formatRupiah(PRICING.PRO_30_DAYS * 6)}</div>
                                           </div>
                                         </button>
                                         <button

@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
+import { authFetch } from '@/lib/api-fetch'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import { ContextGuideProvider } from '@/components/ContextGuide'
@@ -247,25 +248,41 @@ function LuxTradeDashboardContent() {
     return false
   }, [isPro, trialStartedAt, TRIAL_DAYS])
 
-  // Helper: Start PRO trial (one-time, 7 days from first use)
-  const useProTrial = useCallback(() => {
-    // Only start trial for free users who haven't started trial yet
+  // Helper: Start PRO trial (one-time, 7 days from first use) — SERVER-SIDE (P1):
+  // state trial kini tersimpan di profiles.trial_started_at (anti-bypass localStorage,
+  // sinkron antar-device). localStorage hanya cache agar UI instan & tetap jalan offline.
+  const useProTrial = useCallback(async () => {
     if (!isPro && !trialStartedAt) {
       const now = new Date()
 
+      // Optimistic update lokal dulu (UI tidak nunggu network)
       setTrialStartedAt(now.toISOString())
-
-      // Save to localStorage for persistence
       localStorage.setItem('luxtrade_pro_trial_started_at', now.toISOString())
 
-      const trialEnd = new Date(now)
+      // Catat ke server (sumber kebenaran). Gagal network → cache lokal tetap dipakai.
+      let serverStart: string | null = null
+      try {
+        const res = await authFetch('/api/user/trial', { method: 'POST' })
+        if (res && res.ok) {
+          const data = await res.json()
+          if (data.trialStartedAt) {
+            serverStart = data.trialStartedAt as string
+            setTrialStartedAt(serverStart)
+            localStorage.setItem('luxtrade_pro_trial_started_at', serverStart)
+          }
+        }
+      } catch { /* offline → lokal */ }
+
+      const effectiveStart = serverStart ? new Date(serverStart) : now
+      const trialEnd = new Date(effectiveStart)
       trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS)
 
       toast.success(`🎉 Trial ${TRIAL_DAYS} hari dimulai! Berlaku sampai ${trialEnd.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`)
     }
   }, [isPro, trialStartedAt, TRIAL_DAYS])
 
-  // Load trial start date from localStorage on mount
+  // Load trial start date: localStorage sebagai cache instan, lalu SERVER
+  // sebagai sumber kebenaran (P1 fix — dulu murni localStorage, gampang dibypass)
   useEffect(() => {
     // Migrate from old trial system (trialUntil) to new system (trialStartedAt)
     const oldTrialUntil = localStorage.getItem('luxtrade_pro_trial_until')
@@ -299,6 +316,42 @@ function LuxTradeDashboardContent() {
       }
     }
 
+    // ── Sinkronisasi dengan server (sumber kebenaran) ──
+    const syncTrialWithServer = async () => {
+      if (!user?.id || isPro) return
+      try {
+        const res = await authFetch('/api/user/trial')
+        if (!res || !res.ok) return
+        const data = await res.json()
+        if (data.trialStartedAt) {
+          // Server punya record → server menang
+          setTrialStartedAt(data.trialStartedAt as string)
+          localStorage.setItem('luxtrade_pro_trial_started_at', data.trialStartedAt as string)
+        } else {
+          // Server belum punya — migrasikan trial lokal yang masih aktif (sekali)
+          const localVal = localStorage.getItem('luxtrade_pro_trial_started_at')
+          if (localVal) {
+            const localEnd = new Date(localVal)
+            localEnd.setDate(localEnd.getDate() + TRIAL_DAYS)
+            if (localEnd > new Date()) {
+              const post = await authFetch('/api/user/trial', { method: 'POST' })
+              if (post && post.ok) {
+                const pd = await post.json()
+                if (pd.trialStartedAt) {
+                  setTrialStartedAt(pd.trialStartedAt as string)
+                  localStorage.setItem('luxtrade_pro_trial_started_at', pd.trialStartedAt as string)
+                }
+              }
+            }
+          } else {
+            // Tidak ada di server & tidak ada lokal → benar-benar belum mulai
+            setTrialStartedAt(null)
+          }
+        }
+      } catch { /* offline → cache lokal tetap dipakai */ }
+    }
+    syncTrialWithServer()
+
     // DISABLED: Auto-show paywall for new users
     // Only show paywall when user actually tries to use PRO feature
     // if (!isPro && !hasSeenGuide) {
@@ -307,7 +360,7 @@ function LuxTradeDashboardContent() {
     //     localStorage.setItem('luxtrade_seen_payment_guide', 'true')
     //   }, 2000)
     // }
-  }, [isPro, TRIAL_DAYS])
+  }, [isPro, TRIAL_DAYS, user?.id])
 
   
   // Stable journal handlers to prevent TabContent re-renders

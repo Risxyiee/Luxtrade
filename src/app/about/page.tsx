@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -407,7 +408,7 @@ export default function AboutPage() {
                   <span className="text-sm font-bold text-white/60">T</span>
                 </a>
                 <a
-                  href="https://discord.gg/KkYYFP9nC"
+                  href={DISCORD_INVITE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-[#5865F2]/30 transition-all duration-300 hover:scale-110"
