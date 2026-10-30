@@ -2350,3 +2350,9 @@ ignoreBuildErrors); lint bersih.
   Authentication → Sign In/Providers → Email agar user langsung aktif.
 - Sampah uji: 2 email zverify-* (zverify-12057@, zverify-6554@luxtradee.web.id)
   mungkin terbentuk unconfirmed di Auth → Users → boleh dihapus Bos.
+
+## AKAR 42501 DITEMUKAN: GRANT service_role hilang (2026-10-30)
+- Log CF Bos: `[contact] insert failed: 42501 permission denied for table contact_messages` + scriptVersion baru (detektor 08fc4480 live, TIDAK ada alarm FATAL MISCONFIG, respons masuk branch insertErr bukan admin-null) → key service_role VALID, tapi tabel contact_messages TANPA GRANT utk service_role. Default privileges project saat 018 dibuat ternyata tidak standar.
+- FIX: migrasi 019 (8a10079a) — GRANT contact_messages + ALL TABLES/SEQUENCES public utk service_role + ALTER DEFAULT PRIVILEGES FOR ROLE postgres (cegah kekambuhan). anon/authenticated tidak disentuh (RLS deny-all tetap).
+- STATUS: SQL sudah di-push sbg supabase-migrations/019_fix_service_role_grants.sql — MENUNGGU BOS jalankan di Supabase SQL Editor → lalu Z tes ulang POST /api/contact (harus 200).
+- Catatan anon probe profiles/contact_messages → 42501 permission denied (bukan "violates RLS") konsisten dgn GRANT longgar-nya anon juga tidak ada di project ini — desain keamanan diperketat di sisi grant; service_role wajib dikembalikan karena itu role backend internal.
