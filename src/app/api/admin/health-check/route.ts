@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { createClient as createSupabaseClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/admin-auth';
 
 interface HealthCheckResult {
   name: string;
@@ -100,7 +101,12 @@ async function checkApiRoute(routeName: string, routePath: string): Promise<Heal
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // P0 HARDENING: dulu TERBUKA — bocorkan status internal DB & latency API
+  // ke publik. Sekarang khusus admin (dipakai /dashboard/admin/system-health).
+  const { error: authError } = await requireAdmin(request);
+  if (authError) return authError;
+
   const startTime = Date.now();
 
   // Run all health checks in parallel using Promise.allSettled

@@ -45,7 +45,16 @@ export async function POST(request: NextRequest) {
     const providedToken = queryToken || bodyToken
     const expectedToken = process.env.MIGRATION_TOKEN
 
-    if (expectedToken && providedToken !== expectedToken) {
+    // P0 HARDENING: FAIL-CLOSED — dulu kalau MIGRATION_TOKEN tidak diset,
+    // pengecekan DILEWATI (endpoint terbuka). Sekarang tanpa token di env,
+    // endpoint dinonaktifkan total.
+    if (!expectedToken) {
+      return NextResponse.json(
+        { error: 'MIGRATION_TOKEN not configured — endpoint disabled (fail-closed)' },
+        { status: 503 }
+      )
+    }
+    if (providedToken !== expectedToken) {
       return NextResponse.json({ error: 'Invalid migration token' }, { status: 403 })
     }
 

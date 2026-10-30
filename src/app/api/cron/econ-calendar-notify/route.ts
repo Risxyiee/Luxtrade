@@ -110,7 +110,9 @@ export async function GET(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.VAPID_PRIVATE_KEY || process.env.CRON_SECRET}`,
+            // P0: kirim CRON_SECRET saja (dulu: VAPID_PRIVATE_KEY || CRON_SECRET —
+            // secret yang salah; send-batch sekarang memvalidasi CRON_SECRET).
+            'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`,
           },
           body: JSON.stringify({
             userIds,

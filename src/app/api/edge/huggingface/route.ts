@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-
+import { getAuthenticatedUser } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // P0 HARDENING: dulu TERBUKA — siapapun bisa membakar kuota
+    // HUGGING_FACE_API_TOKEN via endpoint ini. Sekarang wajib login.
+    const auth = await getAuthenticatedUser(request);
+    if (!auth.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { model, imageDataUrl, prompt, parameters } = body;
 

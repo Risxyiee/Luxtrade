@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAuthFromClient } from '@/lib/supabase'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { rateLimitByEmail } from '@/lib/rate-limit'
 
 /**
  * POST /api/auth/reset-password-public
- * Public endpoint for password reset (no admin auth required).
- * Used as fallback when Supabase client session from reset link fails.
- * Secured by: rate limiting + email parameter must match.
+ * Reset password untuk user yang datang dari link recovery email.
+ *
+ * P0 HARDENING (fix account takeover):
+ * Dulu endpoint ini TERBUKA — siapapun bisa reset password user APAPUN
+ * (termasuk akun admin!) hanya dengan POST {email, password}. Rate limit
+ * saja tidak cukup (di Cloudflare Workers rate limit in-memory juga
+ * per-isolate). Sekarang WAJIB:
+ *   1. Membawa session Supabase yang VALID (cookie ATAU Bearer) — session
+ *      ini hanya tercipta kalau user benar-benar mengklik link recovery
+ *      dari email-nya.
+ *   2. Email pada session HARUS sama dengan email target reset.
+ * Halaman /auth/reset-password menetapkan session tersebut dari token
+ * di link (PKCE ?code= atau implicit #access_token) sebelum memanggil
+ * endpoint ini.
  *
  * Body: { password: string, email: string }
  */
@@ -27,8 +39,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password wajib mengandung: huruf kecil, huruf besar, angka, dan simbol (contoh: !@#)' }, { status: 400 })
     }
 
+    // ── P0: WAJIB session recovery yang valid & email cocok ──────────────
+    const auth = await getAuthenticatedUser(request)
+    if (!auth.user) {
+      return NextResponse.json(
+        { error: 'Sesi reset tidak valid atau sudah kedaluwarsa. Buka link reset TERBARU dari email, atau minta link baru dari halaman Lupa Password.' },
+        { status: 401 }
+      )
+    }
+    const sessionEmail = (auth.user.email || '').toLowerCase().trim()
+    const targetEmail = String(email).toLowerCase().trim()
+    if (!sessionEmail || sessionEmail !== targetEmail) {
+      return NextResponse.json(
+        { error: 'Sesi login tidak cocok dengan email target reset. Buka link reset dari email yang sama.' },
+        { status: 403 }
+      )
+    }
+
     // Rate limit: 5 reset attempts per 15 minutes per email
-    const rl = rateLimitByEmail('reset-password-public', email, {
+    const rl = rateLimitByEmail('reset-password-public', targetEmail, {
       maxRequests: 5,
       windowMs: 15 * 60 * 1000,
       message: 'Terlalu banyak percobaan. Tunggu 15 menit.',
@@ -40,20 +69,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server tidak dikonfigurasi.' }, { status: 500 })
     }
 
-    // Find user by email
-    const { data: { users }, error: listError } = await authAdmin.listUsers({
-      filters: { email: email.toLowerCase() }
-    })
-
-    if (listError || !users || users.length === 0) {
-      console.error('[ResetPassword-Public] User not found:', email, listError)
-      return NextResponse.json({ error: 'Email tidak ditemukan. Pastikan email terdaftar di LuxTradee.' }, { status: 404 })
-    }
-
-    const user = users[0]
-
-    // Update password via admin API
-    const { error: updateError } = await authAdmin.updateUserById(user.id, {
+    // Update password HANYA untuk user yang memiliki session ini
+    // (bukan user lain berdasarkan param email — sudah diverifikasi cocok).
+    const { error: updateError } = await authAdmin.updateUserById(auth.user.id, {
       password: password,
       email_confirm: true,
     })
