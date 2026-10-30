@@ -2384,3 +2384,32 @@ ignoreBuildErrors); lint bersih.
 - POST /api/auth/register → 200 {"success":true,"message":"Akun berhasil dibuat. Silakan cek email..."} → jalur registrasi ASLI app (bukan cuma Supabase mentah) terbukti end-to-end.
 - Catatan: email tes kebetulan literal 'zverify-reg-$random@' (quote shell tidak expand) — masuk daftar sampah zverify juga.
 - Tersisa tugas Bos: ① hapus user uji zverify-* di Auth→Users ② signup 1x pakai email asli → pastikan email konfirmasi mendarat di inbox.
+
+## TUGAS A + B BERES: Audit Email Broadcast + 32 TS Error → 0 (2026-10-30)
+
+### A — Audit Email Broadcast (tanpa ubah kode)
+- Arsitektur SOLID: batch 15 (CF subrequest-aware), delay 600ms, cek RESEND_API_KEY
+  di awal dgn error jelas, template branding, record ke email_broadcasts (non-kritikal).
+- Sync admin client TERBUKTI SEHAT di produksi: /api/landing-stats (sync) → 200 dgn
+  data asli (totalUsers:54) → teori lama "sync gagal di CF" resmi dibantah; akar
+  contact kemarin = GRANT 42501, bukan sync vs async. Broadcast TIDAK diubah.
+- Dinding auth 401 oke utk /api/admin/email-broadcast & /api/admin/debug-email.
+- Pengirim noreply@luxtradee.web.id — domain Verified di Resend.
+- ⚠️ RISIKO OPERASIONAL utk Bos: RESEND_API_KEY di CF Variables & Secrets mungkin
+  masih key LAMA (kalau Bos hapus key lama pas ganti SMTP kemarin) → cek/update.
+- Tes runtime pamungkas (butuh sesi admin Bos): login admin → buka di browser
+  https://luxtradee.web.id/api/admin/email-broadcast?subject=Tes%20Broadcast
+  → kirim email tes ber-branding ke email admin sendiri → cek inbox.
+
+### B — 32 TS error → 0 (commit b4228eb2, 16 file)
+- Bug runtime beneran yang ketemu & difix:
+  ① orJson 3 call site: cfg masuk posisi maxTokens → OpenRouter dapat object →
+    400 → AI proposal diam-diam fallback template. Fix: 800 eksplisit + cfg ke-6.
+  ② 'breched' typo → totalBreaches selalu 0.
+  ③ .catch() di PostgrestFilterBuilder → TypeError (run-migration).
+  ④ .ignoreDuplicates() tidak ada di supabase-js v2 → TypeError tiap alert pine →
+    dedupe DB tak pernah jalan (memDedupe tetap). Dedupe DB beneran = unique
+    constraint + upsert → KANDIDAT MIGRASI 020 (butuh keputusan Bos).
+- Fix tipe murni (perilaku identik): sisanya (lihat pesan commit).
+- REPO KINI: tsc --noEmit = 0 error, eslint = bersih. ignoreBuildErrors jadi
+  tak lagi menutupi error baru (gerbang tsc tetap disarankan pre-push).
