@@ -2327,3 +2327,26 @@ ignoreBuildErrors); lint bersih.
 - Bos tanya tab Supabase API Keys kanan/kiri → jawab: KANAN "Legacy anon, service_role API keys" (kode pakai NEXT_PUBLIC_SUPABASE_ANON_KEY + SUPABASE_SERVICE_ROLE_KEY, format JWT eyJ...). Tab kiri (sb_publishable_/sb_secret_) = format baru, TIDAK dipakai kode.
 - PERINGATAN ke Bos: JANGAN klik "Disable JWT-based API keys" — mematikan kunci legacy yang dipakai produksi sekarang → semua API rusak.
 - Pelajaran tervalidasi: tsc --noEmit gerbang wajib pre-push (ESLint ignore api/**).
+
+## P1 Lanjutan 2: Bug RLS Jalur Bearer + Diagnosis 500 Contact (2026-10-30)
+- Log CF Bos: `[getAuthenticatedUser] No user from cookies, trying Bearer token...` → telusuri → warn itu NORMAL utk request anonim (probe curl Z sendiri nyiptakan). TAPI di belakangnya ada BUG SERIUS:
+- **BUG #1 (fix 0a536224)**: jalur Bearer di api-auth.ts bikin bearerClient TANPA JWT user — auth.getUser(token) cuma validasi, tidak set session → query .from() 50+ route (journal, trading-accounts, dll) jalan anonymous → RLS auth.uid() null → data kosong/insert gagal walau login sukses. Fix: global.headers.Authorization Bearer di createClient.
+- **VERIFIKASI SQL 018**: tabel contact_messages ADA di produksi (anon probe → 42501 permission denied, bukan does-not-exist). Migrasi aman.
+- **MASALAH BARU (diagnosis)**: POST /api/contact produksi 500 'Gagal menyimpan pesan' → branch insertErr (bukan admin-null) → key ADA di CF tapi insert ditolak → tersangka: SUPABASE_SERVICE_ROLE_KEY di CF salah isi (mis. anon key) / stale / whitespace.
+- **FIX #2 (08fc4480)**: ① diagnoseServiceKey() — decode klaim role JWT (bukan rahasia) → kalau role='anon' log CF bilang FATAL MISCONFIG + cara fix; sb_secret_ format baru diteruskan. ② Cache admin client TTL 60s (dulu permanen per isolate) → fix secret di CF efektif ≤60s.
+- CATATAN tsc: 32 error TS pre-existing repo-wide (next.config ignoreBuildErrors=true, build aman) — GERBANG: tsc bersih utk file yang disentuh; jangan biarkan nambah.
+- MENUNGGU BOS: verifikasi/replace SUPABASE_SERVICE_ROLE_KEY di CF Variables & Secrets dgn service_role dari tab KANAN Supabase API Keys → tunggu ≤60s → tes form kontak lagi. Kalau masih 500 → paste log CF `[contact] insert failed: <kode>` ke Z.
+
+## P0 BARU: Signup Produksi GAGAL kirim email konfirmasi (2026-10-30)
+- Tes langsung auth/v1/signup dgn anon key (2 email berbeda) → KEDUANYA:
+  {"code":500,"error_code":"unexpected_failure","msg":"Error sending confirmation email"}
+- Dampak: /api/auth/register & auth-context signUp pakai endpoint yg sama →
+  calon customer TIDAK BISA mendaftar (user mungkin terbuat tapi unconfirmed,
+  tak bisa login, signup ulang → "already registered"). P0 bisnis!
+- Kemungkinan: custom SMTP Supabase rusak/salah kredensial, ATAU built-in SMTP
+  Supabase kena rate limit (sangat ketat). Di luar jangkauan sandbox → butuh Bos:
+  ① Supabase → Authentication → Emails → SMTP Settings (cek/benahi atau pasang
+  custom SMTP, mis. Resend); atau ② sementara matikan "Confirm email" di
+  Authentication → Sign In/Providers → Email agar user langsung aktif.
+- Sampah uji: 2 email zverify-* (zverify-12057@, zverify-6554@luxtradee.web.id)
+  mungkin terbentuk unconfirmed di Auth → Users → boleh dihapus Bos.
