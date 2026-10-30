@@ -17,12 +17,11 @@ name: Master Autonomous Workforce
 #
 # SETUP SEKALI (wajib, oleh Bos):
 #   GitHub repo → Settings → Secrets and variables → Actions:
-#     PROD_URL               = https://luxtradee.web.id
-#     MASTER_CRON_SECRET     = string acak (SAMakan dengan env
-#                              MASTER_CRON_SECRET / CRON_SECRET
-#                              di Cloudflare Workers)
+#     PROD_URL        = https://luxtradee.web.id
+#     CRON_SECRET     = string acak (SAMakan dengan env CRON_SECRET
+#                       di Cloudflare Workers — SATU nama saja)
 #   Cloudflare Dashboard → Workers → luxtradee → Settings →
-#     Variables & Secrets → MASTER_CRON_SECRET = string yang sama
+#     Variables & Secrets → CRON_SECRET = string yang sama
 #
 # Uji manual tanpa nunggu jadwal: jalankan workflow ini manual
 # (workflow_dispatch) atau:
@@ -48,15 +47,19 @@ jobs:
       - name: 🏢 Kick Master Autonomous Cron
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
-          MASTER_CRON_SECRET: ${{ secrets.MASTER_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$PROD_URL" ]; then
             echo "❌ Secret PROD_URL belum diset di GitHub Actions"
             exit 1
           fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "❌ Secret CRON_SECRET belum diset di GitHub Actions"
+            exit 1
+          fi
           echo "🚀 Menjalankan 8 agen otonom di $PROD_URL ..."
           RESP=$(curl -sS --max-time 900 -X POST \
-            -H "Authorization: Bearer $MASTER_CRON_SECRET" \
+            -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
             "$PROD_URL/api/cron/master-autonomous")
           echo "$RESP" | head -c 6000
