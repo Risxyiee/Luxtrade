@@ -89,9 +89,9 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Shield, title: "All Pro Tools", desc: "Heatmap, Analytics, AI Insights, Trading Score, Weekly Report" }
       ],
       price: {
-        monthly: "$2.99",
-        monthlyOriginal: "$5.99",
-        yearly: "$24.99",
+        monthly: formatRupiah(PRICING.PRO_30_DAYS),
+        monthlyOriginal: formatRupiah(PRICING.PRO_30_DAYS_ORIGINAL),
+        yearly: formatRupiah(PRICING.PRO_ANNUAL),
         yearlySave: "Save 2 months"
       },
       cta: {

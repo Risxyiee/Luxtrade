@@ -2203,3 +2203,43 @@ PERUBAHAN:
    - README.md: tabel harga stale 39rb → 49rb (coret 100rb) + baris baru 6 Bulan 199rb
 2. DISCORD: lib/site-links.ts DISCORD_INVITE_URL → https://discord.gg/jV6McFx6R (invite baru dari Bos; 2 invite lama terverifikasi MATI via API Discord) — 17+ pemakaian di 14 file ikut berubah otomatis
 3. SQL MIGRASI 018 (tabel contact_messages + kolom profiles.trial_started_at) DIPASTE ke Bos di chat — WAJIB dijalanin Bos di Supabase SQL Editor, kalau tidak form /contact & trial server-side tidak jalan di produksi (form fallback ke mailto).
+
+## P1 FINAL: 3 Admin Lama → Redirect + Harga EN Jujur Rupiah + Insiden Snapshot Repo (2026-10-30)
+Tanggal: 2026-10-30 · Status: commit & push (deploy CF auto) · Bos konfirmasi SQL 018 sudah dijalanin ✅
+
+Laporan Bos: "udah semua sql udah saya jalanin semua langkah, lanjutkan P1".
+
+⚠️ INSIDEN REPO LOKAL (penting utk sesi berikutnya):
+- Folder repo sandbox ditemukan TER-REPLACE snapshot lama (HEAD mundur ke 348d6930; commit
+  P0/P1/f8d50007 tidak dikenal objeknya) + working tree berisi perubahan setengah jadi proses
+  lain (api/cron/master-autonomous, .github/workflows/master-autonomous-cron.yml, migrasi 016).
+- ORIGIN/main TIDAK pernah rusak: fetch memastikan f8d50007 (P0 ×2 + P1 + fix harga/discord) utuh
+  → produksi Cloudflare aman seluruhnya.
+- Fix sesi ini dikerjakan di GIT WORKTREE /home/z/lux-p1 (branch p1-final dari f8d50007),
+  push sebagai origin p1-final:main — working tree utama TIDAK disentuh (hormati kerjaan proses lain).
+- Bekal sesi berikutnya: HEAD lokal BUKAN kebenaran — selalu `git fetch` + bandingkan origin/main
+  dulu; repo lokal utama sebaiknya di-reset ke origin/main saat proses paralel selesai.
+
+SISA P1 — SELESAI:
+1. 3 halaman admin lama jadi REDIRECT polos ke /dashboard/admin (pola sama dgn /admin-panel;
+   URL lama tetap hidup utk bookmark Bos; ±1.800 baris duplikat client-side musnah):
+   - /admin-secret (690 br, duplikat user mgmt, sempat hardcode 48rb/749rb)
+   - /admin-secure (611 br, gate client-side saja)
+   - /admin-dashboard-secret (537 br, baca DB LANGSUNG dari browser)
+   - Middleware matcher + adminPaths ternyata SUDAH lengkap di f8d50007 — temuan "bocor" tadi
+     hanyalah snapshot basi; diverifikasi ulang, tidak perlu perubahan.
+2. HARGA EN JUJUR (nominal = tagihan Midtrans nyata, dulu USD menyesatkan):
+   - LanguageContext blok EN: $4.99/$39.99/$29.99 → formatRupiah(PRICING) DINAMIS (kini ikut ID)
+   - 'paywall.annual.price_en': '$39.99' → formatRupiah(PRICING.PRO_ANNUAL)
+   - dashboard/components/PaywallModal EN: $2.99/$5.99/$24.99 → formatRupiah(PRICING.*)
+   - components/PaywallModal: ternary isEnglish USD dihapus → formatRupiah utk semua bahasa
+   - Keputusan bisnis harga USD beneran (gateway non-Midtrans) = terpisah, tidak di sini.
+3. /test-promo: terverifikasi TIDAK ADA di src (0 referensi) — sudah bersih sejak ronde lalu.
+
+TETAP HIDUP (sengaja — gate middleware lengkap, fungsi unik): /admin-email (tool email campaign),
+/admin-subscriptions (kelola subscriptions), /admin/ai-staff — kandidat konsolidasi jadi tab
+/dashboard/admin di ronde P2 kalau Bos mau.
+
+UJI: lint bersih; review diff per-file sebelum push.
+LANGKAH BOS: tunggu deploy CF ±3-5 mnt → cek /admin-secret & /admin-secure (harus mendarat di
+/dashboard/admin), toggle EN di landing (harga harus Rp bukan $), klik link Discord di footer.
