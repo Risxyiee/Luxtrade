@@ -627,11 +627,14 @@ const RAKA_PROBES: ProbeDef[] = [
   { path: '/api/profile/me', method: 'GET', cls: 'protected', label: 'API profil user' },
   { path: '/api/analyze-screenshot', method: 'POST', cls: 'protected', label: 'AI vision (analisa screenshot)' },
   { path: '/api/chat/support', method: 'POST', cls: 'protected', label: 'CS chat' },
-  { path: '/api/debug/env', method: 'GET', cls: 'sensitive', label: 'DEBUG env (harus tertutup)' },
-  { path: '/api/debug/show-env', method: 'GET', cls: 'sensitive', label: 'DEBUG show-env (harus tertutup)' },
-  { path: '/api/test/service-key', method: 'GET', cls: 'sensitive', label: 'TEST service-key (harus tertutup)' },
-  { path: '/api/seed', method: 'GET', cls: 'sensitive', label: 'SEED database (harus tertutup)' },
-  { path: '/api/test-supabase', method: 'GET', cls: 'sensitive', label: 'TEST supabase (harus tertutup)' },
+  // CANARY P0 (hardening): endpoint bahaya SUDAH DIHAPUS/di-lock. 2xx tanpa auth
+  // = file lama hidup lagi / endpoint baru telanjang → ALARM P1 otomatis.
+  { path: '/api/auth/admin-login', method: 'POST', cls: 'sensitive', label: 'ADMIN-LOGIN backdoor (harus 404/405)' },
+  { path: '/api/admin/debug-activate', method: 'POST', cls: 'sensitive', label: 'DEBUG-ACTIVATE PRO gratis (harus 404/405)' },
+  { path: '/api/check-env', method: 'GET', cls: 'sensitive', label: 'CHECK-ENV bocor env (harus 404)' },
+  { path: '/api/email-campaigns', method: 'GET', cls: 'sensitive', label: 'EMAIL-CAMPAIGNS blast (harus 401/403)' },
+  { path: '/api/seed', method: 'GET', cls: 'sensitive', label: 'SEED database (harus 401/403)' },
+  { path: '/api/setup', method: 'GET', cls: 'sensitive', label: 'SETUP database (harus 401/403)' },
   { path: '/api/cron/pine-alerts', method: 'GET', cls: 'cron', label: 'Cron pine-alerts (harus ber-auth)' },
 ]
 
@@ -1175,8 +1178,12 @@ async function agentAlexander(admin: SupabaseClient, results: AgentResult[], run
 
 async function isAuthorized(request: NextRequest): Promise<boolean> {
   const secret = await envVal('CRON_SECRET') // nama tunggal — sesuai env Bos
-  if (!secret) return true // pola sama dengan cron lain; GUARD INTERVAL di bawah yang jaga
-  const provided = request.headers.get('authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('secret') || ''
+  // P0 hardening: FAIL-CLOSED — kalau CRON_SECRET belum diset, endpoint DITOLAK
+  // di produksi (dulu: allow dan mengandalkan guard interval → bisa dibakar
+  // orang luar). Dev lokal (NODE_ENV=development) tetap boleh untuk testing.
+  if (!secret) return process.env.NODE_ENV === 'development'
+  // Hanya Bearer header — fallback query param ?secret= dihapus (nyangkut di log).
+  const provided = request.headers.get('authorization')?.replace('Bearer ', '') || ''
   return provided === secret
 }
 

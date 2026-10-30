@@ -65,8 +65,9 @@ interface CooDraft {
 async function isAuthorized(request: NextRequest): Promise<boolean> {
   const authHeader = request.headers.get('authorization')?.replace('Bearer ', '')
   const cronSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  if (cronSecret && authHeader !== cronSecret) return false
-  return true
+  // P0 hardening: FAIL-CLOSED — tanpa secret, DITOLAK di produksi (dulu: allow).
+  if (!cronSecret) return process.env.NODE_ENV === 'development'
+  return authHeader === cronSecret
 }
 
 // ─── AI: racik email jualan PRO ────────────────────────────────────────────

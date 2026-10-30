@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
+import { requireAdmin } from '@/lib/admin-auth'
 
+/**
+ * SECURITY (P0 hardening): dulu TERBUKA publik — bocorkan status env,
+ * jumlah user, dan stack trace. Sekarang wajib admin (dipakai panel admin).
+ */
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const adminStatus = getAdminStatus()
     const supabaseAdmin = getSupabaseAdmin()
 

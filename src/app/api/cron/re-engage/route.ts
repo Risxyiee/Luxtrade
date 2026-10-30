@@ -166,9 +166,14 @@ async function handleRequest(request: NextRequest) {
 
   // Auth check (getEnvVar reads CF bindings/secrets reliably on Workers)
   // NOTE: ?force=true no longer bypasses auth.
+  // P0 hardening: FAIL-CLOSED — tanpa CRON_SECRET, DITOLAK di produksi (dulu: allow).
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   const expectedSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  if (expectedSecret && cronSecret !== expectedSecret) {
+  if (!expectedSecret) {
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'CRON_SECRET not configured — endpoint disabled (fail-closed)' }, { status: 403 })
+    }
+  } else if (cronSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -11,6 +11,13 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
+// P0 hardening: id adalah UUID — id sampah (mis. bekas path /test-create)
+// langsung 404 tanpa menyentuh DB (dulu: error 500 dari PostgREST).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+function isValidId(id: string): boolean {
+  return UUID_RE.test(id)
+}
+
 // Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
 async function invalidateAnalytics(userId: string) {
   try {
@@ -26,6 +33,9 @@ export async function GET(
 ) {
   try {
     const params = await context.params
+    if (!isValidId(params.id)) {
+      return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
+    }
     const admin = getSupabaseAdmin()
     if (!admin) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -66,6 +76,9 @@ export async function PATCH(
 ) {
   try {
     const params = await context.params
+    if (!isValidId(params.id)) {
+      return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
+    }
     const admin = getSupabaseAdmin()
     if (!admin) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -130,6 +143,9 @@ export async function DELETE(
 ) {
   try {
     const params = await context.params
+    if (!isValidId(params.id)) {
+      return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
+    }
     const admin = getSupabaseAdmin()
     if (!admin) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

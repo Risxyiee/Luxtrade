@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseUrl, getSupabaseAnonKey, getSupabaseServiceRoleKey, getServerClient, getSupabaseAdmin } from '@/lib/supabase'
 import { getBaseUrl } from '@/lib/supabase-browser'
 import { isDatabaseAvailable, getDatabaseUnavailableReason } from '@/lib/db'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
+/**
+ * SECURITY (P0 hardening): dulu TERBUKA publik dan membocorkan prefix/suffix
+ * kunci Supabase. Dipakai halaman /dashboard/connections untuk diagnosa —
+ * sekarang cukup wajib login (user biasa), tidak perlu admin.
+ */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult || !authResult.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const url = getSupabaseUrl()
     const anon = getSupabaseAnonKey()
     const svcKey = getSupabaseServiceRoleKey()

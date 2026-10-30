@@ -59,8 +59,14 @@ async function handleRequest(request: NextRequest) {
   const force = searchParams.get('force') === 'true'
 
   // Auth check
+  // P0 hardening: FAIL-CLOSED — tanpa CRON_SECRET, DITOLAK di produksi (dulu: allow).
+  // Sekaligus: ?force=true TIDAK lagi mem-bypass auth (bug lama: `!force &&`).
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!force && process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET) {
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'CRON_SECRET not configured — endpoint disabled (fail-closed)' }, { status: 403 })
+    }
+  } else if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

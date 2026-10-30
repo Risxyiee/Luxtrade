@@ -1,7 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
-export async function POST() {
+/**
+ * SECURITY (P0 hardening): dulu POST terbuka publik dan menjalankan DDL
+ * (ALTER TABLE) via Prisma. Sekarang wajib admin.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
+  } catch {
+    return NextResponse.json({ success: false, message: 'Auth check failed' }, { status: 500 })
+  }
+
   console.log('🚀 Starting database migration for Achievement system...')
 
   try {
