@@ -4,6 +4,12 @@ import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supa
 import { callLLM, extractJson, getLLMProviderName, type LLMResult } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { sendTelegramNotification } from '@/lib/telegram'
+import {
+  BAGAS_COOLDOWN_DAYS,
+  bagasCooldownSince,
+  bagasCooldownOrExpr,
+  emailsFromActionRows,
+} from '@/lib/bagas-cooldown'
 
 /**
  * GET /api/cron/ai-coo-agent
@@ -18,8 +24,10 @@ import { sendTelegramNotification } from '@/lib/telegram'
  *   1. Hitung trades 7 hari terakhir per user → cari free user
  *      (is_pro=false) paling aktif = HOT LEADS (sudah ketagihan
  *      pakai product, tinggal ditawarin upgrade)
- *   2. Exclude lead yang baru dikontak COO dalam 7 hari terakhir
- *      (anti-spam, beda dengan dedup harian CS lama)
+ *   2. Exclude lead yang baru dikontak/diusulkan Bagas dalam 7 hari
+ *      terakhir di SALAH SATU antrean (🔗 unifikasi cooldown lintas
+ *      tabel @/lib/bagas-cooldown — penutup temuan "DOBEL BAGAS":
+ *      ai_pending_tasks COO + ai_pending_actions Bagas)
  *   3. LLM racik email penawaran PRO personal per lead
  *   4. Simpan draf ke `ai_pending_tasks` agent_type='COO' status
  *      'pending' (TIDAK langsung kirim)
@@ -35,7 +43,9 @@ import { sendTelegramNotification } from '@/lib/telegram'
 export const dynamic = 'force-dynamic'
 
 const MAX_LEADS_PER_RUN = 3
-const RECONTACT_COOLDOWN_DAYS = 7
+/* 🔗 Satu sumber kebenaran window cooldown — dipakai juga sweep &
+   master-autonomous (lihat @/lib/bagas-cooldown). */
+const RECONTACT_COOLDOWN_DAYS = BAGAS_COOLDOWN_DAYS
 
 /* ⭐ FOLLOW-UP "yang buka email" — butuh webhook Resend aktif
    (resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend).
@@ -414,30 +424,48 @@ async function handleRequest(request: NextRequest) {
     }))
     .sort((a, b) => b.trades7d - a.trades7d)
 
-  // 3. Exclude yang baru dikontak COO 7 hari terakhir (anti-spam)
-  const sinceCooldown = new Date(Date.now() - RECONTACT_COOLDOWN_DAYS * 24 * 3600_000).toISOString()
+  // 3. Exclude yang baru dikontak/diusulkan Bagas 7 hari terakhir (anti-spam,
+  //     🔗 LINTAS ANTREAN — unifikasi cooldown @/lib/bagas-cooldown)
+  const sinceCooldown = bagasCooldownSince()
   const recentlyContacted = new Set<string>()
+  const crossActionEmails = new Set<string>()
   if (hotLeads.length > 0) {
     // Semua task COO 7 hari ke belakang dihitung (pending/approved/rejected
-    // sama-sama berarti "udah pernah ditawarin")
+    // sama-sama berarti "udah pernah ditawarin"); window ikut executed_at —
+    // draf lama yang di-ACC telat tetap menghitung dari saat email terkirim.
     const { data: recent } = await admin
       .from('ai_pending_tasks')
       .select('target_user_id')
       .eq('agent_type', 'COO')
-      .gte('created_at', sinceCooldown)
+      .or(bagasCooldownOrExpr(sinceCooldown))
     for (const row of recent || []) {
       if (row.target_user_id) recentlyContacted.add(row.target_user_id)
     }
+
+    // 🔗 Arah sebaliknya (penutup "DOBEL BAGAS"): proposal Bagas di antrean
+    // Kantor CEO (ai_pending_actions — sweep & master-autonomous) juga dihitung;
+    // kuncinya EMAIL karena tabel itu tak menyimpan user_id.
+    try {
+      const { data: recentActions } = await admin
+        .from('ai_pending_actions')
+        .select('action_payload')
+        .eq('agent_name', 'Bagas')
+        .or(bagasCooldownOrExpr(sinceCooldown))
+        .limit(60)
+      for (const e of emailsFromActionRows(recentActions || [])) crossActionEmails.add(e)
+    } catch { /* tabel opsional (migrasi 015 belum jalan) — fail-open */ }
   }
 
-  const targets = hotLeads.filter(l => !recentlyContacted.has(l.id)).slice(0, MAX_LEADS_PER_RUN)
+  const targets = hotLeads
+    .filter(l => !recentlyContacted.has(l.id) && !crossActionEmails.has(l.email.toLowerCase()))
+    .slice(0, MAX_LEADS_PER_RUN)
 
   if (targets.length === 0) {
     return NextResponse.json({
       success: true,
       created: 0,
       message: 'Tidak ada hot lead baru (free user aktif sudah pernah ditawarin dalam 7 hari / belum ada yang trading minggu ini)',
-      stats: { totalProfiles: profiles.length, activeFreeUsers: hotLeads.length, inCooldown: recentlyContacted.size },
+      stats: { totalProfiles: profiles.length, activeFreeUsers: hotLeads.length, inCooldown: recentlyContacted.size, inCooldownActions: crossActionEmails.size },
     })
   }
 
@@ -458,7 +486,7 @@ async function handleRequest(request: NextRequest) {
       dryRun: true,
       llmProvider: [...new Set(drafts.map(d => d.draft.provider))].join(', ') || await getLLMProviderName(),
       wouldCreate: drafts.map(d => ({ email: d.lead.email, name: d.lead.fullName, trades7d: d.lead.trades7d, subject: d.draft.subject, provider: d.draft.provider })),
-      stats: { totalProfiles: profiles.length, activeFreeUsers: hotLeads.length, inCooldown: recentlyContacted.size },
+      stats: { totalProfiles: profiles.length, activeFreeUsers: hotLeads.length, inCooldown: recentlyContacted.size, inCooldownActions: crossActionEmails.size },
     })
   }
 

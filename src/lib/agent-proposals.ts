@@ -27,6 +27,8 @@
  * { ok:false, reason:'TABLE_MISSING' } — tidak crash, tidak pura2.
  */
 
+import { bagasCooldownSince, bagasCooldownOrFilter, contactsFromTaskRows } from '@/lib/bagas-cooldown'
+
 /* ================= ENV RESOLUTION ================= */
 
 /** Baca secret dari process.env ATAU binding CF Workers (pola meta-post). */
@@ -441,7 +443,9 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
     const id = String(r.user_id || '')
     if (id) counts.set(id, (counts.get(id) || 0) + 1)
   }
-  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+  /* Ambil 10 kandidat teratas (bukan langsung 3) — setelah filter cooldown
+     lintas antrean di bawah, sisa yang layak baru dipotong jadi maks 3. */
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
   if (top.length === 0 || top[0][1] < 3) return null // butuh ≥3 trade minggu ini biar bener2 "hot"
 
   const prof = await sbSelect(cfg, 'profiles', `select=id,email,is_pro&id=in.(${top.map(t => t[0]).join(',')})&limit=10`)
@@ -451,10 +455,29 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
     .filter(h => h.prof?.email && !h.prof?.is_pro)
   if (hot.length === 0) return null
 
-  const dataRiil = `DATA RIIL: ${hot.length} free user paling aktif 7 hari: ${hot.map(h => `${h.trades} trade`).join(', ')}. Ini Hot Leads — paling mungkin upgrade PRO.`
+  /* 🔗 UNIFIKASI COOLDOWN (penutup temuan "DOBEL BAGAS"): lead yang baru
+     didraft cron COO harian di ai_pending_tasks (agent_type='COO', window
+     7 hari — sama dgn jalur sebaliknya, ikut executed_at utk ACC telat)
+     TIDAK diusulkan ulang di sini. Fail-open: tabel belum ada (migrasi 011)
+     → set kosong → perilaku lama. */
+  const sinceCd = bagasCooldownSince()
+  const tasksCd = await sbSelect(
+    cfg,
+    'ai_pending_tasks',
+    `select=target_user_id,context_data&agent_type=eq.COO&${bagasCooldownOrFilter(sinceCd)}&limit=120`,
+  )
+  const cross = tasksCd.ok
+    ? contactsFromTaskRows(tasksCd.rows)
+    : { emails: new Set<string>(), userIds: new Set<string>() }
+  const eligible = hot
+    .filter(h => !cross.userIds.has(h.id) && !cross.emails.has(String(h.prof?.email || '').toLowerCase()))
+    .slice(0, 3)
+  if (eligible.length === 0) return null
+
+  const dataRiil = `DATA RIIL: ${eligible.length} free user paling aktif 7 hari: ${eligible.map(h => `${h.trades} trade`).join(', ')}. Ini Hot Leads — paling mungkin upgrade PRO.`
   const j = await orJson(
     `Kamu BAGAS (COO LuxTradee). Buat penawaran upgrade PRO yang personal & tidak maksa. ${ANTI_HALUSINASI} Format: {"laporan":"...","proposed_action":{"target_emails":["..."],"personalized_message":"..."}}. Salin email persis dari data (JANGAN mengarang email).`,
-    `${dataRiil}\nEmail targets: ${hot.map(h => String(h.prof.email)).join(', ')}. Buat 1 personalized_message (maks 120 kata) yang menyebut aktivitas mereka secara umum (sering upload jurnal minggu ini) + manfaat PRO (evaluasi AI tanpa batas).`,
+    `${dataRiil}\nEmail targets: ${eligible.map(h => String(h.prof.email)).join(', ')}. Buat 1 personalized_message (maks 120 kata) yang menyebut aktivitas mereka secara umum (sering upload jurnal minggu ini) + manfaat PRO (evaluasi AI tanpa batas).`,
     'nvidia/nemotron-3.5-lightning:free',
     'Bagas',
     800,
@@ -465,7 +488,7 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
   return {
     agentName: 'Bagas',
     actionType: 'SEND_UPGRADE_OFFER',
-    payload: { target_emails: hot.map(h => String(h.prof.email)), personalized_message: message, hot_stats: hot.map(h => ({ trades: h.trades })), ai_source: j?.ai_model ? `llm:${j.ai_model}` : 'template', ...(j?.ai_error ? { ai_error: String(j.ai_error).slice(0, 200) } : {}) },
+    payload: { target_emails: eligible.map(h => String(h.prof.email)), personalized_message: message, hot_stats: eligible.map(h => ({ trades: h.trades })), ai_source: j?.ai_model ? `llm:${j.ai_model}` : 'template', ...(j?.ai_error ? { ai_error: String(j.ai_error).slice(0, 200) } : {}) },
   }
 }
 
