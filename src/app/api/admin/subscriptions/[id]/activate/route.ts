@@ -310,7 +310,7 @@ function resolvePlanConfig(plan: string): PlanConfig | null {
     case 'PRO_30_DAYS':
       return { name: 'PRO 30 Hari', price: PRICING.PRO_30_DAYS, days: 30, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_180_DAYS':
-      return { name: 'PRO 180 Hari', price: PRICING.LEGACY.PRO_180_DAYS, days: 180, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
+      return { name: 'PRO 180 Hari', price: PRICING.PRO_180_DAYS, days: 180, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_ANNUAL':
       return { name: 'PRO Tahunan', price: PRICING.PRO_ANNUAL, days: 365, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_LIFETIME':

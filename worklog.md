@@ -2188,3 +2188,18 @@ VERIFIKASI (cek dulu baru push):
 5. lint exit 0.
 
 LANGKAH BOS: push → deploy CF ±3-5 menit → hard-refresh sekali → klik pineku / buka chart: judul baru "(Clean Native)" terpasang, Entry/SL/TP keluar dari marker native mesin Vela (tanpa line.new).
+
+## Fix Cepat: Harga 180 Hari Dirapikan + Invite Discord Baru dari Bos (2026-10-30)
+Tanggal: 2026-10-30 · Status: commit & push (deploy CF auto)
+
+Laporan Bos: "mana sini sqlnya kasih ke sini" (minta SQL migrasi 018 dipaste di chat) + "harganya ubah aja biar ga aneh" + "ini link discord nya https://discord.gg/jV6McFx6R".
+
+PERUBAHAN:
+1. HARGA 180 HARI (dulu 3 versi aneh sekaligus: admin tampil 749rb, tagihan via URL /auth/checkout?plan=PRO_180_DAYS cuma 120rb legacy, admin API catat 120rb):
+   - lib/pricing.ts: PRICING.PRO_180_DAYS = 199000 BARU; getPlanPrice('PRO_180_DAYS') kini balikin 199rb (bukan LEGACY 120rb) — tangga resmi: 49rb/1bln → 199rb/6bln → 390rb/12bln → 299rb lifetime
+   - admin-secret: hardcode 749rb → PRICING.PRO_180_DAYS
+   - api/admin/activate + api/admin/subscriptions/[id]/activate: LEGACY.PRO_180_DAYS → PRICING.PRO_180_DAYS (harga tercatat = harga tampil)
+   - Block LEGACY kini murni catatan sejarah (tidak dipakai utk tagihan baru)
+   - README.md: tabel harga stale 39rb → 49rb (coret 100rb) + baris baru 6 Bulan 199rb
+2. DISCORD: lib/site-links.ts DISCORD_INVITE_URL → https://discord.gg/jV6McFx6R (invite baru dari Bos; 2 invite lama terverifikasi MATI via API Discord) — 17+ pemakaian di 14 file ikut berubah otomatis
+3. SQL MIGRASI 018 (tabel contact_messages + kolom profiles.trial_started_at) DIPASTE ke Bos di chat — WAJIB dijalanin Bos di Supabase SQL Editor, kalau tidak form /contact & trial server-side tidak jalan di produksi (form fallback ke mailto).

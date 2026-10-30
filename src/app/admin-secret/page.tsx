@@ -41,7 +41,7 @@ interface AdminUser {
 // PRO price constants — SUMBER TUNGGAL dari lib/pricing.ts (P1 fix:
 // dulu 48000, tidak sinkron dengan checkout/landing yang pakai 49000)
 const PRO_PRICE_30_DAYS = PRICING.PRO_30_DAYS
-const PRO_PRICE_180_DAYS = 749000 // ⚠️ belum ada di pricing.ts (180hr lebih mahal dari tahunan 390rb — konfirmasi Bos)
+const PRO_PRICE_180_DAYS = PRICING.PRO_180_DAYS // Rp199.000 (Bos: "ubah aja biar ga aneh" — dulu hardcode 749rb, lebih mahal dr tahunan 390rb)
 const PRO_PRICE_365_DAYS = PRICING.PRO_ANNUAL
 
 export default function AdminPanel() {

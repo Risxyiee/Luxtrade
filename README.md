@@ -67,7 +67,8 @@ LuxTrade adalah platform **trading journal** yang dirancang khusus untuk trader 
 
 | Paket | Harga |
 |-------|-------|
-| PRO Bulanan | Rp39.000 / bulan |
+| PRO Bulanan | Rp49.000 / bulan (coret Rp100.000) |
+| PRO 6 Bulan | Rp199.000 |
 | PRO Tahunan | Rp390.000 / tahun (hemat 2 bulan) |
 | PRO Lifetime | Rp299.000 (30 slot founding member) |
 
