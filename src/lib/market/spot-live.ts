@@ -72,6 +72,22 @@ const GOLD_API_SYMBOLS: Record<string, string> = {
 
 const CRYPTO_BINANCE_RE = /^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|LINK|LTC|TRX|TON|SUI|PEPE)(USDT?|USD)$/i
 
+/* JAM BUKA PASAR SPOT GOLD/SILVER (GMT): buka Minggu 22:00 UTC,
+   tutup Jumat 22:00 UTC (futures NY close 17:00 ET). Di luar window
+   ini gold-api MASIH mengirim harga terakhir — kalau patch tetap
+   jalan, ujung candle "bergerak" palsu & bar sintetis flat bermunculan
+   saat weekend = keluhan Bos "candle kek ghost". Crypto 24/7 tanpa
+   guard (binance jalan terus). */
+export function goldMarketOpen(nowSec: number): boolean {
+  const d = new Date(nowSec * 1000)
+  const day = d.getUTCDay() // 0=Minggu … 6=Sabtu
+  const mins = d.getUTCHours() * 60 + d.getUTCMinutes()
+  if (day === 6) return false // Sabtu: tutup
+  if (day === 5 && mins >= 22 * 60) return false // Jumat ≥22:00: tutup
+  if (day === 0 && mins < 22 * 60) return false // Minggu <22:00: tutup
+  return true
+}
+
 export function isCryptoLiveSymbol(symbol: string): boolean {
   return CRYPTO_BINANCE_RE.test(String(symbol || '').trim().toUpperCase())
 }
@@ -273,6 +289,15 @@ export async function patchTailWithSpot(
   const nowSec = Math.floor(Date.now() / 1000)
   const currentBucket = Math.floor(nowSec / intervalSec) * intervalSec
 
+  /* MARKET HOURS GUARD (fix "candle kek ghost" — weekend): gold-api
+     tetap mengirim harga terakhir walau pasar tutup → patch justru
+     menggerakkan ujung candle palsu + bar sintetis flat muncul.
+     Pasar tutup = tail apa adanya, tanpa patch, tanpa sintesis. */
+  if (!goldMarketOpen(nowSec)) {
+    console.log('[spot-live] pasar spot tutup (weekend) — tail tanpa patch')
+    return bars
+  }
+
   /* a) buang bar tak selaras bucket di ekor (artefak Yahoo tick) —
      KECUALI bar terakhir yang masih berada dalam window bucket
      BERJALAN: sumber seperti TradingView punya ANCHOR bucket sendiri
@@ -315,32 +340,36 @@ export async function patchTailWithSpot(
 
   /* b) TIP: bila bar terakhir masih segar → WAKTU bar itu yang jadi
      tip (anchor sumber). Bila basi → ISI GRID KOSONG di depan, tapi
-     PROYEKSI IKUT GRID SUMBER (fix "kadang ilang"): dulu tip melompat
-     ke bucket UTC (floor(now/iv)) — sumber ber-anchor geser (4h
-     TradingView mulai 01:00, bukan 00:00) menghasilkan bar sintetis
-     yang BENTROK dgn bar sumber berikutnya (dobel/ilang). Sekarang
-     bar disintesis = last.time + k×iv (grid sumber sendiri), capped
-     60 bucket — anchor konsisten dgn sejarah → tak pernah dobel. */
+     PROYEKSI IKUT GRID SUMBER (fix "kadang ilang") dan DIBATASI 2
+     bucket (fix "ghost" — lihat GHOST GUARD di patchTailWithSpot). */
   const decimals = s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 2
   const prevClose0 = Number.isFinite(last.close) && last.close > 0 ? last.close : valid
   let tipTime: number
   if (tipIsRecent) {
     tipTime = last.time
   } else {
-    const step = Math.floor((nowSec - last.time) / intervalSec) // bucket berjalan pd grid sumber (≤ now)
-    tipTime = last.time + Math.max(step, 1) * intervalSec
+    /* GHOST GUARD (fix Bos "candle kadang kek ghost"): dulu tip diproyeksi
+       sampai 60 bucket ke depan — sumber telat 10-20 menit (Yahoo) = belasan
+       bar sintetis FLAT (o=h=l=c) berjejer, dan saat TradingView balik segar
+       bar hantu itu hilang lagi → muncul-hilang = "ghost". Sekarang bridging
+       MAKS 2 bucket (cukup utk bar berjalan); gap lebih dalam = JANGAN
+       membuat tip palsu — sejarah segar dari refresh 60 dtk yang menyusul. */
+    const gapBuckets = Math.max(Math.floor((nowSec - last.time) / intervalSec), 1)
+    tipTime = gapBuckets <= 2 ? last.time + gapBuckets * intervalSec : last.time
   }
   const missing = Math.floor((tipTime - last.time) / intervalSec)
   if (missing > 0) {
-    const startT = Math.max(last.time + intervalSec, tipTime - 59 * intervalSec)
+    const startT = Math.max(last.time + intervalSec, tipTime - 1 * intervalSec)
     for (let t = startT; t <= tipTime; t += intervalSec) {
       out.push({ time: t, open: prevClose0, high: valid, low: valid, close: valid })
     }
   }
 
-  /* c) patch bar berjalan dgn harga spot terbaru */
+  /* c) patch bar berjalan dgn harga spot terbaru — HANYA bar berjalan
+     (tipIsRecent): bar sejarah real TIDAK boleh ditimpa spot (level
+     bar lampau jadi berubah = jejak hantu). */
   const tip = out[out.length - 1]
-  if (tip && tip.time === tipTime) {
+  if (tip && tipIsRecent && tip.time === tipTime) {
     tip.close = Number(spot.toFixed(decimals))
     if (Number.isFinite(tip.high)) tip.high = Math.max(tip.high, tip.close)
     if (Number.isFinite(tip.low)) tip.low = Math.min(tip.low, tip.close)
@@ -381,6 +410,14 @@ export async function patchTailYahooLive(
   const nowSec = Math.floor(Date.now() / 1000)
   const currentBucket = Math.floor(nowSec / intervalSec) * intervalSec
 
+  /* MARKET HOURS GUARD gold/silver — weekend tidak boleh ada patch
+     maupun sintesis (tick Yahoo pun masih bisa "terakhir" basi yang
+     lolos umur 15 menit di awal jam tutup). Crypto tak lewat sini. */
+  if ((s === 'XAUUSD' || s === 'XAGUSD') && !goldMarketOpen(nowSec)) {
+    console.log('[spot-live] pasar spot tutup (weekend) — tail Yahoo tanpa patch')
+    return bars
+  }
+
   /* buang bar tak selaras bucket di ekor (artefak tick) — bar terakhir
      yang masih dalam window berjalan TETAP disimpan (anchor sumber) */
   const windowStart = nowSec - intervalSec
@@ -410,25 +447,25 @@ export async function patchTailYahooLive(
 
   const decimals = s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 2
   const prevClose0 = Number.isFinite(last.close) && last.close > 0 ? last.close : valid
-  /* proyeksi grid sumber (lihat catatan patchTailWithSpot — anti
-     bar sintetis bentrok dgn anchor sumber → "kadang ilang") */
+  /* proyeksi grid sumber + GHOST GUARD (maks 2 bucket bridging —
+     lihat patchTailWithSpot) */
   let tipTime: number
   if (tipIsRecent) {
     tipTime = last.time
   } else {
-    const step = Math.floor((nowSec - last.time) / intervalSec)
-    tipTime = last.time + Math.max(step, 1) * intervalSec
+    const gapBuckets = Math.max(Math.floor((nowSec - last.time) / intervalSec), 1)
+    tipTime = gapBuckets <= 2 ? last.time + gapBuckets * intervalSec : last.time
   }
   const missing = Math.floor((tipTime - last.time) / intervalSec)
   if (missing > 0) {
-    const startT = Math.max(last.time + intervalSec, tipTime - 59 * intervalSec)
+    const startT = Math.max(last.time + intervalSec, tipTime - 1 * intervalSec)
     for (let t = startT; t <= tipTime; t += intervalSec) {
       out.push({ time: t, open: prevClose0, high: valid, low: valid, close: valid })
     }
   }
 
   const tip = out[out.length - 1]
-  if (tip && tip.time === tipTime) {
+  if (tip && tipIsRecent && tip.time === tipTime) {
     tip.close = Number(valid.toFixed(decimals))
     if (Number.isFinite(tip.high)) tip.high = Math.max(tip.high, tip.close)
     if (Number.isFinite(tip.low)) tip.low = Math.min(tip.low, tip.close)
