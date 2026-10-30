@@ -339,7 +339,10 @@ async function detectAndDispatch(opts: {
           price: t.price,
         })
         .select('id')
-        .ignoreDuplicates()
+      // FIX (2026-10-30): .ignoreDuplicates() TIDAK ADA di supabase-js v2 (cuma opsi
+      // upsert) → TypeError tiap kali jalan → dedupe DB tak pernah bekerja. Dihapus —
+      // perilaku efektif sama (memDedupe 5 menit); dedupe DB butuh unique constraint
+      // + upsert → migrasi terpisah.
       if (logErr) {
         console.error('[compile-pine] log alert gagal (tabel ada?):', logErr.message)
         /* tabel belum dibuat → tetap kirim tapi hanya 1× per 5 menit (memDedupe) */

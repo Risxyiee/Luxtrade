@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-      data = retry.data
+      data = retry.data as typeof data
       error = retry.error
     }
 
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
       'consistency_rule', 'best_day_pl', 'current_balance',
       'daily_pl', 'total_pl', 'current_daily_dd', 'current_total_dd', 'current_progress',
     ]
-    if (insertError && (insertError.code === '42703' || missingColumnPatterns.some((col) => insertError.message?.includes(col)))) {
+    if (insertError && (insertError.code === '42703' || missingColumnPatterns.some((col) => insertError?.message?.includes(col)))) {
       console.warn('[prop-firm-guard] POST: some columns not found, retrying without optional columns')
       const retryResult = await db
         .from('prop_firm_challenges')

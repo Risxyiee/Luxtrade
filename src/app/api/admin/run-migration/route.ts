@@ -75,9 +75,19 @@ export async function POST(request: NextRequest) {
 
     // Step 1: Verify if columns already exist
     console.log('[run-migration] Checking if columns already exist...')
-    const { data: existingColumns, error: verifyError } = await supabase
-      .rpc('exec_sql', { query: VERIFY_SQL })
-      .catch(() => ({ data: null, error: 'RPC function exec_sql not available' }))
+    // FIX (2026-10-30): dulu .catch() dipanggil di PostgrestFilterBuilder (bukan
+    // Promise) → TypeError saat route dijalankan. Sekarang try/catch setara.
+    // Catatan: hasil verify hanya utk log — route selalu balik instruksi manual.
+    let existingColumns: unknown = null
+    let verifyError: unknown = null
+    try {
+      const verify = await supabase.rpc('exec_sql', { query: VERIFY_SQL })
+      existingColumns = verify.data
+      verifyError = verify.error
+    } catch {
+      verifyError = 'RPC function exec_sql not available'
+    }
+    console.log('[run-migration] Verify result:', { existingColumns, verifyError })
 
     // If RPC is not available, try using Prisma if DATABASE_URL is PostgreSQL
     // For now, let's try the direct approach using the Supabase REST API

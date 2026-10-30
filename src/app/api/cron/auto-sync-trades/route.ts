@@ -199,7 +199,7 @@ async function handleRequest(request: NextRequest) {
               commission: deal.commission || 0,
               swap: deal.swap || 0,
               open_time: openTime,
-              close_time: deal.closeTime ? new Date(deal.closeTime).toISOString() : openTime,
+              close_time: deal.closeTime ? new Date(deal.closeTime as string | number | Date).toISOString() : openTime,
               deal_id: dealId || undefined,
               comment: deal.comment || '',
               session: 'MetaApi Auto-Sync',

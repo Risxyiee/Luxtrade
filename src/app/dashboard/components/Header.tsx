@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useMemo, useEffect, useRef } from 'react'
+import { memo, useState, useMemo, useEffect, useRef, type ComponentProps } from 'react'
 import {
   Menu, RefreshCw, LogOut, Keyboard, Settings, Sparkles,
   ChevronDown, Wallet, Plus, Check
@@ -256,7 +256,7 @@ const Header = memo(function Header({
         </Dialog>
 
         <div className="flex items-center gap-0.5" aria-label={language === 'id' ? 'Notifikasi' : 'Notifications'}>
-          <NotificationCenter trades={trades} isPro={isPro} notificationPreferences={notifPreferences} />
+          <NotificationCenter trades={trades} isPro={isPro} notificationPreferences={notifPreferences as ComponentProps<typeof NotificationCenter>['notificationPreferences']} />
           <button
             onClick={() => setNotifPrefsOpen(true)}
             className="p-2 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-white/5"

@@ -195,6 +195,13 @@ function ResetPasswordContent() {
         return
       }
 
+      // Guard TS: supabase pasti non-null (kalau null → session null → sudah return)
+      if (!supabase) {
+        setError('Sesi reset tidak ditemukan. Buka link reset TERBARU dari email Anda (link membuat sesi sementara), atau minta link baru.')
+        setIsLoading(false)
+        return
+      }
+
       // 3) Utamakan jalur resmi Supabase: updateUser dengan session recovery
       const { error: updErr } = await supabase.auth.updateUser({ password })
       if (!updErr) {

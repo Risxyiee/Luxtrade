@@ -309,7 +309,7 @@ async function runFollowUpPass(
     const prof = t.target_user_id ? byId.get(t.target_user_id) : undefined
     if (prof?.is_pro) continue // sudah PRO → selamat, bukan target follow-up
 
-    const stat = JSON.parse((await kvAgentGet(admin, `open:${email}`)) || '{}') as { count?: number; clicks?: number; bounced?: boolean }
+    const stat = JSON.parse((await kvAgentGet(admin, `open:${email}`)) || '{}') as { count?: number; clicks?: number; bounced?: boolean; last?: string }
     if (stat.bounced) continue // alamat bounce — jangan ganggu lagi
     if (!(stat.count || 0) && !(stat.clicks || 0)) continue // belum buka → bukan kandidat follow-up
 

@@ -364,6 +364,7 @@ export async function sintaMarketProposal(cfg: SbConfig): Promise<DetectedPropos
     `${dataRiil}\nBuat konten ${arah === 'DROP' ? 'menangkap peluang momentum turun (edukasi risiko + peluang)' : 'mengingatkan disiplin saat harga naik (FOMO control)'}.`,
     'google/gemma-4-31b-it:free',
     'Sinta',
+    800,
     cfg,
   )
   const action = j?.proposed_action || {}
@@ -401,6 +402,7 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
     `${dataRiil}\nBuat 1 subjek + 1 body email winback. ${discount ? `Sebut kode diskon: ${discount}.` : 'JANGAN menyebut diskon/kode apapun.'}`,
     'google/gemma-4-26b-a4b-it:free',
     'Maya',
+    800,
     cfg,
   )
   const action = j?.proposed_action || {}
@@ -455,6 +457,7 @@ export async function bagasHotLeadsProposal(cfg: SbConfig): Promise<DetectedProp
     `${dataRiil}\nEmail targets: ${hot.map(h => String(h.prof.email)).join(', ')}. Buat 1 personalized_message (maks 120 kata) yang menyebut aktivitas mereka secara umum (sering upload jurnal minggu ini) + manfaat PRO (evaluasi AI tanpa batas).`,
     'nvidia/nemotron-3.5-lightning:free',
     'Bagas',
+    800,
     cfg,
   )
   const action = j?.proposed_action || {}
