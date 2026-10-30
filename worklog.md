@@ -2379,3 +2379,8 @@ ignoreBuildErrors); lint bersih.
 - Saran verifikasi pamungkas: Bos signup sekali pakai email asli sendiri → pastikan
   email konfirmasi mendarat di inbox (bukti deliverability penuh dari luar tidak bisa).
 - STATUS AKHIR P1+P0: contact ✓, signup ✓, RLS Bearer ✓, deploy CF lancar ✓.
+
+## Verifikasi Tambahan: /api/auth/register Produksi 200 (2026-10-30)
+- POST /api/auth/register → 200 {"success":true,"message":"Akun berhasil dibuat. Silakan cek email..."} → jalur registrasi ASLI app (bukan cuma Supabase mentah) terbukti end-to-end.
+- Catatan: email tes kebetulan literal 'zverify-reg-$random@' (quote shell tidak expand) — masuk daftar sampah zverify juga.
+- Tersisa tugas Bos: ① hapus user uji zverify-* di Auth→Users ② signup 1x pakai email asli → pastikan email konfirmasi mendarat di inbox.
