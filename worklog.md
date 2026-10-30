@@ -2545,3 +2545,83 @@ ignoreBuildErrors); lint bersih.
   (draf COO pending/approved/rejected ATAU proposal Bagas Kantor CEO) tidak
   akan muncul lagi di jalur lain selama 7 hari — draf ganda mustahil terbentuk,
   ACC Bos tinggal aman dari kirim dobel.
+
+## AUDIT E2E FITUR DASHBOARD — Opsi C (2026-10-30, pesanan Bos "1")
+- Cakupan: missions claim · affiliate withdraw · push subscribe · auto-journal.
+- METODE: baca kode penuh + probe skema PRODUKSI via anon key (42501 = ada/RLS
+  ketat · 42703 = kolom hilang · 42P01 = tabel hilang — pola terbukti Tugas A).
+
+### ⚠️ TEMUAN #1 (P0 — UANG): AFFILIATE USER-SIDE RUSAK TOTAL — SPLIT-BRAIN KOLOM
+- PRODUKSI TERBUKTI: `affiliates.balance` TIDAK ADA (42703 "column does not
+  exist"); yang ada `current_balance` (42501) — sesuai prisma schema
+  (Affiliate.currentBalance → current_balance).
+- Sisi ADMIN BENAR semua: kredit komisi (admin/subscriptions/[id]/activate
+  → current_balance + total_earned), refund reject (admin/withdrawals →
+  current_balance), display (admin/affiliates), total_paid
+  (admin/affiliate-withdrawals).
+- Sisi USER SEMUA RUSAK (pakai kolom `balance` yang tak ada):
+  ① /api/affiliate/withdraw POST: `affiliate.balance` = undefined →
+     `amount > undefined` = false → CEK SALDO LOLOS SELALU (nominal
+     berapapun, saldo 0 pun lolos) → insert affiliate_withdrawals OK →
+     update `{balance}` = 42703 SILENT FAIL (error tak didestruktur) →
+     respons success:true → saldo TIDAK PERNAH terpotong → request
+     duplikat tak terbatas.
+  ② /api/affiliate/me: insert find-or-create `balance: 0` → 42703 →
+     user affiliate BARU = 500; user lama: currentBalance selalu Rp0
+     meski komisi masuk ke current_balance.
+  ③ /api/affiliate/withdraw GET: map `w.created_at` — kolom juga TIDAK
+     ADA (42703 terbukti) → requestedAt hilang dari riwayat. (Admin pakai
+     `requested_at` = BENAR; user pakai `created_at` = salah kolom.)
+- MITIGASI AKTIF: human-in-the-loop — withdrawal status REQUESTED, Bos ACC
+  manual via /api/admin/affiliate-withdrawals (requireAdmin ✓).
+  SARAN SEGERA UTK BOS: buka antrian affiliate-withdrawals di admin panel,
+  JANGAN ACC >1 withdrawal per affiliate tanpa verifikasi current_balance.
+
+### TEMUAN #2 (P1): misi win_streak salah definisi
+- validateAutomaticAchievement & GET missions: `currentStreak =
+  winTrades.length` = TOTAL trade profit (bukan beruntun) → misi "streak N"
+  bisa diklaim dgn N win tersebar → reward pro_days overgrant. Konsisten
+  GET=POST (dua-duanya salah sama — UI tidak menipis sendiri). Fix saat
+  dipesan: hitung streak beruntun dari close_time desc.
+
+### TEMUAN #3 (P1): user_submissions TANPA unique (user_id, achievement_key)
+- Cek dobel = SELECT-then-INSERT tanpa constraint → 2 klik bersamaan = 2
+  submission APPROVED = dobel reward pro_days. mission_progress PUNYA unique
+  (userId, missionKey) ✓. Kandidat migrasi 021: CREATE UNIQUE INDEX.
+
+### TEMUAN #4 (P2): /api/push/unsubscribe TANPA AUTH
+- Siapapun bisa DELETE push_subscriptions by endpoint. Mitigasi alami:
+  endpoint push = URL panjang random (unguessable). Tetap celah DoS
+  notifikasi senyap → sarankan wajib login + milik sendiri.
+- Sibling SUDAH P0-hardened ✓: subscribe (self-only + admin override +
+  Pro-gated), send & send-batch (cron-or-admin fail-closed), vapid-key
+  (public by design).
+
+### TEMUAN #5 (P3): race withdraw (relevant SETELAH #1 diperbaiki)
+- Deduksi saldo sequential tanpa CAS/transaction → 2 request konkuren sama-
+  sama lolos cek → saldo bisa negatif. Fix: update dgn filter
+  .gte('current_balance', amount) + cek baris ter-update, atau RPC transaksi.
+
+### YANG SEHAT (lolos audit tanpa catatan)
+- missions/claim: auth session ketat (userId dari body DIABAIKAN), error RLS
+  dilaporkan jelas, aritmetika pro_days benar (extend dari max(now, expiry)).
+- auto-journal: auth cookie+bearer ✓, PRO check + owner bypass terdokumentasi
+  ✓, feature flag Putri CFO (agent_kv) ✓, HEIC reject, rantai fallback Gemini
+  + ListModels discovery, JSON repair, RLS-scoped client, journal parent-first
+  + FK guard account ✓.
+- affiliate/referrals: auth ✓, batch enrichment (N+1 fixed) ✓, cache 30s ✓.
+- affiliate/update-code: hanya sentuh referral_code + code_changed_at (kolom
+  ada ✓), uniqueness check ✓.
+- admin/affiliate-withdrawals: requireAdmin ✓ + guard status REQUESTED→PAID ✓.
+- Probe skema lain: user_submissions.achievement_key ✓, mission_progress.
+  mission_key ✓, push_subscriptions.endpoint ✓, affiliate_withdrawals.
+  requested_at ✓ — semua tabel fitur ADA & RLS ketat (42501).
+- Smoke produksi: landing 200 ✓.
+
+- STATUS: AUDIT TUNTAS (audit-only, nol perubahan kode). Kandidat perbaikan
+  menunggu pesanan Bos:
+  (a) P0 fix split-brain: 3 file user-side ganti ke `current_balance` +
+      CAS guard + destuktur error update;
+  (b) migrasi 021: unique index user_submissions(user_id, achievement_key);
+  (c) win_streak hitung beruntun beneran;
+  (d) auth di /api/push/unsubscribe.
