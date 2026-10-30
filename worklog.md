@@ -2455,3 +2455,15 @@ ignoreBuildErrors); lint bersih.
 - MENUNGGU BOS: jalankan supabase-migrations/020_pine_alert_log_unique_dedupe.sql
   di Supabase SQL Editor (pola 019) → lalu alert pine otomatis dedupe permanen.
 - GERBANG: tsc --noEmit EXIT 0 (0 error repo-wide), eslint bersih.
+
+## 020 DIJALANKAN BOS + Verifikasi Produksi (2026-10-30)
+- Bos: "udah run" SQL 020 di Supabase SQL Editor (pola 019, tanpa error dilaporkan).
+- Smoke test produksi Z: landing 200 ✓, /api/contact 400 (DB + service_role sehat) ✓,
+  /api/cron/pine-alerts 401 "Secret salah" (route hidup & ter-auth) ✓.
+- Probe keamanan pine_alert_log (anon): SELECT 42501 + INSERT 42501 → RLS/grant
+  tetap ketat, tidak ada kebocoran setelah 020 ✓.
+- Deploy kode upsert (d922547c) ter-push → CF auto-deploy.
+- Bukti pamungkas dedupe DB (di luar jangkauan sandbox — butuh log CF Bos):
+  siklus cron 5 menit berikutnya TIDAK boleh ada log
+  `[pine-alert-runner] log gagal` / `[compile-pine] log alert gagal` dgn 42P10.
+  Log bersih = unique index terpasang & upsert ignoreDuplicates bekerja.
