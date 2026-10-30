@@ -2467,3 +2467,40 @@ ignoreBuildErrors); lint bersih.
   siklus cron 5 menit berikutnya TIDAK boleh ada log
   `[pine-alert-runner] log gagal` / `[compile-pine] log alert gagal` dgn 42P10.
   Log bersih = unique index terpasang & upsert ignoreDuplicates bekerja.
+
+## AUDIT E2E SISTEM KARYAWAN AI (2026-10-30, pesanan Bos "lanjut karyawan")
+- ARSITEKTUR TERNYATA DUA SISTEM PARALEL (keduanya human-in-the-loop):
+  ① SISTEM COO "Bagas" — cron harian 08.00 WIB /api/cron/ai-coo-agent (Bearer
+    CRON_SECRET, FAIL-CLOSED ✓) → hot lead free user aktif (max 3/run, cooldown
+    7 hari, anti-spam) → LLM OpenRouter Gemma + fallback chain + templat → draf
+    KE `ai_pending_tasks` status pending → Telegram notif ACC. Eksekusi: UI
+    /admin/ai-staff → /api/admin/ai-staff (requireAdmin) → approve = kirim
+    EMAIL asli via sendEmail (jalur terbukti!) + status approved + Telegram;
+    reject; gagal kirim = TETAP PENDING (retry aman); diproses 2x = 409.
+    Follow-up pass: webhook /api/webhooks/resend (verifikasi SVIX signature ✓)
+    → agent_kv open:{email} → draf follow-up kupon (max 2/run, cooldown 7hr,
+    skip bounce).
+  ② SISTEM 7 AGEN KANTOR CEO — sweep (tombol manual UI /kantor-ceo → POST
+    /api/agent-proposals?run=sweep, CEO/cron-only ✓) → detektor 7 agen
+    (Sinta/Maya/Farhan/Bagas/Raka/Dewi/Putri, dedup 24 jam) → KE
+    `ai_pending_actions` → UI kantor-ceo list → ACC/Tolak /api/execute-action
+    (Bearer OWNER_EMAIL only ✓) → eksekusi nyata 6 jenis (email/blog/Meta/
+    AB-test agent_kv/Discord/feature-flag); gagal eksekusi = row tetap pending.
+- Dua tabel antrean TIDAK tertukar: masing-masing punya UI + eksekutor sendiri
+  (ai_pending_tasks↔ai-staff, ai_pending_actions↔execute-action). Nyambung semua.
+- PROBE DB produksi: ai_pending_tasks ADA ✓, ai_pending_actions ADA ✓,
+  agent_kv ADA + HIDUP dgn data asli (gh:2026-10-30, acc_email:2026-10-25) —
+  kebetulan bukti bhw agent_kv memang terbaca anon sesuai desain (webhook).
+- SMOKE TEST 5 endpoint (tanpa auth): ai-coo-agent 401 ✓, ai-staff 401 ✓,
+  agent-proposals 401 ✓, execute-action 401 ✓, webhooks/resend GET 200
+  (panduan setup, by design) ✓.
+- ⚠️ TEMUAN RISIKO (dokumentasi saja — prinsip "kalau ragu gausah dihapus"):
+  DOBEL BAGAS — dua jalur tak saling tahu: cron COO (cooldown 7 hari via
+  ai_pending_tasks) vs detektor Bagas sweep (dedup 24 jam via
+  ai_pending_actions, top-3 free user ≥3 trades) → lead sama bisa dikontak 2x
+  KALAU Bos ACC dua-duanya. Mitigasi alami: keduanya human-in-the-loop (Bos =
+  gate terakhir). Saran opsional P2: unifikasi cooldown lintas tabel.
+- CATATAN OPS: jadwal cron COO (08.00 WIB) diset di CF dashboard (Triggers),
+  bukan di repo (wrangler.toml tanpa crons) — cek sana kalau cron tak jalan.
+- STATUS: SISTEM KARYAWAN AI AUDIT TUNTAS — auth ketat semua jalur, transport
+  email terbukti, DB lengkap. Tidak ada perubahan kode (audit-only).
