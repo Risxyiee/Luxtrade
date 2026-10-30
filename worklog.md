@@ -2364,3 +2364,18 @@ ignoreBuildErrors); lint bersih.
 - mailer_autoconfirm=false (config publik) → Confirm email AKTIF → signup mati total sampai SMTP diperbaiki.
 - Instruksi ke Bos: ① Resend API key baru ② SMTP Supabase: smtp.resend.com:465, user 'resend', pass re_... ③ verifikasi domain Resend (SPF+MX kurang; DKIM sudah ada) ④ opsi interim: matikan Confirm email.
 - Menunggu Bos "udah" → Z retest signup.
+
+## SESI BERES SEMUA: Signup Hidup + Koreksi Analisis DNS (2026-10-30, 20:29 WIB)
+- Bos ganti kredensial SMTP Supabase (Resend) → Z retest signup → SUKSES:
+  user terbuat + confirmation_sent_at terisi, error 535 HILANG. Signup produksi hidup lagi.
+- KOREKSI: analisis "SPF hilang / setup DNS setengah jadi" = SALAH SASARAN —
+  Resend naruh SPF (v=spf1 include:amazonses.com) & MX (feedback-smtp.ap-northeast-1)
+  di subdomain send.luxtradee.web.id, bukan apex. Semua record ternyata lengkap +
+  domain Verified. DNS Bos benar sejak awal; satu-satunya akar = kredensial SMTP 535.
+- Pelajaran diagnosa: ① log Supabase difilter by TIME (error_id tidak terindeks di UI);
+  ② error 535 = SMTP auth stage (kredensial), bukan DNS; ③ cek record Resend di
+  subdomain send., bukan apex.
+- RUMAH SAMPAH: 5 user uji zverify-* di Supabase Auth (unconfirmed) — boleh dihapus Bos.
+- Saran verifikasi pamungkas: Bos signup sekali pakai email asli sendiri → pastikan
+  email konfirmasi mendarat di inbox (bukti deliverability penuh dari luar tidak bisa).
+- STATUS AKHIR P1+P0: contact ✓, signup ✓, RLS Bearer ✓, deploy CF lancar ✓.
