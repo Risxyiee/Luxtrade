@@ -31,7 +31,9 @@ import { sendDiscordNotification } from '@/lib/discord'
  *   📊 DEWI     (Data Analyst) — statistik emosi vs profit dihitung DI
  *               KODE dari trades riil → LLM hanya menarasikan → insight
  *   👔 ALEXANDER(CEO)          — agregasi SEMUA hasil → Morning Briefing +
- *               1 "Next Best Action" → kirim otomatis ke DISCORD_WEBHOOK_URL
+ *               1 "Next Best Action" → kirim otomatis ke Discord
+ *               (env DISCORD_BOT = token bot + DISCORD_CHANNEL_ID, ATAU
+ *               DISCORD_WEBHOOK_URL — auto-terdeteksi, lihat lib/discord.ts)
  *
  * ARSITEKTUR EKSEKUSI:
  *   - 7 pekerja → Promise.allSettled PARALEL (kegagalan 1 agen TIDAK menular;
@@ -44,10 +46,11 @@ import { sendDiscordNotification } from '@/lib/discord'
  *     tanpa memori (degrade gracefully, pola cron-supabase).
  *
  * KEAMANAN & ANTI-SERAKAH:
- *   - Auth: Bearer CRON_SECRET (atau MASTER_CRON_SECRET). Kalau keduanya
- *     tidak diset → endpoint terbuka tapi dibatasi guard interval minimum
- *     (default 30 menit, agent_kv `master:lastRun`) supaya tidak bisa
- *     dilempar spam untuk membakar kuota OpenRouter.
+ *   - Auth: Bearer CRON_SECRET (SATU nama saja — nama env di Cloudflare
+ *     Bos: CRON_SECRET). Kalau tidak diset → endpoint terbuka tapi
+ *     dibatasi guard interval minimum (default 30 menit, agent_kv
+ *     `master:lastRun`) supaya tidak bisa dilempar spam untuk membakar
+ *     kuota OpenRouter.
  *   - ?dry=true      → snapshot data RIIL tanpa LLM, tanpa tulis DB, tanpa Discord
  *   - ?agents=farhan,sinta → jalankan subset (debugging)
  *   - ?force=true    → lewati guard interval (butuh secret valid)
@@ -1170,7 +1173,7 @@ async function agentAlexander(admin: SupabaseClient, results: AgentResult[], run
 /* ═════════════════════════════════ ORCHESTRATOR ════════════════════════════ */
 
 async function isAuthorized(request: NextRequest): Promise<boolean> {
-  const secret = (await envVal('CRON_SECRET')) || (await envVal('MASTER_CRON_SECRET'))
+  const secret = await envVal('CRON_SECRET') // nama tunggal — sesuai env Bos
   if (!secret) return true // pola sama dengan cron lain; GUARD INTERVAL di bawah yang jaga
   const provided = request.headers.get('authorization')?.replace('Bearer ', '') || new URL(request.url).searchParams.get('secret') || ''
   return provided === secret
@@ -1249,7 +1252,11 @@ async function handleRequest(request: NextRequest) {
 
   const hints: string[] = []
   if (!(await envVal('OPENROUTER_API_KEY'))) hints.push('OPENROUTER_API_KEY belum diset — semua agen konten hanya jalan template/skip')
-  if (!(await envVal('DISCORD_WEBHOOK_URL'))) hints.push('DISCORD_WEBHOOK_URL belum diset — briefing Alexander tidak terkirim')
+  if (!(await envVal('DISCORD_BOT')) && !(await envVal('DISCORD_BOT_TOKEN')) && !(await envVal('DISCORD_WEBHOOK_URL'))) {
+    hints.push('DISCORD_BOT (token bot + DISCORD_CHANNEL_ID) atau DISCORD_WEBHOOK_URL belum diset — briefing Alexander tidak terkirim')
+  } else if ((await envVal('DISCORD_BOT')) && !(await envVal('DISCORD_CHANNEL_ID'))) {
+    hints.push('DISCORD_BOT terbaca tapi DISCORD_CHANNEL_ID belum diset — briefing tidak bisa dikirim via bot')
+  }
   const rakaRes = agents.Raka
   if (rakaRes?.status === 'ok' && (rakaRes.data as { alarm?: boolean })?.alarm) hints.push('🚨 P1 KEAMANAN TERDETEKSI — cek agents.Raka.p1')
 
