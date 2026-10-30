@@ -1,0 +1,68 @@
+name: Master Autonomous Workforce
+
+# ============================================================
+# 🏢 SINGLE MASTER CRON — Fully Autonomous AI Workforce (8 agen)
+# ------------------------------------------------------------
+# Satu trigger harian menjalankan /api/cron/master-autonomous
+# yang mengeksekusi PARALEL:
+#   Farhan (artikel SEO auto-terbit) · Sinta (draf TikTok) ·
+#   Raka (security sweep) · Maya (win-back) · Bagas (hot leads) ·
+#   Putri (MRR + kuota) · Dewi (insight emosi) ·
+#   Alexander (Morning Briefing → Discord)
+#
+# Catatan limit: CF Workers Free = maks 5 cron triggers dan semua
+# sudah terpakai (daily-reminder / re-engage / weekly-summary /
+# watchdog 15 menit) — makanya master cron ini dipicu dari
+# GitHub Actions (pola sama dengan pine-alerts-runner).
+#
+# SETUP SEKALI (wajib, oleh Bos):
+#   GitHub repo → Settings → Secrets and variables → Actions:
+#     PROD_URL               = https://luxtradee.web.id
+#     MASTER_CRON_SECRET     = string acak (SAMakan dengan env
+#                              MASTER_CRON_SECRET / CRON_SECRET
+#                              di Cloudflare Workers)
+#   Cloudflare Dashboard → Workers → luxtradee → Settings →
+#     Variables & Secrets → MASTER_CRON_SECRET = string yang sama
+#
+# Uji manual tanpa nunggu jadwal: jalankan workflow ini manual
+# (workflow_dispatch) atau:
+#   curl -X POST -H "Authorization: Bearer $SECRET" \
+#     https://luxtradee.web.id/api/cron/master-autonomous
+# ============================================================
+
+on:
+  schedule:
+    # 0 1 * * * UTC = 08.00 WIB (jam kerja kantor) — harian
+    - cron: '0 1 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: master-autonomous
+  cancel-in-progress: false
+
+jobs:
+  run-workforce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 🏢 Kick Master Autonomous Cron
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          MASTER_CRON_SECRET: ${{ secrets.MASTER_CRON_SECRET }}
+        run: |
+          if [ -z "$PROD_URL" ]; then
+            echo "❌ Secret PROD_URL belum diset di GitHub Actions"
+            exit 1
+          fi
+          echo "🚀 Menjalankan 8 agen otonom di $PROD_URL ..."
+          RESP=$(curl -sS --max-time 900 -X POST \
+            -H "Authorization: Bearer $MASTER_CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            "$PROD_URL/api/cron/master-autonomous")
+          echo "$RESP" | head -c 6000
+          # Gagal keras kalau responsnya bukan sukses — biar terlihat merah di Actions
+          echo "$RESP" | grep -q '"success": *true' || {
+            echo "❌ Master cron melaporkan kegagalan (atau guard interval 429 — cek pesan di atas)"
+            exit 1
+          }
+          echo "✅ Workforce selesai — briefing terkirim ke Discord"
