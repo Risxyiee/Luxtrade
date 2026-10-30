@@ -1709,6 +1709,18 @@ interface E2eStep { id: string; label: string; ok: boolean; ms: number; status?:
 const E2E_EMAIL_DEFAULT = 'e2e-tester@luxtradee.app'
 const E2E_PASS_DEFAULT = 'Lxtd-E2e!2025'
 
+/** Baca body error PostgREST → pesan diagnosable (bukan cuma "HTTP 403"). */
+async function pgErrDetail(res: Response): Promise<string> {
+  try {
+    const j = (await res.json()) as { code?: string; message?: string }
+    const code = j.code ? ` ${j.code}` : ''
+    const msg = j.message ? ` ${j.message.slice(0, 100)}` : ''
+    return `HTTP ${res.status}${code}${msg}`
+  } catch {
+    return `HTTP ${res.status}`
+  }
+}
+
 async function e2eAgent(e: Env) {
   const t0 = Date.now()
   const steps: E2eStep[] = []
@@ -1778,7 +1790,15 @@ async function e2eAgent(e: Env) {
     /* --- 5. Baca profil sendiri (RLS read) --- */
     await run('profile', 'Baca profil sendiri (RLS read)', async () => {
       const res = await fetch(`${sbUrl(e)}/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id`, { headers: uH, signal: timeoutSignal(10_000) })
-      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+      if (!res.ok) {
+        const detail = await pgErrDetail(res)
+        // 42501 + "table users" = policy RLS profiles membaca auth.users/public.users
+        // yang sudah dikunci Supabase utk role authenticated → jalankan 017_fix_e2e_rls_and_defaults.sql
+        if (detail.includes('42501') && detail.toLowerCase().includes('table users')) {
+          throw Object.assign(new Error(`${detail} — policy RLS profiles membaca tabel users (dilarang Supabase) → jalankan supabase-migrations/017_fix_e2e_rls_and_defaults.sql`), { status: res.status })
+        }
+        throw Object.assign(new Error(detail), { status: res.status })
+      }
       const rows = await res.json() as unknown[]
       return rows.length ? 'profil ditemukan ✅' : 'query OK — baris profil belum ada (normal, onboarding belum dijalankan)'
     })
@@ -1788,18 +1808,22 @@ async function e2eAgent(e: Env) {
       /* --- 6. Buat trade tes (RLS insert) --- */
       await run('trade-create', 'Buat trade tes (RLS insert)', async () => {
         tradeId = crypto.randomUUID()
+        const nowIso = new Date().toISOString()
         const res = await fetch(`${sbUrl(e)}/rest/v1/trades`, {
           method: 'POST',
           headers: { ...uH, Prefer: 'return=representation' },
           body: JSON.stringify({
             id: tradeId, user_id: uid, symbol: 'XAUUSD', type: 'BUY',
             open_price: 2400.5, close_price: 2402.5, lot_size: 0.01, profit_loss: 2,
-            open_time: new Date().toISOString(), close_time: new Date().toISOString(),
+            open_time: nowIso, close_time: nowIso,
+            /* updated_at = NOT NULL tanpa default di produksi (Prisma @updatedAt
+               hanya diisi client, bukan DB) — insert REST polos wajib mengisi. */
+            updated_at: nowIso,
             notes: '🤖 E2E auto-test Raka — dihapus otomatis',
           }),
           signal: timeoutSignal(12_000),
         })
-        if (!res.ok) throw Object.assign(new Error(`insert HTTP ${res.status}`), { status: res.status })
+        if (!res.ok) throw Object.assign(new Error(await pgErrDetail(res)), { status: res.status })
         return 'trade tes tersimpan ✅'
       })
 
@@ -1807,7 +1831,7 @@ async function e2eAgent(e: Env) {
       await run('trade-verify', 'Trade tes terbaca (RLS select)', async () => {
         if (!tradeId) throw new Error('dilewati — langkah sebelumnya gagal')
         const res = await fetch(`${sbUrl(e)}/rest/v1/trades?id=eq.${tradeId}&select=id`, { headers: uH, signal: timeoutSignal(10_000) })
-        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+        if (!res.ok) throw Object.assign(new Error(await pgErrDetail(res)), { status: res.status })
         const rows = await res.json() as unknown[]
         if (!rows.length) throw new Error('trade tes tidak terbaca — RLS select bermasalah?')
         return 'trade tes terbaca kembali ✅'
@@ -1816,7 +1840,7 @@ async function e2eAgent(e: Env) {
       /* --- 8. TES PRIVASI: trade milik user LAIN tidak boleh bocor --- */
       await run('rls-privacy', '🔒 RLS privasi: data user lain terkunci', async () => {
         const res = await fetch(`${sbUrl(e)}/rest/v1/trades?user_id=neq.${uid}&select=id&limit=1`, { headers: uH, signal: timeoutSignal(10_000) })
-        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status })
+        if (!res.ok) throw Object.assign(new Error(await pgErrDetail(res)), { status: res.status })
         const rows = await res.json() as unknown[]
         if (rows.length) throw new Error('KEBOCORAN: akun tes bisa membaca trade user lain!')
         return 'tidak ada kebocoran ✅'
@@ -1826,7 +1850,7 @@ async function e2eAgent(e: Env) {
       await run('trade-delete', 'Hapus trade tes (RLS delete)', async () => {
         if (!tradeId) return 'tidak ada trade tes — bersih'
         const res = await fetch(`${sbUrl(e)}/rest/v1/trades?id=eq.${tradeId}`, { method: 'DELETE', headers: uH, signal: timeoutSignal(10_000) })
-        if (!res.ok) throw Object.assign(new Error(`hapus HTTP ${res.status} — sisa trade tes mungkin tertinggal`), { status: res.status })
+        if (!res.ok) throw Object.assign(new Error(`hapus ${await pgErrDetail(res)} — sisa trade tes mungkin tertinggal`), { status: res.status })
         return 'bersih — data asli tidak terganggu ✅'
       })
     }
