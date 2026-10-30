@@ -2434,3 +2434,24 @@ ignoreBuildErrors); lint bersih.
 - STATUS: TUGAS A ✓ 100% + TUGAS B ✓ 100%. Kandidat lanjutan: migrasi 020
   (unique constraint pine_alerts + upsert, dari temuan #4 Tugas B) / opsi C
   (E2E audit fitur dashboard lain) — menunggu pesanan Bos.
+
+## MIGRASI 020: Dedupe pine_alert_log Beneran di DB (2026-10-30, pesanan Bos "nomor satu")
+- LANJUTAN temuan #4 Tugas B: dulu .ignoreDuplicates() tidak ada di supabase-js v2
+  → TypeError → dedupe DB tak pernah jalan; fix sementara cuma memDedupe in-memory
+  5 menit yang HILANG tiap isolate CF berubah → potensi kirim dobel antar isolate.
+- Probe produksi: tabel pine_alert_log ADA (42501 RLS, bukan 42P01) tapi dibuat
+  ad-hoc di luar folder migrasi (skema asli tak tercatat) → 020 dibuat SELF-HEALING
+  & IDEMPOTENT: CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS (7 kolom),
+  hapus duplikat lama (simpan id terkecil, IS NOT DISTINCT FROM utk aman NULL),
+  CREATE UNIQUE INDEX pine_alert_log_dedupe_uidx ON (user_id, script_id, symbol,
+  signal_type, bar_time) = persis kunci dedupe kode, RLS ENABLE tanpa policy
+  (deny-all anon; service_role GRANT ALL sudah dicakup 019).
+- KODE (2 pemakai, pola identik): pine-alert-runner.ts + compile-pine/route.ts
+  insert → upsert(onConflict 'user_id,script_id,symbol,signal_type,bar_time',
+  ignoreDuplicates: true).select('id') → duplikat = 0 baris balik = isNew false.
+- ROLLBACK-SAFE: sebelum Bos jalankan SQL 020, PostgREST balik 42P10 → branch
+  logErr → alert tetap terkirim dgn memDedupe (perilaku identik spt sekarang).
+  Tidak ada breakage walau deploy kode lebih dulu.
+- MENUNGGU BOS: jalankan supabase-migrations/020_pine_alert_log_unique_dedupe.sql
+  di Supabase SQL Editor (pola 019) → lalu alert pine otomatis dedupe permanen.
+- GERBANG: tsc --noEmit EXIT 0 (0 error repo-wide), eslint bersih.

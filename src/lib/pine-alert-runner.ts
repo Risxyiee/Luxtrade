@@ -192,21 +192,27 @@ export async function runAlertGroup(
       if (supabase && writeLog) {
         const { data: ins, error: logErr } = await supabase
           .from('pine_alert_log')
-          .insert({
-            user_id: u.userId, script_id: script.id, symbol,
-            signal_type: t.signal, bar_time: new Date(t.time * 1000).toISOString(),
-            price: t.price,
-          })
+          .upsert(
+            {
+              user_id: u.userId, script_id: script.id, symbol,
+              signal_type: t.signal, bar_time: new Date(t.time * 1000).toISOString(),
+              price: t.price,
+            },
+            {
+              // MIGRASI 020: unique index (user_id, script_id, symbol, signal_type,
+              // bar_time) → duplikat di-ignore DB → 0 baris balik = isNew false.
+              // SEBELUM SQL 020 dijalankan: PostgREST balik 42P10 → masuk branch
+              // logErr → alert tetap terkirim (proteksi memDedupe 5 menit) — aman.
+              onConflict: 'user_id,script_id,symbol,signal_type,bar_time',
+              ignoreDuplicates: true,
+            }
+          )
           .select('id')
-        // FIX (2026-10-30): .ignoreDuplicates() TIDAK ADA di supabase-js v2 (cuma opsi
-        // upsert) → TypeError tiap kali jalan → dedupe DB tak pernah bekerja & bisa
-        // mematikan loop alert. Dihapus — perilaku efektif sama (memDedupe 5 menit);
-        // dedupe DB beneran butuh unique constraint + upsert → migrasi terpisah.
         if (logErr) {
-          console.error('[pine-alert-runner] log gagal (tabel ada?):', logErr.message)
-          /* tabel belum dibuat → tetap kirim, hanya 1× per 5 menit (memDedupe) */
+          console.error('[pine-alert-runner] log gagal (index 020 sudah dijalankan?):', logErr.message)
+          /* index unique belum ada → tetap kirim, hanya 1× per 5 menit (memDedupe) */
         } else if (Array.isArray(ins) && ins.length === 0) {
-          isNew = false // sudah terkirim utk bar ini
+          isNew = false // sudah terkirim utk bar ini (dedupe DB beneran)
         }
       }
       if (!isNew) { reason = 'sudah terkirim di bar ini'; continue }
