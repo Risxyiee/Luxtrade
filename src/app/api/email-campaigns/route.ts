@@ -1,6 +1,11 @@
 import type { NextRequest } from 'next/server'
-import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import { sendEmail } from '@/lib/email'
+// FIX build CF (2026-10-30): dulu ada 2 import site-links sekaligus —
+// `import { DISCORD_INVITE_URL }` di atas + `import { DISCORD_INVITE_URL,
+// DISCORD_INVITE_TEXT }` di sini → "Identifier has already been declared",
+// next build GAGAL → deploy produksi macet sejak 92fbd2ca. ESLint tidak
+// menangkapnya karena file api/** di-ignore config lint (temuan penting!);
+// tsc --noEmit kini jadi gerbang wajib pre-push.
 import { DISCORD_INVITE_URL, DISCORD_INVITE_TEXT } from '@/lib/site-links'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/admin-auth'
