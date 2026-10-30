@@ -1,17 +1,18 @@
 /**
  * Link eksternal resmi LuxTradee — SUMBER TUNGGAL (P1 fix).
  *
- * ⚠️ PENTING UNTUK BOS (Oktober 2026):
- * KEDUA invite lama sudah MATI diverifikasi via API Discord:
- *   - discord.gg/JwMxsmMqG → "Invite is expired" (50270)
- *   - discord.gg/KkYYFP9nC → "Unknown Invite" (10006)
- * Bos tinggal buat invite BARU yang PERMANEN (Set "Never expire") di server
- * Discord LuxTradee, lalu ganti SATU baris di bawah ini — semua 14+ tempat
- * di website ikut berubah otomatis.
+ * Riwayat invite (semua diverifikasi via API Discord):
+ *   - discord.gg/JwMxsmMqG → "Invite is expired" (50270) — MATI
+ *   - discord.gg/KkYYFP9nC → "Unknown Invite" (10006) — MATI
+ *   - discord.gg/jV6McFx6R → invite BARU dari Bos — DIPASANG di bawah ✅
+ *
+ * Kalau suatu saat invite ini mati lagi: buat invite BARU di server
+ * Discord LuxTradee dengan set "Never expire", lalu ganti SATU baris di
+ * bawah ini — semua 17+ tempat di website ikut berubah otomatis.
  */
 
-// Invite komunitas Discord (placeholder: invite lama yang sudah mati)
-export const DISCORD_INVITE_URL = 'https://discord.gg/KkYYFP9nC'
+// Invite komunitas Discord (sumber tunggal — jangan hardcode link lain!)
+export const DISCORD_INVITE_URL = 'https://discord.gg/jV6McFx6R'
 
 // Teks pendek untuk ditampilkan di email/UI (mengikuti URL di atas)
 export const DISCORD_INVITE_TEXT = DISCORD_INVITE_URL.replace('https://', '')
