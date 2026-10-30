@@ -47,6 +47,7 @@ import type {
   SymbolDescriptor,
 } from '@luxalgo/vela'
 import { normalizeSymbol } from '@/lib/market/yahoo'
+import { TV_SYMBOL_MAP, TVLiveStream } from '@/lib/tradingview-live'
 
 /* Timeframe kanonik Vela (menit, string) → format /api/candles.
    Kunci lama ('1D'/'D'/'W') tetap dihormati biar aman. */
@@ -229,14 +230,17 @@ export class LuxtradeeForexProvider implements DataProvider {
   }
 
   /* ============================================================
-     SUBSCRIBE — TICK LIVE (polling 3 detik)
+     SUBSCRIBE — TICK LIVE (2 JALUR)
      ============================================================
-     Vela memanggil ini begitu chart siap (capabilities.stream=true).
-     Tiap 3 detik ambil TAIL candle (nocache → server micro-cache 2.5s)
-     lalu kirim bar terakhir via onBar: ujung candle (O/H/L/C) bergerak
-     live layaknya websocket Binance, dan saat bar baru terbentuk Vela
-     otomatis menutup bar lama & membuka bar baru.
-     Pause saat tab tersembunyi (hemat request), lanjut saat kembali. */
+     JALUR 1 (utama — fix Bos "biar chartnya sama kayak trading
+     view"): WebSocket TradingView LANGSUNG dari browser user —
+     tick-per-tick level OANDA/BINANCE yang sama dengan chart TV
+     asli, anchor bucket identik. IP yang dipakai = IP user (bukan
+     datacenter) → tidak kena blok TV.
+     JALUR 2 (fallback otomatis): polling 3 detik /api/candles?nocache
+     + overlay gold-api (jalur lama yang sudah stabil) — jalan bila
+     WS TV gagal connect/timeout/putus. Chart tak pernah mati.
+     Pause polling saat tab tersembunyi (WS TV tetap, datanya kecil). */
   subscribe(ticker: string, timeframe: string, onBar: (bar: OHLCV) => void): () => void {
     const raw = ticker.trim().toUpperCase()
     const clean = raw ? normalizeSymbol(raw) : ''
@@ -244,29 +248,35 @@ export class LuxtradeeForexProvider implements DataProvider {
     if (!SYMBOL_SET.has(clean)) return () => {} // simbol di luar daftar → tanpa live
 
     let stopped = false
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let lastKey = ''
     /* GUARD SKALA SISI CLIENT (fix Bos: "kadang kebawah") — baris
-       terakhir anti lompat level: poll tick datang tiap 3 dtk, jadi
-       harga pada bucket yang SAMA hampir tak mungkin geser > 0.35%
-       (campur skala spot↔futures lintas-isolate = lompatan ±0.3–1.2%).
-       Bar baru (bucket maju) masih boleh sampai 2.5%/bucket. */
+       terakhir anti lompat level: harga pada bucket yang SAMA hampir
+       tak mungkin geser > 0.35% (campur skala spot↔futures lintas
+       sumber). Bar baru (bucket maju) masih boleh sampai 2.5%. */
     let lastAccepted: OHLCV | null = null
     const scaleGuardOk = (prev: OHLCV | null, next: OHLCV): boolean => {
       if (!prev || !Number.isFinite(prev.close) || prev.close <= 0) return true
       if (!Number.isFinite(next.close) || next.close <= 0) return false
       const drift = Math.abs(next.close - prev.close) / prev.close
-      if (next.time === prev.time) return drift <= 0.0035 // bucket sama = tick 3 dtk
+      if (next.time === prev.time) return drift <= 0.0035 // bucket sama
       return drift <= 0.025 // bucket baru → gerak wajar per-bar
     }
-
-    const schedule = () => {
-      if (stopped || timer) return
-      if (typeof document !== 'undefined' && document.hidden) return
-      timer = setTimeout(() => { timer = null; void tick() }, LIVE_POLL_MS)
+    const emit = (bar: OHLCV) => {
+      if (stopped) return
+      if (scaleGuardOk(lastAccepted, bar)) {
+        lastAccepted = bar
+        onBar(bar) // forming candle ATAU bar baru tertutup — Vela paham keduanya
+      }
     }
 
-    const tick = async () => {
+    /* ---------------- JALUR 2: POLLING 3 DETIK (fallback) ---------------- */
+    let pollingTimer: ReturnType<typeof setTimeout> | null = null
+    let lastKey = ''
+    const schedulePoll = () => {
+      if (stopped || pollingTimer) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      pollingTimer = setTimeout(() => { pollingTimer = null; void pollTick() }, LIVE_POLL_MS)
+    }
+    const pollTick = async () => {
       if (stopped) return
       try {
         const res = await fetch(`/api/candles?symbol=${encodeURIComponent(clean)}&interval=${encodeURIComponent(interval)}&limit=3&nocache=true&_t=${Date.now()}`, {
@@ -280,39 +290,58 @@ export class LuxtradeeForexProvider implements DataProvider {
           if (last) {
             const key = `${last.time}|${last.open}|${last.high}|${last.low}|${last.close}`
             if (key !== lastKey) {
-              /* GUARD SKALA: bar yang melompat level (campur sumber
-                 spot↔futures antar isolate) DIBUANG — chart tidak
-                 pernah tiba-tiba "kebawah"/"keatas". Poll berikutnya
-                 mencoba lagi; history refresh 60 dtk menyelaraskan. */
-              if (scaleGuardOk(lastAccepted, last)) {
-                lastAccepted = last
-                lastKey = key
-                onBar(last) // forming candle ATAU bar baru tertutup — Vela paham keduanya
-              }
+              lastKey = key
+              emit(last) // guard skala di emit() (anti lompat spot↔futures)
             }
           }
         }
       } catch { /* jaringan gagal — poll berikutnya mencoba lagi */ }
-      schedule()
+      schedulePoll()
+    }
+    const startPolling = () => {
+      if (stopped || pollingTimer) return
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', onVisibility)
+      }
+      void pollTick() // tick pertama segera (sinkron dgn sejarah yang baru dimuat)
     }
 
     const onVisibility = () => {
       if (typeof document === 'undefined') return
       if (document.hidden) {
-        if (timer) { clearTimeout(timer); timer = null }
-      } else if (!stopped) {
-        void tick() // langsung segar saat user kembali ke tab
+        if (pollingTimer) { clearTimeout(pollingTimer); pollingTimer = null }
+      } else {
+        void pollTick() // langsung segar saat user kembali ke tab
       }
     }
 
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', onVisibility)
+    /* ---------------- JALUR 1: WEBSOCKET TRADINGVIEW (utama) --------------- */
+    const tvSym = TV_SYMBOL_MAP[clean]
+    let stream: TVLiveStream | null = null
+    if (tvSym && typeof WebSocket !== 'undefined') {
+      try {
+        stream = new TVLiveStream({
+          tvSymbol: tvSym,
+          interval,
+          onBar: (b) => emit({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }),
+          /* WS gagal/putus → polling ambil alih SEKALI (tidak flapping) */
+          onDown: () => { stream = null; startPolling() },
+        })
+        /* Seed close terakhir dari cache sejarah → open bar berjalan pas */
+        const hist = this.depthCache.get(`${clean}:${interval}`)?.bars
+        stream.seed(hist && hist.length ? hist[hist.length - 1].close : null)
+        console.log('[TV-LIVE] koneksi WebSocket TradingView:', tvSym, interval)
+        stream.start()
+      } catch {
+        stream = null
+      }
     }
-    void tick() // tick pertama segera (sinkron dgn sejarah yang baru dimuat)
+    if (!stream) startPolling() // browser tanpa WS / simbol tanpa map
 
     return () => {
       stopped = true
-      if (timer) { clearTimeout(timer); timer = null }
+      stream?.stop()
+      if (pollingTimer) { clearTimeout(pollingTimer); pollingTimer = null }
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility)
       }
