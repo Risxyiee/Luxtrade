@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 // ============================================
 // Input field (matches login page .auth-input)
@@ -126,6 +127,42 @@ function ResetPasswordContent() {
 
   const emailFromUrl = searchParams.get('email')
 
+  // ── P0 HARDENING: session recovery ─────────────────────────────────────
+  // Link recovery dari Supabase membawa bukti (?code= PKCE atau
+  // #access_token implicit). Session ini WAJIB ada sebelum reset boleh
+  // diproses — tanpa ini, siapapun bisa reset password orang lain hanya
+  // dengan mengedit param ?email= di URL.
+  const [sessionChecked, setSessionChecked] = useState(false)
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const supabase = await getClientBrowserAsync()
+        if (!supabase) {
+          if (mounted) setSessionChecked(true)
+          return
+        }
+        // PKCE flow: tukar ?code= dari link recovery menjadi session
+        const url = new URL(window.location.href)
+        const code = url.searchParams.get('code')
+        if (code) {
+          try { await supabase.auth.exchangeCodeForSession(code) } catch { /* token salah/kedaluwarsa → dibiarkan, dicek di bawah */ }
+        }
+        // Implicit flow: supabase-js otomatis menyerap #access_token saat getSession
+        const { data: { session } } = await supabase.auth.getSession()
+        if (mounted) {
+          setSessionEmail(session?.user?.email || null)
+          setSessionChecked(true)
+        }
+      } catch {
+        if (mounted) setSessionChecked(true)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -139,7 +176,7 @@ function ResetPasswordContent() {
       return
     }
 
-    if (!emailFromUrl) {
+    if (!emailFromUrl && !sessionEmail) {
       setError('Link reset tidak valid. Coba kirim ulang dari halaman Lupa Password.')
       return
     }
@@ -147,10 +184,33 @@ function ResetPasswordContent() {
     setIsLoading(true)
 
     try {
+      // 1) Ambil session recovery (dibuat saat user klik link dari email)
+      const supabase = await getClientBrowserAsync()
+      const session = supabase ? (await supabase.auth.getSession()).data.session : null
+
+      // 2) Tanpa session → tolak (JANGAN fallback ke API tanpa bukti)
+      if (!session) {
+        setError('Sesi reset tidak ditemukan. Buka link reset TERBARU dari email Anda (link membuat sesi sementara), atau minta link baru.')
+        setIsLoading(false)
+        return
+      }
+
+      // 3) Utamakan jalur resmi Supabase: updateUser dengan session recovery
+      const { error: updErr } = await supabase.auth.updateUser({ password })
+      if (!updErr) {
+        setSuccess(true)
+        setTimeout(() => router.push('/auth/login'), 2000)
+        return
+      }
+
+      // 4) Fallback: API internal dengan Bearer session (server-side update)
       const response = await fetch('/api/auth/reset-password-public', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, email: emailFromUrl }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ password, email: session.user?.email || emailFromUrl }),
       })
       const data = await response.json()
 
@@ -199,8 +259,10 @@ function ResetPasswordContent() {
     )
   }
 
-  // ---- NO EMAIL (invalid link) ----
-  if (!emailFromUrl) {
+  // ---- NO EMAIL & NO SESSION (invalid link) ----
+  // Tampilkan layar invalid HANYA setelah cek session selesai — link valid
+  // kadang tidak membawa ?email= tapi tetap sah via session recovery.
+  if (sessionChecked && !emailFromUrl && !sessionEmail) {
     return (
       <div className="auth-page">
         <AuthBg />
@@ -244,7 +306,7 @@ function ResetPasswordContent() {
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-light text-white tracking-wide mb-2">Buat Password Baru</h1>
             <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">
-              Untuk akun: <span className="text-cyan-400">{emailFromUrl}</span>
+              Untuk akun: <span className="text-cyan-400">{sessionEmail || emailFromUrl}</span>
             </p>
           </div>
 

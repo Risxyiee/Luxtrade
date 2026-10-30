@@ -47,10 +47,9 @@ import { sendDiscordNotification } from '@/lib/discord'
  *
  * KEAMANAN & ANTI-SERAKAH:
  *   - Auth: Bearer CRON_SECRET (SATU nama saja — nama env di Cloudflare
- *     Bos: CRON_SECRET). Kalau tidak diset → endpoint terbuka tapi
- *     dibatasi guard interval minimum (default 30 menit, agent_kv
- *     `master:lastRun`) supaya tidak bisa dilempar spam untuk membakar
- *     kuota OpenRouter.
+ *     Bos: CRON_SECRET). P0 HARDENING: FAIL-CLOSED — kalau CRON_SECRET
+ *     tidak diset, endpoint DITOLAK di produksi (dulu: terbuka dengan
+ *     guard interval; sekarang dev lokal saja yang boleh tanpa secret).
  *   - ?dry=true      → snapshot data RIIL tanpa LLM, tanpa tulis DB, tanpa Discord
  *   - ?agents=farhan,sinta → jalankan subset (debugging)
  *   - ?force=true    → lewati guard interval (butuh secret valid)

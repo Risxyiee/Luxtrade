@@ -2,9 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClientAsync } from '@/lib/supabase/admin'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
 import { isUserPro } from '@/lib/pro-check'
+import { requireAdmin } from '@/lib/admin-auth'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
+
+/**
+ * P0 HARDENING: dulu endpoint ini TERBUKA — siapapun bisa broadcast push
+ * ke RIBUAN user sekaligus (vektor spam/phishing massal). Sekarang hanya:
+ *   1. Cron/internal service dengan Bearer CRON_SECRET (dipakai
+ *      /api/cron/econ-calendar-notify), atau
+ *   2. Admin panel (session Bos).
+ * Fail-closed di produksi kalau CRON_SECRET tidak diset. Dev lokal tetap
+ * terbuka untuk testing.
+ */
+async function isCronOrAdmin(req: NextRequest): Promise<boolean> {
+  let secret = ''
+  try { secret = (await getEnvVar('CRON_SECRET', { quiet: true })) || '' } catch { /* abaikan */ }
+  secret = secret || process.env.CRON_SECRET || ''
+  if (!secret) return process.env.NODE_ENV === 'development'
+  const provided = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
+  if (provided && provided === secret) return true
+  const { error } = await requireAdmin(req)
+  return !error
+}
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await isCronOrAdmin(req))) {
+      return NextResponse.json({ error: 'Unauthorized — push send-batch khusus cron (CRON_SECRET) atau admin' }, { status: 401 })
+    }
+
     const body = await req.json()
     const { userIds, title, body: messageBody, icon, badge, url, tag, type } = body
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClientAsync } from '@/lib/supabase/admin'
 import { isUserPro } from '@/lib/pro-check'
+import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,6 +11,20 @@ export async function POST(req: NextRequest) {
 
     if (!userId || !endpoint || !p256dh || !auth) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // P0 HARDENING: verifikasi identitas — dulu siapapun bisa menanam
+    // subscription push untuk user APAPUN (cukup tahu userId-nya).
+    // Sekarang: hanya boleh untuk diri sendiri, kecuali admin.
+    const authResult = await getAuthenticatedUser(req)
+    if (!authResult.user) {
+      return NextResponse.json({ error: 'Unauthorized — login dulu untuk mengaktifkan notifikasi' }, { status: 401 })
+    }
+    if (authResult.user.id !== userId) {
+      const { error: adminErr } = await requireAdmin(req)
+      if (adminErr) {
+        return NextResponse.json({ error: 'Forbidden — hanya bisa subscribe untuk akun sendiri' }, { status: 403 })
+      }
     }
 
     // Verify user is Pro — push notifications require a Pro account
