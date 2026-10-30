@@ -64,19 +64,22 @@ BEGIN
   RAISE NOTICE 'Selesai: % policy rusak di-drop, % perlu dicek manual', dropped, manual;
 END $$;
 
-/* ── PART 4: pastikan policy dasar profiles ada & sehat (idempotent) ── */
+/* ── PART 4: pastikan policy dasar profiles ada & sehat (idempotent) ──
+   PENTING: profiles.id bertipe TEXT (bawaan Prisma) → WAJIB cast
+   auth.uid()::text (pola sama dgn 20261001_fix_rls_text_user_id_cast.sql).
+   Tanpa cast: error 42883 "operator does not exist: uuid = text". */
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
   TO authenticated
-  USING (auth.uid() = id);
+  USING (auth.uid()::text = id);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   TO authenticated
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+  USING (auth.uid()::text = id)
+  WITH CHECK (auth.uid()::text = id);
 
 -- ═══════════════════════════════════════════════════════════
 -- VERIFIKASI (grid hasil di bawah):
