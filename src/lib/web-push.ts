@@ -203,22 +203,40 @@ export function getVapidPublicKeySync(): string {
   return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
 }
 
+/**
+ * Hasil kirim per-subscription yang TERSTRUKTUR.
+ *
+ * PENTING (fix F5): dulu fungsi ini cuma return boolean — semua kegagalan
+ * dianggap "expired" oleh pemanggil → subscription yang MASIH HIDUP ikut
+ * terhapus tiap ada masalah server (VAPID missing, library gagal, network).
+ * Itu bikin loop neraka: subscribe → tes → gagal → terhapus → tes lagi → ...
+ * Sekarang: HANYA 410/404 yang expired; sisanya 'failed' (jangan dihapus!).
+ */
+export interface PushSendResult {
+  ok: boolean
+  status: 'sent' | 'expired' | 'failed'
+  /** HTTP status dari push service bila request sempat keluar (mis. 410, 403) */
+  statusCode?: number
+  /** Penjelasan singkat kegagalan (tanpa data sensitif) */
+  error?: string
+}
+
 export async function sendPushNotification(
   subscription: PushSubscriptionData,
   payload: PushPayload
-): Promise<boolean> {
+): Promise<PushSendResult> {
   // Ensure VAPID keys are resolved and set
   const keysReady = await ensureVapidDetailsSet()
   if (!keysReady) {
     console.warn('[web-push] VAPID keys not configured or library unavailable, skipping push')
-    return false
+    return { ok: false, status: 'failed', error: 'vapid-missing-or-library-unavailable' }
   }
 
   try {
     const wp = await getWebPush()
     if (!wp) {
       console.warn('[web-push] Library not available (edge runtime?), skipping push')
-      return false
+      return { ok: false, status: 'failed', error: 'library-unavailable' }
     }
 
     await wp.sendNotification(
@@ -229,43 +247,143 @@ export async function sendPushNotification(
         urgency: 'normal',
       }
     )
-    return true
+    return { ok: true, status: 'sent', statusCode: 201 }
   } catch (error: any) {
-    // 410 = subscription expired, 404 = subscription gone
-    if (error.statusCode === 410 || error.statusCode === 404) {
+    const statusCode: number | undefined = error?.statusCode
+    // 410 = subscription expired, 404 = subscription gone → BOLEH dihapus caller
+    if (statusCode === 410 || statusCode === 404) {
       console.log('[web-push] Subscription expired/gone:', subscription.endpoint)
-      return false // caller should delete this subscription
+      return { ok: false, status: 'expired', statusCode, error: `http-${statusCode}` }
     }
-    console.error('[web-push] Send failed:', error.message)
-    return false
+    // Kegagalan LAIN (401/403 VAPID, 5xx push service, network, crypto) —
+    // JANGAN disebut expired: subscription bisa saja masih hidup.
+    console.error('[web-push] Send failed:', error?.message || error)
+    return {
+      ok: false,
+      status: 'failed',
+      statusCode,
+      error: statusCode ? `http-${statusCode}: ${error?.message || 'unknown'}` : (error?.message || 'unknown-error'),
+    }
   }
+}
+
+export interface PushSendSummary {
+  sent: number
+  /** Endpoint yang BENAR-BENAR mati (410/404) — aman dihapus */
+  expired: string[]
+  /** Endpoint yang gagal dikirim tapi MASIH HIDUP — jangan dihapus */
+  failed: string[]
+  /** Pesan error ringkas (maks 1 per endpoint, urut) */
+  errors: string[]
 }
 
 export async function sendPushToUser(
   subscriptions: Array<{ endpoint: string; p256dh: string; auth: string }>,
   payload: PushPayload
-): Promise<{ sent: number; expired: string[] }> {
+): Promise<PushSendSummary> {
   let sent = 0
   const expired: string[] = []
+  const failed: string[] = []
+  const errors: string[] = []
 
   await Promise.allSettled(
     subscriptions.map(async (sub) => {
-      const success = await sendPushNotification(
+      const result = await sendPushNotification(
         {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
         payload
       )
-      if (success) {
+      if (result.status === 'sent') {
         sent++
-      } else {
+      } else if (result.status === 'expired') {
         expired.push(sub.endpoint)
+        if (result.error) errors.push(result.error)
+      } else {
+        failed.push(sub.endpoint)
+        errors.push(result.error || 'unknown-error')
       }
     })
   )
 
-  return { sent, expired }
+  return { sent, expired, failed, errors }
+}
+
+// ─── Diagnostics (FASE 5A debug) ─────────────────────────────────────────────
+
+export interface PushCapability {
+  runtime: 'node' | 'workers'
+  library: 'loaded' | 'unavailable'
+  vapidPublicKey: boolean
+  vapidPrivateKey: boolean
+}
+
+/** Status infra push TANPA membocorkan secret — untuk /api/push/capability */
+export async function pushCapability(): Promise<PushCapability> {
+  const wp = await getWebPush()
+  const { publicKey, privateKey } = await ensureVapidKeys()
+  return {
+    runtime: typeof process !== 'undefined' && process.versions?.node ? 'node' : 'workers',
+    library: wp ? 'loaded' : 'unavailable',
+    vapidPublicKey: !!publicKey,
+    vapidPrivateKey: !!privateKey,
+  }
+}
+
+// Probe: kirim ke endpoint PALSU di Apple buat membuktikan pipa crypto+HTTPS
+// jalan di runtime ini. Endpoint tidak pernah valid → push service selalu
+// balas HTTP 4xx → ITU justru bukti pipa OK. Tanpa data user, tanpa secret.
+const PROBE_ENDPOINT = 'https://web.push.apple.com/v0/diagnostic-probe-z'
+const PROBE_P256DH = 'BI6C3tFaYy6RcX2C_TVXh2oTS69mk6BWUikSiG0Mu6WmulEDHW8o05LwzJVXQ1LjjYoreyNcPD-fKmp2wYEItvk'
+const PROBE_AUTH = 'enEWW_xg_korVIVXnhjCcA'
+
+export interface PushProbeResult {
+  outcome: 'http_response' | 'threw' | 'skipped' | 'timeout'
+  statusCode?: number
+  error?: string
+}
+
+let _probeCache: { at: number; result: PushProbeResult } | null = null
+const PROBE_TTL_MS = 5 * 60_000
+
+/** Probe koneksi ke push service (cache 5 menit biar gak spam Apple) */
+export async function probePush(): Promise<PushProbeResult> {
+  if (_probeCache && Date.now() - _probeCache.at < PROBE_TTL_MS) {
+    return _probeCache.result
+  }
+  const cap = await pushCapability()
+  if (cap.library !== 'loaded' || !cap.vapidPrivateKey) {
+    const result: PushProbeResult = { outcome: 'skipped', error: cap.library !== 'loaded' ? 'library-unavailable' : 'vapid-private-key-missing' }
+    _probeCache = { at: Date.now(), result }
+    return result
+  }
+  try {
+    const raced = await Promise.race([
+      sendPushNotification(
+        { endpoint: PROBE_ENDPOINT, keys: { p256dh: PROBE_P256DH, auth: PROBE_AUTH } },
+        { title: 'probe', body: 'probe' }
+      ),
+      new Promise<PushSendResult>((resolve) =>
+        setTimeout(() => resolve({ ok: false, status: 'failed', error: 'timeout-15s' }), 15_000)
+      ),
+    ])
+    let result: PushProbeResult
+    if (raced.statusCode != null) {
+      // Request sempat keluar & dapat balasan HTTP → pipa (crypto+HTTPS) OK
+      result = { outcome: 'http_response', statusCode: raced.statusCode }
+    } else if (raced.error === 'timeout-15s') {
+      result = { outcome: 'timeout' }
+    } else {
+      result = { outcome: 'threw', error: raced.error || 'unknown' }
+    }
+    _probeCache = { at: Date.now(), result }
+    return result
+  } catch (e: any) {
+    const result: PushProbeResult = { outcome: 'threw', error: e?.message || 'unknown' }
+    _probeCache = { at: Date.now(), result }
+    return result
+  }
 }
 
 // Lazy export for code that still needs the raw library object

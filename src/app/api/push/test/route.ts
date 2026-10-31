@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
 
     const result = await sendPushToUser(subscriptions, payload)
 
-    // Bersihkan subscription yang sudah mati (410/404)
+    // Bersihkan HANYA subscription yang benar-benar mati (410/404).
+    // FIX F5: dulu SEMUA kegagalan dianggap expired → subscription hidup
+    // ikut terhapus → tes berikutnya selalu "Belum ada perangkat" (loop neraka).
     if (result.expired.length > 0) {
       await adminClient
         .from('push_subscriptions')
@@ -86,14 +88,36 @@ export async function POST(request: NextRequest) {
         .in('endpoint', result.expired)
     }
 
-    console.log(`[push/test] user=${userId} sent=${result.sent}/${subscriptions.length} expired=${result.expired.length}`)
+    const total = subscriptions.length
+    const failedCount = result.failed.length
+    if (failedCount > 0) {
+      console.error(`[push/test] user=${userId} failures:`, result.errors.slice(0, 3))
+    }
+
+    // reason = penyebab sent=0, biar client & Bos tahu LANGKAH BERIKUTNYA
+    let reason: 'ok' | 'no_devices' | 'devices_expired' | 'send_failed'
+    if (result.sent > 0) {
+      reason = 'ok'
+    } else if (total === 0) {
+      reason = 'no_devices'
+    } else if (failedCount === 0 && result.expired.length > 0) {
+      reason = 'devices_expired' // semua perangkat mati → client bakal resync otomatis
+    } else {
+      reason = 'send_failed' // server push-nya yang bermasalah → resync gak akan nolong
+    }
+
+    console.log(`[push/test] user=${userId} sent=${result.sent}/${total} expired=${result.expired.length} failed=${failedCount} reason=${reason}`)
     return NextResponse.json({
       sent: result.sent,
       expired: result.expired.length,
-      total: subscriptions.length,
+      failed: failedCount,
+      total,
+      reason,
       message: result.sent > 0
         ? 'Notifikasi tes terkirim — cek HP kamu!'
-        : 'Gagal terkirim — coba matikan lalu aktifkan lagi notifikasinya.',
+        : reason === 'send_failed'
+          ? 'Server belum bisa mengirim push — bukan salah perangkatmu.'
+          : 'Belum ada perangkat valid — coba matikan lalu aktifkan lagi notifikasinya.',
     })
   } catch (error: any) {
     console.error('[push/test] Error:', error.message)
