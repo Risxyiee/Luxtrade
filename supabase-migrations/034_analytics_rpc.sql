@@ -30,7 +30,9 @@
 
 CREATE OR REPLACE FUNCTION public.get_analytics_snapshot(
   p_period text DEFAULT 'all',
-  p_account_id uuid DEFAULT NULL
+  -- FIX 42883: kolom user_id/id/account_id di DB ini bertipe TEXT (bukan uuid)
+  -- (lihat prisma/schema.prisma: String @id @default(uuid())) → param juga text
+  p_account_id text DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE sql
@@ -55,7 +57,7 @@ acc AS (
   -- (is_default DESC, created_at ASC, LIMIT 1, wajib is_active & saldo > 0)
   SELECT ta.initial_balance
   FROM public.trading_accounts ta
-  WHERE ta.user_id = auth.uid()
+  WHERE ta.user_id = auth.uid()::text
     AND ta.is_active = true
     AND (p_account_id IS NULL OR ta.id = p_account_id)
   ORDER BY ta.is_default DESC, ta.created_at ASC
@@ -67,7 +69,7 @@ acc2 AS (
   SELECT COALESCE(
     NULLIF((SELECT initial_balance FROM acc), 0),
     (SELECT pf.account_size FROM public.prop_firm_challenges pf
-      WHERE pf.user_id = auth.uid() AND pf.is_active = true
+      WHERE pf.user_id = auth.uid()::text AND pf.is_active = true
       ORDER BY pf.created_at DESC
       LIMIT 1),
     0
@@ -77,7 +79,7 @@ t AS (
   -- Set trade terfilter (sumber semua agregasi di bawah)
   SELECT tr.*
   FROM public.trades tr CROSS JOIN params p
-  WHERE tr.user_id = auth.uid()
+  WHERE tr.user_id = auth.uid()::text
     AND (p.date_filter IS NULL OR tr.close_time >= p.date_filter)
     AND (p_account_id IS NULL OR tr.account_id = p_account_id)
 ),
