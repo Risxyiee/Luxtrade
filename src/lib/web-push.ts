@@ -12,6 +12,7 @@
  */
 
 import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { sendPushNotificationCF, getCfSenderUsed } from '@/lib/web-push-cf'
 
 // ─── VAPID Key Resolution ────────────────────────────────────────────────────
 // Keys are resolved LAZILY at call time, not at module load time.
@@ -225,19 +226,19 @@ export async function sendPushNotification(
   subscription: PushSubscriptionData,
   payload: PushPayload
 ): Promise<PushSendResult> {
-  // Ensure VAPID keys are resolved and set
-  const keysReady = await ensureVapidDetailsSet()
-  if (!keysReady) {
-    console.warn('[web-push] VAPID keys not configured or library unavailable, skipping push')
+  const { publicKey, privateKey, subject } = await ensureVapidKeys()
+  if (!publicKey || !privateKey) {
+    console.warn('[web-push] VAPID keys not configured, skipping push')
     return { ok: false, status: 'failed', error: 'vapid-missing-or-library-unavailable' }
   }
 
+  // ── Jalur 1: library web-push (Node.js) ──
+  let result: PushSendResult
   try {
+    const keysReady = await ensureVapidDetailsSet()
+    if (!keysReady) throw new Error('library-unavailable')
     const wp = await getWebPush()
-    if (!wp) {
-      console.warn('[web-push] Library not available (edge runtime?), skipping push')
-      return { ok: false, status: 'failed', error: 'library-unavailable' }
-    }
+    if (!wp) throw new Error('library-unavailable')
 
     await wp.sendNotification(
       subscription,
@@ -247,24 +248,43 @@ export async function sendPushNotification(
         urgency: 'normal',
       }
     )
-    return { ok: true, status: 'sent', statusCode: 201 }
+    result = { ok: true, status: 'sent', statusCode: 201 }
   } catch (error: any) {
     const statusCode: number | undefined = error?.statusCode
     // 410 = subscription expired, 404 = subscription gone → BOLEH dihapus caller
     if (statusCode === 410 || statusCode === 404) {
       console.log('[web-push] Subscription expired/gone:', subscription.endpoint)
-      return { ok: false, status: 'expired', statusCode, error: `http-${statusCode}` }
-    }
-    // Kegagalan LAIN (401/403 VAPID, 5xx push service, network, crypto) —
-    // JANGAN disebut expired: subscription bisa saja masih hidup.
-    console.error('[web-push] Send failed:', error?.message || error)
-    return {
-      ok: false,
-      status: 'failed',
-      statusCode,
-      error: statusCode ? `http-${statusCode}: ${error?.message || 'unknown'}` : (error?.message || 'unknown-error'),
+      result = { ok: false, status: 'expired', statusCode, error: `http-${statusCode}` }
+    } else {
+      // Kegagalan LAIN (401/403 VAPID, 5xx push service, network, crypto) —
+      // JANGAN disebut expired: subscription bisa saja masih hidup.
+      console.error('[web-push] Send failed:', error?.message || error)
+      result = {
+        ok: false,
+        status: 'failed',
+        statusCode,
+        error: statusCode ? `http-${statusCode}: ${error?.message || 'unknown'}` : (error?.message || 'unknown-error'),
+      }
     }
   }
+  if (result.ok) return result
+
+  // ── Jalur 2 (FIX F5): CF Workers — `https.request` Node cuma stub unenv ──
+  // Library "berhasil" di-import tapi selalu gagal saat kirim. Kalau polanya
+  // begitu, coba pengirim CF-native (fetch + WebCrypto, RFC 8291/8292).
+  const errMsg = result.error || ''
+  if (/library-unavailable|unenv|https\.request|not implemented/i.test(errMsg)) {
+    const cf = await sendPushNotificationCF(
+      subscription,
+      JSON.stringify(payload),
+      { publicKey, privateKey, subject }
+    )
+    if (cf.ok) {
+      console.log('[web-push] sent via CF-native sender (fallback from node lib)')
+    }
+    return cf
+  }
+  return result
 }
 
 export interface PushSendSummary {
@@ -317,6 +337,8 @@ export interface PushCapability {
   library: 'loaded' | 'unavailable'
   vapidPublicKey: boolean
   vapidPrivateKey: boolean
+  /** Pernah terbukti pakai pengirim CF-native di isolate ini */
+  cfSenderUsed: boolean
 }
 
 /** Status infra push TANPA membocorkan secret — untuk /api/push/capability */
@@ -328,6 +350,7 @@ export async function pushCapability(): Promise<PushCapability> {
     library: wp ? 'loaded' : 'unavailable',
     vapidPublicKey: !!publicKey,
     vapidPrivateKey: !!privateKey,
+    cfSenderUsed: getCfSenderUsed(),
   }
 }
 
