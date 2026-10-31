@@ -3713,3 +3713,13 @@ dari HP. Sekarang disimpan ke Supabase + papan admin.
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
 - Lokal: POST csp-report 204; API papan 401 tanpa token; halaman papan
   307→login (middleware guard benar).
+
+### EXECUTED + VERIFIKASI PRODUKSI (2026-10-31)
+- SQL 035 csp_violations — sukses dijalankan Bos (Supabase SQL Editor).
+- Smoke test produksi (luxtradee.web.id):
+  • POST /api/security/csp-report (laporan uji blocked-uri
+    smoketest.example/panggilan-uji.js) → 204
+  • GET /api/admin/csp-reports tanpa token → 401
+  • GET /dashboard/admin/csp tanpa login → 307 → /auth/login?redirect=…
+- Papan hidup mode observasi: data pelanggaran nyata terkumpul ±1 minggu
+  → baru putuskan report-only → ENFORCE (badge papan sudah memandu).
