@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
+  // SECURITY (#4 hardening): jangan paparkan fingerprint "x-powered-by: Next.js"
+  // di response header — memperkecil info recon bagi attacker.
+  poweredByHeader: false,
+
   eslint: {
     ignoreDuringBuilds: true,
   },

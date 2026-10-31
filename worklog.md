@@ -3364,3 +3364,42 @@ Yang BOLONG — kini ditutup (13 endpoint):
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (铁律 #1 aman).
 - 15 file tersentuh: lib/rate-limit pemakaian baru 11 route + midtrans
   lib + webhook + testimonials (bab sebelumnya).
+
+## 2026-11-01 — Security Audit #4 #5 #6 (tanpa temuan kritis; 1 micro-hardening)
+
+### #4 SERVICE KEY TIDAK BOCEOR KE CLIENT — PASS
+- Grep semua `NEXT_PUBLIC_*` di src/: hanya URL Supabase, anon key,
+  site URL, VAPID PUBLIC key, username bot Telegram → semuanya
+  public-by-design. Tidak ada secret server di bawah prefix NEXT_PUBLIC_.
+- `SUPABASE_SERVICE_ROLE_KEY` (41 file) semuanya di src/lib + src/app/api
+  (server-only). Fungsi `getSupabaseServiceRoleKey()` cuma dipakai
+  factory admin client di server — Next.js tidak pernah inline var
+  non-NEXT_PUBLIC_ ke bundle client.
+- wrangler.jsonc: klaim "SECRETS ARE NEVER DECLARED HERE" terbukti —
+  [vars] hanya berisi nilai publik. `.env` di-git-ignore;
+  `.env.ci`/`.env.example` cuma berisi nilai publik (aman di-commit).
+- `/api/debug/check-env` kini wajib login + semua nilai di-mask.
+
+### #5 ADMIN ROUTE SERVER-SIDE ROLE CHECK — PASS (35/35)
+- 28 route `/api/admin/*` pakai `requireAdmin()` (email allowlist +
+  profiles.role via service client, fail-closed 401/403).
+- reward-bug: auth sendiri (Bearer + role ADMIN/SUPER_ADMIN).
+- social-links + social-links/[id]: isAdmin() service-role check.
+- run-migration: MIGRATION_TOKEN fail-closed (503 kalau token tak diset).
+- subscriptions & [id] & deactivate: deprecated 410.
+- Middleware: halaman admin fail-closed + email allowlist.
+
+### #6 SECURITY RESPONSE HEADERS — PASS (VERIFIED LIVE PRODUKSI)
+- curl https://luxtradee.web.id → HSTS (1 thn + subdomains),
+  X-Frame-Options DENY, X-Content-Type-Options nosniff,
+  Referrer-Policy strict-origin-when-cross-origin,
+  Permissions-Policy (camera/mic/geo self) — SEMUA muncul.
+- CSP sengaja belum dipasang (butuh audit inline script dulu) —
+  sudah didokumentasikan di next.config.ts.
+- Micro-hardening: `poweredByHeader: false` (buang x-powered-by).
+
+### GERBANG
+- bunx tsc --noEmit + bun run lint → EXIT 0 (dichecklist di bawah).
+- Worklog 029 (testimonials revive) terkonfirmasi sukses oleh Bos
+  ("sukses semua") — V1: tepat 3 policy benar (SELECT approved /
+  INSERT pending anti-forgery / DELETE owner).
