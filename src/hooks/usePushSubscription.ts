@@ -14,9 +14,11 @@ interface UsePushSubscriptionReturn extends PushSubscriptionState {
   requestPermission: () => Promise<boolean>
   subscribe: (userId: string, isPro?: boolean) => Promise<boolean>
   unsubscribe: () => Promise<boolean>
+  /** FASE 5A: siklus penuh matikan→nyalakan — perbaiki drift browser vs server */
+  resync: (userId: string, isPro?: boolean) => Promise<boolean>
 }
 
-export function usePushSubscription(): UsePushSubscriptionReturn {
+export function usePushSubscription(userId?: string): UsePushSubscriptionReturn {
   const [state, setState] = useState<PushSubscriptionState>({
     isSupported: false,
     permission: 'unsupported',
@@ -49,6 +51,40 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       setState((s) => ({ ...s, isSubscribed: !!sub }))
     }).catch(() => {})
   }, [])
+
+  // FASE 5A sinkronisasi senyap: browser punya subscription tapi server
+  // tidak (drift setelah cleanup expired / ganti akun / hapus data) →
+  // upsert ulang ke /api/push/subscribe begitu userId diketahui.
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => {
+        if (cancelled || !sub) return
+        const subJson = sub.toJSON()
+        const endpoint = subJson.endpoint
+        const p256dh = subJson.keys?.p256dh
+        const auth = subJson.keys?.auth
+        if (!endpoint || !p256dh || !auth) return
+        return fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            endpoint,
+            p256dh,
+            auth,
+            userAgent: navigator.userAgent,
+          }),
+        }).then((res) => {
+          if (res.ok) setState((s) => ({ ...s, isSubscribed: true }))
+          // 403 (bukan Pro) → biarkan senyap; komponen yang menampilkan upsell
+        }).catch(() => {})
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [userId])
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!state.isSupported) return false
@@ -196,11 +232,35 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
     }
   }, [])
 
+  /** FASE 5A: matikan→nyalakan penuh — subscription lama dibuang (browser +
+    server), lalu daftar baru dengan VAPID kunci sekarang. Menyembuhkan
+    kasus "toggle hijau tapi server bilang belum ada perangkat". */
+  const resync = useCallback(async (uid: string, isPro?: boolean): Promise<boolean> => {
+    if (!state.isSupported || !uid) return false
+    try {
+      const reg = registrationRef.current || await navigator.serviceWorker.ready
+      const old = await reg.pushManager.getSubscription()
+      if (old) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: old.endpoint }),
+        }).catch(() => {})
+        await old.unsubscribe().catch(() => {})
+      }
+      setState((s) => ({ ...s, isSubscribed: false }))
+      return await subscribe(uid, isPro)
+    } catch {
+      return false
+    }
+  }, [state.isSupported, subscribe])
+
   return {
     ...state,
     requestPermission,
     subscribe,
     unsubscribe,
+    resync,
   }
 }
 

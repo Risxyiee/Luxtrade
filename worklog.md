@@ -3759,3 +3759,15 @@ dan langkah D+7 (5B).
   200 (degrade jujur "Database not available" — env lokal memang minim;
   jalur data produksi sudah terbukti oleh D+1 yang jalan harian).
 - Produksi: menunggu Bos (SQL 036 + tes push dari HP).
+
+### HOTFIX 5A — Sinkronisasi drift push (kasus Bos: toggle hijau tapi
+### server "belum ada perangkat")
+- usePushSubscription: terima userId → effect sinkronisasi senyap (browser
+  punya subscription + server tidak → upsert ulang otomatis) + fungsi
+  resync() (matikan→nyalakan penuh: subscription lama dibuang di browser &
+  server, daftar baru dengan kunci VAPID sekarang).
+- NotificationSetup: tombol tes kini AUTO-REPAIR — kalau total=0 padahal
+  toggle aktif → resync → kirim ulang → hasil akhir jujur. Teks testEmpty
+  diganti jadi panduan "matikan & nyalakan".
+- PushNotificationSetup ikut pass userId (dapat manfaat sinkronisasi sama).
+- Gerbang: tsc + lint EXIT 0.

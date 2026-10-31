@@ -53,7 +53,8 @@ interface PushNotificationSetupProps {
  */
 export default function PushNotificationSetup({ onShowIOSInstall }: PushNotificationSetupProps) {
   const { isPro, user } = useAuth()
-  const { isSubscribed, isSupported, subscribe, isLoading } = usePushSubscription()
+  const userId = user?.id || ''
+  const { isSubscribed, isSupported, subscribe, isLoading } = usePushSubscription(userId)
   const { language } = useLanguage()
   const lang = (language === 'id' ? 'id' : 'en') as LangKey
   const t = strings[lang]
@@ -62,8 +63,6 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
   const [visible, setVisible] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
-
-  const userId = user?.id || ''
 
   // Detect iOS and standalone mode
   useEffect(() => {
