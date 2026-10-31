@@ -13,17 +13,20 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
 import { useMotionSafe } from '@/hooks/use-motion-safe'
-import { formatCurrency } from '@/lib/utils-currency'
 import ActivityFeed from '@/components/ActivityFeed'
 import { useConfetti } from '@/hooks/useConfetti'
 import AnimatedStatCard from '../components/AnimatedStatCard'
+
+// PERF (F1): recharts (~100KB gz + deps d3) TIDAK masuk chunk awal dashboard —
+// chart Performa Sesi di-lazy-load sebagai komponen terpisah.
+const SessionPerformanceChart = dynamic(() => import('./SessionPerformanceChart'), {
+  ssr: false,
+  loading: () => <div className="h-[220px] animate-pulse rounded-lg bg-white/5" />,
+})
 import { ExportButtons } from '../components/ExportButtons'
 import PropFirmGuardSummary from '../components/PropFirmGuardSummary'
 import type { Trade, JournalEntry, Analytics } from '@/types'
 import { authFetch } from '@/lib/api-fetch'
-import {
-  BarChart, Bar, Cell, CartesianGrid, Tooltip, ResponsiveContainer, XAxis, YAxis
-} from 'recharts'
 
 // Lightweight equity curve - lazy loaded, zero recharts/framer-motion dependency
 const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
@@ -287,7 +290,6 @@ function DashboardTab({
   const worstTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === worstTrade)?.symbol : ''
   const streaks = calculateConsecutiveStreaks(trades)
 
-  const chartTooltipStyle = { background: '#0a0c12', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8 }
 
   if (loading) {
     return (
@@ -641,19 +643,7 @@ function DashboardTab({
           <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
             <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> {language === 'id' ? 'Performa Sesi' : 'Session Performance'}</CardTitle></CardHeader>
             <CardContent>
-              <div className="h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.sessionPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                    <XAxis dataKey="session" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${v}`} />
-                    <Tooltip contentStyle={chartTooltipStyle} formatter={(value: number) => formatCurrency(value)} />
-                    <Bar dataKey="pl" radius={[4, 4, 0, 0]} label={{ position: 'top', fill: 'rgba(255,255,255,0.5)', fontSize: 10, formatter: (v: number) => v >= 0 ? `+$${v}` : `-$${Math.abs(v)}` }}>
-                      {analytics.sessionPerformance.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.pl >= 0 ? '#22c55e' : '#ef4444'} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <SessionPerformanceChart data={analytics.sessionPerformance} />
             </CardContent>
           </Card>
         </motion.div>

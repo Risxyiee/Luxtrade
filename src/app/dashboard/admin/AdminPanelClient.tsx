@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { authFetch } from '@/lib/api-fetch'
@@ -68,6 +69,8 @@ export default function AdminPanelClient() {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  // PERF (F1): debounce search admin — hindari filter ulang di tiap keystroke
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
   const [currentPage, setCurrentPage] = useState(1)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
@@ -325,8 +328,8 @@ export default function AdminPanelClient() {
   }
 
   const filteredUsers = users.filter(u =>
-    (u?.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    (u?.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+    (u?.email?.toLowerCase() || '').includes(debouncedSearchQuery.toLowerCase()) ||
+    (u?.full_name?.toLowerCase() || '').includes(debouncedSearchQuery.toLowerCase())
   )
 
   const ITEMS_PER_PAGE = 20
@@ -339,7 +342,7 @@ export default function AdminPanelClient() {
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [debouncedSearchQuery])
 
   const totalUsers = users.length
   const proUsers = users.filter(u => u?.is_pro && !isExpired(u?.subscription_until)).length
@@ -400,9 +403,9 @@ export default function AdminPanelClient() {
                     const res = await authFetch('/api/admin/debug')
                     const data = await res.json()
                     console.log('🔍 Debug Info:', data)
-                    alert(JSON.stringify(data, null, 2))
+                    toast.info(JSON.stringify(data, null, 2))
                   } catch (err) {
-                    alert('Error: ' + (err instanceof Error ? err.message : 'Unknown error'))
+                    toast.error('Error: ' + (err instanceof Error ? err.message : 'Unknown error'))
                   }
                 }}
                 variant="outline"

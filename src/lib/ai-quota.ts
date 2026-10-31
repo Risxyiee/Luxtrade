@@ -1,6 +1,41 @@
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 const FREE_AI_QUOTA = 10
+
+/**
+ * AI quota helpers — versi Supabase (F1 perf fix).
+ *
+ * DULU: pakai Prisma (`db.profile.*`) — di Cloudflare Workers Prisma di-stub
+ * jadi proxy yang melempar error (lihat src/lib/db.ts) → endpoint quota
+ * selalu 500. Sekarang pakai service-role Supabase client, aman di Workers.
+ *
+ * Fail-open: kalau service client tak tersedia, jangan blokir AI — cukup
+ * log + perlakukan sebagai belum terlacak (degrade gracefully).
+ */
+
+interface ProfileQuota {
+  is_pro: boolean | null
+  ai_free_quota_used: number | null
+}
+
+async function fetchProfileQuota(userId: string): Promise<ProfileQuota | null> {
+  const admin = getSupabaseAdmin()
+  if (!admin) {
+    console.warn('[ai-quota] Supabase service client tidak tersedia — fail-open')
+    return null
+  }
+  const { data, error } = await admin
+    .from('profiles')
+    .select('is_pro, ai_free_quota_used')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) {
+    console.warn('[ai-quota] Gagal baca profile:', error.message)
+    return null
+  }
+  return (data as ProfileQuota) ?? null
+}
 
 /**
  * Check if user has free AI quota remaining
@@ -12,13 +47,11 @@ export async function checkAIQuota(userId: string): Promise<{
   remaining: number
   requiresUpgrade: boolean
 }> {
-  const profile = await db.profile.findUnique({
-    where: { id: userId },
-    select: { is_pro: true, aiFreeQuotaUsed: true },
-  })
+  const profile = await fetchProfileQuota(userId)
 
   if (!profile) {
-    return { hasQuota: false, remaining: 0, requiresUpgrade: true }
+    // Fail-open: tak terlacak → izinkan (jangan blokir AI karena infra error)
+    return { hasQuota: true, remaining: FREE_AI_QUOTA, requiresUpgrade: false }
   }
 
   // PRO users have unlimited access
@@ -27,7 +60,7 @@ export async function checkAIQuota(userId: string): Promise<{
   }
 
   // Check free quota
-  const used = profile.aiFreeQuotaUsed || 0
+  const used = profile.ai_free_quota_used || 0
   const remaining = Math.max(0, FREE_AI_QUOTA - used)
 
   return {
@@ -44,23 +77,26 @@ export async function checkAIQuota(userId: string): Promise<{
  */
 export async function incrementAIQuota(userId: string): Promise<boolean> {
   try {
-    const profile = await db.profile.findUnique({
-      where: { id: userId },
-      select: { is_pro: true, aiFreeQuotaUsed: true },
-    })
+    const profile = await fetchProfileQuota(userId)
 
-    if (!profile || profile.is_pro) {
-      return true // PRO users don't need quota tracking
+    if (!profile) return true // fail-open: tak bisa melacak, jangan blokir
+    if (profile.is_pro) return true // PRO users don't need quota tracking
+
+    const used = profile.ai_free_quota_used || 0
+    if (used >= FREE_AI_QUOTA) return false // Quota exhausted
+
+    const admin = getSupabaseAdmin()
+    if (!admin) return true
+
+    const { error } = await admin
+      .from('profiles')
+      .update({ ai_free_quota_used: used + 1 })
+      .eq('id', userId)
+
+    if (error) {
+      console.error('[incrementAIQuota] Gagal update:', error.message)
+      return false
     }
-
-    if (profile.aiFreeQuotaUsed >= FREE_AI_QUOTA) {
-      return false // Quota exhausted
-    }
-
-    await db.profile.update({
-      where: { id: userId },
-      data: { aiFreeQuotaUsed: { increment: 1 } },
-    })
 
     return true
   } catch (error) {
@@ -90,10 +126,7 @@ export async function getAIQuotaInfo(userId: string): Promise<{
   remaining: number
   isPro: boolean
 }> {
-  const profile = await db.profile.findUnique({
-    where: { id: userId },
-    select: { is_pro: true, aiFreeQuotaUsed: true },
-  })
+  const profile = await fetchProfileQuota(userId)
 
   if (!profile) {
     return { total: FREE_AI_QUOTA, used: 0, remaining: FREE_AI_QUOTA, isPro: false }
@@ -103,7 +136,7 @@ export async function getAIQuotaInfo(userId: string): Promise<{
     return { total: 999, used: 0, remaining: 999, isPro: true }
   }
 
-  const used = profile.aiFreeQuotaUsed || 0
+  const used = profile.ai_free_quota_used || 0
   const remaining = Math.max(0, FREE_AI_QUOTA - used)
 
   return {

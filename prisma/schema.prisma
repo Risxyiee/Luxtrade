@@ -160,6 +160,8 @@ model Trade {
   @@index([symbol, close_time]) // for symbol performance grouping
   @@index([account_id]) // for account filtering
   @@index([session]) // for session performance grouping
+  @@index([user_id, ticket_number]) // PERF F1: auto-journal dedup lookup
+  @@index([created_at]) // PERF F1: recent-activity top-N sort
   @@map("trades")
 }
 
@@ -179,6 +181,7 @@ model JournalEntry {
   linkedTrades      Trade[]   @relation("TradeJournal")
 
   @@index([user_id])
+  @@index([user_id, created_at]) // PERF F1: list GET filter+sort & monthly count
   @@map("journal_entries")
 }
 
@@ -424,6 +427,7 @@ model Testimonial {
   tradesLogged      Int       @default(0) @map("trades_logged")
   propFirmsPassed   Int       @default(0) @map("prop_firms_passed")
   isVerified        Boolean   @default(false) @map("is_verified")
+  isFeatured        Boolean   @default(false) @map("is_featured") // kolom ada di DB, belum tercatat di schema (drift fix F1)
   status            String    @default("pending")
   userId            String?   @map("user_id")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -431,6 +435,7 @@ model Testimonial {
 
   @@index([status])
   @@index([userId])
+  @@index([status, isFeatured, createdAt]) // PERF F1: public list filter+sort
   @@map("testimonials")
 }
 

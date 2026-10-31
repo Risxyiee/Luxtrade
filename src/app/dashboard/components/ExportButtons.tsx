@@ -98,7 +98,7 @@ export function ExportButtons({
           <>
             <DropdownMenuLabel className="text-xs font-semibold text-lux-text-secondary dark:text-gray-400 uppercase">{language === 'id' ? 'Laporan' : 'Report'}</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => exportToPDF(trades, analytics, username)}
+              onClick={async () => { await exportToPDF(trades, analytics, username) }}
               className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <FileText className="w-4 h-4 mr-2 text-amber-400" />
@@ -113,7 +113,7 @@ export function ExportButtons({
           <>
             <DropdownMenuLabel className="text-xs font-semibold text-lux-text-secondary dark:text-gray-400 uppercase">{t.journal}</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => exportJournalToPDF(journalEntries, `journal-${today}.pdf`)}
+              onClick={async () => { await exportJournalToPDF(journalEntries, `journal-${today}.pdf`) }}
               className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <FileText className="w-4 h-4 mr-2 text-cyan-400" />
@@ -162,7 +162,7 @@ export function ExportButtons({
             </DropdownMenuLabel>
             {isPro ? (
               <DropdownMenuItem
-                onClick={() => exportTaxReportPDF(trades, username)}
+                onClick={async () => { await exportTaxReportPDF(trades, username) }}
                 className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
               >
                 <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />

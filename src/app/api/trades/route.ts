@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import { edgeCrypto } from '@/lib/edge-crypto'
+import { runInBackground } from '@/lib/background'
 
 export const dynamic = 'force-dynamic'
 
@@ -328,11 +329,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Invalidate analytics cache so dashboard shows fresh data immediately
-    invalidateAnalytics(userId)
+    // PERF (F1): invalidate cache + update saldo via waitUntil — floating
+    // promise murni DIBATALKAN Cloudflare Workers saat response terkirim
+    // (bug "saldo drift"). runInBackground = ctx.waitUntil dengan fallback dev.
+    runInBackground(() => invalidateAnalytics(userId))
 
     // Update account current_balance so saldo/equity stays in sync
-    updateAccountBalance(client, tradeData.account_id)
+    runInBackground(() => updateAccountBalance(client, tradeData.account_id))
 
     // Check achievements (non-critical, uses Prisma internally — only on POST, not GET)
     // Run in background — don't block the response
@@ -440,11 +443,11 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Invalidate analytics cache so dashboard shows fresh data immediately
-    invalidateAnalytics(user.id)
+    // PERF (F1): background via waitUntil — lihat catatan di POST
+    runInBackground(() => invalidateAnalytics(user.id))
 
     // Update account current_balance so saldo/equity stays in sync
-    updateAccountBalance(client, updateData.account_id || existingTrade.account_id || null)
+    runInBackground(() => updateAccountBalance(client, updateData.account_id || existingTrade.account_id || null))
 
     return NextResponse.json({ trade })
   } catch (err) {
@@ -498,11 +501,11 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Invalidate analytics cache so dashboard shows fresh data immediately
-    invalidateAnalytics(user.id)
+    // PERF (F1): background via waitUntil — lihat catatan di POST
+    runInBackground(() => invalidateAnalytics(user.id))
 
     // Update account current_balance so saldo/equity stays in sync
-    updateAccountBalance(client, tradeToDelete?.account_id || null)
+    runInBackground(() => updateAccountBalance(client, tradeToDelete?.account_id || null))
 
     return NextResponse.json({ success: true })
   } catch (err) {

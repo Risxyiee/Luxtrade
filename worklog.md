@@ -3532,3 +3532,42 @@ Yang BOLONG — kini ditutup (13 endpoint):
 - Backlog non-blocking tersisa:
   (1) keputusan 6 tabel hantu (rekomendasi: biarkan, sudah graceful);
   (2) CSP enforce setelah ±1 minggu data csp-report terkumpul.
+
+## 2026-10-31 — PERF FASE 1 (audit 2 agent: frontend + backend/DB → eksekusi)
+
+### FIX BUG NYATA
+- SALDO DRIFT: updateAccountBalance + invalidateAnalytics dipanggil floating
+  promise → DIBATALKAN Workers saat response terkirim. Kini via
+  src/lib/background.ts (ctx.waitUntil + fallback dev) di POST/PUT/DELETE trades.
+- widget-data/summary: query `.eq('direction')` — kolom TIDAK ADA (yang ada
+  `type`) → selalu error. Kini win rate = profit_loss > 0 (head count).
+- ai-quota.ts (dipakai /api/ai/quota, /api/ai/chat, user/ai-quota): Prisma
+  di-stub di Workers → 500. Port ke Supabase service client (fail-open).
+- ANTI-ORPHAN: analyze-screenshot upload DIPINDAH ke SETELAH AI sukses —
+  akar penyebab 19 file yatim kemarin. Upload gagal = non-fatal.
+
+### PERF
+- 4 index komposit (schema + SQL 032, idempotent): journal_entries(user_id,
+  created_at), trades(user_id, ticket_number), trades(created_at),
+  testimonials(status, is_featured, created_at) + drift fix: isFeatured
+  ditambahkan ke model Testimonial (kolom sudah ada di DB).
+- jsPDF+autoTable (~350KB) keluar dari chunk awal dashboard: loadPdfLibs()
+  dynamic import, 3 fn PDF → async, caller awaited.
+- recharts (~100KB) keluar dari chunk awal: SessionPerformanceChart.tsx lazy.
+- Debounce search: hook use-debounced-value → TradesTab 250ms + AdminPanel 300ms.
+- Aset: screenshot-dashboard/trades.webp (manifest PWA) 2.0MB→57KB (-97%);
+  -v2.webp 87KB→42KB; 12 file mati dihapus (4 video + 4 poster + 3 jpeg/webp
+  duplikat + gif — semua 0 referensi; APK TERSIMPAN, dipakai AppInstallBanner);
+  quality={100} dihapus dari HeroSection. Script: scripts/compress-hero-images.mjs.
+- Deps mati: esbuild-wasm, pinets, tesseract.js dihapus.
+- next.config: removeConsole (exclude error/warn); font Lexend display swap.
+- alert()→toast: 27 penggantian (3 file), confirm() utuh.
+
+### BACKLOG FASE 2 (audit, belum dieksekusi)
+- Pagination trades >100 (client abaikan cursor → data loss diam-diam),
+  batch watchlist polling (N req/15s!), RPC agregasi analytics/achievements,
+  auto-journal paralel + AI deadline + idempotency, landing ssr:false → SSR,
+  socket.io /affiliate (server tak ada), isUserPro cache.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.

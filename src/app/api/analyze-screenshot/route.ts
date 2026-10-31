@@ -209,32 +209,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await image.arrayBuffer()
     const buffer = new Uint8Array(arrayBuffer)
 
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await getSupabase().storage
-      .from(BUCKET_NAME)
-      .upload(fileName, buffer, {
-        contentType: image.type,
-        cacheControl: '31536000',
-        upsert: false
-      })
-
-    if (uploadError) {
-      console.error('❌ [Analyze Screenshot] Upload error:', uploadError)
-      return NextResponse.json(
-        { error: `Upload failed: ${uploadError.message}` },
-        { status: 500 }
-      )
-    }
-
-    console.log('✅ [Analyze Screenshot] Image uploaded to Supabase Storage:', uploadData.path)
-
-    // Get public URL
-    const { data: urlData } = getSupabase().storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(fileName)
-
-    const publicUrl = urlData.publicUrl
-    console.log(`🔗 [Analyze Screenshot] Public URL: ${publicUrl}`)
+    // ANTI-ORPHAN (F1): upload dipindah KE SETELAH panggilan AI sukses.
+    // Dulu: upload dilakukan SEBELUM AI → AI gagal = file yatim permanen
+    // di storage (penyebab 19 file yatim yang barusan dibersihkan).
+    // AI Vision sendiri memakai `buffer` langsung — bukan URL — jadi
+    // urutan ini aman untuk analisis.
 
     // AI Vision Analysis — Gemini 2.5 Flash → OpenRouter (same chain as auto-journal)
     const prompt = `Analyze this trading platform screenshot and extract the following trading data in JSON format:
@@ -287,6 +266,30 @@ Important guidelines:
     const normalizedData = normalizeTradingData(tradingData)
 
     console.log('📊 [Analyze Screenshot] Extracted data:', normalizedData)
+
+    // Upload SETELAH AI sukses (anti-orphan F1). Kegagalan upload tidak fatal —
+    // data analisis tetap dikembalikan tanpa image_url.
+    let publicUrl: string | null = null
+    try {
+      const { data: uploadData, error: uploadError } = await getSupabase().storage
+        .from(BUCKET_NAME)
+        .upload(fileName, buffer, {
+          contentType: image.type,
+          cacheControl: '31536000',
+          upsert: false
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = getSupabase().storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(uploadData.path)
+
+      publicUrl = urlData.publicUrl
+      console.log('✅ [Analyze Screenshot] Image uploaded:', uploadData.path)
+    } catch (uploadErr) {
+      console.warn('[Analyze Screenshot] Upload gagal (analisis tetap dikirim tanpa image_url):', uploadErr)
+    }
 
     return NextResponse.json({
       success: true,

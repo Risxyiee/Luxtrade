@@ -34,12 +34,13 @@ export async function GET(req: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
 
-    // Get win count
+    // FIX (F1): kolom `direction` TIDAK ADA di tabel trades (yang ada `type`)
+    // → query lama selalu error/empty. Win rate sebenarnya = profit_loss > 0.
     const { count: winCount } = await supabase
       .from('trades')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .eq('direction', 'long') // simplified - would need pnl > 0 check
+      .gt('profit_loss', 0)
 
     // Get profile for plan info
     const { data: profile } = await supabase
