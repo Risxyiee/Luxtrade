@@ -5,32 +5,28 @@ import { loadSupabaseConfig } from '@/lib/supabase/config-loader'
 
 /**
  * Component that preloads Supabase configuration on app mount.
- * Delayed by 2s to avoid blocking initial page load and PWA network-idle detection.
- * Includes AbortController for proper cleanup on unmount.
+ * Fires immediately (deduped by config-loader's shared promise) so auth
+ * resolves faster — especially on slow mobile connections.
+ * Includes proper cleanup on unmount.
  */
 export function SupabaseConfigLoader() {
   useEffect(() => {
     let mounted = true
-    let timerId: ReturnType<typeof setTimeout> | null = null
 
-    // Delay config load to avoid blocking PWA network-idle
-    // Puppeteer needs network to be idle within 20s — this delay
-    // ensures auth/config requests don't overlap with SW install
-    timerId = setTimeout(() => {
-      if (!mounted) return
-      loadSupabaseConfig().catch(error => {
-        if (mounted) {
-          console.error('[SupabaseConfigLoader] Failed to load config:', error)
-        }
-      })
-    }, 2000)
+    // PERF FIX: preload config SEKARANG (tanpa delay 2s).
+    // Dulu ditunda 2s demi audit PWA network-idle — padahal config-loader
+    // sudah punya dedupe (fetchPromise) & cache memori, jadi request ini
+    // tidak pernah dobel dengan auth. Mulai awal = auth & halaman lebih
+    // cepat siap; audit PWA tetap aman karena request selesai jauh sebelum
+    // window 20s network-idle.
+    loadSupabaseConfig().catch(error => {
+      if (mounted) {
+        console.error('[SupabaseConfigLoader] Failed to load config:', error)
+      }
+    })
 
     return () => {
       mounted = false
-      if (timerId !== null) {
-        clearTimeout(timerId)
-        timerId = null
-      }
     }
   }, [])
 

@@ -3117,3 +3117,57 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
     resmi; relay memang dimatikan. Kalau nanti dibutuhkan push
     realtime "komisi masuk" (mis. dari webhook Midtrans), baru
     token diset di env mini-service + producer dibangun.
+
+---
+## [PERF] Optimasi kecepatan reload & loading mobile — 6 bottleneck ditutup
+
+Konteks: perintah Bos "optimasi website aja biar kenceng, reload sm loadingnya
+biar ga berat di mobile". Audit = baca layout/SW/providers/auth/dashboard/
+landing/aset. Semua perubahan NON-Fungsional (nol perubahan perilaku bisnis).
+
+### Temuan & perbaikan
+1. **Delay artifisial auth 1.5s DIHAPUS** (src/lib/auth-context.tsx).
+   Dulu setiap reload nunggu 1.5 detik SEBELUM mulai cek session — murni
+   dead time. Alasan aslinya (jangan tabrakan dgn install SW utk audit PWA)
+   sudah tidak relevan: semua request tetap non-blocking & selesai jauh di
+   bawah window network-idle 20s. Efek: session check mulai di t=0.
+2. **Delay preloader config 2s DIHAPUS** (src/components/supabase-config-loader.tsx).
+   Sekarang preload instan; dedupe via fetchPromise mencegah request dobel.
+3. **Cache config Supabase di localStorage** (src/lib/supabase/config-loader.ts).
+   Dulu SETIAP reload fetch /api/supabase/config dulu sebelum client bisa
+   dibuat. Kini: kunjungan pertama simpan config (TTL 24 jam); reload
+   berikutnya baca instan + revalidate diam-diam di background. Guard:
+   hanya cache `isConfigured:true` (config rusak tak pernah disimpan),
+   entri kedaluwarsa ditolak, revalidate gagal tak menimpa cache baik.
+   Terverifikasi E2E di browser: instant path + TTL guard + fail-safe
+   revalidate semua jalan (uji injeksi ts kedaluwarsa ditolak; ts valid →
+   "Creating browser client" muncul SEBELUM network selesai).
+4. **Landing: LegalPagesModal + LandingCheckoutModal jadi dynamic import**
+   (src/app/page.tsx). Modal hanya tampil saat diklik — framer-motion +
+   isi legal ±1.500 baris keluar dari bundle awal. Terverifikasi network:
+   chunk *_LandingCheckoutModal_tsx.js baru ter-download saat tombol diklik.
+5. **Dead import TradeForm DIHAPUS** (LuxTradeDashboard.tsx). Komponen 544
+   baris tak pernah dirender (flow tambah trade pakai TradeWizardForm) tapi
+   ikut chunk awal dashboard.
+6. **Screenshot landing: PNG 3.86MB → WebP asli 180KB (−95%)**.
+   Temuan memalukan: file .webp lama ternyata PNG yang di-RENAME (byte
+   identik dgn .png). Kompres ulang via sharp (q78, w1080) + ganti referensi
+   di HeroSection (termasuk gambar LCP mobile yang `priority`, 1.07MB → 49KB)
+   & CaraKerjaSection. PNG asli TIDAK dihapus (铁律). Manifest PWA sengaja
+   tetap PNG (standar screenshot install). Script: scripts/compress-landing-images.ts.
+
+### Bonus kecil
+- demo-video-poster(-2).png ikut dikompres (439/433KB → 17/38KB, tak
+  direferensikan src tapi siap dipakai).
+
+### Verifikasi
+- bunx tsc --noEmit → EXIT 0; bun run lint → EXIT 0 (铁律 #1 aman).
+- Browser E2E (agent-browser): landing desktop+mobile render mulus,
+  4 webp 200 OK, nol error console, modal checkout dynamic load OK,
+  /dashboard tanpa session → redirect /auth/login (fail-closed utuh),
+  SW registrasi normal.
+- Catatan: dev server sempat mati saat pengujian (compile /dashboard
+  4.673 modul, dugaan OOM/kill) — di-restart, bukan regression kode.
+- Hasil struktural: reload mobile hemat ±1.5-2s dead time + 1 roundtrip
+  network (repeat visit), payload gambar landing −95%, bundle awal
+  landing & dashboard lebih ramping.

@@ -22,7 +22,9 @@ import AppInstallBanner from '@/components/AppInstallBanner'
 // Tab components are now lazy-loaded via next/dynamic in TabContent.tsx
 
 // Extracted Components
-import TradeForm from './components/TradeForm'
+// PERF: import TradeForm DIHAPUS — komponen ini tidak pernah dirender di
+// dashboard (flow tambah trade pakai TradeWizardForm via DashboardModals).
+// Import mati ini menarik ±544 baris + dependensinya ke chunk awal dashboard.
 import AnimatedStatCard from './components/AnimatedStatCard'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
