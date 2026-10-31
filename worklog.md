@@ -2937,3 +2937,48 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
 - Dev: landing 200, /auth/callback?code=dummy 200 (halaman compile).
 - Agent Browser: landing render sempurna, tanpa page error.
+
+---
+## [HARDENING PROFILES] FINALISASI PASCA-MIGRASI 024 + MIGRASI 025 (RLS baca-baris-sendiri)
+
+### KONTEKS
+- Bos sudah menjalankan migrasi 024 → output verifikasi: authenticated
+  tersisa REFERENCES, SELECT, TRIGGER, TRUNCATE (INSERT/UPDATE/DELETE
+  berhasil dicabut ✅). Tersisa 3 privilege DDL karena 024 hanya
+  mencabut INSERT/UPDATE/DELETE.
+- Refactor kode (commit 5480bab0) diaudit ulang menyeluruh — SEMUA
+  penulis profiles sekarang service-role server-side:
+  - auth-context.tsx: murni read-only (fallback select); PRO expired
+    di-override di memori; streak lewat PATCH /api/profile/me.
+  - auth/callback → /api/auth/ensure-profile (self-only, role='USER').
+  - /api/profile/me PATCH whitelist: full_name, display_name,
+    my_referral_code, referred_by_code, device_id — TANPA kolom
+    PRO/role/XP.
+  - streak-tracker, achievement-checker, pro-check, user-quota,
+    admin-auth, affiliate-commission: semuanya getSupabaseAdmin()
+    (service-role).
+  - Tidak ada .rpc( dipanggil client yang menulis profiles.
+  - Satu-satunya akses client ke profiles: SELECT baris sendiri
+    (auth-context fallback + halaman admin affiliate cek role sendiri).
+
+### MIGRASI 025 — supabase-migrations/025_profiles_grants_final_rls.sql
+- REVOKE REFERENCES, TRIGGER, TRUNCATE ON profiles FROM authenticated
+  (privilege DDL yang tak pernah bisa dipanggil via PostgREST —
+  hygiene murni, nol dampak app).
+- REVOKE ALL ON profiles FROM anon (tidak ada alur tamu baca profiles).
+- ALTER TABLE profiles ENABLE ROW LEVEL SECURITY + policy
+  "profiles_select_own" FOR SELECT TO authenticated
+  USING (id::text = auth.uid()::text) — kebal tipe (id TEXT vs uid UUID).
+- Policy lama TIDAK dihapus (prinsip "kalau ragu gausah dihapus") —
+  VERIFIKASI-2 di ekor file minta Bos tempel daftar policy utk direview;
+  kalau ada policy permissive lain, Z bereskan terpisah.
+- Idempotent. ⏳ MENUNGGU BOS JALANKAN (2 verifikasi di ekor file).
+
+### GERBANG & SMOKE
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Landing 200 + Agent Browser: render sempurna tanpa page error.
+
+### CATATAN RAK (report-only, nunggu perintah Bos)
+- /api/profile/me PATCH memperbolehkan client set referred_by_code —
+  potensi self-referral (isi kode sendiri → komisi ke diri sendiri saat
+  beli PRO). Perlu validasi server (kode ≠ kode sendiri / cek affiliate).
