@@ -52,8 +52,7 @@ export default function LuxTradeLanding() {
   const [landingStats, setLandingStats] = useState<LandingStats | null>(null)
 
   const handleProUpgrade = () => {
-    if (language === 'en') window.open('/api/payment/skrill-redirect', '_blank')
-    else setShowCheckoutModal(true)
+    setShowCheckoutModal(true)
   }
 
   // Mobile Sticky CTA

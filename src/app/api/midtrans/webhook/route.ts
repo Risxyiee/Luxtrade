@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMidtransSignature } from '@/lib/payment/midtrans'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { applyActivationCommission } from '@/lib/affiliate-commission'
 
 export const dynamic = 'force-dynamic'
+
+/** Rate komisi affiliate (selaras jalur admin activate). */
+const AFFILIATE_COMMISSION_RATE = 0.20 // 20% untuk PRO berulang
+const AFFILIATE_LIFETIME_RATE = 0.15  // 15% sekali bayar untuk Lifetime
 
 /**
  * POST /api/midtrans/webhook
  *
  * Midtrans HTTP Notification (Webhook)
  * Uses Supabase only — no Prisma (CF Workers compatible).
+ *
+ * Komisi affiliate lewat lib bersama applyActivationCommission (dedupe via
+ * activation_key + unique index migrasi 022) — satu sumber kebenaran dengan
+ * jalur admin activate. Gagal komisi TIDAK menggagalkan webhook (fail-open).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -183,6 +192,27 @@ export async function POST(request: NextRequest) {
         }
       } catch (verifyErr) {
         console.error('⚠️ [Midtrans Webhook] Failed to auto-verify email (non-critical):', verifyErr)
+      }
+
+      // ── 7b. Komisi affiliate (unified, dedupe via activation_key) ──
+      // Jalur payment kini memakai lib yang sama dengan jalur admin activate:
+      // ledger affiliate_referrals + saldo affiliates + profiles. Fail-open:
+      // error komisi tidak pernah menggagalkan upgrade/user.
+      try {
+        const isLifetime = paymentOrder.plan === 'LIFETIME'
+        const commission = await applyActivationCommission(svc, {
+          userId,
+          planType: isLifetime ? 'PRO_LIFETIME' : 'PRO',
+          planName: isLifetime
+            ? 'PRO Lifetime (Midtrans)'
+            : `PRO ${durationMonths} Bulan (Midtrans)`,
+          price: Number(paymentOrder.amount) || 0,
+          commissionRate: isLifetime ? AFFILIATE_LIFETIME_RATE : AFFILIATE_COMMISSION_RATE,
+          subscriptionUntil: subUntilIso,
+        })
+        console.log('💰 [Midtrans Webhook] Komisi affiliate:', JSON.stringify(commission))
+      } catch (commErr) {
+        console.error('⚠️ [Midtrans Webhook] Komisi affiliate gagal (non-blocking):', commErr)
       }
     }
 

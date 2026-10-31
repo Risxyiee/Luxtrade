@@ -18,12 +18,6 @@ interface PaywallModalProps {
   remainingTrials?: number
 }
 
-// Skrill payment links
-const SKRILL_LINKS = {
-  pro: process.env.NEXT_PUBLIC_SKRILL_PRO_URL || '#',
-  lifetime: process.env.NEXT_PUBLIC_SKRILL_LIFETIME_URL || '#'
-}
-
 export default function PaywallModal({
   isOpen,
   onClose,
@@ -116,27 +110,15 @@ export default function PaywallModal({
   ]
 
   const handleAnnualUpgrade = () => {
-    if (isEnglish) {
-      window.open(SKRILL_LINKS.pro, '_blank')
-    } else {
-      onUpgrade?.()
-    }
+    onUpgrade?.()
   }
 
   const handleProUpgrade = () => {
-    if (isEnglish) {
-      window.open(SKRILL_LINKS.pro, '_blank')
-    } else {
-      onUpgrade?.()
-    }
+    onUpgrade?.()
   }
 
   const handleLifetimeUpgrade = () => {
-    if (isEnglish) {
-      window.open(SKRILL_LINKS.lifetime, '_blank')
-    } else {
-      onUpgrade?.()
-    }
+    onUpgrade?.()
   }
 
   return (
@@ -477,19 +459,13 @@ export default function PaywallModal({
                           <div className="flex items-start gap-2">
                             <span className="text-cyan-400 text-xs font-bold mt-0.5">2.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
-                              Complete payment via <span className="text-amber-400 font-semibold">Skrill</span> (secure & instant)
+                              Complete payment via <span className="text-amber-400 font-semibold">Midtrans</span> (QRIS, Virtual Account & e-wallet)
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
                             <span className="text-cyan-400 text-xs font-bold mt-0.5">3.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
-                              After payment, send screenshot to admin on Discord for activation
-                            </p>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-cyan-400 text-xs font-bold mt-0.5">4.</span>
-                            <p className="text-xs text-white/60 leading-relaxed">
-                              Your PRO access will be activated within <span className="text-amber-400 font-semibold">5-10 minutes</span>
+                              Your PRO access will be <span className="text-amber-400 font-semibold">activated automatically</span> after payment
                             </p>
                           </div>
                         </div>

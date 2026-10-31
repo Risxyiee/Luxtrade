@@ -70,8 +70,6 @@ CREATE TABLE IF NOT EXISTS "payment_orders" (
   "status" TEXT NOT NULL DEFAULT 'PENDING',
   "payment_method" TEXT,
   "payment_channel" TEXT,
-  "doku_transaction_id" TEXT,
-  "doku_payment_url" TEXT,
   "customer_name" TEXT NOT NULL,
   "customer_email" TEXT NOT NULL,
   "paid_at" TIMESTAMP(3),
