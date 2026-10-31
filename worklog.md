@@ -3446,3 +3446,34 @@ Yang BOLONG — kini ditutup (13 endpoint):
 ### GERBANG
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
 - Push commit ini menutup security checklist #1–#7 SELURUHNYA.
+
+## 2026-11-01 — #7 STORAGE FINAL: 4 jalur upload dipetakan, resolver signed URL, SQL 031
+
+### PETA LENGKAP UPLOAD (4 jalur — semua kini owner-scoped)
+1. extractTradeData.uploadScreenshot (service)  → `{uid}/{ts}.jpg` (sudah lama OK)
+2. /api/analyze-screenshot (service)            → FIX 030: `{uid}/ai_*.ext`
+3. /api/trade-upload (admin)                    → `{uid}/{ts}-{rand}` + SIGNED URL
+   7 hari — ternyata rute paling modern, bukti desain memang private bucket
+4. BugReportForm (client-JWT) → bucket KEDUA `screenshots`, path
+   `bug-reports/{uid}/...` — RLS-nya berlaku langsung di client!
+
+### KODE (push ini)
+- src/lib/screenshot-url.ts: resolver <img> — ekstrak path dari public URL /
+  signed URL kadaluarsa / path mentah → createSignedUrl via browser client
+  (policy owner select 030) → signed URL segar TTL 1 jam + cache memori.
+  Fallback URL asli kalau signing gagal (file yatim / bucket masih public).
+- TradeWizardForm: preview screenshot lewat resolver (displayImage state +
+  effect + guard race). Satu-satunya permukaan render screenshot tersimpan.
+- Bukti C3b dari Bos: upload baru (25–29 Okt) 100% owner-scoped; legacy root
+  cuma file lama (contoh 19 Okt) → dampak flip sangat kecil.
+
+### SQL 031 (Bos jalankan SETELAH deploy push ini live)
+- A: bucket `screenshots` pastikan ada + policy owner bug-reports
+  (folder ke-2 = uid) + policy admin read (role via profiles) — TIDAK di-flip
+  (publicUrl admin view tetap jalan).
+- B: rewrite URL legacy di trades.screenshot_url → pindahkan objek root ke
+  folder uid → FLIP trade-screenshots PRIVATE (policy 030 aktif).
+- C: verifikasi V1–V4 (status bucket, policy, sisa objek yatim harus 0).
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.

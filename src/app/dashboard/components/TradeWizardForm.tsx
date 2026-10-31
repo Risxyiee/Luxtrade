@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
 import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
 import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
+import { resolveTradeScreenshotSrc } from '@/lib/screenshot-url'
 import AutoJournalGuideDialog from './AutoJournalGuideDialog'
 
 // Total timeout for the entire file-select-to-fetch pipeline (catches iCloud download hangs)
@@ -171,6 +172,9 @@ export default function TradeWizardForm({
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedEmotion, setSelectedEmotion] = useState<string>(formData.emotion || '')
   const [uploadedImage, setUploadedImage] = useState<string | null>(formData.screenshot_url || null)
+  // SECURITY #7: bucket trade-screenshots kini PRIVATE — stored URL (public
+  // URL lama / signed URL kadaluarsa) diganti signed URL segar via resolver.
+  const [displayImage, setDisplayImage] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [analyzingScreenshot, setAnalyzingScreenshot] = useState(false)
   const [uploadingMT5, setUploadingMT5] = useState(false)
@@ -178,6 +182,21 @@ export default function TradeWizardForm({
   const [guideOpen, setGuideOpen] = useState(false)
   const [manualGuideOpen, setManualGuideOpen] = useState(false)
   const totalSteps = 3
+
+  // SECURITY #7: resolve URL screenshot jadi signed URL yang valid sebelum
+  // dirender. Fallback = URL asli (mis. blob: preview lokal, atau saat
+  // bucket masih public). Guard race dengan flag `active`.
+  useEffect(() => {
+    if (!uploadedImage) {
+      setDisplayImage(null)
+      return
+    }
+    let active = true
+    resolveTradeScreenshotSrc(uploadedImage).then(src => {
+      if (active) setDisplayImage(src)
+    })
+    return () => { active = false }
+  }, [uploadedImage])
 
   // Auto-select account_id when tradingAccounts become available and none is selected
   useEffect(() => {
@@ -1186,7 +1205,7 @@ export default function TradeWizardForm({
                 ) : uploadedImage ? (
                   <div className="space-y-3">
                     <img
-                      src={uploadedImage}
+                      src={displayImage || uploadedImage}
                       alt="Preview"
                       className="max-h-48 mx-auto rounded-lg border border-blue-500/30"
                     />
