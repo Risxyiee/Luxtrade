@@ -3815,3 +3815,31 @@ dan langkah D+7 (5B).
 #### Menunggu Bos
 - Tes ulang dari HP: sidebar → "Kirim Notifikasi Tes" → lock screen.
 - Self-healing aktif: subscription lama yang mati otomatis disiklus ulang.
+
+---
+
+## FASE 5.1 — UX Follow-up Laporan Bos (dashboard loading + banner notif hilang)
+
+**Laporan Bos:** (1) "saat baru masuk dashboard itu ada, tapi setelah onboarding
+saya skip ilang notif yang muncul" — (2) "loading pas masuk aja lama, ga langsung
+muncul tu dashboard".
+
+### Akar masalah & fix
+1. **Banner push prompt "ilang" setelah onboarding**
+   - `PushNotificationSetup` dismiss-nya PERMANEN (flag boolean localStorage);
+     session PWA mobile bisa hidup berhari-hari → sekali "Nanti"/X (atau banner
+     ke-tutup overlay onboarding z-100), prompt gak pernah muncul lagi.
+   - FIX: "Nanti" kini SNOOZE 24 jam (timestamp, bukan flag), otomatis balik;
+     sesi baru (app dibuka ulang) juga langsung memunculkan lagi.
+   - FIX: onboarding selesai/skip (`handleOnboardingComplete`) memancarkan event
+     `luxtrade:push-prompt-reset` → banner langsung evaluasi ulang & muncul
+     tepat setelah overlay hilang. Juga re-show bagi user yang belum subscribe.
+2. **Dashboard lama muncul saat masuk**
+   - `setLoading(false)` baru jalan setelah SEMUA 5 API selesai — analytics yang
+     paling lambat menahan seluruh skeleton.
+   - FIX: skeleton dilepas begitu data kritis (trades + akun) masuk; analytics/
+     journal/watchlist tetap dimuat di belakang & muncul progresif (semua
+     komponen DashboardTab sudah aman utk analytics=null).
+
+### Gerbang & commit
+- tsc + lint EXIT 0.

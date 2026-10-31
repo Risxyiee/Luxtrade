@@ -8,7 +8,16 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { isIOSSafari, isStandaloneMode } from '@/components/PWAInstallPrompt'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const DISMISSED_KEY = 'luxtrade_push_prompt_dismissed'
+// "Nanti" BUKAN dismiss permanen — cukup snooze 24 jam. Dulu pakai flag
+// boolean yang menempel selama localStorage hidup, dan session PWA di HP
+// bisa bertahan berhari-hari (app cuma di-suspend, bukan dibunuh) →
+// sekali tekan "Nanti"/X, prompt "ilang" dan gak pernah muncul lagi.
+const SNOOZE_KEY = 'luxtrade_push_snoozed_until'
+const SNOOZE_MS = 24 * 60 * 60 * 1000
+/** Dipancarkan LuxTradeDashboard saat onboarding selesai/skip — momen tepat
+  * menawarkan push notif, sekaligus memunculkan lagi banner yang ke-tutup
+  * overlay onboarding (keluhan: "setelah skip onboarding notifnya ilang"). */
+export const PUSH_PROMPT_RESET_EVENT = 'luxtrade:push-prompt-reset'
 
 // ─── i18n strings ──────────────────────────────────────────────────────────────
 const strings = {
@@ -49,7 +58,8 @@ interface PushNotificationSetupProps {
  * - Pro + on iOS Safari (not standalone) → show iOS install guidance
  * - Pro + enabled → silent (nothing shown)
  * - Free user → upgrade prompt suggesting Pro for notifications
- * Saves dismissed state to localStorage so it doesn't show again until next login.
+ * "Nanti" snoozes the prompt for 24h (max 1 session) so it always comes back —
+ * and finishing/skipping onboarding re-shows it immediately.
  */
 export default function PushNotificationSetup({ onShowIOSInstall }: PushNotificationSetupProps) {
   const { isPro, user } = useAuth()
@@ -59,7 +69,8 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
   const lang = (language === 'id' ? 'id' : 'en') as LangKey
   const t = strings[lang]
 
-  const [dismissed, setDismissed] = useState(true) // Start dismissed to avoid flash
+  // Start Infinity (hidden) to avoid flash — nilai asal dibaca dari localStorage
+  const [snoozedUntil, setSnoozedUntil] = useState<number>(Number.MAX_SAFE_INTEGER)
   const [visible, setVisible] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
@@ -70,22 +81,35 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
     setIsStandalone(isStandaloneMode())
   }, [])
 
-  // Check dismissal state on mount
+  // Check snooze state on mount
   useEffect(() => {
-    const wasDismissed = localStorage.getItem(DISMISSED_KEY)
-    setDismissed(wasDismissed === 'true')
+    try {
+      setSnoozedUntil(Number(localStorage.getItem(SNOOZE_KEY) || 0))
+    } catch {
+      setSnoozedUntil(0)
+    }
+  }, [])
+
+  // Onboarding selesai/skip → hapus snooze → banner langsung evaluasi ulang
+  useEffect(() => {
+    const reset = () => {
+      try { localStorage.removeItem(SNOOZE_KEY) } catch {}
+      setSnoozedUntil(0)
+    }
+    window.addEventListener(PUSH_PROMPT_RESET_EVENT, reset)
+    return () => window.removeEventListener(PUSH_PROMPT_RESET_EVENT, reset)
   }, [])
 
   // Show banner logic
   useEffect(() => {
-    // If already subscribed, never show
+    // If already subscribed, never show — notif udah aktif, tugas selesai
     if (isSubscribed) {
       setVisible(false)
       return
     }
 
-    // If dismissed, don't show
-    if (dismissed) {
+    // Masih dalam masa snooze ("Nanti") → jangan ganggu
+    if (Date.now() < snoozedUntil) {
       setVisible(false)
       return
     }
@@ -105,12 +129,13 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
 
     // Show for pro (enable prompt) or free (upgrade prompt)
     setVisible(true)
-  }, [isSupported, isSubscribed, dismissed, userId, isPro, isIOS])
+  }, [isSupported, isSubscribed, snoozedUntil, userId, isIOS])
 
   const handleDismiss = () => {
-    setDismissed(true)
+    const until = Date.now() + SNOOZE_MS
+    try { localStorage.setItem(SNOOZE_KEY, String(until)) } catch {}
+    setSnoozedUntil(until)
     setVisible(false)
-    localStorage.setItem(DISMISSED_KEY, 'true')
   }
 
   const handleEnable = async () => {
@@ -128,16 +153,19 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
     }
   }
 
-  // Clear dismissed on login so prompt shows again next session
+  // Session baru (app dibuka ulang) → hapus snooze aktif, kasih kesempatan lagi
+  // (perilaku lama dipertahankan: "Nanti" maksimal hidup selama 1 session)
   useEffect(() => {
-    if (userId) {
-      const sessionKey = `luxtrade_push_session_${userId}`
-      const seenSession = sessionStorage.getItem(sessionKey)
-      if (!seenSession) {
-        localStorage.removeItem(DISMISSED_KEY)
-        setDismissed(false)
-        sessionStorage.setItem(sessionKey, 'true')
-      }
+    if (!userId) return
+    const sessionKey = `luxtrade_push_session_${userId}`
+    if (!sessionStorage.getItem(sessionKey)) {
+      sessionStorage.setItem(sessionKey, 'true')
+      try {
+        if (Number(localStorage.getItem(SNOOZE_KEY) || 0) > Date.now()) {
+          localStorage.removeItem(SNOOZE_KEY)
+          setSnoozedUntil(0)
+        }
+      } catch {}
     }
   }, [userId])
 

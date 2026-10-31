@@ -18,6 +18,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import { ContextGuideProvider } from '@/components/ContextGuide'
 import AppInstallBanner from '@/components/AppInstallBanner'
+import { PUSH_PROMPT_RESET_EVENT } from '@/components/PushNotificationSetup'
 
 // Tab components are now lazy-loaded via next/dynamic in TabContent.tsx
 
@@ -441,6 +442,12 @@ function LuxTradeDashboardContent() {
 
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false)
+
+    // FIX: banner push notif yang ke-tutup overlay onboarding dimunculkan lagi
+    // — skip/complete onboarding gak boleh bikin prompt "ilang". (Laporan Bos:
+    // "saat baru masuk dashboard itu ada, tapi setelah onboarding saya skip ilang")
+    try { window.dispatchEvent(new CustomEvent(PUSH_PROMPT_RESET_EVENT)) } catch {}
+
     // Mark as completed in DB and localStorage
     fetch('/api/onboarding', { method: 'POST', credentials: 'include' })
       .then(res => {
@@ -624,6 +631,17 @@ function LuxTradeDashboardContent() {
         } catch { /* keep existing accounts */ }
       } else if (isRefresh) {
         failedRefreshParts.push('accounts')
+      }
+
+      // PERF FIX (laporan Bos: "loading pas masuk aja lama ga langsung muncul"):
+      // data KRITIS (trades + akun) sudah masuk → lepas skeleton dashboard
+      // SEKARANG. Dulu loading baru selesai setelah SEMUA 5 API selesai —
+      // analytics yang paling lambat bikin seluruh dashboard ikut nunggu.
+      // Analytics/journal/watchlist tetap dimuat di belakang dan muncul
+      // progresif (semua komponen sudah aman utk nilai null / array kosong).
+      if (!isRefresh) {
+        setLoading(false)
+        setChartAnimated(true)
       }
 
       // Process analytics (can be slower — update when ready)
