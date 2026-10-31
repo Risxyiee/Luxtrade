@@ -3096,3 +3096,24 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
   dikunci, yang tidak ada dilewati dgn NOTICE, script tak pernah error.
   Idempotent, aman dijalankan ulang (REVOKE = sama-aman).
 - Gerbang: tsc EXIT 0 + lint EXIT 0.
+
+---
+## [TUTUP BAB KEAMANAN] 026 sukses di produksi + keputusan rak opsional
+
+- Migrasi 026 v2 (lockdown 6 tabel uang) dijalankan Bos → SUKSES.
+  Rak hardening resmi KOSONG: P0-P3 audit E2E + profiles (024/025)
+  + anti self-referral + lockdown tabel uang — semua tuntas.
+- AUTO-ACC: keputusan Bos = TETAP ON (tidak ada perubahan KV).
+- CEK AFFILIATE_WS_TOKEN (mini-services/affiliate-ws):
+  - Hardening token SUDAH TERPASANG: relay affiliate:event /
+    affiliate:broadcast wajib token shared secret; token belum
+    diset → FAIL-CLOSED (anti-spoof "komisi masuk" palsu).
+  - Service hidup & sehat (handshake socket.io :3004 OK; pgrep
+    miss karena args generik bun --hot index.ts).
+  - Frontend (affiliate/page.tsx) hanya join/listen via
+    io('/?XTransformPort=3004') — NOL kemunculan token di src/
+    (grep bersih): token tidak pernah bocor ke client.
+  - Keputusan: token SENGAJA belum diset — belum ada producer
+    resmi; relay memang dimatikan. Kalau nanti dibutuhkan push
+    realtime "komisi masuk" (mis. dari webhook Midtrans), baru
+    token diset di env mini-service + producer dibangun.
