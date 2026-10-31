@@ -1,6 +1,18 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import type { Trade as AppTrade, JournalEntry as AppJournalEntry, Analytics as AppAnalytics } from '@/types'
+
+/**
+ * PERF (F1): jsPDF + autoTable (~350KB min+gz) TIDAK lagi di-import statis.
+ * Modul ini di-import oleh ExportButtons yang ada di tab default dashboard —
+ * import statis bikin seluruh lib PDF ikut ke chunk awal dashboard.
+ * Sekarang: hanya di-load saat user benar-benar mengekspor PDF.
+ */
+async function loadPdfLibs() {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+  return { jsPDF, autoTable }
+}
 
 // Re-export types from the canonical source
 export type Trade = AppTrade
@@ -131,11 +143,12 @@ export function exportAllDataAsJSON(
 // ==================== PDF EXPORTS ====================
 
 /** Export trading report to PDF (dashboard report) */
-export function exportToPDF(
+export async function exportToPDF(
   trades: Trade[],
   analytics: Analytics | null,
   username: string = 'Trader'
 ) {
+  const { jsPDF, autoTable } = await loadPdfLibs()
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
 
@@ -293,9 +306,10 @@ export function exportToPDF(
 }
 
 /** Export journal entries to PDF using jsPDF autotable */
-export function exportJournalToPDF(entries: JournalEntry[], filename?: string) {
+export async function exportJournalToPDF(entries: JournalEntry[], filename?: string) {
   if (entries.length === 0) return
 
+  const { jsPDF, autoTable } = await loadPdfLibs()
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
   const exportDate = new Date().toLocaleDateString('en-US', {
@@ -426,9 +440,10 @@ interface MonthlyTaxData {
 }
 
 /** Export Tax Report PDF — Indonesian SPT formatted, blue/white professional styling */
-export function exportTaxReportPDF(trades: Trade[], username: string = 'Trader') {
+export async function exportTaxReportPDF(trades: Trade[], username: string = 'Trader') {
   if (trades.length === 0) return
 
+  const { jsPDF, autoTable } = await loadPdfLibs()
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
   const currentYear = new Date().getFullYear()

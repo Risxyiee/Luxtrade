@@ -5,6 +5,7 @@ import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, 
 import { Card, CardContent } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 import { useMotionSafe } from '@/hooks/use-motion-safe'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +45,9 @@ function TradesTab({
 }: TradesTabProps) {
   const { repeatCount } = useMotionSafe()
   const [searchTerm, setSearchTerm] = useState('')
+  // PERF (F1): debounce 250ms — filter berat (render ulang ~100 baris tabel)
+  // tidak jalan di setiap keystroke.
+  const debouncedSearch = useDebouncedValue(searchTerm, 250)
   const [filterType, setFilterType] = useState<'all' | 'BUY' | 'SELL'>('all')
   const [filterSession, setFilterSession] = useState<'all' | 'London' | 'New York' | 'Asia'>('all')
   const [exporting, setExporting] = useState(false)
@@ -51,13 +55,13 @@ function TradesTab({
   // Filter trades
   const filteredTrades = useMemo(() => {
     return trades.filter(trade => {
-      const matchesSearch = trade.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (trade.notes && trade.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesSearch = trade.symbol.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (trade.notes && trade.notes.toLowerCase().includes(debouncedSearch.toLowerCase()))
       const matchesType = filterType === 'all' || trade.type === filterType
       const matchesSession = filterSession === 'all' || trade.session === filterSession
       return matchesSearch && matchesType && matchesSession
     })
-  }, [trades, searchTerm, filterType, filterSession])
+  }, [trades, debouncedSearch, filterType, filterSession])
 
   // Build CSV content from a trade list
   const buildCSVContent = (tradeList: Trade[]) => {

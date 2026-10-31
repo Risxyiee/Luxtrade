@@ -25,6 +25,7 @@ import {
   Mail,
   UserCircle
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { authFetch } from '@/lib/api-fetch'
 
 interface Subscription {
@@ -128,14 +129,14 @@ export default function AdminSubscriptionsPanel() {
 
       if (res.ok) {
         fetchData()
-        alert(`✅ Sinkronisasi Berhasil!\n\n${data.syncedCount} user baru disinkronkan\n${data.skippedCount} user dilewati (sudah ada)\n\nTotal user di Prisma: ${data.totalPrismaUsers}`)
+        toast.success(`✅ Sinkronisasi Berhasil!\n\n${data.syncedCount} user baru disinkronkan\n${data.skippedCount} user dilewati (sudah ada)\n\nTotal user di Prisma: ${data.totalPrismaUsers}`)
       } else {
         console.error('❌ Sync failed:', data)
-        alert(`❌ Gagal sinkronisasi: ${data.error}`)
+        toast.error(`❌ Gagal sinkronisasi: ${data.error}`)
       }
     } catch (error) {
       console.error('❌ Error syncing auth users:', error)
-      alert('Gagal sinkronisasi user')
+      toast.error('Gagal sinkronisasi user')
     } finally {
       setIsSyncing(false)
     }
@@ -161,9 +162,9 @@ export default function AdminSubscriptionsPanel() {
 
         if (userData.debug) {
           console.error('Debug info:', userData.debug)
-          alert(`Error fetching users:\n${errorMsg}\n\nDebug: ${JSON.stringify(userData.debug, null, 2)}`)
+          toast.error(`Error fetching users:\n${errorMsg}\n\nDebug: ${JSON.stringify(userData.debug, null, 2)}`)
         } else {
-          alert(`Error fetching users: ${errorMsg}`)
+          toast.error(`Error fetching users: ${errorMsg}`)
         }
       }
 
@@ -199,7 +200,7 @@ export default function AdminSubscriptionsPanel() {
     } catch (error) {
       console.error('❌ Error fetching data in admin panel:', error)
       console.error('Full error details:', JSON.stringify(error, null, 2))
-      alert('Failed to fetch data. Check console for details.')
+      toast.info('Failed to fetch data. Check console for details.')
     } finally {
       setLoading(false)
     }
@@ -263,7 +264,7 @@ export default function AdminSubscriptionsPanel() {
 
   const handleCreateUser = async () => {
     if (!createUserEmail) {
-      alert('Please enter user email')
+      toast.info('Please enter user email')
       return
     }
 
@@ -284,11 +285,11 @@ export default function AdminSubscriptionsPanel() {
         setCreateUserName('')
       } else {
         const errorData = await res.json()
-        alert(errorData.error || 'Failed to create user')
+        toast.info(errorData.error || 'Failed to create user')
       }
     } catch (error) {
       console.error('Error creating user:', error)
-      alert('Failed to create user')
+      toast.info('Failed to create user')
     }
   }
 
@@ -304,11 +305,11 @@ export default function AdminSubscriptionsPanel() {
         fetchData()
       } else {
         const errorData = await res.json()
-        alert(errorData.error || 'Failed to delete user')
+        toast.info(errorData.error || 'Failed to delete user')
       }
     } catch (error) {
       console.error('Error deleting user:', error)
-      alert('Failed to delete user')
+      toast.info('Failed to delete user')
     }
   }
 
@@ -318,7 +319,7 @@ export default function AdminSubscriptionsPanel() {
     console.log('   planType:', planType)
 
     if (!userId || !planType) {
-      alert('Missing userId or planType')
+      toast.info('Missing userId or planType')
       return
     }
 
@@ -342,16 +343,16 @@ export default function AdminSubscriptionsPanel() {
       if (!res.ok) {
         console.error('❌ API Error:', data)
         const errorMsg = data.details ? `${data.error}\n\nDetails: ${data.details}` : data.error
-        alert(`❌ Gagal mengaktifkan:\n${errorMsg}`)
+        toast.error(`❌ Gagal mengaktifkan:\n${errorMsg}`)
         return
       }
 
       fetchDataBackground()
-      alert(`✅ User berhasil diaktifkan ${planType === 'MONTHLY' ? '30 Hari' : 'Lifetime'}!`)
+      toast.success(`✅ User berhasil diaktifkan ${planType === 'MONTHLY' ? '30 Hari' : 'Lifetime'}!`)
     } catch (error) {
       console.error('❌ Error Detail:', error)
       const errorMsg = error instanceof Error ? error.message : String(error)
-      alert(`Gagal mengaktifkan Pro:\n${errorMsg}`)
+      toast.error(`Gagal mengaktifkan Pro:\n${errorMsg}`)
     }
   }
 
@@ -373,7 +374,7 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error activating subscription:', error)
-      alert('Failed to activate subscription')
+      toast.info('Failed to activate subscription')
     }
   }
 
@@ -392,7 +393,7 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error deactivating subscription:', error)
-      alert('Failed to deactivate subscription')
+      toast.info('Failed to deactivate subscription')
     }
   }
 
@@ -426,13 +427,13 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error updating subscription:', error)
-      alert('Failed to update subscription')
+      toast.info('Failed to update subscription')
     }
   }
 
   const handleCreateSubscription = async () => {
     if (!newUserEmail || !newPlanId) {
-      alert('Please fill in all required fields')
+      toast.info('Please fill in all required fields')
       return
     }
 
@@ -457,11 +458,11 @@ export default function AdminSubscriptionsPanel() {
         setNewPlanId('')
       } else {
         const errorData = await res.json()
-        alert(errorData.error || 'Failed to create subscription')
+        toast.info(errorData.error || 'Failed to create subscription')
       }
     } catch (error) {
       console.error('Error creating subscription:', error)
-      alert('Failed to create subscription')
+      toast.info('Failed to create subscription')
     }
   }
 
@@ -505,15 +506,15 @@ export default function AdminSubscriptionsPanel() {
       })
 
       if (res.ok) {
-        window.alert('✅ Paket Berhasil Dibatalkan!')
+        toast.success('✅ Paket Berhasil Dibatalkan!')
         await fetchDataBackground() // No loading state, data updates in background
       } else {
         const errorData = await res.json()
-        alert(`Failed: ${errorData.error}`)
+        toast.info(`Failed: ${errorData.error}`)
       }
     } catch (error) {
       console.error('Error cancelling subscription:', error)
-      alert('Failed to cancel subscription')
+      toast.info('Failed to cancel subscription')
     } finally {
       setCancellingUserId(null)
     }

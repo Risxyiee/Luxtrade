@@ -8,8 +8,10 @@ import withSerwist from "@serwist/next";
 const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
 
 const nextConfig: NextConfig = {
+  // PERF: buang console.* dari bundle produksi (kecuali error/warn)
+  // — kurangi main-thread work + jangan bocorkan detail internal.
   compiler: {
-    removeConsole: false,
+    removeConsole: { exclude: ['error', 'warn'] },
   },
 
   reactStrictMode: true,

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard, Download, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 import OnboardingModal from '@/components/landing/OnboardingModal'
 import { formatCurrency } from '@/lib/utils-currency'
@@ -282,7 +283,7 @@ const DashboardModals = memo(function DashboardModals({
       link.click()
     } catch (err: any) {
       console.error('[ShareCard] PNG download failed:', err)
-      alert('Gagal membuat gambar. Coba screenshot manual sebagai alternatif.')
+      toast.error('Gagal membuat gambar. Coba screenshot manual sebagai alternatif.')
     } finally {
       setDownloadingCard(false)
     }

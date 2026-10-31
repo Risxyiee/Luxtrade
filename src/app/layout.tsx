@@ -14,6 +14,7 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 const lexend = Lexend({
   variable: "--font-lexend",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const inter = Inter({
