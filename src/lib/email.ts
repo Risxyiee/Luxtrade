@@ -1621,6 +1621,84 @@ export function getReEngagementNoTradeHtml(name: string, ctaUrl: string, unsubUr
 }
 
 /**
+ * Re-engagement email D+7 — user 1 minggu & masih NOL trade:
+ * pitch "cara otomatis" (upload screenshot AI / auto-import FXBlue/MyFxBook).
+ */
+export function getReEngagementDay7Html(name: string, ctaUrl: string, unsubUrl: string) {
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Jurnal masih kosong? Coba cara otomatisnya 📸</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 32px 16px;" align="center" valign="top">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <tr>
+                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+                    <tr>
+                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px;">
+                        <span style="font-size: 28px;">📸</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a2e;">Sudah 1 minggu, ${name}!</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 40px 32px 40px;">
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Seminggu lalu kamu daftar di <strong>LuxTradee</strong>, tapi jurnalmu masih kosong. Kami menduga penyebabnya satu: <strong>malas ngetik manual</strong> — dan itu wajar!
+                  </p>
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Kabar baiknya: <strong>di LuxTradee kamu gak perlu ngetik sama sekali</strong>:<br>
+                    📸 <strong>Upload screenshot trade</strong> → AI baca &amp; isi semua kolom otomatis<br>
+                    🔗 <strong>Sambungkan FXBlue / MyFxBook</strong> → seluruh riwayat trade ditarik sendiri<br>
+                    ⏱ Waktunya? Kurang dari semenit.
+                  </p>
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 28px 0;">
+                    Begitu trade pertama masuk, kamu langsung lihat winrate, streak, &amp; analisis yang bikin trading makin disiplin.
+                  </p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">Coba Cara Otomatis →</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0 40px;">
+                  <div style="height: 1px; background-color: #e5e7eb;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 24px 40px 16px 40px; text-align: center;">
+                  <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
+                    &copy; ${new Date().getFullYear()} LuxTradee. All rights reserved.
+                  </p>
+                  <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
+                    Email ini dikirim dari noreply@luxtradee.web.id
+                  </p>
+                  <a href="${unsubUrl}" style="color: #8b8da0; font-size: 10px; text-decoration: underline;">Unsubscribe dari email ini</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
+/**
  * Re-engagement email for users with >=1 trade but never came back
  */
 export function getReEngagementHasTradeHtml(name: string, tradeCount: number, ctaUrl: string, unsubUrl: string) {
