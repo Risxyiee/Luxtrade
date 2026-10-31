@@ -222,6 +222,16 @@ export interface PushSendResult {
   error?: string
 }
 
+/**
+ * FIX (log produksi 2026): di CF Workers library web-push Node IMPORT-nya
+ * SUKSES tapi selalu gagal saat kirim ("[unenv] https.request is not
+ * implemented yet!") — fallback CF-native menyelamatkan, tapi TIAP kirim
+ * meninggalkan 1 log error palsu + 1 percobaan sia-sia. Runtime yang sudah
+ * terbukti gak mendukung ditandai PERMANEN per isolate → kirim berikutnya
+ * langsung lewat jalur CF, log bersih.
+ */
+let _nodePathBroken = false
+
 export async function sendPushNotification(
   subscription: PushSubscriptionData,
   payload: PushPayload
@@ -232,59 +242,65 @@ export async function sendPushNotification(
     return { ok: false, status: 'failed', error: 'vapid-missing-or-library-unavailable' }
   }
 
-  // ── Jalur 1: library web-push (Node.js) ──
-  let result: PushSendResult
-  try {
-    const keysReady = await ensureVapidDetailsSet()
-    if (!keysReady) throw new Error('library-unavailable')
-    const wp = await getWebPush()
-    if (!wp) throw new Error('library-unavailable')
+  // ── Jalur 1: library web-push (Node.js) — DI-LEWATI kalau runtime ini
+  //    sudah terbukti gak mendukung (_nodePathBroken) biar gak buang waktu
+  //    & gak ngeluarin log error palsu di setiap kirim.
+  if (!_nodePathBroken) {
+    let result: PushSendResult | null = null
+    try {
+      const keysReady = await ensureVapidDetailsSet()
+      if (!keysReady) throw new Error('library-unavailable')
+      const wp = await getWebPush()
+      if (!wp) throw new Error('library-unavailable')
 
-    await wp.sendNotification(
-      subscription,
-      JSON.stringify(payload),
-      {
-        TTL: 86400, // 24 hours
-        urgency: 'normal',
+      await wp.sendNotification(
+        subscription,
+        JSON.stringify(payload),
+        {
+          TTL: 86400, // 24 hours
+          urgency: 'normal',
+        }
+      )
+      result = { ok: true, status: 'sent', statusCode: 201 }
+    } catch (error: any) {
+      const statusCode: number | undefined = error?.statusCode
+      // 410 = subscription expired, 404 = subscription gone → BOLEH dihapus caller
+      if (statusCode === 410 || statusCode === 404) {
+        console.log('[web-push] Subscription expired/gone:', subscription.endpoint)
+        return { ok: false, status: 'expired', statusCode, error: `http-${statusCode}` }
       }
-    )
-    result = { ok: true, status: 'sent', statusCode: 201 }
-  } catch (error: any) {
-    const statusCode: number | undefined = error?.statusCode
-    // 410 = subscription expired, 404 = subscription gone → BOLEH dihapus caller
-    if (statusCode === 410 || statusCode === 404) {
-      console.log('[web-push] Subscription expired/gone:', subscription.endpoint)
-      result = { ok: false, status: 'expired', statusCode, error: `http-${statusCode}` }
-    } else {
-      // Kegagalan LAIN (401/403 VAPID, 5xx push service, network, crypto) —
-      // JANGAN disebut expired: subscription bisa saja masih hidup.
-      console.error('[web-push] Send failed:', error?.message || error)
-      result = {
-        ok: false,
-        status: 'failed',
-        statusCode,
-        error: statusCode ? `http-${statusCode}: ${error?.message || 'unknown'}` : (error?.message || 'unknown-error'),
+      const errMsg = String(error?.message || error)
+      if (/library-unavailable|unenv|https\.request|not implemented/i.test(errMsg)) {
+        // Runtime gak mendukung library Node (stub unenv di CF Workers) →
+        // tandai PERMANEN untuk isolate ini, turun ke jalur CF-native.
+        _nodePathBroken = true
+        console.warn('[web-push] Node sender gak didukung runtime ini → kirim pakai CF-native sender (fallback permanen isolate ini)')
+      } else {
+        // Kegagalan HTTP NYATA dari push service (401/403 VAPID, 5xx, network)
+        // — JANGAN disebut expired: subscription bisa saja masih hidup.
+        console.error('[web-push] Send failed:', errMsg)
+        return {
+          ok: false,
+          status: 'failed',
+          statusCode,
+          error: statusCode ? `http-${statusCode}: ${errMsg}` : errMsg,
+        }
       }
     }
+    if (result?.ok) return result
   }
-  if (result.ok) return result
 
-  // ── Jalur 2 (FIX F5): CF Workers — `https.request` Node cuma stub unenv ──
-  // Library "berhasil" di-import tapi selalu gagal saat kirim. Kalau polanya
-  // begitu, coba pengirim CF-native (fetch + WebCrypto, RFC 8291/8292).
-  const errMsg = result.error || ''
-  if (/library-unavailable|unenv|https\.request|not implemented/i.test(errMsg)) {
-    const cf = await sendPushNotificationCF(
-      subscription,
-      JSON.stringify(payload),
-      { publicKey, privateKey, subject }
-    )
-    if (cf.ok) {
-      console.log('[web-push] sent via CF-native sender (fallback from node lib)')
-    }
-    return cf
+  // ── Jalur 2: pengirim CF-native (fetch + WebCrypto, RFC 8291/8292) —
+  //    dipakai otomatis di CF Workers (jalur Node kena stub unenv).
+  const cf = await sendPushNotificationCF(
+    subscription,
+    JSON.stringify(payload),
+    { publicKey, privateKey, subject }
+  )
+  if (cf.ok) {
+    console.log('[web-push] sent via CF-native sender')
   }
-  return result
+  return cf
 }
 
 export interface PushSendSummary {

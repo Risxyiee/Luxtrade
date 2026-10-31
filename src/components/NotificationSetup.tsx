@@ -158,7 +158,10 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
         setTestState('ok')
         // FASE 5 debug: tunggu laporan penerimaan dari device (sw.js lapor
         // setelah showNotification sukses). Apple 201 ≠ tampil di HP.
-        for (let i = 0; i < 4; i++) {
+        // 7×1.6s ≈ 11 dtk — dulu cuma 4×1.6s, Apple sering menyajikan push
+        // beberapa detik → status keburu berhenti di "Terkirim!" padahal
+        // notifnya beneran sampai (laptop Bos, laporan log 2026).
+        for (let i = 0; i < 7; i++) {
           await new Promise((r) => setTimeout(r, 1600))
           try {
             const rc = await fetch('/api/push/received?tag=push-test')
