@@ -39,20 +39,21 @@ export default function TradingAccountList({ accounts, loading, onRefresh, onPar
   const [deleteReason, setDeleteReason] = useState('')
   const [accountTrades, setAccountTrades] = useState<Record<string, number>>({})
 
-  // Load trade counts when accounts change
+  // PERF (F2): head-count per akun — dulu fetch /api/trades?accountId=… (param
+  // camelCase BAHKAN DIABAIKAN API) lalu hitung rows di client → N request ×
+  // 100 row penuh hanya untuk angka badge. Sekarang: count_only=true
+  // (head query di API, 0 row dikirim) + paralel + param account_id bener.
   const loadTradeCounts = async () => {
     const counts: Record<string, number> = {}
-    for (const account of accounts) {
+    await Promise.all(accounts.map(async (account) => {
       try {
-        const response = await fetch(`/api/trades?accountId=${account.id}`)
+        const response = await fetch(`/api/trades?account_id=${account.id}&count_only=true`)
         const data = await response.json()
-        if (data.trades) {
-          counts[account.id] = data.trades.length
-        }
+        counts[account.id] = typeof data.count === 'number' ? data.count : 0
       } catch (error) {
         counts[account.id] = 0
       }
-    }
+    }))
     setAccountTrades(counts)
   }
 

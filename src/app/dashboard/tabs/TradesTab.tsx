@@ -30,6 +30,10 @@ interface TradesTabProps {
   /** Muat trade ke chart terminal (pindah tab chart + gambar marker Entry/SL/TP). */
   onGoToChart?: () => void
   language?: 'id' | 'en'
+  // PERF (F2): "Muat lebih banyak" — API keyset-paginated 100/halaman
+  pagination?: { hasNextPage: boolean; nextCursor: string | null }
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 function TradesTab({
@@ -41,7 +45,10 @@ function TradesTab({
   onDelete,
   onDuplicate,
   onGoToChart,
-  language = 'id'
+  language = 'id',
+  pagination,
+  loadingMore,
+  onLoadMore,
 }: TradesTabProps) {
   const { repeatCount } = useMotionSafe()
   const [searchTerm, setSearchTerm] = useState('')
@@ -708,6 +715,30 @@ function TradesTab({
               </tbody>
             </table>
           </div>
+
+          {/* PERF (F2): Muat lebih banyak — trade #101+ tidak lagi hilang diam-diam */}
+          {pagination?.hasNextPage && (
+            <div className="flex justify-center pt-4 pb-2">
+              <Button
+                variant="outline"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="min-h-[44px] px-6 border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+              >
+                {loadingMore ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    {language === 'id' ? 'Memuat…' : 'Loading…'}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    {language === 'id' ? `Muat Lebih Banyak (ditampilkan ${filteredTrades.length})` : `Load More (showing ${filteredTrades.length})`}
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

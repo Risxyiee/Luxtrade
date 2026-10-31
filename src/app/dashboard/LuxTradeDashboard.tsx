@@ -135,6 +135,10 @@ function LuxTradeDashboardContent() {
 
   // Data states
   const [trades, setTrades] = useState<Trade[]>([])
+  // PERF (F2): pagination state — API /api/trades keyset-paginated (100/hal)
+  // tapi dulu nextCursor diabaikan → trade #101+ hilang diam-diam.
+  const [tradesPagination, setTradesPagination] = useState<{ hasNextPage: boolean; nextCursor: string | null }>({ hasNextPage: false, nextCursor: null })
+  const [loadingMoreTrades, setLoadingMoreTrades] = useState(false)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
@@ -192,11 +196,50 @@ function LuxTradeDashboardContent() {
         fetch(`/api/trades${selectedAccountId ? '?account_id=' + selectedAccountId + '&' + bustTs : '?' + bustTs}`, { credentials: 'include', cache: 'no-store' }).then(res => res.ok ? res.json() : null).catch(() => null),
       ]).then(([analyticsData, tradesData]) => {
         if (analyticsData) setAnalytics(analyticsData)
-        if (tradesData) setTrades(tradesData.trades || [])
+        if (tradesData) {
+          setTrades(tradesData.trades || [])
+          setTradesPagination(
+            tradesData.pagination
+              ? { hasNextPage: !!tradesData.pagination.hasNextPage, nextCursor: tradesData.pagination.nextCursor ?? null }
+              : { hasNextPage: false, nextCursor: null }
+          )
+        }
       })
     }
   }, [selectedAccountId])
   
+  // PERF (F2): "Muat lebih banyak" — ambil halaman berikutnya via cursor
+  // keyset dan APPEND (fetchData selalu reset ke halaman 1).
+  const loadMoreTrades = useCallback(async () => {
+    if (loadingMoreTrades || !tradesPagination.hasNextPage || !tradesPagination.nextCursor) return
+    setLoadingMoreTrades(true)
+    try {
+      const params = new URLSearchParams()
+      if (selectedAccountId) params.set('account_id', selectedAccountId)
+      params.set('cursor', tradesPagination.nextCursor)
+      params.set('_t', String(Date.now()))
+      const res = await fetch(`/api/trades?${params.toString()}`, { credentials: 'include', cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        const newTrades: Trade[] = data.trades || []
+        if (newTrades.length > 0) {
+          setTrades(prev => [...prev, ...newTrades])
+        }
+        setTradesPagination(
+          data.pagination
+            ? { hasNextPage: !!data.pagination.hasNextPage, nextCursor: data.pagination.nextCursor ?? null }
+            : { hasNextPage: false, nextCursor: null }
+        )
+      } else {
+        console.warn('[loadMoreTrades] gagal:', res.status)
+      }
+    } catch (err) {
+      console.warn('[loadMoreTrades] error:', err)
+    } finally {
+      setLoadingMoreTrades(false)
+    }
+  }, [loadingMoreTrades, tradesPagination, selectedAccountId])
+
   // Form states - separate state to prevent re-renders
   const [formData, setFormData] = useState<TradeFormData>(emptyFormData)
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null)
@@ -517,6 +560,11 @@ function LuxTradeDashboardContent() {
         try {
           const data = await tradesRes.json()
           setTrades(data.trades || [])
+          setTradesPagination(
+            data.pagination
+              ? { hasNextPage: !!data.pagination.hasNextPage, nextCursor: data.pagination.nextCursor ?? null }
+              : { hasNextPage: false, nextCursor: null }
+          )
         } catch { /* keep existing trades */ }
       } else if (isRefresh) {
         failedRefreshParts.push('trades')
@@ -1146,6 +1194,9 @@ function LuxTradeDashboardContent() {
           selectedAccountId={selectedAccountId}
           setSelectedAccountId={handleSetSelectedAccountId}
           setActiveTab={setActiveTab}
+          tradesPagination={tradesPagination}
+          loadingMoreTrades={loadingMoreTrades}
+          onLoadMoreTrades={loadMoreTrades}
         />
       </main>
 

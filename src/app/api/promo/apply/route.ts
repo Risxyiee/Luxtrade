@@ -3,6 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { edgeCrypto } from '@/lib/edge-crypto'
 import { rateLimitByUser } from '@/lib/rate-limit'
+import { invalidateUserProCache } from '@/lib/pro-check'
 
 /**
  * POST /api/promo/apply
@@ -192,6 +193,9 @@ export async function POST(request: NextRequest) {
     if (!profileUpdated) {
       console.warn(`[promo/apply:${logId}] Profile not updated but subscription is active — cron will sync later`)
     }
+
+    // F2: buang PRO cache agar akses PRO aktif seketika setelah promo apply
+    invalidateUserProCache(userId)
 
     // Sync Supabase Auth metadata (non-critical)
     try {

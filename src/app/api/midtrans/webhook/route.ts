@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyMidtransSignature } from '@/lib/payment/midtrans'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { applyActivationCommission } from '@/lib/affiliate-commission'
+import { invalidateUserProCache } from '@/lib/pro-check'
 
 export const dynamic = 'force-dynamic'
 
@@ -173,6 +174,9 @@ export async function POST(request: NextRequest) {
         email_verified: true,
         updated_at: new Date().toISOString(),
       }).eq('id', userId)
+
+      // F2: PRO cache 60 dtk harus dibuang agar akses PRO aktif seketika
+      invalidateUserProCache(userId)
 
       // Also create UserSubscription record for tracking
       try {

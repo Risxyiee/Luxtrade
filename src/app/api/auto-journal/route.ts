@@ -8,6 +8,7 @@ import { edgeCrypto } from '@/lib/edge-crypto'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import { geminiVision, isGeminiAvailableAsync } from '@/lib/gemini'
 import { buildTradeAndJournalPrompt } from '@/lib/aiml-vision'
+import { runInBackground } from '@/lib/background'
 
 // ==================== AUTH HELPER ====================
 
@@ -797,36 +798,41 @@ export async function POST(request: NextRequest) {
 
     log('✅', `DB save total: ${(performance.now() - t4).toFixed(0)}ms`)
 
-    // ── STEP 12: Background tasks (run inline — CF Workers doesn't support next/server after()) ──
-    // Screenshot upload + achievement check run after response is prepared but before sending.
-    // Using Promise.allSettled to avoid blocking the response on non-critical background tasks.
-    const backgroundTasks = Promise.allSettled([
-      (async () => {
-        if (optimizedBuffer.length > 0) {
-          try {
-            const url = await uploadScreenshot(optimizedBuffer, userId)
-            const result = await createClientForApi(request)
-            const bgClient = result.supabase
-            if (bgClient) {
-              await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
-              console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
+    // ── STEP 12: Background tasks (PERF F2: benar-benar background via waitUntil) ──
+    // Dulu: Promise.allSettled lalu DI-AWAIT sebelum response → upload screenshot
+    // (ratusan KB ke Storage) ikut memblokir user. Sekarang: runInBackground
+    // (ctx.waitUntil + fallback dev) — response terbang duluan, upload tetap jalan.
+    runInBackground(async () => {
+      const [uploadResult, achResult] = await Promise.allSettled([
+        (async () => {
+          if (optimizedBuffer.length > 0) {
+            try {
+              const url = await uploadScreenshot(optimizedBuffer, userId)
+              const result = await createClientForApi(request)
+              const bgClient = result.supabase
+              if (bgClient) {
+                await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
+                console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
+              }
+            } catch (err: any) {
+              console.warn(`⚠️ [AutoJournal BG] Screenshot upload failed: ${err.message}`)
             }
-          } catch (err: any) {
-            console.warn(`⚠️ [AutoJournal BG] Screenshot upload failed: ${err.message}`)
           }
-        }
-      })(),
-      (async () => {
-        try {
-          const achievements = await checkAchievementsAfterTrade(userId)
-          if (achievements && achievements.length > 0) {
-            console.log(`🏆 [AutoJournal BG] Achievements:`, achievements.map((a: any) => a.key))
+        })(),
+        (async () => {
+          try {
+            const achievements = await checkAchievementsAfterTrade(userId)
+            if (achievements && achievements.length > 0) {
+              console.log(`🏆 [AutoJournal BG] Achievements:`, achievements.map((a: any) => a.key))
+            }
+          } catch (achErr) {
+            console.warn(`⚠️ [AutoJournal BG] Achievement check failed:`, achErr)
           }
-        } catch (achErr) {
-          console.warn(`⚠️ [AutoJournal BG] Achievement check failed:`, achErr)
-        }
-      })(),
-    ])
+        })(),
+      ])
+      if (uploadResult.status === 'rejected') console.warn('[AutoJournal BG] upload task rejected')
+      if (achResult.status === 'rejected') console.warn('[AutoJournal BG] achievement task rejected')
+    })
 
     const totalTime = ((performance.now() - t0) / 1000).toFixed(2)
     log('🏁', `SUCCESS — total time: ${totalTime}s`)
@@ -844,10 +850,8 @@ export async function POST(request: NextRequest) {
       message: 'Auto-journal created successfully!'
     }
 
-    // Wait for background tasks to complete before responding
-    // (CF Workers doesn't have after(), so we await them)
-    await backgroundTasks
-
+    // PERF (F2): response TIDAK menunggu background tasks lagi —
+    // runInBackground sudah mendaftarkan task ke ctx.waitUntil di atas.
     return NextResponse.json(responseData)
 
   } catch (error: any) {

@@ -1,11 +1,35 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
+// PERF (F2): cache PRO-status 60 dtk per user — SATU request dashboard
+// memanggil isUserPro dari 5+ endpoint berbeda (analytics, watchlist,
+// trading-accounts, profile/me, ...) → dulu 5+ query profiles IDENTIK
+// per page-load. Downgrade/upgrade tetap instan lewat invalidateUserProCache
+// yang dipanggil di titik tulis (webhook midtrans, promo, admin, reward).
+const PRO_CACHE_TTL_MS = 60_000
+const proCache = new Map<string, { value: boolean; expiry: number }>()
+
+/** Hapus cache PRO untuk 1 user (panggil SETELAH menulis is_pro di profiles) */
+export function invalidateUserProCache(userId: string): void {
+  proCache.delete(userId)
+}
+
 /**
  * Check if a user has an active PRO subscription.
  * Reads directly from Supabase profiles table (source of truth — same as admin activate writes to).
  * Returns true if user is PRO and subscription hasn't expired.
+ * Cached 60s — WAJIB panggil invalidateUserProCache(userId) setelah update is_pro.
  */
 export async function isUserPro(userId: string): Promise<boolean> {
+  const cached = proCache.get(userId)
+  if (cached && Date.now() < cached.expiry) {
+    return cached.value
+  }
+  const value = await computeIsUserPro(userId)
+  proCache.set(userId, { value, expiry: Date.now() + PRO_CACHE_TTL_MS })
+  return value
+}
+
+async function computeIsUserPro(userId: string): Promise<boolean> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     if (!supabaseAdmin) {
