@@ -3771,3 +3771,47 @@ dan langkah D+7 (5B).
   diganti jadi panduan "matikan & nyalakan".
 - PushNotificationSetup ikut pass userId (dapat manfaat sinkronisasi sama).
 - Gerbang: tsc + lint EXIT 0.
+
+### 31 Okt — BEDAH AKAR MASALAH PUSH PRODUKSI (lanjutan 5A: Bos tes →
+### "Belum kekirim" meski toggle hijau + Add to Home Screen)
+
+#### Diagnostik
+- Endpoint baru GET /api/push/capability (tanpa auth, rate-limit 10/mnt):
+  jawab 3 pertanyaan penentu tanpa bocor secret — library web-push termuat?
+  VAPID public+private tersedia? probe kirim ke endpoint PALSU Apple
+  (harusnya dapat HTTP 4xx = bukti pipa OK, cache 5 menit).
+- Hasil produksi: library LOADED, VAPID keduanya ADA, tapi probe →
+  `threw: "[unenv] https.request is not implemented yet!"`.
+- **AKAR MASALAH**: lib `web-push` muat di CF Workers tapi `https.request`
+  Node cuma stub unenv → SEMUA push produksi (3 cron pun) GAGAL diam-diam
+  sejak awal. Itu sekaligus menjelaskan keluhan "notifikasi gabisa".
+
+#### Bug berantai yang ditemukan & diperbaiki
+1. `sendPushNotification` dulu return boolean — SEMUA kegagalan dianggap
+   "expired" oleh `sendPushToUser` → subscription HIDUP ikut terhapus tiap
+   gagal → loop neraka subscribe→tes→terhapus. Sekarang hasil terstruktur
+   {sent|expired|failed}; HANYA 410/404 yang expired & boleh dihapus.
+2. Route test: respons kini + failed/reason (no_devices | devices_expired |
+   send_failed) + log error server; hapus expired saja.
+3. Client: resync otomatis juga saat semua perangkat expired; kalau
+   reason=send_failed → pesan baru "Server belum bisa kirim push — bukan
+   salah HP-mu" (jujur, gak salah arah ke user).
+
+#### SOLUSI INTI: pengirim CF-native (`src/lib/web-push-cf.ts`)
+- fetch + WebCrypto murni (tanpa Node): VAPID JWT ES256 (RFC 8292) +
+  enkripsi aes128gcm (RFC 8291, header RFC 8188) — kompatibel Apple/FCM/
+  Mozilla; fallback otomatis di `sendPushNotification` kalau jalur Node
+  kena stub unenv (deteksi pola error), lokal dev tetap pakai web-push.
+- **Verifikasi kripto INDEPENDEN 2/2 PASS** (dekripsi balik RFC 8291 pakai
+  Node crypto murni + verifikasi tanda tangan JWT ES256) — bukan self-test.
+- Produksi PASCA-DEPLOY: probe → `http_response 400` dari Apple →
+  verdict OK: pipa push jalan (crypto+HTTPS+VAPID diterima push service).
+
+#### Gerbang & commit
+- tsc + lint EXIT 0 (setiap tahap). Commit: fbf02b37 (diagnostik +
+  anti-loop), 47af6676 (CF-native sender). Bonus: 3 cron push kini
+  benar-benar terkirim untuk pertama kalinya.
+
+#### Menunggu Bos
+- Tes ulang dari HP: sidebar → "Kirim Notifikasi Tes" → lock screen.
+- Self-healing aktif: subscription lama yang mati otomatis disiklus ulang.
