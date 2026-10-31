@@ -128,30 +128,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Auto-lock expired subscriptions
-  const checkAndLockExpired = async (profileData: Profile | null) => {
-    const supabaseClient = getClientBrowser()
-    if (!supabaseClient || !profileData || !profileData.subscription_until) return profileData;
+  // 🔒 HARDENING (migrasi 024): client TIDAK BOLEH menulis tabel profiles lagi.
+  // Dulu di sini client UPDATE is_pro/subscription_status langsung ke DB —
+  // pola yang sama bisa dipakai user nakal untuk self-PRO dari console.
+  // Kini penurunan PRO expired murni server-side (cron downgrade-expired-pro
+  // + isUserPro() yang selalu mengecek tanggal). Status efektif cukup
+  // di-override di memori — tanpa tulis DB.
+  const checkAndLockExpired = (profileData: Profile | null): Profile | null => {
+    if (!profileData || !profileData.subscription_until) return profileData;
 
     const isValid = isSubscriptionValid(profileData.subscription_until);
 
-    // If marked as PRO but subscription expired, update to FREE
+    // If marked as PRO but subscription expired, show FREE (in-memory only)
     if (profileData.is_pro && !isValid) {
-      const { error } = await supabaseClient
-        .from('profiles')
-        .update({
-          is_pro: false,
-          subscription_status: 'expired',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', profileData.id);
-
-      if (!error) {
-        return {
-          ...profileData,
-          is_pro: false,
-          subscription_status: 'expired' as const
-        };
-      }
+      return {
+        ...profileData,
+        is_pro: false,
+        subscription_status: 'expired' as const
+      };
     }
 
     return profileData;
