@@ -30,6 +30,10 @@ import {
   setForexKVCache,
   PRICE_FRESH_MS,
 } from '@/lib/market/forex-cache'
+// FASE 3: rate-limit — endpoint ini GET publik TANPA auth (watchlist polling).
+// Dulu: bisa dihitung tanpa batas → Yahoo Finance ikut kena ban IP.
+// 30 req/menit/IP = longgar utk polling 15s (4/min) + multi-tab + refresh manual.
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +43,13 @@ const LIMIT = 1 // price check (live tick dari meta Yahoo)
 
 export async function GET(request: NextRequest) {
   try {
+    const limited = checkRateLimit(request, 'forex-batch', {
+      maxRequests: 30,
+      windowMs: 60_000,
+      message: 'Terlalu banyak permintaan harga. Coba lagi beberapa detik lagi.',
+    })
+    if (limited) return limited
+
     const { searchParams } = new URL(request.url)
     const raw = searchParams.get('symbols') || ''
     const nocache = searchParams.get('nocache') === 'true'

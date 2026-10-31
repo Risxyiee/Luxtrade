@@ -42,12 +42,23 @@ import {
   getKvTtlSeconds,
   PRICE_FRESH_MS,
 } from '@/lib/market/forex-cache'
+// FASE 3: rate-limit — request nocache=true & cache-miss tetap memukul
+// Yahoo; tanpa batas bisa dihitung untuk membanjiri upstream. 60 req/menit
+// /IP longgar utk chart panel normal (umumnya dilayani SW cache).
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 // ── Main handler ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
+    const limited = checkRateLimit(request, 'forex', {
+      maxRequests: 60,
+      windowMs: 60_000,
+      message: 'Terlalu banyak permintaan data pasar. Coba lagi beberapa detik lagi.',
+    })
+    if (limited) return limited
+
     const { searchParams } = new URL(request.url)
     const rawSymbol = searchParams.get('symbol') || 'EURUSD'
     const interval = searchParams.get('interval') || '1h'
