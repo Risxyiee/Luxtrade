@@ -821,7 +821,11 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     }
   } catch (err: any) {
     errors.push('Faireconomy: ' + err.message);
-    console.error('[EconCalendar] Faireconomy failed:', err.message);
+    // WARN bukan ERROR (laporan log produksi Bos): Faireconomy cuma TIER-1
+    // dari cascade — sering rate-limit karena IP egress CF dipakai bersama.
+    // Di bawahnya masih ada Gemini grounding + KV last-known-good (7 hari),
+    // jadi kegagalan tier ini TANGANI NORMAL, jangan bikin log merah.
+    console.warn('[EconCalendar] Faireconomy failed (cascade lanjut ke sumber berikutnya):', err.message);
   }
 
   // If Faireconomy gave us good data, we can return early — no need to hit other APIs

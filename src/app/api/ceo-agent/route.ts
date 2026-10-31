@@ -1481,7 +1481,7 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
    (tidak nunggu briefing besok pagi). Kalau aman → diam saja,
    cuma catat riwayat uptime ke agent_kv.
    ============================================================ */
-async function watchdog(e: Env) {
+async function watchdog(e: Env, req: Request, cronKey: string) {
   const day = wibDay()
   const alerts: string[] = []
 
@@ -1566,8 +1566,30 @@ async function watchdog(e: Env) {
       const mm = parseInt(hm.slice(3, 5), 10)
       if ((hh > 8 || (hh === 8 && mm >= 20)) && parseInt((await kvGet(e, `briefing:heal:${day}`)) || '0', 10) < 2) {
         await kvIncr(e, `briefing:heal:${day}`).catch(() => {})
-        const heal = await runMorningBriefing(e)
-        alerts.push(heal.notifySent ? 'briefing-self-heal' : 'briefing-heal-gagal')
+        /* FIX "Too many subrequests by single Worker invocation" (log produksi):
+           dulu briefing dijalankan DALAM invokasi watchdog yang sama — gabungan
+           watchdog (ping + KV + Supabase) + briefing (4 agen, masing-masing KV
+           sick-map + fetch OpenRouter) melebihi jatah subrequest per invokasi
+           (free plan ±50) → CEO/CMO gugur di tengah jalan.
+           Solusi: briefing dipicu sebagai INVOKASI TERPISAH via self-call HTTP
+           (invokasi baru = budget subrequest baru, pola standar Workers).
+           Fire-and-forget via waitUntil — watchdog tetap cepat selesai, dan
+           hasilnya dinilai lewat key briefing:done:<tanggal> yang ditulis
+           runMorningBriefing sendiri. Maks 2×/hari tetap berlaku. */
+        try {
+          const u2 = new URL(req.url)
+          u2.searchParams.set('action', 'briefing')
+          if (cronKey) u2.searchParams.set('key', cronKey)
+          cfWaitUntil(
+            fetch(u2.toString(), { method: 'GET', signal: timeoutSignal(115_000) })
+              .then((r) => console.log(`[watchdog] self-heal briefing (invokasi terpisah) → HTTP ${r.status}`))
+              .catch((x: any) => console.warn('[watchdog] self-heal briefing gagal dipicu:', String(x?.message || x)))
+          )
+          alerts.push('briefing-self-heal-dipicu')
+        } catch (x: any) {
+          console.warn('[watchdog] self-heal gagal menyusun URL self-call:', String(x?.message || x))
+          alerts.push('briefing-heal-gagal')
+        }
       }
     }
   } catch { /* self-heal opsional */ }
@@ -2812,7 +2834,7 @@ async function handle(req: Request): Promise<Response> {
     case 'watchdog':
       // CTO jaga situs 24/7 — Cloudflare cron tiap 15 menit (worker-entry.ts):
       // /api/ceo-agent?action=watchdog&key=CRON_SECRET
-      return j(await watchdog(e))
+      return j(await watchdog(e, req, key))
     case 'qa':
       // CTO QA sweep — tes semua fitur/route utama (juga jalan otomatis di briefing 08:00)
       return j(await qaAgent(e))

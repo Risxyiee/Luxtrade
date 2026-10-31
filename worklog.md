@@ -3843,3 +3843,40 @@ muncul tu dashboard".
 
 ### Gerbang & commit
 - tsc + lint EXIT 0.
+
+## FASE 5.2 — Tindak Lanjut Log Produksi CF (laporan Bos)
+
+**Log yang dilaporkan:** (1) `[web-push] Send failed: [unenv] https.request is
+not implemented yet!` di POST /api/push/test, (2) `[EconCalendar] Faireconomy
+failed: No events...`, (3) `[agentBrain:ceo/cmo] ... Too many subrequests by
+single Worker invocation`.
+
+### Diagnosis & fix
+1. **Push error log = NOISE yang menyesatkan, BUKAN gagal kirim.** Buktinya:
+   screenshot Bos menampilkan "Terkirim! Cek HP kamu 📲" (state 'ok' = sent>0)
+   — di Workers itu MUSTAHIL lewat jalur Node, artinya fallback CF-native
+   BERHASIL (Apple 201). Alurnya: coba Node → unenv error (dilog error)
+   → regex match → CF-native sukses. Fix: flag `_nodePathBroken` per isolate
+   — setelah percobaan Node pertama gagal pola unenv, jalur Node di-SKIP
+   permanen → kirim berikutnya langsung CF-native, log error palsu hilang,
+   hemat 1 percobaan per kirim.
+2. **Too many subrequests (watchdog)**: self-heal briefing dijalankan DALAM
+   invokasi watchdog yang sama → watchdog + briefing (4 agen × KV sick-map +
+   fetch OpenRouter + Supabase) lewat jatah ±50 subrequest/invokasi (free
+   plan). Fix: self-heal memicu `action=briefing` via SELF-CALL HTTP
+   (invokasi terpisah = budget subrequest baru), fire-and-forget via
+   waitUntil; watchdog tetap ringan, hasil dinilai via briefing:done:<tgl>.
+3. **EconCalendar Faireconomy**: tier-1 cascade yang sering kena rate-limit
+   (IP egress CF shared) — cascade + KV last-known-good (7 hari) sudah
+   menangani; log diturunkan error → warn biar gak bikin panik.
+4. **Status tes 'ok' tidak pernah jadi 'okDevice'**: polling bukti device
+   4×1,6s sering kalah cepat vs latensi penyajian Apple → diperpanjang
+   7×1,6s ≈ 11 dtk.
+
+### Status FASE 5
+Pipeline push TERBUKTI jalan end-to-end di produksi (terkirim dari server
+sampai Apple 201). Konfirmasi terakhir yang diminta Bos: apakah banner
+notifikasi beneran MUNCUL di layar HP saat tes → kalau ya, FASE 5 resmi tutup.
+
+### Gerbang
+- tsc + lint EXIT 0.
