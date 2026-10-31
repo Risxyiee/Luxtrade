@@ -2783,3 +2783,24 @@ breach PropFirm tidak pernah terkirim di produksi. Kini jalan.
 - STATUS: KODE TERPUSH. MENUNGGU: (1) Bos jalankan migrasi 021 (SQL sudah
   diserahkan) + (2) migrasi 022 (SQL di supabase-migrations/022_...sql).
   Opsional: set AFFILIATE_WS_TOKEN di env mini-service bila kelak ada producer.
+
+### VERIFIKASI PASCA-MIGRASI 021+022 (Bos: "sql dah jalan") + BEDAH JALUR PAYMENT
+- Probe PostgREST anon (pola 42501-vs-42703): `affiliate_referrals.activation_key`
+  → 42501 permission denied (bukan 42703/42P01) = tabel + kolom dedupe ADA,
+  GRANT ketat → MIGRASI 022 ✅. INSERT anon user_submissions status APPROVED
+  → 401 + 42501 = RLS menolak self-approve → MIGRASI 021 ✅ (unique index tidak
+  terekspos PostgREST; query verifikasi ada di ekor file 021).
+- BEDAH JALUR PAYMENT (penjelasan temuan "komisi lewat jalur payment"):
+  - SakuraPay internal (/api/payment/*): TIDAK ADA logika komisi sama sekali
+    (grep affiliate/commission = nol di 4 route). Health produksi:
+    {"env":"sandbox"} → mode sandbox. Route pakai Prisma → di CF Workers db.ts
+    stub melempar error → bagian DB callback pasti gagal. TIDAK ADA satu pun
+    CTA UI ke flow SakuraPay (landing hanya ke /api/payment/skrill-redirect).
+    → Jalur ini MATI/pensiunan; tidak ada komisi bocor atau hilang lewat sana.
+  - Checkout user nyata = link Skrill EKSTERNAL (PaywallModal + landing) tanpa
+    webhook → PRO tetap diaktifkan manual Bos via dashboard admin = 2 tombol
+    yang sudah di-unifikasi FIX #6 (komisi + ledger + dedupe jalan di sana).
+- OPSI MENUNGGU KEPUTUSAN BOS: (A) hidupkan SakuraPay — refactor Prisma→Supabase
+  + pasang applyActivationCommission di callback + mode production;
+  (B) biarkan pensiun (status quo); (C) tombol konfirmasi pembayaran Skrill
+  yang membuat antrean ACC admin (tanpa otomatis PRO).
