@@ -3083,3 +3083,16 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
 
 ### GERBANG
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 + landing 200.
+
+---
+## [FIX 026] Migrasi 026 v2 — kebal tabel yang tidak ada (42P01 activation_keys)
+
+- Laporan Bos: REVOKE literal gagal `42P01: relation "public.activation_keys"
+  does not exist` → script berhenti di statement ke-4; user_submissions &
+  affiliate_referrals kemungkinan belum ter-REVOKE.
+- Audit ulang: "activation_keys" TIDAK ADA di kode maupun produksi
+  (salah asumsi v1 — grep 16 file ternyata match tabel lain).
+- FIX: v2 pakai satu DO block + to_regclass guard — tabel yang ada
+  dikunci, yang tidak ada dilewati dgn NOTICE, script tak pernah error.
+  Idempotent, aman dijalankan ulang (REVOKE = sama-aman).
+- Gerbang: tsc EXIT 0 + lint EXIT 0.
