@@ -29,6 +29,7 @@ const strings = {
     testBtn: 'Kirim Notifikasi Tes',
     testingBtn: 'Mengirim...',
     testOk: 'Terkirim! Cek HP kamu 📲',
+    testOkDevice: '📥 Sampai di HP kamu! Kalau banner gak muncul → cek Settings → Notifications → LuxTradee, atau matikan Focus mode',
     testEmpty: 'Belum kekirim — coba matikan & nyalakan lagi notifikasinya',
     testFail: 'Gagal terkirim — coba lagi',
     testServer: 'Server belum bisa kirim push — bukan salah HP-mu. Coba lagi nanti',
@@ -52,6 +53,7 @@ const strings = {
     testBtn: 'Send Test Notification',
     testingBtn: 'Sending...',
     testOk: 'Sent! Check your phone 📲',
+    testOkDevice: '📥 Arrived on your phone! No banner? Check Settings → Notifications → LuxTradee, or turn Focus off',
     testEmpty: 'Not delivered — try toggling notifications off & on',
     testFail: 'Send failed — try again',
     testServer: 'Push server can’t send yet — not your phone’s fault. Try later',
@@ -86,7 +88,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [showIOSBanner, setShowIOSBanner] = useState(false)
-  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'empty' | 'fail' | 'server'>('idle')
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'okDevice' | 'empty' | 'fail' | 'server'>('idle')
 
   useEffect(() => {
     setIsIOS(isIOSSafari())
@@ -154,6 +156,21 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
       }
       if (data.sent > 0) {
         setTestState('ok')
+        // FASE 5 debug: tunggu laporan penerimaan dari device (sw.js lapor
+        // setelah showNotification sukses). Apple 201 ≠ tampil di HP.
+        for (let i = 0; i < 4; i++) {
+          await new Promise((r) => setTimeout(r, 1600))
+          try {
+            const rc = await fetch('/api/push/received?tag=push-test')
+            if (rc.ok) {
+              const rj = await rc.json()
+              if (rj.received) {
+                setTestState('okDevice')
+                break
+              }
+            }
+          } catch {}
+        }
       } else if (data.reason === 'send_failed') {
         // Server push-nya yang bermasalah (VAPID/library/runtime) —
         // mati-nyalakan notif gak akan nolong → pesan jujur
@@ -247,6 +264,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             </button>
             {testState === 'ok' && (
               <span className="flex items-center gap-1 text-[10px] text-emerald-400"><CheckCircle2 className="w-3 h-3" />{t.testOk}</span>
+            )}
+            {testState === 'okDevice' && (
+              <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Smartphone className="w-3 h-3" />{t.testOkDevice}</span>
             )}
             {testState === 'empty' && (
               <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testEmpty}</span>
@@ -388,6 +408,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             {/* FASE 5A: feedback tes notifikasi */}
             {isSubscribed && testState === 'ok' && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />{t.testOk}</p>
+            )}
+            {isSubscribed && testState === 'okDevice' && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-emerald-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testOkDevice}</p>
             )}
             {isSubscribed && testState === 'empty' && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testEmpty}</p>
