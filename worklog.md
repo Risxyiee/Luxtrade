@@ -3571,3 +3571,64 @@ Yang BOLONG — kini ditutup (13 endpoint):
 
 ### GERBANG
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+
+## FASE 2 — PERF & BUGFIX BATCH (2026-10-31)
+
+### BUGFIX (ditemukan audit, dampak user langsung)
+- Widget PWA winrate SELALU 0%: query pakai kolom "pnl, direction" (tidak
+  ada di tabel trades) → diganti profit_loss + head-count SQL (tanpa scan
+  row 30 hari) + streak dari 30 trade terakhir.
+- Trade #101+ HILANG DIAM-DIAM: API /api/trades sudah keyset-paginated
+  (100/hal) tapi client mengabaikan pagination.nextCursor. Sekarang:
+  state pagination + tombol "Muat Lebih Banyak" (append) di TradesTab,
+  cursor komposit close_time|id (tiebreaker — dulu timestamp sama bisa
+  skip/duplikat antar halaman; format lama tanpa "|" tetap didukung).
+- Param accountId (camelCase) diabaikan API → TradingAccountList N+1
+  (N request × 100 row penuh cuma untuk badge angka). Sekarang: alias
+  diterima + count_only=true (head-count, 0 row dikirim) + paralel.
+- Auto-journal: upload screenshot + achievement DI-AWAIT sebelum response
+  (blokir user ratusan ms–detik) → runInBackground (ctx.waitUntil).
+- Achievements POST /api/trades: promise "background" masih di-await →
+  benar-benar background sekarang. Catatan: toast achievement instan
+  saat save hilang; unlock tetap tercatat & tampil di tab achievements.
+
+### PERF
+- Watchlist polling: N fetch per-simbol per 15s DENGAN nocache=true
+  (semua cache server dilewati!) → 1 request batch /api/forex-batch
+  (cache mem+KV bersama, freshness 15s tetap) + pause saat tab hidden
+  (visibilitychange) + refresh manual = batch nocache. Terbukti lokal:
+  4101ms (Yahoo) → 33ms (cache hit). /api/forex-batch SENGAJA di luar
+  prefix SW PUBLIC_GET. Cache forex dipindah ke lib/market/forex-cache.ts
+  (dipakai 2 route). WatchlistAlerts.tsx dihapus (dead code, 0 import).
+- isUserPro cache 60s/user + invalidateUserProCache di 6 titik tulis
+  (midtrans webhook, promo/apply, promo-simple, reward/first-trade,
+  missions/claim, admin/activate) — dulu 5+ query profiles identik per
+  page-load dashboard.
+- Analytics cache 10s → 60s (aman: invalidateAnalyticsCache dipanggil
+  tiap mutasi trade).
+- Landing: 10 section konten kini DI-SSR (dulu ssr:false semua → HTML
+  kosong) — SEO + LCP. ssr:false disisakan utk 2 modal + 3 widget
+  interaktif. Semua akses window/localStorage terverifikasi di useEffect.
+- Affiliate: socket.io DIHAPUS (server mini-service ada tapi tak ada
+  emitter + Caddy hanya di VPS, bukan CF Workers = reconnect sia-sia 10×
+  per load) + section "Aktivitas Realtime" permanen kosong dihapus +
+  dep socket.io-client di-uninstall. tsconfig: examples dikeluarkan dari
+  tsc (template pakai socket.io-client).
+
+### SQL UNTUK BOS (jalankan di Supabase SQL Editor)
+- supabase-migrations/033_trade_ticket_unique_backstop.sql — unique
+  index (user_id, ticket_number) sbg backstop idempotency auto-journal
+  (race-proof). GUARD: index hanya dibuat bila 0 duplikat; kalau ada,
+  dibuat NOTICE + cara ceknya. IDEMPOTENT.
+
+### DEFER ke FASE 3 (keputusan: risiko > benefit saat ini)
+- Analytics RPC (port 400+ baris agregasi JS → SQL function): butuh
+  port exact equity curve/sharpe/5 bucket — rawan bug halus, cache 60s
+  sudah menekan biaya. Dikerjakan terpisah dengan test nyata.
+- Gemini AbortSignal (bukan Promise.race), unik-index migrasi duplikat
+  existing, rate-limit /api/forex.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Agent-browser: landing render penuh (hero+footer SSR), /api/forex-batch
+  200 OK (XAUUSD 3898.9, EURUSD 1.1166), console bersih dari error F2.

@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/admin-auth'
 import { PRICING } from '@/lib/pricing'
 import { applyActivationCommission } from '@/lib/affiliate-commission'
 import { createClient } from '@supabase/supabase-js'
+import { invalidateUserProCache } from '@/lib/pro-check'
 
 // Commission rates — dynamic from PRICING
 const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
@@ -143,6 +144,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ [ACTIVATE] Profiles table updated to PRO for: ${userEmail} (${userId}) until ${subscriptionUntil}`)
+
+    // F2: buang PRO cache — aktivasi admin harus langsung terasa di API user
+    invalidateUserProCache(userId)
 
     // ============================================
     // UPDATE AUTH METADATA (secondary — profiles table is source of truth)

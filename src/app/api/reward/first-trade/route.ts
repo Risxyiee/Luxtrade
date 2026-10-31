@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
-import { isUserPro } from '@/lib/pro-check'
+import { isUserPro, invalidateUserProCache } from '@/lib/pro-check'
 
 /**
  * POST /api/reward/first-trade
@@ -76,6 +76,9 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.warn('[reward/first-trade] Profile update failed:', updateError.message)
     }
+
+    // F2: buang PRO cache — hadiah PRO 1 hari harus aktif seketika
+    invalidateUserProCache(userId)
 
     // Update auth metadata
     try {

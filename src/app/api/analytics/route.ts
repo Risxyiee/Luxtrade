@@ -19,9 +19,12 @@ async function getUserWithSession(request: NextRequest) {
   return { user: null, client: cookieClient }
 }
 
-// In-memory cache keyed by userId+period (10s TTL — short to avoid stale data after mutations)
+// In-memory cache keyed by userId+period
+// PERF (F2): TTL 10s → 60s. Keamanan stale tetap terjaga karena
+// invalidateAnalyticsCache(userId) dipanggil via runInBackground pada SETIAP
+// POST/PUT/DELETE /api/trades — mutasi selalu membuang cache tepat waktu.
 const analyticsCache = new Map<string, { data: any; expiry: number }>()
-const CACHE_TTL = 10_000 // 10 seconds — short enough that mutations feel instant
+const CACHE_TTL = 60_000 // 60 seconds
 
 function getCacheKey(userId: string, period: string, accountId: string | null) {
   return `${userId}:${period}:${accountId || 'all'}`

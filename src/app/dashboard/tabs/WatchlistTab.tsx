@@ -6,23 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 
-// ── Symbol normalization (mirrors server-side aliases) ────────────────
-// Ensures watchlist symbols like "XAU" or "GOLD" are mapped to the
-// canonical API symbol ("XAUUSD") before fetching from /api/forex.
-const FOREX_SYMBOL_ALIASES: Record<string, string> = {
-  'XAU': 'XAUUSD', 'GOLD': 'XAUUSD', 'XAU/USD': 'XAUUSD',
-  'XAG': 'XAGUSD', 'SILVER': 'XAGUSD', 'XAG/USD': 'XAGUSD',
-  'EU': 'EURUSD', 'GU': 'GBPUSD', 'GJ': 'GBPJPY', 'EJ': 'EURJPY',
-  'UJ': 'USDJPY', 'AU': 'AUDUSD', 'NU': 'NZDUSD', 'UC': 'USDCAD', 'UF': 'USDCHF',
-  'EUR/USD': 'EURUSD', 'GBP/USD': 'GBPUSD', 'USD/JPY': 'USDJPY',
-  'EUR/GBP': 'EURGBP', 'EUR/JPY': 'EURJPY', 'GBP/JPY': 'GBPJPY',
-  'AUD/USD': 'AUDUSD', 'NZD/USD': 'NZDUSD', 'USD/CAD': 'USDCAD', 'USD/CHF': 'USDCHF',
-}
-
-function normalizeForexSymbol(raw: string): string {
-  const key = raw.trim().toUpperCase()
-  return FOREX_SYMBOL_ALIASES[key] || key
-}
+// PERF (F2): normalisasi simbol PINDAH ke server (/api/forex-batch pakai
+// normalizeSymbol dari lib/market/yahoo) — client kirim simbol apa adanya,
+// kunci respons tetap simbol client sehingga merge priceMap tetap pas.
 
 export interface WatchlistItem {
   id: string
@@ -116,6 +102,7 @@ export default function WatchlistTab({
   }
 
   // Manual refresh handler
+  // PERF (F2): SATU request batch (dulu: 1 fetch per simbol, nocache=true)
   const refreshPrices = useCallback(async () => {
     const symbolsToFetch = [...new Set(items.map(i => i.symbol))]
     if (symbolsToFetch.length === 0) return
@@ -123,19 +110,16 @@ export default function WatchlistTab({
     setPriceLoading(true)
     const priceMap: Record<string, number> = {}
 
-    await Promise.all(symbolsToFetch.map(async (symbol) => {
-      try {
-        const apiSymbol = normalizeForexSymbol(symbol)
-        const res = await fetch(`/api/forex?symbol=${apiSymbol}&limit=1&interval=1h&nocache=true`)
-        if (!res.ok) return
+    try {
+      // nocache=true — user KLIK refresh, wajar minta yang terbaru
+      const res = await fetch(`/api/forex-batch?symbols=${encodeURIComponent(symbolsToFetch.join(','))}&nocache=true`)
+      if (res.ok) {
         const data = await res.json()
-        if (data.success && data.data?.length > 0) {
-          priceMap[symbol] = data.data[data.data.length - 1].close
-        }
-      } catch {
-        // Silently ignore fetch errors
+        if (data?.prices) Object.assign(priceMap, data.prices)
       }
-    }))
+    } catch {
+      // Silently ignore fetch errors
+    }
 
     if (Object.keys(priceMap).length > 0) {
       setCurrentPrices(prev => {
@@ -163,19 +147,18 @@ export default function WatchlistTab({
       const priceMap: Record<string, number> = {}
 
       setPriceLoading(true)
-      await Promise.all(uniqueSymbols.map(async (symbol) => {
-        try {
-          const apiSymbol = normalizeForexSymbol(symbol)
-          const res = await fetch(`/api/forex?symbol=${apiSymbol}&limit=1&interval=1h&nocache=true`)
-          if (!res.ok) return
+      // PERF (F2): SATU request batch tanpa nocache — server menyajikan
+      // dari cache mem/KV bila <= 15 dtk (freshness alert tetap terjaga),
+      // hanya cache-miss yang memukul Yahoo. Dulu: N fetch nocache per tick.
+      try {
+        const res = await fetch(`/api/forex-batch?symbols=${encodeURIComponent(uniqueSymbols.join(','))}`)
+        if (res.ok) {
           const data = await res.json()
-          if (data.success && data.data?.length > 0) {
-            priceMap[symbol] = data.data[data.data.length - 1].close
-          }
-        } catch {
-          // Silently ignore fetch errors
+          if (data?.prices) Object.assign(priceMap, data.prices)
         }
-      }))
+      } catch {
+        // Silently ignore fetch errors
+      }
 
       const prevPrices = currentPricesRef.current
       setCurrentPrices(prev => {
@@ -226,12 +209,26 @@ export default function WatchlistTab({
       })
     }
 
+    // PERF (F2): pause polling saat tab TIDAK terlihat (background/ minimized) —
+    // dulu request jalan terus walau user sedang di tab lain. Saat kembali
+    // visible → poll langsung sekali biar harga tidak basi.
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        pollPrices()
+      }
+    }
+
     // Poll prices immediately — no artificial delay
     pollPrices()
-    intervalRef.current = setInterval(pollPrices, 15000) // Every 15s for more responsive alerts
+    intervalRef.current = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return // skip saat hidden
+      pollPrices()
+    }, 15000) // Every 15s for more responsive alerts
+    document.addEventListener('visibilitychange', onVisibilityChange)
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [items, alertItems, language])
 

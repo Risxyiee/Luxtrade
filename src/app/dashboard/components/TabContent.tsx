@@ -81,6 +81,10 @@ interface TabContentProps {
   selectedAccountId?: string | null
   setSelectedAccountId?: (id: string | null) => void
   setActiveTab?: (tab: string) => void
+  // PERF (F2): pagination "Muat lebih banyak" utk tab trades
+  tradesPagination?: { hasNextPage: boolean; nextCursor: string | null }
+  loadingMoreTrades?: boolean
+  onLoadMoreTrades?: () => void
 }
 
 export default function TabContent({
@@ -125,6 +129,9 @@ export default function TabContent({
   selectedAccountId,
   setSelectedAccountId,
   setActiveTab,
+  tradesPagination,
+  loadingMoreTrades,
+  onLoadMoreTrades,
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
@@ -174,6 +181,9 @@ export default function TabContent({
               onDuplicate={onDuplicate}
               onGoToChart={() => setActiveTab?.('chart')}
               language={language}
+              pagination={tradesPagination}
+              loadingMore={loadingMoreTrades}
+              onLoadMore={onLoadMoreTrades}
             />
           )}
 

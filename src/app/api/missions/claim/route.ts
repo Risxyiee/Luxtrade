@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ACHIEVEMENTS, getAchievementById } from '@/lib/achievements-data'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
+import { invalidateUserProCache } from '@/lib/pro-check'
 
 // CRITICAL: Force dynamic untuk Cloudflare Workers
 // NOTE: No runtime = 'edge' - OpenNext limitation for API routes
@@ -392,6 +393,8 @@ async function applyReward(
         }).eq('id', userId)
 
         console.log(`[Achievement Reward] Applied ${daysToAdd} days PRO to user ${userId}`)
+        // F2: buang PRO cache — reward PRO harus aktif seketika
+        invalidateUserProCache(userId)
         break
       }
 

@@ -129,8 +129,26 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
     const cursor = searchParams.get('cursor') || null
-    const accountId = searchParams.get('account_id') || null
+    // PERF (F2): terima alias "accountId" (camelCase) — dulu diabaikan diam-diam
+    // sehingga TradingAccountList dapat row tak terfilter (N+1 loop).
+    const accountId = searchParams.get('account_id') || searchParams.get('accountId') || null
     const tradingAccountId = searchParams.get('trading_account_id') || null
+    // PERF (F2): count_only=true → head-count murah (tanpa fetch row) untuk badge jumlah trade per akun
+    const countOnly = searchParams.get('count_only') === 'true'
+
+    if (countOnly) {
+      let countQuery = client
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      if (accountId) countQuery = countQuery.eq('account_id', accountId)
+      if (tradingAccountId) countQuery = countQuery.eq('account_id', tradingAccountId)
+      const { count, error: countError } = await countQuery
+      if (countError) {
+        return NextResponse.json({ count: 0, error: countError.message }, { status: 200 })
+      }
+      return NextResponse.json({ count: count || 0 })
+    }
 
     let query = client
       .from('trades')
@@ -148,10 +166,33 @@ export async function GET(request: NextRequest) {
       query = query.eq('account_id', tradingAccountId)
     }
 
-    query = query.order('close_time', { ascending: false }).limit(limit + 1) // fetch extra to detect next page
-
+    // PERF (F2): tiebreaker "id" — dulu cursor cuma close_time, dua trade
+    // dengan timestamp sama bisa ter-skip/duplikat antar halaman.
+    // Format cursor: "<close_time>|<id>" (format lama tanpa "|" tetap didukung).
+    let closeCursor: string | null = null
+    let idCursor: string | null = null
     if (cursor) {
-      query = query.lt('close_time', cursor)
+      const sep = cursor.lastIndexOf('|')
+      if (sep > 0) {
+        closeCursor = cursor.slice(0, sep)
+        idCursor = cursor.slice(sep + 1)
+      } else {
+        closeCursor = cursor
+      }
+    }
+
+    query = query
+      .order('close_time', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1) // fetch extra to detect next page
+
+    if (closeCursor && idCursor) {
+      // Keyset compound: page berikutnya = (close_time < c) ATAU (close_time = c DAN id < i)
+      query = query.or(
+        `close_time.lt.${closeCursor},and(close_time.eq.${closeCursor},id.lt.${idCursor})`
+      )
+    } else if (closeCursor) {
+      query = query.lt('close_time', closeCursor)
     }
 
     const { data, error } = await query
@@ -169,8 +210,10 @@ export async function GET(request: NextRequest) {
     const trades = data || []
     const hasNextPage = trades.length > limit
     const resultTrades = hasNextPage ? trades.slice(0, limit) : trades
-    const nextCursor = hasNextPage && resultTrades.length > 0
-      ? resultTrades[resultTrades.length - 1].close_time
+    // Cursor komposit close_time|id (tiebreaker — lihat komentar di atas)
+    const lastTrade = resultTrades[resultTrades.length - 1]
+    const nextCursor = hasNextPage && lastTrade
+      ? `${lastTrade.close_time}|${lastTrade.id}`
       : null
 
     return NextResponse.json({
@@ -337,13 +380,15 @@ export async function POST(request: NextRequest) {
     // Update account current_balance so saldo/equity stays in sync
     runInBackground(() => updateAccountBalance(client, tradeData.account_id))
 
-    // Check achievements (non-critical, uses Prisma internally — only on POST, not GET)
-    // Run in background — don't block the response
-    const achievementPromise = checkAchievementsAfterTrade(userId).catch(() => [] as any[])
+    // PERF (F2): achievements benar-benar background sekarang — dulu promise
+    // "background" masih di-await sebelum response (blokir POST 1-2 detik:
+    // 10+ query kriteria beruntun). Achievement tetap ter-unlock dan muncul
+    // saat user membuka tab achievements / streaks berikutnya.
+    runInBackground(() => checkAchievementsAfterTrade(userId))
 
-    // Return trade immediately — achievements will be checked in background
-    const unlockedAchievements = await achievementPromise
-    return NextResponse.json({ success: true, trade, unlockedAchievements })
+    // Catatan API: unlockedAchievements selalu [] — key dipertahankan demi
+    // kompatibilitas dengan client lama (tradeHandlers cek .length > 0).
+    return NextResponse.json({ success: true, trade, unlockedAchievements: [] })
   } catch (err) {
     return NextResponse.json(
       { error: 'Failed to create trade', details: err instanceof Error ? err.message : 'Unknown error' },

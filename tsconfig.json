@@ -41,6 +41,7 @@
     "src/__tests__",
     "src/lib/__tests__",
     "scripts",
-    "skills"
+    "skills",
+    "examples"
   ]
 }

@@ -26,108 +26,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   FOREX_SYMBOLS,
   normalizeSymbol,
-  validatePrice,
   fetchYahooChart,
   type YahooCandle,
 } from '@/lib/market/yahoo'
+// PERF (F2): cache dipindah ke lib bersama agar /api/forex-batch memakai
+// lapisan cache yang SAMA (mem + KV) — satu polling batch memanaskan
+// cache untuk semua user, bukan N×user hit ke Yahoo.
+import {
+  getCached,
+  setCache,
+  deleteCached,
+  getForexKVCache,
+  setForexKVCache,
+  getCacheTtl,
+  getKvTtlSeconds,
+  PRICE_FRESH_MS,
+} from '@/lib/market/forex-cache'
 
 export const dynamic = 'force-dynamic'
-
-// ── Price sanity validation (filter array candle, pakai validatePrice bersama) ──
-function validateCandles(symbol: string, candles: any[]): any[] {
-  return candles.filter(candle => {
-    const validClose = validatePrice(symbol, candle.close)
-    if (validClose === null) return false
-    if (candle.open <= 0 || candle.high <= 0 || candle.low <= 0) return false
-    if (candle.high < candle.low) return false
-    return true
-  })
-}
-
-// ── In-memory cache with per-interval TTL ────────────────────────────
-interface CacheEntry { data: any[]; timestamp: number; source: string }
-const cache = new Map<string, CacheEntry>()
-const CACHE_TTL_DEFAULT = 5 * 60 * 1000   // 5 minutes (chart data)
-const CACHE_TTL_SHORT = 1 * 60 * 1000     // 1 minute for M5/M15
-const CACHE_TTL_PRICE = 30 * 1000         // 30 seconds for limit=1 (price checks)
-
-function getCacheTtl(interval: string, limit: number): number {
-  if (limit <= 1) return CACHE_TTL_PRICE
-  if (interval === '5m' || interval === '15m') return CACHE_TTL_SHORT
-  return CACHE_TTL_DEFAULT
-}
-
-function getCached(key: string, interval: string, limit: number): CacheEntry | null {
-  const entry = cache.get(key)
-  if (entry && Date.now() - entry.timestamp < getCacheTtl(interval, limit)) {
-    const symbol = key.split(':')[0]
-    const validatedData = validateCandles(symbol, entry.data)
-    if (validatedData.length === 0 && entry.data.length > 0) {
-      console.warn(`[Forex] Cache entry for ${key} failed sanity validation — invalidating`)
-      cache.delete(key)
-      return null
-    }
-    if (validatedData.length < entry.data.length) {
-      entry.data = validatedData
-    }
-    return entry
-  }
-  cache.delete(key)
-  return null
-}
-
-function setCache(key: string, data: any[], source: string) {
-  cache.set(key, { data, timestamp: Date.now(), source })
-  if (cache.size > 100) {
-    const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
-    if (oldest) cache.delete(oldest[0])
-  }
-}
-
-// ── KV cache helpers (cross-isolate cache on CF Workers) ─────────────
-async function getForexKVCache(key: string): Promise<CacheEntry | null> {
-  try {
-    let kv: any = null
-    try {
-      const { getCloudflareContext } = await import('@opennextjs/cloudflare')
-      const ctx = getCloudflareContext()
-      kv = (ctx as any)?.env?.luxtradee_kv
-    } catch {}
-    if (!kv) return null
-    const raw = await kv.get(`forex:${key}`, 'text')
-    if (!raw) return null
-    const entry = JSON.parse(raw) as CacheEntry
-
-    const symbol = key.split(':')[0]
-    const validatedData = validateCandles(symbol, entry.data)
-    if (validatedData.length === 0 && entry.data.length > 0) {
-      console.warn(`[Forex] KV cache entry for ${key} failed sanity validation — skipping`)
-      return null
-    }
-    if (validatedData.length < entry.data.length) {
-      entry.data = validatedData
-    }
-    return entry
-  } catch {
-    return null
-  }
-}
-
-async function setForexKVCache(key: string, data: any[], source: string, ttlSeconds: number): Promise<void> {
-  try {
-    let kv: any = null
-    try {
-      const { getCloudflareContext } = await import('@opennextjs/cloudflare')
-      const ctx = getCloudflareContext()
-      kv = (ctx as any)?.env?.luxtradee_kv
-    } catch {}
-    if (!kv) return
-    const entry: CacheEntry = { data, timestamp: Date.now(), source }
-    await kv.put(`forex:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
-  } catch {
-    // KV not available, skip
-  }
-}
 
 // ── Main handler ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
@@ -158,15 +74,15 @@ export async function GET(request: NextRequest) {
     const validSymbol = symbol
     const cacheKey = `${validSymbol}:${interval}:${limit}`
 
-    const kvTtlSeconds = isPriceCheck ? 30 : (interval === '5m' || interval === '15m') ? 60 : 300
+    const kvTtlSeconds = getKvTtlSeconds(interval, limit)
 
     // Cache in-memory (kecuali nocache; price check selalu minta yang freshest)
     if (!nocache) {
       const cached = getCached(cacheKey, interval, limit)
       if (cached) {
         const age = Date.now() - cached.timestamp
-        if (isPriceCheck && age > 15000) {
-          cache.delete(cacheKey) // price check perlu data segar
+        if (isPriceCheck && age > PRICE_FRESH_MS) {
+          deleteCached(cacheKey) // price check perlu data segar
         } else {
           return NextResponse.json({
             success: true,
@@ -184,7 +100,7 @@ export async function GET(request: NextRequest) {
       const kvCached = await getForexKVCache(cacheKey)
       if (kvCached && Date.now() - kvCached.timestamp < getCacheTtl(interval, limit)) {
         const kvAge = Date.now() - kvCached.timestamp
-        if (!(isPriceCheck && kvAge > 15000)) {
+        if (!(isPriceCheck && kvAge > PRICE_FRESH_MS)) {
           setCache(cacheKey, kvCached.data, kvCached.source)
           return NextResponse.json({
             success: true,

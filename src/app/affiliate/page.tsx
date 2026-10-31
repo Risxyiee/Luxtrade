@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { io, Socket } from 'socket.io-client'
 import {
   Gift,
   Users,
@@ -71,12 +70,12 @@ interface Withdrawal {
   paidAt: string | null
 }
 
-interface ActivityEvent {
-  id: string
-  type: 'new_referral' | 'commission' | 'withdrawal' | 'subscription'
-  message: string
-  timestamp: number
-}
+// PERF (F2): socket.io affiliate DIHAPUS — server mini-services/affiliate-ws
+// memang ada, tapi TIDAK ADA kode yang pernah emit 'affiliate:event' (token
+// relay juga fail-closed tanpa AFFILIATE_WS_TOKEN) dan routing Caddy hanya
+// ada di VPS, bukan Cloudflare Workers (prod). Hasilnya: 10 percobaan
+// reconnect sia-sia di setiap load + badge "Disconnected" palsu. Data tetap
+// segar via HTTP refetch yang sudah ada setelah aksi terkait.
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -146,10 +145,7 @@ export default function AffiliatePage() {
   const [updateCodeSubmitting, setUpdateCodeSubmitting] = useState(false)
   const [cooldownDaysLeft, setCooldownDaysLeft] = useState<number | null>(null)
 
-  // Realtime state
-  const [activities, setActivities] = useState<ActivityEvent[]>([])
-  const [wsConnected, setWsConnected] = useState(false)
-  const socketRef = useRef<Socket | null>(null)
+  // Realtime state — DIHAPUS (socket.io mati, lihat catatan di atas)
 
   // ── Build referral link from code ──
   const referralLink = affiliateData
@@ -221,94 +217,6 @@ export default function AffiliatePage() {
       return () => clearTimeout(timeout)
     }
   }, [authLoading, fetchReferrals, fetchWithdrawals])
-
-    // ── WebSocket: realtime affiliate updates ──────────────────────
-  useEffect(() => {
-    if (authLoading || !affiliateData) return
-
-    // Delay WebSocket connection by 10s to allow Network Idle for PWA audit
-    const connectTimeout = setTimeout(() => {
-      const socket = io('/?XTransformPort=3004', {
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-      })
-      socketRef.current = socket
-
-      socket.on('connect', () => {
-        setWsConnected(true)
-        socket.emit('affiliate:join', 'affiliate-user')
-      })
-
-      socket.on('disconnect', () => {
-        setWsConnected(false)
-      })
-
-      socket.on('affiliate:new_referral', (data) => {
-        const name = data?.referredName || data?.referredEmail || 'Seseorang'
-        const activity: ActivityEvent = {
-          id: `evt-${Date.now()}`,
-          type: 'new_referral',
-          message: `${name} mendaftar menggunakan kode referral kamu!`,
-          timestamp: Date.now(),
-        }
-        setActivities(prev => [activity, ...prev].slice(0, 20))
-        toast.success(`🆕 Referral baru: ${name}`)
-        fetchReferrals()
-        refreshAll()
-      })
-
-      socket.on('affiliate:commission', (data) => {
-        const activity: ActivityEvent = {
-          id: `evt-${Date.now()}`,
-          type: 'commission',
-          message: `Komisi ${fmt(data.amount)} diterima dari referral ${data?.referredName || 'baru'}!`,
-          timestamp: Date.now(),
-        }
-        setActivities(prev => [activity, ...prev].slice(0, 20))
-        toast.success(`💰 Komisi ${fmt(data.amount)} masuk ke saldo!`)
-        refreshAll()
-      })
-
-      socket.on('affiliate:subscription', (data) => {
-        const activity: ActivityEvent = {
-          id: `evt-${Date.now()}`,
-          type: 'subscription',
-          message: `Referral ${data?.referredName || 'kamu'} berlangganan ${data?.plan || 'PRO'}!`,
-          timestamp: Date.now(),
-        }
-        setActivities(prev => [activity, ...prev].slice(0, 20))
-        toast.info(`📋 Referral berlangganan ${data?.plan || 'PRO'}`)
-        fetchReferrals()
-      })
-
-      socket.on('affiliate:withdrawal_update', (data) => {
-        const activity: ActivityEvent = {
-          id: `evt-${Date.now()}`,
-          type: 'withdrawal',
-          message: `Penarikan ${fmt(data.amount)} status: ${data.status}`,
-          timestamp: Date.now(),
-        }
-        setActivities(prev => [activity, ...prev].slice(0, 20))
-        if (data.status === 'PAID') {
-          toast.success(`✅ Penarikan ${fmt(data.amount)} berhasil dibayar!`)
-        } else {
-          toast.info(`Penarikan ${fmt(data.amount)}: ${data.status}`)
-        }
-        refreshAll()
-      })
-    }, 10000)
-
-    return () => {
-      clearTimeout(connectTimeout)
-      if (socketRef.current) {
-        socketRef.current.disconnect()
-        socketRef.current = null
-      }
-      setWsConnected(false)
-    }
-  }, [authLoading, affiliateData])
 
 // ── Refresh all data (after withdrawal) ───────────────────────────
   const refreshAll = useCallback(async () => {
@@ -434,22 +342,6 @@ export default function AffiliatePage() {
 
   const totalReferrals = referrals.length
   const canWithdraw = affiliateData.currentBalance >= 100000
-
-  // Activity type icons & colors
-  const activityMeta: Record<string, { icon: string; color: string }> = {
-    new_referral: { icon: '🆕', color: 'text-emerald-400' },
-    commission: { icon: '💰', color: 'text-amber-400' },
-    withdrawal: { icon: '💸', color: 'text-blue-400' },
-    subscription: { icon: '📋', color: 'text-cyan-400' },
-  }
-
-  const timeAgo = (ts: number) => {
-    const diff = Math.floor((Date.now() - ts) / 1000)
-    if (diff < 60) return 'Baru saja'
-    if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`
-    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`
-    return `${Math.floor(diff / 86400)} hari lalu`
-  }
 
   return (
     <main className="min-h-screen bg-[#0a0612] text-white">
@@ -586,63 +478,8 @@ export default function AffiliatePage() {
           </motion.div>
         </motion.section>
 
-        {/* ── 3.5 Realtime Activity Feed ─────────────────────────── */}
-        <motion.section
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          custom={5}
-          className="mb-8"
-        >
-          <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${wsConnected ? 'animate-ping bg-emerald-400' : 'bg-red-400'}`} />
-                    <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${wsConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                  </span>
-                  Aktivitas Realtime
-                </CardTitle>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${wsConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                  {wsConnected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {activities.length === 0 ? (
-                <div className="text-center py-8 text-white/40 text-sm">
-                  <p>Belum ada aktivitas baru.</p>
-                  <p className="text-xs mt-1">Aktivitas akan muncul secara realtime saat ada referral baru.</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  <AnimatePresence mode="popLayout">
-                    {activities.map((activity) => {
-                      const meta = activityMeta[activity.type] || activityMeta.new_referral
-                      return (
-                        <motion.div
-                          key={activity.id}
-                          initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                          animate={{ opacity: 1, x: 0, scale: 1 }}
-                          exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                          transition={{ duration: 0.3 }}
-                          className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/8 transition-colors"
-                        >
-                          <span className="text-lg mt-0.5">{meta.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white/90 leading-snug">{activity.message}</p>
-                            <p className="text-xs text-white/40 mt-0.5">{timeAgo(activity.timestamp)}</p>
-                          </div>
-                        </motion.div>
-                      )
-                    })}
-                  </AnimatePresence>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.section>
+        {/* ── 3.5 Realtime Activity Feed — DIHAPUS (F2): socket.io sumber
+             event-nya tidak pernah ada di prod, section ini permanen kosong ── */}
 
         {/* ── 4. Referral History Table ──────────────────────────── */}
         <motion.section

@@ -17,20 +17,25 @@ const LandingCheckoutModal = dynamic(() => import('@/components/landing/LandingC
 
 const loadingDiv = <div className="h-32" />
 
-const SocialProofBar = dynamic(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+// PERF (F2): 10 section konten landing kini DI-SSR — HTML asli (teks,
+// pricing, FAQ, footer) ikut terkirim → SEO + LCP jauh lebih baik.
+// Semua akses window/localStorage di komponen ini sudah diverifikasi
+// berada di dalam useEffect (SSR-safe). ssr:false DIPERTAHANKAN hanya
+// untuk 2 modal (butuh state klik) + 3 widget interaktif berat.
+const SocialProofBar = dynamic(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const AIVisionSimulator = dynamic(() => import('@/components/landing/AIVisionSimulator').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const InteractiveTutorial = dynamic(() => import('@/components/landing/InteractiveTutorial').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const ContentArticles = dynamic(() => import('@/components/landing/ContentArticles').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const ContentArticles = dynamic(() => import('@/components/landing/ContentArticles').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 // TrustStats and LiveActivityFeed removed — fake data components
-const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const CSBotWidget = dynamic(() => import('@/components/landing/CSBotWidget').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const PartnerBanner = dynamic(() => import('@/components/landing/PartnerBanner').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const PartnerBanner = dynamic(() => import('@/components/landing/PartnerBanner').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number

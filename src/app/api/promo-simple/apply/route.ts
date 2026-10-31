@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
+import { invalidateUserProCache } from '@/lib/pro-check'
 
 // Simple promo apply - no middleware, no edge runtime
 export const dynamic = 'force-dynamic'
@@ -119,6 +120,9 @@ export async function POST(request: NextRequest) {
     }
 
     const remainingQuota = Number(promo.max_quota) - Number(promo.used_quota)
+
+    // F2: buang PRO cache agar akses PRO aktif seketika
+    invalidateUserProCache(userId)
 
     // Auto-deactivate when full
     if (remainingQuota <= 0) {
