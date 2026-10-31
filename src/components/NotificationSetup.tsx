@@ -31,6 +31,7 @@ const strings = {
     testOk: 'Terkirim! Cek HP kamu 📲',
     testEmpty: 'Belum kekirim — coba matikan & nyalakan lagi notifikasinya',
     testFail: 'Gagal terkirim — coba lagi',
+    testServer: 'Server belum bisa kirim push — bukan salah HP-mu. Coba lagi nanti',
   },
   en: {
     enableBtn: 'Enable Notifications',
@@ -53,6 +54,7 @@ const strings = {
     testOk: 'Sent! Check your phone 📲',
     testEmpty: 'Not delivered — try toggling notifications off & on',
     testFail: 'Send failed — try again',
+    testServer: 'Push server can’t send yet — not your phone’s fault. Try later',
   },
 } as const
 
@@ -84,7 +86,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [showIOSBanner, setShowIOSBanner] = useState(false)
-  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'empty' | 'fail'>('idle')
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'empty' | 'fail' | 'server'>('idle')
 
   useEffect(() => {
     setIsIOS(isIOSSafari())
@@ -116,8 +118,10 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   }, [unsubscribe])
 
   /** FASE 5A: kirim push TES ke diri sendiri — bukti notif beneran sampai HP.
-    * Kalau server bilang tidak punya perangkat padahal toggle aktif (drift
-    * browser vs server) → perbaiki otomatis via resync lalu kirim ulang. */
+    * Drift (browser punya sub, server tidak) diperbaiki otomatis via resync
+    * lalu kirim ulang. FIX F5: resync juga saat semua perangkat expired.
+    * Kalau server bilang send_failed → itu masalah infra push (bukan HP) →
+    * tampilkan pesan berbeda biar Bos gak salah curiga ke HP-nya. */
   const handleSendTest = useCallback(async () => {
     setTestState('sending')
     try {
@@ -131,8 +135,12 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
         setTestState('fail')
         return
       }
-      if (data.total === 0 && userId) {
-        // Drift: browser punya subscription, server tidak → siklus ulang otomatis
+      const needsRepair = data.sent === 0 && userId && (
+        data.total === 0 || (data.expired ?? 0) > 0
+      )
+      if (needsRepair) {
+        // Drift: browser punya subscription tapi server kosong/mati →
+        // siklus ulang otomatis (unsubscribe + subscribe fresh)
         const fixed = await resync(userId, isPro)
         if (!fixed) {
           setTestState('empty')
@@ -144,7 +152,15 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
           return
         }
       }
-      setTestState(data.sent > 0 ? 'ok' : 'empty')
+      if (data.sent > 0) {
+        setTestState('ok')
+      } else if (data.reason === 'send_failed') {
+        // Server push-nya yang bermasalah (VAPID/library/runtime) —
+        // mati-nyalakan notif gak akan nolong → pesan jujur
+        setTestState('server')
+      } else {
+        setTestState('empty')
+      }
     } catch {
       setTestState('fail')
     }
@@ -237,6 +253,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             )}
             {testState === 'fail' && (
               <span className="flex items-center gap-1 text-[10px] text-red-400"><AlertCircle className="w-3 h-3" />{t.testFail}</span>
+            )}
+            {testState === 'server' && (
+              <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testServer}</span>
             )}
           </div>
         )}
@@ -375,6 +394,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             )}
             {isSubscribed && testState === 'fail' && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-red-400"><AlertCircle className="w-3.5 h-3.5" />{t.testFail}</p>
+            )}
+            {isSubscribed && testState === 'server' && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testServer}</p>
             )}
           </div>
         </div>
