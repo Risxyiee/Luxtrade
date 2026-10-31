@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -66,6 +67,15 @@ const MAX_MESSAGES = 30 // Dashboard users get more messages
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit anti-scan biaya AI: endpoint ini terbuka utk tamu
+    // (chat dukungan landing) → 15 pesan/menit per IP
+    const limited = checkRateLimit(req, 'chat-support', {
+      maxRequests: 15,
+      windowMs: 60_000,
+      message: 'Terlalu banyak pesan. Istirahat sebentar ya 😊',
+    })
+    if (limited) return limited
+
     const rawBody = await req.text()
     let sessionId: string
     let message: string

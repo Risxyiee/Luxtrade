@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 // GET - Sync current user profile (ensure profile exists)
 export async function GET(request: NextRequest) {
@@ -16,6 +17,10 @@ export async function GET(request: NextRequest) {
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: dipanggil tiap login — 30x/5 menit per user cukup longgar
+    const limited = rateLimitByUser('auth-sync-profile', user.id, { maxRequests: 30, windowMs: 5 * 60_000 })
+    if (limited) return limited
 
     const admin = getSupabaseAdmin()
     if (!admin) {

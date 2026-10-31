@@ -105,6 +105,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'ok', message: 'Order not found, acknowledged' })
     }
 
+    // ── 4b. Cross-check nominal (observability saja, tidak mengubah perilaku)
+    // Nominal dibayar sudah dijamin signature Midtrans (tidak bisa dipalsukan).
+    // Ini cuma jejak audit kalau nominal < harga order (indikasi diskon flow
+    // yang tidak tercatat / data order melenceng).
+    const paidAmount = Number(grossAmount)
+    const orderAmount = Number(paymentOrder.amount)
+    if (
+      Number.isFinite(paidAmount) && Number.isFinite(orderAmount) &&
+      orderAmount > 0 && paidAmount + 0.01 < orderAmount
+    ) {
+      console.warn(
+        `⚠️ [Midtrans Webhook] Nominal dibayar (${paidAmount}) < harga order (${orderAmount}) utk ${orderId} — cek create-transaction/diskon flow`
+      )
+    }
+
     // ── 5. Skip if already processed ───────────────────────────
     if (paymentOrder.status === 'SUCCESS' && finalStatus === 'SUCCESS') {
       return NextResponse.json({ status: 'ok', message: 'Already processed' })

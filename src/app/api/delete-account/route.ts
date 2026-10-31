@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 // CRITICAL: Force dynamic untuk Cloudflare Workers
 // NOTE: No runtime = 'edge' - OpenNext limitation for API routes
@@ -43,6 +44,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    // Rate limit: operasi DESTRUKTIF — 3x/jam per user
+    const limited = rateLimitByUser('delete-account', authUser.id, { maxRequests: 3, windowMs: 60 * 60_000 })
+    if (limited) return limited
 
     const userId = authUser.id
     const userEmail = authUser.email

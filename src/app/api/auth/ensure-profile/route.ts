@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,10 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: cukup 10x/menit per user (dipanggil sekali saat onboarding)
+    const limited = rateLimitByUser('auth-ensure-profile', user.id, { maxRequests: 10, windowMs: 60_000 })
+    if (limited) return limited
 
     const body = await request.json()
     const { userId, email, fullName } = body

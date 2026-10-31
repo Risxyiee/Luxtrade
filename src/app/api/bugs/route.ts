@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt';
 import { supabase } from '@/lib/supabase';
+import { rateLimitByUser } from '@/lib/rate-limit';
 
 /**
  * POST /api/bugs - Submit a bug report
@@ -34,6 +35,10 @@ export async function POST(request: NextRequest) {
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
+
+    // Rate limit anti-spam: 5 laporan / 10 menit per user
+    const limited = rateLimitByUser('bugs-post', user.id, { maxRequests: 5, windowMs: 10 * 60_000 });
+    if (limited) return limited;
 
     const body = await request.json();
     const { description, screenshotUrl } = body;

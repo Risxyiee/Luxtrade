@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 const MIN_WITHDRAWAL = 100000 // Rp100.000
 
@@ -17,6 +18,11 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: operasi uang — 5 permintaan / 10 menit per user
+    // (penarikan wajar jarang; mencegah spam request withdraw)
+    const limited = rateLimitByUser('affiliate-withdraw', authUser.id, { maxRequests: 5, windowMs: 10 * 60_000 })
+    if (limited) return limited
 
     const body = await request.json()
     const { amount, bankAccountInfo } = body as {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * Validate promo code
@@ -9,6 +10,16 @@ import { requireAdmin } from '@/lib/admin-auth'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit ANTI BRUTE-FORCE: endpoint ini TANPA auth (dipakai saat
+    // user mengetik kode promo) → oracle tebak kode. 10x/menit per IP;
+    // ketikan manual manusia jauh di bawah ini.
+    const limited = checkRateLimit(request, 'promo-validate', {
+      maxRequests: 10,
+      windowMs: 60_000,
+      message: 'Terlalu banyak percobaan kode promo. Coba lagi sebentar lagi.',
+    })
+    if (limited) return limited
+
     const admin = getSupabaseAdmin()
     if (!admin) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

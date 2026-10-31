@@ -24,6 +24,7 @@ import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript
 import { sendTelegramToUserVerbose } from '@/lib/pine-protected'
 import { ensureDefaultScript, DEFAULT_PINE_SOURCE } from '@/lib/pine-default-script'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME } from '@/lib/pine-default-meta'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,11 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthenticatedUser(request)
     if (!auth?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = auth.user.id
+
+    // Rate limit: tes alert mengirim pesan Telegram beneran — 5x/5 menit
+    const limited = rateLimitByUser('pine-alert-test', userId, { maxRequests: 5, windowMs: 5 * 60_000 })
+    if (limited) return limited
+
     const isPro = await readIsPro(userId)
     if (!isPro) {
       return NextResponse.json({
