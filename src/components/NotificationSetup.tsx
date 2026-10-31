@@ -29,7 +29,7 @@ const strings = {
     testBtn: 'Kirim Notifikasi Tes',
     testingBtn: 'Mengirim...',
     testOk: 'Terkirim! Cek HP kamu 📲',
-    testEmpty: 'Belum ada perangkat terdaftar — nyalakan dulu',
+    testEmpty: 'Belum kekirim — coba matikan & nyalakan lagi notifikasinya',
     testFail: 'Gagal terkirim — coba lagi',
   },
   en: {
@@ -51,7 +51,7 @@ const strings = {
     testBtn: 'Send Test Notification',
     testingBtn: 'Sending...',
     testOk: 'Sent! Check your phone 📲',
-    testEmpty: 'No device registered — enable first',
+    testEmpty: 'Not delivered — try toggling notifications off & on',
     testFail: 'Send failed — try again',
   },
 } as const
@@ -79,7 +79,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
 
   const { user, isPro } = useAuth()
   const userId = user?.id || ''
-  const { isSupported, permission, isSubscribed, isLoading, error, subscribe, unsubscribe } = usePushSubscription()
+  const { isSupported, permission, isSubscribed, isLoading, error, subscribe, unsubscribe, resync } = usePushSubscription(userId)
 
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
@@ -115,21 +115,40 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
     await unsubscribe()
   }, [unsubscribe])
 
-  /** FASE 5A: kirim push TES ke diri sendiri — bukti notif beneran sampai HP */
+  /** FASE 5A: kirim push TES ke diri sendiri — bukti notif beneran sampai HP.
+    * Kalau server bilang tidak punya perangkat padahal toggle aktif (drift
+    * browser vs server) → perbaiki otomatis via resync lalu kirim ulang. */
   const handleSendTest = useCallback(async () => {
     setTestState('sending')
     try {
-      const res = await fetch('/api/push/test', { method: 'POST' })
-      if (!res.ok) {
+      const send = async () => {
+        const res = await fetch('/api/push/test', { method: 'POST' })
+        if (!res.ok) return null
+        return res.json()
+      }
+      let data = await send()
+      if (data === null) {
         setTestState('fail')
         return
       }
-      const data = await res.json()
+      if (data.total === 0 && userId) {
+        // Drift: browser punya subscription, server tidak → siklus ulang otomatis
+        const fixed = await resync(userId, isPro)
+        if (!fixed) {
+          setTestState('empty')
+          return
+        }
+        data = await send()
+        if (data === null) {
+          setTestState('fail')
+          return
+        }
+      }
       setTestState(data.sent > 0 ? 'ok' : 'empty')
     } catch {
       setTestState('fail')
     }
-  }, [])
+  }, [resync, userId, isPro])
 
   // Whether push can actually work on this device
   const pushCanWork = isSupported && (!isIOS || isStandalone)
