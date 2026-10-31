@@ -3055,3 +3055,31 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
 - Landing 200. PATCH update-streak tanpa env → fail-closed 500
   (sandbox wajar; produksi 401 utk tamu).
+
+---
+## [LOCKDOWN TABEL UANG] Audit + Migrasi 026 — akses client ke 6 tabel uang ditutup total
+
+### AUDIT KODE (sampai 7d7cfa8a)
+- 6 tabel sensitif: affiliates, withdrawals, payment_orders,
+  activation_keys, user_submissions, affiliate_referrals.
+- Seluruh akses hanya di route API server + lib service-role
+  (affiliate-commission, achievement-checker, auto-fix-rls,
+  missions/claim, midtrans webhook, withdraw, admin, signup).
+- Audit menyeluruh: .from() literal (16 file, semua server) +
+  .from( dinamis (cuma Array/Buffer.from) + fetch rest/v1 langsung
+  (semua di route API, bukan tabel uang) + postgres_changes realtime
+  (NOL di seluruh kode). wallets = tidak ada tabelnya (saldo ada di
+  profiles.affiliate_balance). agent-proposals hanya dipakai 2 route API.
+- Simpulan: browser TIDAK PERLU akses apa pun ke 6 tabel ini.
+
+### MIGRASI 026 — supabase-migrations/026_money_tables_client_lockdown.sql
+- REVOKE ALL (termasuk SELECT) dari authenticated + anon untuk 6 tabel.
+- Rationale: meskipun RLS owner-scoped, UPDATE "baris sendiri" pada
+  affiliates tetap = user menaikkan saldo sendiri. Privilege = gerbang
+  luar; policy jadi surat mati (dibiarkan — kalau ragu gausah dihapus).
+- service_role tak tersentuh; alur server (webhook, claim, withdraw,
+  admin) tetap normal.
+- Idempotent. ⏳ MENUNGGU BOS JALANKAN + verifikasi (harus 0 baris).
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 + landing 200.
