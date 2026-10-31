@@ -3518,3 +3518,9 @@ Yang BOLONG — kini ditutup (13 endpoint):
 
 ### GERBANG
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+
+### LAMPIRAN: PURGE EKSEKUSI (sore hari, via HP Bos)
+- 19 file yatim dihapus via Supabase Dashboard Storage UI
+  ("Successfully deleted 19 file(s)").
+- Verifikasi: count objek root `trade-screenshots` = 0 → root bucket bersih,
+  100% isi = folder uid pemilik. Storage story #7 CLOSED penuh.
