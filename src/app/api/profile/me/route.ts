@@ -146,11 +146,16 @@ export async function PATCH(request: NextRequest) {
     // CATATAN AUDIT: 'total_xp' SENGAJA dihapus dari allowedFields — XP hanya
     // boleh ditulis server (achievements/onboarding). Dulu client bisa
     // self-PATCH XP kosong lewat endpoint ini.
+    // CATATAN AUDIT (fix self-referral): 'my_referral_code' & 'referred_by_code'
+    // SENGAJA dihapus dari allowedFields — kode referral hanya ditulis server
+    // saat signup (generateReferralCode + validasi tabel affiliates).
+    // Dulu client bisa PATCH referred_by_code = kode referral DIRINYA SENDIRI
+    // → komisi affiliate mengalir ke diri sendiri saat beli PRO; atau menimpa
+    // my_referral_code dgn kode orang lain (pembajakan kode populer).
+    // Tidak ada UI yang memakai PATCH utk kedua field ini (sudah diaudit).
     const allowedFields = [
       'full_name',
       'display_name',
-      'my_referral_code',
-      'referred_by_code',
       'device_id'
     ]
 

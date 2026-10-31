@@ -2982,3 +2982,36 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
 - /api/profile/me PATCH memperbolehkan client set referred_by_code —
   potensi self-referral (isi kode sendiri → komisi ke diri sendiri saat
   beli PRO). Perlu validasi server (kode ≠ kode sendiri / cek affiliate).
+
+---
+## [FIX SELF-REFERRAL] PATCH /api/profile/me — kode referral dilarang ditulis client
+
+### TEMUAN
+- PATCH /api/profile/me sebelumnya mengizinkan client menulis
+  'referred_by_code' → user bisa isi kode referral DIRINYA SENDIRI,
+  lalu saat beli PRO komisi affiliate (applyActivationCommission)
+  mengalir ke diri sendiri. Juga bisa menimpa 'my_referral_code' dgn
+  kode orang lain (pembajakan kode populer → komisi pembeli lain
+  mengalir ke penimpa).
+
+### BUKTI AMAN DIHAPUS (audit pemanggil)
+- Satu-satunya pemanggil PATCH /api/profile/me: streak-tracker
+  ({action:'update-streak'} saja) — tidak pernah mengirim field referral.
+- Kode referral hanya ditulis server saat signup: generateReferralCode()
+  (server-generated) + validasi non-blocking ke tabel affiliates
+  (uppercase). Alur referral masuk SAAT DAFTAR, bukan sesudahnya.
+- device_id dicek: tidak dipakai jalur trial → aman dibiarkan di whitelist.
+
+### FIX
+- allowedFields PATCH kini: full_name, display_name, device_id saja.
+  ('total_xp' sudah dihapus sebelumnya; kini + my_referral_code,
+  referred_by_code.)
+
+### GERBANG & SMOKE
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Landing 200 + Agent Browser render normal tanpa page error.
+
+### CATATAN RAK (report-only)
+- updateLoginStreak mengirim {action:'update-streak'} tapi handler PATCH
+  tidak menangani 'action' → streak login saat ini diam (return 0).
+  Perlu keputusan Bos: hidupkan lagi di server atau buang alurnya.
