@@ -3295,3 +3295,26 @@ Tanggal: (lanjutan sesi audit RLS) · Status: 027+028 SUKSES di produksi, 029 ME
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (铁律 #1 aman).
 - Aman urutan eksekusi: kode select eksplisit jalan dgn grant
   table-level lama (sebelum 029) maupun column-level (sesudah).
+
+---
+## [TUTUP BAB RLS] 029 SUKSES di produksi — verifikasi Bos lolos semua
+
+- V1: policy testimonials tepat 3 sesuai desain
+  (SELECT approved-only utk anon+authenticated; INSERT own+pending
+  WAJIB; DELETE own) ✅
+- V2-revisi (privilege_type='SELECT' pada user_email) = 0 baris →
+  email tersembunyi dari client ✅ (hasil V2 pertama 3 baris =
+  INSERT/UPDATE/DELETE table-level yang memang disengaja: route
+  submit nulis email sebagai role authenticated — tulis ≠ baca)
+- V3: users = 0 grant client ✅
+- Fitur kirim testimoni + landing approved kembali hidup dgn
+  anti-fake (tak bisa self-approve) + anti-bocor-email.
+
+### REKAP BAB KEAMANAN RLS/PRIVILEGES (024-029, SEMUA TUNTAS)
+- 024/025: profiles tulisan client ditutup (SELECT-only)
+- 026: 6 tabel uang locked
+- 027: 23 tabel non-uang locked (+temuan affiliate_withdrawals
+  lolos 026, user_subscriptions self-upgrade risk)
+- 028: 2 policy nakal promo_codes dibuang
+- 029: testimonials dibangkitkan (anti-fake + column-level email)
+  + users higiene
