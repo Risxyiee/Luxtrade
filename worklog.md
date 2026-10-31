@@ -3477,3 +3477,44 @@ Yang BOLONG — kini ditutup (13 endpoint):
 
 ### GERBANG
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+
+## 2026-11-01 — #7 TUNTAS: SQL 031 dieksekusi & terverifikasi + tooling purge yatim
+
+### HASIL EKSEKUSI SQL 031 (Bos) — TERVERIFIKASI
+- V1: `trade-screenshots` → public=FALSE + limit 10MB ✅ FLIP SUKSES
+- V2: policy 9/9 lengkap (4 owner trade-screenshots + 4 owner screenshots
+  + 1 admin read) ✅
+- B1/B2: 49 objek legacy pindah ke folder uid; 19 tersisa di root.
+- DIAGNOSIS 19 root: ref_count=0 SEMUA → yatim murni (kebanyakan upload AI
+  analyze yang wizard-nya tak disimpan + file manual lama Juni). Kode
+  diverifikasi: satu-satunya referensi DB = trades.screenshot_url
+  (BugReport → bucket terpisah). 19 file terkunci sendiri di bucket private
+  (tak bisa diakses siapa pun) → purge DEFERRED, bukan penghalang #7.
+
+### TEMUAN TAMBAHAN & PENUTUPAN CELAH
+- Bucket `screenshots` ternyata SUDAH private sejak sebelumnya
+  (on conflict do nothing di 031 tak mengubahnya) + limit NULL.
+  → UPDATE: file_size_limit 10MB + 6 MIME whitelist. Dibiarkan private
+  by design: bug screenshot tak pernah dirender di app (GET /api/bugs
+  tanpa konsumen UI); policy admin read siap utk signed URL masa depan.
+- AI Vision aman dari flip (analyzeImageWithAiml pakai BUFFER, bukan URL).
+- Supabase blokir `delete from storage.objects` via SQL
+  (trigger storage.protect_delete) → purge WAJIB Storage API.
+
+### TOOLING BARU
+- scripts/purge-orphan-screenshots.mjs: purge via Storage API.
+  Safety: dry-run default (perlu --yes), guard ganda (ref exact-substring
+  check otomatis skip file yang masih direferensikan), batch remove @50,
+  verifikasi ulang otomatis. Eksekusi dari laptop Bos (key via env inline).
+
+### DEPLOY SAGA
+- Webhook CF mogok: 623c5fc5 + 288d979a tak memicu build (live stuck di
+  4e574b2). Setelah Bos bereskan trigger dari dashboard, commit retrigger
+  22cab8dc → build masuk. Live menyusul.
+
+### SISA (non-blocking)
+- Cek visual Bos: screenshot trade lama tampil via resolver (signed URL).
+- Jalankan purge 19 yatim dari laptop.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
