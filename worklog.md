@@ -3239,3 +3239,59 @@ audit RLS/privileges tabel NON-uang (pola sama dgn 026).
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (铁律 #1 aman).
 - File baru: scripts/audit-table-clients.ts (alat audit, dipakai ulang),
   supabase-migrations/027_non_money_tables_client_lockdown.sql.
+
+---
+## [VERIFIKASI 027 + RACIK 028/029] Promo dibersihkan + fitur testimoni dibangkitkan
+
+Tanggal: (lanjutan sesi audit RLS) · Status: 027+028 SUKSES di produksi, 029 MENUNGGU BOS
+
+### VERIFIKASI 027 (hasil Bos)
+- V1 + V2 = 0 baris → 23 tabel resmi terkunci (termasuk temuan panas
+  affiliate_withdrawals & user_subscriptions). Bab lockdown non-uang TUNTAS.
+- V3 (dump policy): 10 tabel sehat owner-scoped; 2 temuan di bawah;
+  9 tabel tak muncul → diagnosa lanjutan: mission_progress fail-closed
+  sempurna (RLS ON + 0 grant + 0 policy, pas utk tabel server-only);
+  6 tabel TIDAK ADA di DB (targets, goals, trading_integrations,
+  prop_firm_rules, referral_tracking, equity_curve) = kode hantu →
+  nol risiko, masuk rak bersih-bersih.
+
+### MIGRASI 028 — supabase-migrations/028_promo_codes_policy_cleanup.sql
+- Buang 2 policy nakal promo_codes: promo_codes_public_read
+  (USING true → bocor kode nonaktif) + promo_codes_service_role_read
+  (role authenticator = mati surat). DIJALANKAN BOS → SUKSES,
+  sisa tepat 3 policy intent (admin ALL role-gated + 2 SELECT
+  is_active=true).
+
+### TEMUAN FITUR MATI: TESTIMONIALS (RLS ON + 14 grant + 0 policy)
+- POST /api/testimonials (submit) = 42501 MATI; DELETE own = MATI;
+  GET landing = kosong (fallback statis). Kode didesain mengandalkan
+  RLS (komentar di route) tapi policy TIDAK PERNAH dibuat — migrasi
+  2026-07-28 hanya GRANT.
+
+### MIGRASI 029 — supabase-migrations/029_testimonials_revive_users_hygiene.sql (MENUNGGU BOS)
+- Bangkitkan fitur dgn aman-by-default:
+  1. SELECT utk anon+authenticated: HANYA status='approved'.
+  2. INSERT utk authenticated: WITH CHECK owner (auth.uid()=user_id)
+     DAN status WAJIB 'pending' → ANTI-FAKE (tak bisa self-approve/
+     self-featured via PostgREST).
+  3. DELETE utk authenticated: owner only.
+- PRIVASI EMAIL: route menyimpan email asli (user_email) → SELECT
+  jadi COLUMN-LEVEL (semua kolom MINUS user_email, daftar kolom
+  dibangun dinamis dari information_schema). Tamu tak bisa baca
+  email pemberi testimoni.
+- Higiene: write grant anon dicabut (tanpa policy write anon);
+  tabel users di-REVOKE ALL dari client (grant mati surat, RLS ON
+  + 0 policy — nol dampak fungsional, state DB jadi jujur).
+- service_role tak tersentuh → panel admin testimoni normal.
+- Idempotent (guard policy ada/tidak + to_regclass).
+
+### CODE CHANGE BARENG 029
+- src/app/api/testimonials/route.ts: GET & POST select('*')/.select()
+  → PUBLIC_COLUMNS eksplisit (tanpa user_email) — select('*') akan
+  permission-denied setelah column-level grant 029 aktif. Konstanta
+  module-level dipakai GET + POST.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (铁律 #1 aman).
+- Aman urutan eksekusi: kode select eksplisit jalan dgn grant
+  table-level lama (sebelum 029) maupun column-level (sesudah).

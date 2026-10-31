@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+// Kolom eksplisit (tanpa user_email) — user_email tidak pernah
+// diberikan sebagai grant SELECT ke client (migrasi 029, privasi).
+// select('*') akan error permission-denied setelah 029 aktif.
+const PUBLIC_COLUMNS = 'id,user_id,user_name,rating,text,role,profile_image_url,is_verified,is_featured,status,trades_logged,prop_firms_passed,created_at'
+
 // GET - Fetch all approved testimonials
 export async function GET(request: Request) {
   try {
@@ -12,7 +17,7 @@ export async function GET(request: Request) {
 
     let query = supabase
       .from('testimonials')
-      .select('*')
+      .select(PUBLIC_COLUMNS)
       .eq('status', 'approved')
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false })
@@ -127,7 +132,7 @@ export async function POST(request: Request) {
     const { data: testimonial, error: insertError } = await supabase
       .from('testimonials')
       .insert(testimonialData)
-      .select()
+      .select(PUBLIC_COLUMNS)
       .single()
 
     if (insertError) {
