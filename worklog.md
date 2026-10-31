@@ -3673,3 +3673,11 @@ Yang BOLONG — kini ditutup (13 endpoint):
 
 ### GERBANG
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+
+### EXECUTED (Bos via Supabase SQL Editor)
+- SQL 033 trade_ticket_unique_backstop — sukses.
+- SQL 034 get_analytics_snapshot — sukses setelah fix 42883 (kolom
+  user_id/id/account_id bertipe TEXT, bukan uuid → auth.uid()::text +
+  param p_account_id text). Smoke test SELECT get_analytics_snapshot
+  ('all', NULL) → JSON 18 key sesuai kontrak jalur JS. Analytics PRO
+  kini otomatis lewat RPC Postgres (fallback JS tetap terpasang).
