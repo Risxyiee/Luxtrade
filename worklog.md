@@ -3632,3 +3632,44 @@ Yang BOLONG — kini ditutup (13 endpoint):
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
 - Agent-browser: landing render penuh (hero+footer SSR), /api/forex-batch
   200 OK (XAUUSD 3898.9, EURUSD 1.1166), console bersih dari error F2.
+
+## FASE 3 — SISA DEFERRED ITEMS (2026-10-31)
+
+### 1. Gemini AbortSignal asli (lib/gemini.ts)
+- Promise.race DIGANTI: dulu timeout hanya berhenti MENUNGGU — request SDK
+  tetap jalan di background sampai selesai (boros CPU Workers + quota Gemini).
+  Sekarang AbortController + generateContent(request, { signal }) → fetch
+  DIBATALKAN sungguhan saat timeout (SDK 0.24.1 dukung SingleRequestOptions).
+- Opsi baru `signal` di GeminiCallOptions: caller dgn deadline lebih ketat
+  (cron) bisa batalkan lebih awal; kombinasi signal eksternal + timeout
+  internal via listener manual (tanpa AbortSignal.any, kompatibel semua
+  runtime). isAbortLike() menangkap AbortError/TimeoutError/pesan abort.
+- Semua pemakai (chat, vision, auto-journal, analisis trade, cs) otomatis.
+
+### 2. Rate-limit market endpoints
+- /api/forex-batch: 30 req/menit/IP (polling watchlist = 4/min; longgar utk
+  multi-tab + refresh manual). Endpoint GET publik TANPA auth — dulu bisa
+  dihitung sepuasnya → risiko Yahoo Finance ban IP upstream.
+- /api/forex: 60 req/menit/IP (umumnya dilayani SW cache; nocache/cache-miss
+  tetap bisa memukul Yahoo).
+- Pola sama dgn 13 endpoint existing (checkRateLimit, 429 + Retry-After).
+
+### 3. Analytics RPC (SQL 034) — port agregasi JS → Postgres
+- Function `get_analytics_snapshot(p_period, p_account_id)` SECURITY INVOKER:
+  identitas dari auth.uid() (JWT, tak bisa dipalsukan), RLS tetap berlaku.
+- Port EXACT dari jalur JS: window function utk equity curve + max drawdown
+  (GREATEST(0,..) = inisialisasi peak 0 di JS), STDDEV_POP utk sharpe
+  (populasi-variance), FILTER(WHERE) utk win/loss per dimensi, first_seen
+  utk urutan session (Map insertion order), gaps-islands utk active streak,
+  profitFactor Infinity → NULL (JSON.stringify(Infinity)=null — sama
+  dengan wire format lama), equity dibulatkan 2dp, tiebreaker (close_time,id).
+- Route /api/analytics: PRO path coba RPC dulu → gagal/belum ada → fallback
+  otomatis ke computeProAnalyticsLegacy (jalur JS asli, tidak diubah).
+  ZERO-DOWNTIME: deploy kode dulu aman, SQL belakangan. Cache 60s tetap.
+
+### SQL UNTUK BOS (jalankan di Supabase SQL Editor)
+- supabase-migrations/034_analytics_rpc.sql — CREATE OR REPLACE FUNCTION
+  get_analytics_snapshot. IDEMPOTENT + ada NOTICE verifikasi di akhir.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.

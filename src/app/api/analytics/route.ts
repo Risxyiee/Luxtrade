@@ -99,42 +99,36 @@ async function computeBasicAnalytics(client: any, userId: string, period: string
   }
 }
 
-// GET - Fetch comprehensive analytics using optimized queries
-export async function GET(request: NextRequest) {
+/**
+ * FASE 3 — jalur PRO kini COBA RPC dulu (`get_analytics_snapshot`, SQL 034):
+ * semua agregasi dihitung di Postgres (1 round-trip, tanpa menarik ribuan
+ * baris trade ke Workers). Bila RPC gagal/belum ada → fallback otomatis ke
+ * `computeProAnalyticsLegacy` (jalur JS asli di bawah) supaya analytics
+ * TIDAK PERNAH putus saat transisi.
+ */
+async function computeProAnalyticsViaRpc(client: any, period: string, accountId: string | null): Promise<any | null> {
   try {
-    const { user, client } = await getUserWithSession(request)
-    if (!user || !client) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: snapshot, error: rpcError } = await client.rpc('get_analytics_snapshot', {
+      p_period: period,
+      p_account_id: accountId,
+    })
+    if (rpcError) {
+      console.warn('[analytics] RPC get_analytics_snapshot gagal — fallback jalur JS:', rpcError.message)
+      return null
     }
+    if (!snapshot || typeof snapshot !== 'object') return null
+    return snapshot
+  } catch (e) {
+    console.warn('[analytics] RPC exception — fallback jalur JS:', e)
+    return null
+  }
+}
 
-    const pro = await isUserPro(user.id)
-
-    const userId = user.id
-    const searchParams = request.nextUrl.searchParams
-    const period = searchParams.get('period') || 'all'
-    const accountId = searchParams.get('account_id') || null
-
-    // Free users get basic stats (no advanced analytics)
-    if (!pro) {
-      const basicData = await computeBasicAnalytics(client, userId, period, accountId)
-      return NextResponse.json({ ...basicData, isFreeUser: true })
-    }
-
-    // Check cache first (unless client explicitly asks to bust it)
-    const bustCache = searchParams.get('_bust') === '1'
-    const cacheKey = getCacheKey(userId, period, accountId)
-    if (!bustCache) {
-      const cached = analyticsCache.get(cacheKey)
-      if (cached && cached.expiry > Date.now()) {
-        return NextResponse.json(cached.data, {
-          headers: { 'Cache-Control': 'no-store' },
-        })
-      }
-    }
-
-    // Build date filter
-    let dateFilter: string | null = null
-    const now = new Date()
+/** Jalur JS asli (fallback bila RPC belum tersedia). TIDAK diubah semantiknya. */
+async function computeProAnalyticsLegacy(client: any, userId: string, period: string, accountId: string | null) {
+  // Build date filter
+  let dateFilter: string | null = null
+  const now = new Date()
 
     if (period === 'week') {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -401,6 +395,48 @@ export async function GET(request: NextRequest) {
         type: currentStreakType,
         count: currentStreak,
       },
+    }
+
+    return responseData
+}
+
+// GET - Fetch comprehensive analytics using optimized queries
+export async function GET(request: NextRequest) {
+  try {
+    const { user, client } = await getUserWithSession(request)
+    if (!user || !client) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(user.id)
+
+    const userId = user.id
+    const searchParams = request.nextUrl.searchParams
+    const period = searchParams.get('period') || 'all'
+    const accountId = searchParams.get('account_id') || null
+
+    // Free users get basic stats (no advanced analytics)
+    if (!pro) {
+      const basicData = await computeBasicAnalytics(client, userId, period, accountId)
+      return NextResponse.json({ ...basicData, isFreeUser: true })
+    }
+
+    // Check cache first (unless client explicitly asks to bust it)
+    const bustCache = searchParams.get('_bust') === '1'
+    const cacheKey = getCacheKey(userId, period, accountId)
+    if (!bustCache) {
+      const cached = analyticsCache.get(cacheKey)
+      if (cached && cached.expiry > Date.now()) {
+        return NextResponse.json(cached.data, {
+          headers: { 'Cache-Control': 'no-store' },
+        })
+      }
+    }
+
+    // FASE 3: agregasi di Postgres via RPC (fallback JS bila belum ada)
+    let responseData: any = await computeProAnalyticsViaRpc(client, period, accountId)
+    if (!responseData) {
+      responseData = await computeProAnalyticsLegacy(client, userId, period, accountId)
     }
 
     // Cache the result

@@ -119,6 +119,54 @@ export interface GeminiCallOptions {
    * which produced the "auto-journal tidak mengembalikan JSON" failures.
    */
   thinkingBudget?: number
+  /**
+   * FASE 3 — signal eksternal (opsional). Bila dipanggil: request SDK
+   * DIBATALKAN sungguhan (fetch di-abort), bukan sekadar berhenti
+   * menunggu seperti Promise.race. Dipakai caller yang punya deadline
+   * lebih ketat dari timeoutMs (mis. cron 120 dtk).
+   */
+  signal?: AbortSignal
+}
+
+/**
+ * FASE 3 — deteksi error hasil pembatalan (AbortSignal).
+ * Menangkap DOMException 'AbortError' (Workers/fetch) maupun pesan
+ * bawaan SDK/fetch yang beragam ("This operation was aborted", dll).
+ */
+function isAbortLike(error: unknown): boolean {
+  if (typeof error === 'object' && error !== null) {
+    const e = error as { name?: string; message?: string }
+    if (e.name === 'AbortError' || e.name === 'TimeoutError') return true
+    if (typeof e.message === 'string' && /abort/i.test(e.message)) return true
+  }
+  return false
+}
+
+/**
+ * FASE 3 — gabungkan signal eksternal + timeout internal jadi SATU
+ * AbortController. Menghindari AbortSignal.any (belum ada di semua
+ * runtime) dengan listener manual { once: true }.
+ * Return { signal, dispose } — dispose HARUS dipanggil di finally agar
+ * listener eksternal tidak bocor.
+ */
+function createCombinedAbortSignal(
+  timeoutMs: number,
+  external?: AbortSignal
+): { signal: AbortSignal; dispose: () => void } {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  const onExternalAbort = () => controller.abort()
+  if (external) {
+    if (external.aborted) controller.abort()
+    else external.addEventListener('abort', onExternalAbort, { once: true })
+  }
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      clearTimeout(timeoutId)
+      if (external) external.removeEventListener('abort', onExternalAbort)
+    },
+  }
 }
 
 /** Build generationConfig; thinkingConfig is passed through (SDK serializes unknown fields). */
@@ -159,16 +207,20 @@ export async function geminiChat(
     parts: msg.parts,
   }))
 
-  // Add timeout wrapper
-  const timeoutPromise = new Promise<GeminiResponse>((_, reject) =>
-    setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-  )
+  // FASE 3: AbortSignal asli — saat timeout, request SDK DIBATALKAN
+  // sungguhan (socket fetch ditutup). Dulu Promise.race hanya berhenti
+  // menunggu; request tetap jalan sampai selesai → boros resource di
+  // CF Workers & Gemini quota tetap terpakai.
+  const abort = createCombinedAbortSignal(timeoutMs, options?.signal)
 
-  const resultPromise = (async () => {
-    const result: GenerateContentResult = await model.generateContent({
-      contents,
-      generationConfig: buildGenerationConfig(modelName, options, 2048) as any,
-    })
+  try {
+    const result: GenerateContentResult = await model.generateContent(
+      {
+        contents,
+        generationConfig: buildGenerationConfig(modelName, options, 2048) as any,
+      },
+      { signal: abort.signal }
+    )
 
     const text = result.response.text() || ''
 
@@ -176,16 +228,14 @@ export async function geminiChat(
       text,
       usageMetadata: result.response.usageMetadata as any,
     }
-  })()
-
-  try {
-    return await Promise.race([resultPromise, timeoutPromise])
   } catch (error) {
-    if (error instanceof Error && error.message === 'Request timeout') {
-      console.error(`[geminiChat] Timeout after ${timeoutMs}ms`)
+    if (abort.signal.aborted || isAbortLike(error)) {
+      console.error(`[geminiChat] Timeout/abort after ${timeoutMs}ms — request dibatalkan`)
       throw new Error(`AI request timed out after ${timeoutMs}ms. Please try again.`)
     }
     throw error
+  } finally {
+    abort.dispose()
   }
 }
 
@@ -240,28 +290,28 @@ export async function geminiVision(
     }
   ]
 
-  // Add timeout wrapper
-  const timeoutPromise = new Promise<string>((_, reject) =>
-    setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-  )
-
-  const resultPromise = (async () => {
-    const result: GenerateContentResult = await model.generateContent({
-      contents: [{ role: 'user', parts }],
-      generationConfig: buildGenerationConfig(modelName, options, 4096) as any,
-    })
-
-    return result.response.text() || ''
-  })()
+  // FASE 3: AbortSignal asli (lihat geminiChat) — vision call dibatalkan
+  // sungguhan saat timeout, tidak menggantung di background.
+  const abort = createCombinedAbortSignal(timeoutMs, options?.signal)
 
   try {
-    return await Promise.race([resultPromise, timeoutPromise])
+    const result: GenerateContentResult = await model.generateContent(
+      {
+        contents: [{ role: 'user', parts }],
+        generationConfig: buildGenerationConfig(modelName, options, 4096) as any,
+      },
+      { signal: abort.signal }
+    )
+
+    return result.response.text() || ''
   } catch (error) {
-    if (error instanceof Error && error.message === 'Request timeout') {
-      console.error(`[geminiVision] Timeout after ${timeoutMs}ms`)
+    if (abort.signal.aborted || isAbortLike(error)) {
+      console.error(`[geminiVision] Timeout/abort after ${timeoutMs}ms — request dibatalkan`)
       throw new Error(`AI vision request timed out after ${timeoutMs}ms. Please try again.`)
     }
     throw error
+  } finally {
+    abort.dispose()
   }
 }
 
