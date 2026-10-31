@@ -2891,3 +2891,13 @@ yang dibaca SEBELUM CAS → dua request paralel bisa timpa pakai saldo basi
 - bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
 - Dev server: landing 200; withdraw POST tanpa admin-key lokal → 500
   fail-closed guard env (urutan guard tak berubah; produksi 401 anon).
+
+### VERIFIKASI PASCA-MIGRASI 023 (Bos: "sql udah kujalanin") — ✅ TUNTAS
+- Probe PostgREST anon POST /rest/v1/rpc/request_affiliate_withdrawal
+  → HTTP 401 + 42501 "permission denied for function" = fungsi ADA +
+  REVOKE anon/authenticated/Public bekerja (bukan PGRST202 "not found").
+- Smoke produksi: landing 200; POST /api/affiliate/withdraw tanpa auth
+  → 401 {"error":"Unauthorized"} fail-closed (admin client live di CF).
+- RUTE AKTIF: withdraw kini lewat RPC atomik (lock baris + 1 transaksi);
+  fallback CAS FIX #1 tetap terpasang sebagai jaring pengaman.
+- 🏁 PAPAN AUDIT E2E: P0/P1/P2/P3 SEMUA TUNTAS + terverifikasi produksi.
