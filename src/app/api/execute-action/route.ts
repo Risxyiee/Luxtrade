@@ -28,7 +28,7 @@ import { sendEmail } from '@/lib/email'
 import { metaAutoPost } from '@/lib/meta-post'
 import {
   envGet, sbConfig, ownerEmail, getActionById, decideAction, kvSetKey, kvIncrKey,
-  fetchAllUserEmails, wibDay,
+  fetchAllUsers, fetchUnsubscribedUserIds, wibDay,
 } from '@/lib/agent-proposals'
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -120,11 +120,18 @@ async function executePayload(actionType: string, payload: Record<string, any>):
         : { ok: false, detail: 'Gagal simpan varian ke agent_kv' }
     }
 
-    /* ── Broadcast maintenance (Raka) → semua user via Resend ── */
+    /* ── Broadcast maintenance (Raka) → semua user via Resend ──
+       🚫 SUPPRESSION (penutup temuan audit): user yang pernah unsubscribe
+       (re_engagement_emails / daily_reminder_logs) tidak di-email lagi.
+       Fail-open: tabel gagal dibaca → kirim semua (email operasional). */
     case 'BROADCAST_MAINTENANCE': {
       const cfg = sbConfig()
-      const emails = await fetchAllUserEmails(cfg, 200)
-      if (emails.length === 0) return { ok: false, detail: 'Tidak ada email user (admin API gagal / kosong)' }
+      const users = await fetchAllUsers(cfg, 250)
+      if (users.length === 0) return { ok: false, detail: 'Tidak ada email user (admin API gagal / kosong)' }
+      const unsub = await fetchUnsubscribedUserIds(cfg)
+      const skippedUnsub = unsub.size ? users.filter(u => unsub.has(u.id)).length : 0
+      const emails = [...new Set(users.filter(u => !unsub.has(u.id)).map(u => u.email))]
+      if (emails.length === 0) return { ok: false, detail: `Semua ${users.length} user ada di suppression list — tidak ada yang dikirim` }
       const urgent = payload.urgent !== false
       const body = String(payload.email_body || 'Server sedang perbaikan. Coba lagi beberapa saat lagi.')
       const subject = `${urgent ? '[URGENT] ' : ''}Maintenance LuxTradee — mohon coba lagi nanti`
@@ -135,7 +142,7 @@ async function executePayload(actionType: string, payload: Record<string, any>):
         await sleep(300)
       }
       if (okCount === 0) return { ok: false, detail: `Broadcast gagal total (${failCount} user)` }
-      return { ok: true, detail: `Broadcast terkirim ke ${okCount}/${emails.length} user${failCount ? ` (gagal ${failCount})` : ''}` }
+      return { ok: true, detail: `Broadcast terkirim ke ${okCount}/${emails.length} user${failCount ? ` (gagal ${failCount})` : ''}${skippedUnsub ? ` — ${skippedUnsub} dilewati (unsubscribe)` : ''}` }
     }
 
     /* ── Task internal (Dewi → Sinta dll) → Discord ops ── */

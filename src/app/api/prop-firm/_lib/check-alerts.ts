@@ -340,12 +340,18 @@ export async function checkPropFirmAlerts(
     if (pushAlerts.length > 0) {
       try {
         const { sendPushToUser } = await import('@/lib/web-push')
-        const { db } = await import('@/lib/db')
 
-        const subscriptions = await db.pushSubscription.findMany({
-          where: { userId },
-          select: { endpoint: true, p256dh: true, auth: true },
-        })
+        /* PENUTUP TEMUAN AUDIT: dulu pakai Prisma (db.pushSubscription.findMany)
+           — Prisma MATI diam-diam di CF Workers (fallback catch menelan error)
+           → push PropFirm tidak pernah terkirim di produksi. Kini baca lewat
+           Supabase (service-role, sama dgn pola /api/push/send & cron
+           prop-firm-guard yang sudah terbukti jalan). */
+        const { data: pushSubs, error: pushSubErr } = await supabaseAdmin
+          .from('push_subscriptions')
+          .select('endpoint, p256dh, auth')
+          .eq('user_id', userId)
+        if (pushSubErr) throw new Error(pushSubErr.message)
+        const subscriptions = (pushSubs ?? []) as { endpoint: string; p256dh: string; auth: string }[]
 
         if (subscriptions.length > 0) {
           for (const alert of pushAlerts) {

@@ -23,6 +23,7 @@
 // route ini pun otomatis jalan di Worker yang sama. Semua API yang dipakai
 // (fetch, AbortController, Intl) Workers-compatible.
 import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
+import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
@@ -1342,7 +1343,33 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
                          (baru daftar <3 hari tidak diganggu) → email ajakan pertama.
      Maks total 50: A 30 + B 20 (Resend free 100/hari tetap aman). */
   const tradeMap0 = await buildPerUserTradeMap(e)
-  const allTargets = profiles.filter((p) => p.email && p.id && !activeIds.has(p.id))
+
+  /* 🔗 UNIFIKASI COOLDOWN KARYAWAN (penutup temuan AUTO-ACC): lead yang sedang
+     ditangani karyawan LAIN tidak di-email Maya di sini —
+     (a) ai_pending_actions agent_name in (Bagas, Maya) window 7 hari
+         (proposal upgrade Bagas + winback proposal Maya via sweep/master);
+     (b) ai_pending_tasks agent_type='COO' (draf cron COO harian).
+     Window ikut executed_at → ACC telat tetap dihitung. FAIL-OPEN: query
+     gagal / tabel belum ada → set kosong → perilaku lama. */
+  const sinceCd = bagasCooldownSince()
+  let cooledEmails = new Set<string>()
+  const cooledIds = new Set<string>()
+  try {
+    const actRes = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_actions?select=action_payload&agent_name=in.(Bagas,Maya)&${bagasCooldownOrFilter(sinceCd)}&limit=200`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    if (actRes.ok) cooledEmails = emailsFromActionRows(await actRes.json())
+  } catch { /* fail-open */ }
+  try {
+    const taskRes = await fetch(`${sbUrl(e)}/rest/v1/ai_pending_tasks?select=target_user_id,context_data&agent_type=eq.COO&${bagasCooldownOrFilter(sinceCd)}&limit=200`, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    if (taskRes.ok) {
+      const cross = contactsFromTaskRows(await taskRes.json())
+      for (const em of cross.emails) cooledEmails.add(em)
+      for (const id of cross.userIds) cooledIds.add(id)
+    }
+  } catch { /* fail-open */ }
+
+  const allTargets = profiles.filter((p) => p.email && p.id && !activeIds.has(p.id)
+    && !cooledIds.has(p.id as string)
+    && !cooledEmails.has(normEmail(p.email)))
   const dormant = allTargets.filter((p) => (tradeMap0.get(p.id as string)?.n || 0) > 0).slice(0, 30)
   const never = allTargets
     .filter((p) => !(tradeMap0.get(p.id as string)?.n) && p.created_at && Date.now() - new Date(p.created_at).getTime() >= 3 * 86400_000)

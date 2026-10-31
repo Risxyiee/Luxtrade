@@ -1,12 +1,12 @@
 'use client'
 // ============================================================
-// CooEmployee3D — karyawan AI "Raka" (COO Jualan) dalam 3D.
+// CooEmployee3D — karyawan AI "Bagas" (COO Jualan) dalam 3D.
 // Scene Three.js murni (tanpa react-three-fiber) — dibangun dari
 // primitif, gaya senada Kantor CEO. Tema: office malam + aksen
 // emerald/gold (jualan = duit). Idle: bobbing, kedip, head-turn,
 // koin emas melayang, chart di monitor naik-turun.
-// pendingCount > 0 → Raka MELAMBUINKAN tangan (manggil Bos ACC).
-// Klik scene → Raka salute + onPoke() callback.
+// pendingCount > 0 → Bagas MELAMBUINKAN tangan (manggil Bos ACC).
+// Klik scene → Bagas salute + onPoke() callback.
 // ============================================================
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
@@ -295,7 +295,7 @@ export default function CooEmployee3D({ pendingCount, loading, onPoke }: CooEmpl
           <span className="text-xs">💼</span>
         </span>
         <span className="min-w-0">
-          <span className="block text-xs font-semibold text-white leading-tight">Raka — COO Jualan</span>
+          <span className="block text-xs font-semibold text-white leading-tight">Bagas — COO Jualan</span>
           <span className="block text-[10px] text-gray-500 leading-tight">Harian · 08.00 WIB · hotspot: free user paling rajin</span>
         </span>
       </div>

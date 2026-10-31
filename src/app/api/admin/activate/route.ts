@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
-import { sendAdminNotification } from '@/lib/admin-notify'
 import { PRICING } from '@/lib/pricing'
+import { applyActivationCommission } from '@/lib/affiliate-commission'
 import { createClient } from '@supabase/supabase-js'
 
 // Commission rates — dynamic from PRICING
@@ -221,49 +221,23 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // COMMISSION: Update referrer's balance
+    // COMMISSION — UNIFIKASI (lib bersama): ledger affiliate_referrals
+    // + dedupe dobel-jalur + saldo affiliates & profiles konsisten.
     // ============================================
     const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
+    let commissionDetail = ''
 
     try {
-      const { data: userProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('referred_by_code, my_referral_code, full_name, email')
-        .eq('id', userId)
-        .single()
-
-      if (userProfile?.referred_by_code) {
-        // Find referrer profile in Supabase
-        const { data: referrerData } = await supabaseAdmin
-          .from('profiles')
-          .select('id, affiliate_balance, referral_count, email')
-          .eq('my_referral_code', userProfile.referred_by_code)
-          .single()
-
-        if (referrerData) {
-          const newBalance = (referrerData.affiliate_balance || 0) + commissionAmount
-          const newRefCount = (referrerData.referral_count || 0) + 1
-
-          await supabaseAdmin
-            .from('profiles')
-            .update({
-              affiliate_balance: newBalance,
-              referral_count: newRefCount,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', referrerData.id)
-
-          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to referrer: ${referrerData.id}`) // PII redacted
-
-          // Send admin notification
-          try {
-            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${planConfig.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${newBalance.toLocaleString('id-ID')}`
-            await sendAdminNotification(msg)
-          } catch (e) {
-            console.error('Failed to send admin notification:', e)
-          }
-        }
-      }
+      const commission = await applyActivationCommission(supabaseAdmin, {
+        userId,
+        planType,
+        planName: planConfig.name,
+        price: planConfig.price,
+        commissionRate: planConfig.commissionRate,
+        subscriptionUntil: subscriptionUntil || new Date().toISOString(),
+      })
+      commissionDetail = commission.detail || ''
+      console.log(`✅ [ACTIVATE] Commission result: paid=${commission.paid}, skipped=${commission.skipped || '-'}, ledger=${commission.ledger ?? '-'}, detail=${commissionDetail}`)
     } catch (commissionError) {
       console.error('❌ Commission update error (non-blocking):', commissionError)
     }

@@ -2716,3 +2716,70 @@ plus unifikasi cooldown karyawan Maya (penerjang lanjutan kasus "DOBEL BAGAS").
 - STATUS: KODE TERPUSH (tsc 0, lint 0). MENUNGGU: Bos jalankan migrasi 021
   di Supabase SQL Editor (bagian 1a boleh dijalankan sendiri dulu buat lihat
   duplikat sebelum 1b/1c).
+
+### LANJUTAN AUDIT — PENUTUP SISA TEMUAN (Bos: "kasih sqlnya sm lanjutin")
+SQL MIGRASI 021 diserahkan ke Bos (copy-paste Supabase SQL Editor; bagian 1a
+SELECT boleh duluan). Lalu Z lanjut eksekusi sisa temuan report-only:
+
+### FIX #6 (P1-UANG): unifikasi komisi aktivasi 2 jalur + ledger affiliate_referrals
+- BARU `src/lib/affiliate-commission.ts`: `applyActivationCommission()` — satu
+  sumber kebenaran. Urutan: cari referrer via affiliates.referral_code
+  (fallback profiles.my_referral_code) → LEDGER insert affiliate_referrals
+  dgn activation_key `userId:planType:tgl-aktivasi` (dedupe; unique index
+  migrasi 022 memblokir baris kedua bahkan saat race) → saldo affiliates
+  current_balance/total_earned (sumber withdraw) + profiles
+  affiliate_balance/referral_count (sumber dashboard) DUA-DUANYA → notif admin.
+  Fail-open: tabel/kolom ledger belum ada → saldo tetap diupdate (perilaku lama).
+- `admin/activate/route.ts` + `admin/subscriptions/[id]/activate/route.ts`:
+  blok komisi inline diganti panggilan lib bersama. Dulu jalur-1 lupa tabel
+  affiliates (saldo withdraw tidak naik), jalur-2 tidak konsisten; draf
+  referral selalu kosong karena tak pernah ada yang insert.
+- Efek: komisi dobel mustahil, saldo withdraw & dashboard konsisten, daftar
+  referral affiliate terisi otomatis.
+
+### MIGRASI 022 (SQL manual Bos, pola 020/021) — `supabase-migrations/022_affiliate_referrals_ledger.sql`
+1. CREATE TABLE IF NOT EXISTS affiliate_referrals (+ kolom audit reader).
+2. ADD COLUMN IF NOT EXISTS activation_key TEXT.
+3. Unique partial index ux_affiliate_referrals_activation (NULL boleh banyak).
+4. FK ke affiliates (DO-block idempotent) + index baca per affiliate.
+
+### FIX #7 (P1-KARYAWAN): Maya AUTO-ACC (ceo-agent sendPassiveEmails) hormati
+cooldown lintas karyawan — kandidat email pasif difilter terhadap
+ai_pending_actions (agent_name in Bagas,Maya, window 7 hari, ikut executed_at)
++ ai_pending_tasks agent_type=COO, pakai helper bagas-cooldown.ts yang sama.
+Fail-open. Dulu Maya bisa nge-email lead yang sedang ditangani Bagas hari yang sama.
+
+### FIX #8 (P1-SPAM): BROADCAST_MAINTENANCE Raka kena suppression list —
+BARU `fetchAllUsers()` (id+email) + `fetchUnsubscribedUserIds()` (union
+re_engagement_emails + daily_reminder_logs unsubscribed=true) di
+agent-proposals.ts; execute-action menyaring penerima + jumlah yang dilewati
+masuk detail ACC. Fail-open (email operasional tetap jalan bila tabel gagal).
+
+### FIX #9 (P2): CooEmployee3D.tsx — label karyawan "Raka — COO Jualan" →
+"Bagas — COO Jualan" (+komentar). Raka itu CTO; COO adalah Bagas (bug naming).
+
+### FIX #10 (P2): PATCH /api/profile/me — 'total_xp' dihapus dari allowedFields
+(XP hanya lewat achievements/onboarding server-side; dulu client bisa
+self-tambah XP). Tidak ada pemanggil client yang mengirim total_xp (dicek grep).
+
+### FIX #11 (P2): mini-services/affiliate-ws — relay affiliate:event /
+affiliate:broadcast kini WAJIB token AFFILIATE_WS_TOKEN (shared secret dgn
+API route). Belum ada producer resmi → token kosong = fail-closed (relay mati,
+join/leave halaman affiliate tetap jalan). Anti-spoof "komisi masuk".
+
+### FIX #12 (P1): check-alerts.ts (prop-firm) — ganti Prisma
+db.pushSubscription.findMany → Supabase push_subscriptions (pola /api/push/send
++ cron prop-firm-guard). Prisma mati diam-diam di CF Workers → push danger/
+breach PropFirm tidak pernah terkirim di produksi. Kini jalan.
+
+### SISA TEMUAN (tetap report-only, menunggu pesanan Bos)
+- ceo-agent AUTO-ACC default ON (KV autoacc=off utk matikan) — keputusan Bos.
+- CS/Marketing agents pensiunan masih bisa insert antrean zombie via cron manual.
+- Raka E2E/komisi lewat payment routes (Prisma) — jalur lain, dulu dicek terpisah.
+- affiliate_referrals lama tanpa activation_key (data historis) tidak terdedupe.
+
+### GERBANG & STATUS
+- `bunx tsc --noEmit` EXIT 0 + `bun run lint` EXIT 0.
+- STATUS: KODE TERPUSH. MENUNGGU: (1) Bos jalankan migrasi 021 (SQL sudah
+  diserahkan) + (2) migrasi 022 (SQL di supabase-migrations/022_...sql).
+  Opsional: set AFFILIATE_WS_TOKEN di env mini-service bila kelak ada producer.

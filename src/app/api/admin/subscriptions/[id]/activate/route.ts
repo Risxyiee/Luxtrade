@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 import { PRICING } from '@/lib/pricing'
+import { applyActivationCommission } from '@/lib/affiliate-commission'
 
 // Commission rates — calculated dynamically from PRICING
 const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
@@ -215,64 +216,23 @@ export async function POST(
     }
 
     // ============================================
-    // STEP 6: Commission — affiliate lookup via affiliates table
+    // STEP 6: Commission — UNIFIKASI (lib bersama): ledger affiliate_referrals
+    // + dedupe dobel-jalur + saldo affiliates & profiles konsisten.
     // ============================================
     const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
+    let commissionDetail = ''
 
     try {
-      // Re-fetch profile to get referred_by_code
-      const { data: profileForReferral } = await admin
-        .from('profiles')
-        .select('referred_by_code')
-        .eq('id', userId)
-        .single()
-
-      if (profileForReferral?.referred_by_code) {
-        // Look up referrer in affiliates table by referral_code
-        const { data: referrer } = await admin
-          .from('affiliates')
-          .select('id, user_id, referral_code, current_balance, total_earned')
-          .eq('referral_code', profileForReferral.referred_by_code)
-          .single()
-
-        if (referrer) {
-          // Update affiliate balance in Supabase
-          const newBalance = (referrer.current_balance || 0) + commissionAmount
-          const newTotalEarned = (referrer.total_earned || 0) + commissionAmount
-
-          await admin
-            .from('affiliates')
-            .update({
-              current_balance: newBalance,
-              total_earned: newTotalEarned,
-            })
-            .eq('id', referrer.id)
-
-          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to affiliate: ${referrer.referral_code} (new balance: Rp${newBalance.toLocaleString('id-ID')})`)
-
-          // Also update Supabase profiles.affiliate_balance for the referrer
-          const { data: referrerProfile } = await admin
-            .from('profiles')
-            .select('id, affiliate_balance, referral_count')
-            .eq('id', referrer.user_id)
-            .single()
-
-          if (referrerProfile) {
-            await admin
-              .from('profiles')
-              .update({
-                affiliate_balance: (referrerProfile.affiliate_balance || 0) + commissionAmount,
-                referral_count: (referrerProfile.referral_count || 0) + 1,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', referrer.user_id)
-          }
-
-          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added, total balance: Rp${newBalance.toLocaleString('id-ID')}`)
-        } else {
-          console.log(`⚠️ No affiliate found with referral code: ${profileForReferral.referred_by_code}`)
-        }
-      }
+      const commission = await applyActivationCommission(admin, {
+        userId,
+        planType: plan,
+        planName: planConfig.name,
+        price: planConfig.price,
+        commissionRate: planConfig.commissionRate,
+        subscriptionUntil: subscriptionUntil || new Date().toISOString(),
+      })
+      commissionDetail = commission.detail || ''
+      console.log(`✅ [SUBSCRIPTION ACTIVATE] Commission result: paid=${commission.paid}, skipped=${commission.skipped || '-'}, ledger=${commission.ledger ?? '-'}, detail=${commissionDetail}`)
     } catch (commissionError) {
       console.error('❌ Commission update error (non-blocking):', commissionError)
       // Don't fail activation if commission fails

@@ -3,6 +3,21 @@ import { Server } from 'socket.io'
 
 const PORT = 3004
 
+/* 🔐 HARDENING (penutup temuan audit "affiliate-ws tanpa auth"): event RELAY
+   (affiliate:event / affiliate:broadcast) memuntahkan pesan apa pun ke room
+   user mana pun — dulu siapa pun yang tahu port ini bisa spoof notifikasi
+   "komisi masuk". Kini relay WAJIB menyertakan token shared secret
+   (AFFILIATE_WS_TOKEN) yang sama dgn sisi API route.
+   Belum ada producer resmi hari ini → kalau token TIDAK diset, relay
+   FAIL-CLOSED (ditolak semua) tanpa memutus fitur yang ada: halaman
+   affiliate hanya pakai join/leave + listen, dan itu tetap terbuka. */
+const AUTH_TOKEN = (process.env.AFFILIATE_WS_TOKEN || '').trim()
+
+function relayAuthorized(payload: unknown): boolean {
+  if (!AUTH_TOKEN) return false // belum dikonfigurasi → relay dimatikan (anti-spoof)
+  return (payload as { token?: unknown } | null)?.token === AUTH_TOKEN
+}
+
 const io = new Server(PORT, {
   cors: {
     origin: '*', // Allow all origins in dev
@@ -20,7 +35,7 @@ io.on('connection', (socket) => {
   socket.on('affiliate:join', (userId: string) => {
     if (!userId || typeof userId !== 'string') return
     socket.join(`user:${userId}`)
-    
+
     if (!clients.has(userId)) {
       clients.set(userId, new Set())
     }
@@ -41,16 +56,24 @@ io.on('connection', (socket) => {
     }
   })
 
-  // Relay events from API routes to targeted user
-  socket.on('affiliate:event', (data: { userId: string; event: string; payload: any }) => {
+  // Relay events from API routes to targeted user (butuh token)
+  socket.on('affiliate:event', (data: { userId: string; event: string; payload: any; token?: string }) => {
+    if (!relayAuthorized(data)) {
+      console.warn(`[affiliate-ws] ⛔ Relay "affiliate:event" ditolak (${AUTH_TOKEN ? 'token salah' : 'AFFILIATE_WS_TOKEN belum diset'})`)
+      return
+    }
     const { userId, event, payload } = data
     if (!userId || !event) return
     io.to(`user:${userId}`).emit(event, payload)
     console.log(`[affiliate-ws] Event "${event}" sent to user:${userId}`)
   })
 
-  // Broadcast to all clients in a room
-  socket.on('affiliate:broadcast', (data: { room: string; event: string; payload: any }) => {
+  // Broadcast to all clients in a room (butuh token)
+  socket.on('affiliate:broadcast', (data: { room: string; event: string; payload: any; token?: string }) => {
+    if (!relayAuthorized(data)) {
+      console.warn(`[affiliate-ws] ⛔ Relay "affiliate:broadcast" ditolak (${AUTH_TOKEN ? 'token salah' : 'AFFILIATE_WS_TOKEN belum diset'})`)
+      return
+    }
     const { room, event, payload } = data
     io.to(room).emit(event, payload)
   })
