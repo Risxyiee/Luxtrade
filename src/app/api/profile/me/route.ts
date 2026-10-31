@@ -138,6 +138,60 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
+    // ── ACTION: update-streak (login streak harian — murni server-side) ──
+    // Dipanggil auth-context saat SIGNED_IN lewat streak-tracker.
+    // Aturan (batas hari pakai WIB): login pertama hari ini → streak +1
+    // kalau login terakhir KEMARIN, reset ke 1 kalau bolong ≥ 2 hari.
+    // Idempotent + anti race: UPDATE di-guard "last_login_at < awal hari
+    // ini" — kalau 0 baris ter-update berarti hari ini sudah dihitung
+    // (tab kedua / panggil ulang), cukup balikin nilai sekarang.
+    if (body?.action === 'update-streak') {
+      const WIB_MS = 7 * 60 * 60 * 1000
+      const wibDate = (d: Date) => new Date(d.getTime() + WIB_MS).toISOString().slice(0, 10)
+      const now = new Date()
+      const todayStr = wibDate(now)
+      const yesterdayStr = wibDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+      const startOfTodayIso = new Date(`${todayStr}T00:00:00+07:00`).toISOString()
+
+      const { data: cur } = await admin
+        .from('profiles')
+        .select('streak_count, best_streak, last_login_at')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const currentStreak = cur?.streak_count || 0
+      const lastStr = cur?.last_login_at ? wibDate(new Date(cur.last_login_at as string)) : null
+      let candidate: number
+      if (!lastStr) candidate = 1
+      else if (lastStr === yesterdayStr) candidate = currentStreak + 1
+      else if (lastStr === todayStr) candidate = currentStreak
+      else candidate = 1
+
+      const { data: updated, error: updErr } = await admin
+        .from('profiles')
+        .update({
+          streak_count: candidate,
+          best_streak: Math.max(cur?.best_streak || 0, candidate),
+          last_login_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        })
+        .eq('id', user.id)
+        .or(`last_login_at.is.null,last_login_at.lt.${startOfTodayIso}`)
+        .select('streak_count')
+        .maybeSingle()
+
+      if (updErr) {
+        // Fail-open: streak tidak boleh bikin login gagal
+        console.warn('[profile/me] update-streak error:', updErr.message)
+        return NextResponse.json({ success: true, streakCount: currentStreak })
+      }
+      if (!updated) {
+        // Sudah dihitung hari ini → balikin nilai berjalan
+        return NextResponse.json({ success: true, streakCount: currentStreak })
+      }
+      return NextResponse.json({ success: true, streakCount: updated.streak_count || candidate })
+    }
+
     // Build update object with only allowed fields
     const updateData: any = {
       updated_at: new Date().toISOString()
