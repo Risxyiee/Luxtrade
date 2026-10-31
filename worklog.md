@@ -3681,3 +3681,35 @@ Yang BOLONG — kini ditutup (13 endpoint):
   param p_account_id text). Smoke test SELECT get_analytics_snapshot
   ('all', NULL) → JSON 18 key sesuai kontrak jalur JS. Analytics PRO
   kini otomatis lewat RPC Postgres (fallback JS tetap terpasang).
+
+## FASE 4 — PAPAN LAPORAN CSP (2026-10-31)
+
+### Tujuan
+Laporan pelanggaran CSP (report-only sejak audit #7) dulu hanya console.warn
+→ nyangkut di CF Observability, hilang setelah retention, susah dibaca Bos
+dari HP. Sekarang disimpan ke Supabase + papan admin.
+
+### KOMPONEN
+- SQL 035 (untuk Bos): tabel csp_violations (16 kolom: directive, blocked,
+  document, source, sample, raw jsonb, dst.) + 2 index + RLS TERKUNCI
+  (tanpa policy publik — hanya service_role) + idempotent.
+- POST /api/security/csp-report: persist best-effort via waitUntil —
+  insert pakai REST + service key, kegagalan TIDAK PERNAH mengganggu 204.
+  Normalisasi 2 format (legacy csp-report kebab-case + modern reports+json
+  camelCase). Retensi 30 hari via ±2% peluang delete (tanpa pg_cron).
+- GET/DELETE /api/admin/csp-reports (requireAdmin Bearer): GET = agregasi
+  kelompok (directive × blocked × document, count + first/last seen) +
+  50 sampel terbaru; DELETE = bersihkan semua.
+- Papan UI /dashboard/admin/csp (pola system-health): ringkasan 3 kartu
+  (total/24 jam/direktif unik), daftar kelompok dengan BADGE klasifikasi
+  ("domain sendiri — wajib dibenahi sebelum enforce" vs "pihak ketiga —
+  aman diblokir"), sampel kode, laporan mentah collapsible, panduan
+  keputusan enforce, tombol Muat ulang/Bersihkan. Mobile-first.
+- FIX LINTAS: invalidateAnalyticsCache PINDAH ke src/lib/analytics-cache.ts
+  (Next 16 melarang export non-handler di route file — type-check build
+  gagal di .next/types; 4 pemakai dynamic-import diarahkan ke lib).
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Lokal: POST csp-report 204; API papan 401 tanpa token; halaman papan
+  307→login (middleware guard benar).

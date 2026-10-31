@@ -8,7 +8,7 @@ import {
   Clock, Ban, CheckCircle, XCircle, Share2, CreditCard,
   AlertTriangle, Bug, Info, DatabaseBackup,
   Tag, Send, UserPen, ChevronDown, ChevronLeft, ChevronRight,
-  Link2, Award, Bot,
+  Link2, Award, Bot, ShieldAlert,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -62,6 +62,7 @@ const quickActions = [
   { href: '/dashboard/admin/promo-codes', label: 'Promo Codes', icon: Tag },
   { href: '/dashboard/admin/social-links', label: 'Social Links', icon: Link2 },
   { href: '/dashboard/admin/testimonials', label: 'Testimonials', icon: Award },
+  { href: '/dashboard/admin/csp', label: 'Laporan CSP', icon: ShieldAlert },
 ]
 
 export default function AdminPanelClient() {

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isUserPro } from '@/lib/pro-check'
 import { createClientForApi } from '@/lib/supabase/server'
+// FASE 4: cache dipindah ke @/lib/analytics-cache. Route file TIDAK BOLEH
+// punya export non-handler (Next 16 type-check: "assignable to type 'never'").
+// invalidateAnalyticsCache kini diimpor langsung dari lib tersebut.
+import {
+  getAnalyticsCache,
+  setAnalyticsCache,
+  getAnalyticsCacheKey,
+} from '@/lib/analytics-cache'
 
 async function getClientWithAuth(request: NextRequest) {
   return await createClientForApi(request)
@@ -19,25 +27,7 @@ async function getUserWithSession(request: NextRequest) {
   return { user: null, client: cookieClient }
 }
 
-// In-memory cache keyed by userId+period
-// PERF (F2): TTL 10s → 60s. Keamanan stale tetap terjaga karena
-// invalidateAnalyticsCache(userId) dipanggil via runInBackground pada SETIAP
-// POST/PUT/DELETE /api/trades — mutasi selalu membuang cache tepat waktu.
-const analyticsCache = new Map<string, { data: any; expiry: number }>()
-const CACHE_TTL = 60_000 // 60 seconds
-
-function getCacheKey(userId: string, period: string, accountId: string | null) {
-  return `${userId}:${period}:${accountId || 'all'}`
-}
-
-/** Invalidate all cached analytics for a given user (call after trade/account mutations) */
-export function invalidateAnalyticsCache(userId: string) {
-  for (const key of analyticsCache.keys()) {
-    if (key.startsWith(`${userId}:`)) {
-      analyticsCache.delete(key)
-    }
-  }
-}
+// (Cache + TTL pindah ke @/lib/analytics-cache — lihat catatan FASE 4)
 
 // Compute basic analytics for free users (no advanced PRO features)
 async function computeBasicAnalytics(client: any, userId: string, period: string, accountId: string | null) {
@@ -423,9 +413,9 @@ export async function GET(request: NextRequest) {
 
     // Check cache first (unless client explicitly asks to bust it)
     const bustCache = searchParams.get('_bust') === '1'
-    const cacheKey = getCacheKey(userId, period, accountId)
+    const cacheKey = getAnalyticsCacheKey(userId, period, accountId)
     if (!bustCache) {
-      const cached = analyticsCache.get(cacheKey)
+      const cached = getAnalyticsCache(cacheKey)
       if (cached && cached.expiry > Date.now()) {
         return NextResponse.json(cached.data, {
           headers: { 'Cache-Control': 'no-store' },
@@ -440,7 +430,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Cache the result
-    analyticsCache.set(cacheKey, { data: responseData, expiry: Date.now() + CACHE_TTL })
+    setAnalyticsCache(cacheKey, responseData)
 
     return NextResponse.json(responseData, {
       headers: { 'Cache-Control': 'no-store' },
