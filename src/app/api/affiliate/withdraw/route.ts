@@ -57,6 +57,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 💱 PENUTUP P3 (TEMUAN #5 audit): coba RPC ATOMIK dulu (migrasi 023 —
+    // request_affiliate_withdrawal): SELECT ... FOR UPDATE + cek stack +
+    // potong saldo + insert withdrawal dalam SATU transaksi. Menutup
+    // lost-update halus: dua request paralel yang menghitung potongan dari
+    // saldo basi bisa saling timpa (bukan negatif, tapi potongan kurang).
+    // Bila fungsi belum ada (migrasi belum jalan) → fallback CAS inline
+    // di bawah (proteksi FIX #1). RPC itu all-or-nothing, jadi error RPC
+    // tidak pernah meninggalkan saldo setengah terpotong.
+    try {
+      const { data: rpc, error: rpcError } = await admin.rpc('request_affiliate_withdrawal', {
+        p_affiliate_id: affiliate.id,
+        p_amount: amount,
+        p_bank_account_info: bankAccountInfo.trim(),
+        p_min_withdrawal: MIN_WITHDRAWAL,
+      })
+
+      if (!rpcError && rpc && typeof rpc === 'object' && 'ok' in (rpc as Record<string, unknown>)) {
+        const res = rpc as {
+          ok: boolean
+          code?: string
+          balance?: number
+          minimum?: number
+          withdrawal_id?: string
+          amount?: number
+          requested_at?: string
+        }
+
+        if (!res.ok) {
+          if (res.code === 'affiliate_not_found') {
+            return NextResponse.json({ error: 'No affiliate account found' }, { status: 404 })
+          }
+          if (res.code === 'pending_exists') {
+            return NextResponse.json(
+              { error: 'Kamu masih punya pengajuan penarikan yang menunggu diproses. Tunggu sampai diproses dulu ya.' },
+              { status: 400 }
+            )
+          }
+          if (res.code === 'below_minimum') {
+            return NextResponse.json(
+              { error: `Minimum withdrawal is Rp${Number(res.minimum ?? MIN_WITHDRAWAL).toLocaleString('id-ID')}` },
+              { status: 400 }
+            )
+          }
+          if (res.code === 'insufficient_balance') {
+            return NextResponse.json(
+              { error: `Insufficient balance. Current balance: Rp${Number(res.balance ?? 0).toLocaleString('id-ID')}` },
+              { status: 400 }
+            )
+          }
+          console.error('[withdraw] RPC unknown error code:', res.code)
+          return NextResponse.json({ error: 'Failed to create withdrawal' }, { status: 500 })
+        }
+
+        return NextResponse.json({
+          success: true,
+          withdrawal: {
+            id: res.withdrawal_id,
+            amount: res.amount ?? amount,
+            status: 'REQUESTED',
+            requestedAt: res.requested_at || new Date().toISOString(),
+          },
+        })
+      }
+
+      if (rpcError) {
+        console.warn('[withdraw] RPC request_affiliate_withdrawal belum tersedia (migrasi 023 belum jalan?) — fallback CAS inline:', rpcError.message)
+      }
+    } catch (rpcOuterErr) {
+      console.warn('[withdraw] RPC call threw — fallback CAS inline:', rpcOuterErr)
+    }
+
+    // ══ FALLBACK (migrasi 023 belum jalan): proteksi FIX #1 lama ══
+
     // Validate sufficient balance
     // ⚠️ KOLOM SALDO YANG BENAR = current_balance (kolom `balance` TIDAK ADA —
     // probe produksi 42703; audit worklog 2026-10-30). Komisi selalu masuk ke
