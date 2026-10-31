@@ -143,13 +143,15 @@ export async function PATCH(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
+    // CATATAN AUDIT: 'total_xp' SENGAJA dihapus dari allowedFields — XP hanya
+    // boleh ditulis server (achievements/onboarding). Dulu client bisa
+    // self-PATCH XP kosong lewat endpoint ini.
     const allowedFields = [
       'full_name',
       'display_name',
       'my_referral_code',
       'referred_by_code',
-      'device_id',
-      'total_xp'
+      'device_id'
     ]
 
     for (const field of allowedFields) {

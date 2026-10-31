@@ -317,7 +317,13 @@ export async function getActionById(cfg: SbConfig, id: string): Promise<PendingA
 
 /** Email semua user (untuk broadcast Raka) — service key, cap 200. */
 export async function fetchAllUserEmails(cfg: SbConfig, cap = 200): Promise<string[]> {
-  const out: string[] = []
+  const users = await fetchAllUsers(cfg, cap)
+  return [...new Set(users.map(u => u.email))]
+}
+
+/** Semua user {id, email} dari Auth admin — dipakai broadcast utk suppression. */
+export async function fetchAllUsers(cfg: SbConfig, cap = 250): Promise<{ id: string; email: string }[]> {
+  const out: { id: string; email: string }[] = []
   for (let page = 1; page <= 2 && out.length < cap; page++) {
     try {
       const res = await fetch(`${cfg.url}/auth/v1/admin/users?page=${page}&per_page=200`, {
@@ -327,12 +333,36 @@ export async function fetchAllUserEmails(cfg: SbConfig, cap = 200): Promise<stri
       if (!res.ok) break
       const data = await res.json() as any
       for (const u of (data?.users || [])) {
+        const id = String(u?.id || '')
         const em = String(u?.email || '').toLowerCase().trim()
-        if (em && em.includes('@')) out.push(em)
+        if (id && em && em.includes('@')) out.push({ id, email: em })
       }
     } catch { break }
   }
-  return [...new Set(out)].slice(0, cap)
+  return out.slice(0, cap)
+}
+
+/**
+ * 🚫 SUPPRESSION LIST pragmatis (penutup temuan "Raka broadcast tanpa filter
+ * unsubscribe"): union user yang minta berhenti di-email dari dua kampanye
+ * cron — re_engagement_emails.unsubscribed & daily_reminder_logs.unsubscribed.
+ * Dipakai jalur agen (broadcast maintenance, dll). FAIL-OPEN: tabel belum ada
+ * / query gagal → set kosong (broadcast tetap jalan — email operasional).
+ */
+export async function fetchUnsubscribedUserIds(cfg: SbConfig): Promise<Set<string>> {
+  const out = new Set<string>()
+  for (const table of ['re_engagement_emails', 'daily_reminder_logs']) {
+    try {
+      const res = await fetch(`${cfg.url}/rest/v1/${table}?select=user_id&unsubscribed=eq.true&limit=1000`, {
+        headers: sbHeadersPriv(cfg),
+        signal: AbortSignal.timeout(SB_TIMEOUT),
+      })
+      if (!res.ok) continue
+      const rows = await res.json() as Array<{ user_id?: unknown }>
+      for (const r of rows) if (r?.user_id) out.add(String(r.user_id))
+    } catch { /* tabel belum ada → skip */ }
+  }
+  return out
 }
 
 /* ============================================================
