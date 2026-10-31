@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { edgeCrypto } from '@/lib/edge-crypto'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 /**
  * POST /api/promo/apply
@@ -40,6 +41,10 @@ export async function POST(request: NextRequest) {
 
     const userId = user.id
     console.log(`[promo/apply:${logId}] userId=${userId}`)
+
+    // Rate limit: claim promo = operasi langka — 10x/5 menit per user
+    const limited = rateLimitByUser('promo-apply', userId, { maxRequests: 10, windowMs: 5 * 60_000 })
+    if (limited) return limited
 
     if (!code || !plan) {
       return NextResponse.json({ success: false, message: 'promoCode and plan are required' }, { status: 400 })

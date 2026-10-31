@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/auth/check-verified
@@ -11,6 +12,10 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
  */
 export async function GET(request: NextRequest) {
   try {
+    // Rate limit: endpoint polling — 60x/menit per IP (poll normal jauh di bawah ini)
+    const limited = checkRateLimit(request, 'auth-check-verified', { maxRequests: 60, windowMs: 60_000 })
+    if (limited) return limited
+
     const result = await createClientForApi(request)
     const supabase = result.supabase
     if (!supabase) {

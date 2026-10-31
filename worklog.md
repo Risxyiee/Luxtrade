@@ -3318,3 +3318,49 @@ Tanggal: (lanjutan sesi audit RLS) · Status: 027+028 SUKSES di produksi, 029 ME
 - 028: 2 policy nakal promo_codes dibuang
 - 029: testimonials dibangkitkan (anti-fake + column-level email)
   + users higiene
+
+---
+## [SECURITY #2+#3] Rate limiting 13 endpoint + hardening signature Midtrans
+
+### #2 RATE LIMITING (pakai lib @/lib/rate-limit yang sudah ada)
+Peta awal: 14 endpoint sudah terproteksi (register, signup, verify-email,
+resend-verification, reset-password x2, midtrans create x2, contact,
+journal, email-backup, ai/vlm, analyze-screenshot, marketing/send-promo).
+Yang BOLONG — kini ditutup (13 endpoint):
+- auth/sync-profile        → ByUser 30/5men (dipanggil tiap login)
+- auth/check-verified      → IP 60/men (endpoint polling)
+- auth/check-verify-status → IP 60/men (endpoint polling)
+- auth/ensure-profile      → ByUser 10/men
+- affiliate/withdraw POST  → ByUser 5/10men (OPERASI UANG)
+- promo/validate POST      → IP 10/men (ANTI BRUTE-FORCE — endpoint
+  TANPA auth, oracle tebak kode promo; temuan baru)
+- promo/apply              → ByUser 10/5men (PRO unlock)
+- bugs POST                → ByUser 5/10men (anti-spam)
+- chat/support             → IP 15/men (TANPA auth by design utk tamu
+  landing → anti-bakar biaya Gemini; temuan baru)
+- delete-account           → ByUser 3/jam (DESTRUKTIF)
+- compile-pine POST        → ByUser 20/5men (komputasi berat)
+- pine/alerts/test         → ByUser 5/5men (kirim Telegram beneran)
+
+### #3 MIDTRANS WEBHOOK SIGNATURE (audit + hardening)
+- Verdict dasar: verifikasi SUDAH ADA dan formula BENAR —
+  SHA512(order_id+status_code+gross_amount+serverKey), raw string,
+  fail-closed kalau signature kosong. Replay aman (dedupe
+  SUCCESS→"Already processed"); komisi lewat lib dedupe 022.
+- Hardening yang Z pasang:
+  1. src/lib/payment/midtrans.ts: guard bentuk (harus string 128 hex)
+     + perbandingan TIMING-SAFE (dulu `===` teoretis rentan timing).
+  2. Webhook: cross-check nominal dibayar vs harga order — WARN-ONLY
+     (observability; tidak mengubah perilaku bisnis — kalau ragu).
+
+### TEMUAN LAPORAN (tanpa perubahan, patokan rak berikutnya)
+- POST /api/promo/validate tanpa auth (by design utk form checkout?)
+  → rate limit terpasang; opsional nanti: wajib login.
+- chat/support tanpa auth (by design utk tamu) → rate limit terpasang.
+- 6 tabel kode hantu (targets/goals/trading_integrations/prop_firm_rules/
+  referral_tracking/equity_curve tidak ada di DB) → rak bersih-bersih.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (铁律 #1 aman).
+- 15 file tersentuh: lib/rate-limit pemakaian baru 11 route + midtrans
+  lib + webhook + testimonials (bab sebelumnya).

@@ -22,6 +22,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { rateLimitByUser } from '@/lib/rate-limit'
 import { readIsPro } from '@/lib/user-quota'
 import {
   runPineHeadless, runDefaultStrategyPine, evaluateAlertRules, sendTelegramToUser, formatSignalMessage,
@@ -149,6 +150,10 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthenticatedUser(request)
     if (!auth?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = auth.user.id
+
+    // Rate limit: eksekusi Pine = komputasi berat — 20x/5 menit per user
+    const limited = rateLimitByUser('compile-pine', userId, { maxRequests: 20, windowMs: 5 * 60_000 })
+    if (limited) return limited
 
     /* 2) GATE AKSES:
        - Skrip DEFAULT (Impulsive Breakout XAUUSD v4): SEMUA user

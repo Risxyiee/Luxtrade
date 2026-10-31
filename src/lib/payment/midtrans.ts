@@ -38,8 +38,25 @@ export function getMidtransSnapUrl(): string {
 }
 
 /**
+ * Bandingkan dua string hex dengan WAKTU KONSTAN (anti timing attack).
+ * Panjang berbeda tetap memproses loop penuh (tidak bocorkan panjang).
+ */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  const len = Math.max(a.length, b.length)
+  let diff = a.length === b.length ? 0 : 1
+  for (let i = 0; i < len; i++) {
+    diff |= (a.charCodeAt(i % a.length) || 0) ^ (b.charCodeAt(i % b.length) || 0)
+  }
+  return diff === 0
+}
+
+/**
  * Validate Midtrans webhook signature (async — uses Web Crypto API)
  * Uses SHA512(order_id + status_code + gross_amount + ServerKey)
+ *
+ * Hardening:
+ * - Fail-closed: signature kosong/bukan string/panjang bukan 128 hex → tolak.
+ * - Perbandingan timing-safe (dulu `===` yang rentan timing attack teoretis).
  */
 export async function verifyMidtransSignature(
   orderId: string,
@@ -48,6 +65,13 @@ export async function verifyMidtransSignature(
   serverKey: string,
   providedSignature: string
 ): Promise<boolean> {
+  if (!providedSignature || typeof providedSignature !== 'string') return false
+  const provided = providedSignature.toLowerCase()
+  // sha512 hex selalu 128 karakter — bentuk lain pasti palsu
+  if (provided.length !== 128) return false
+
   const hash = await edgeCrypto.sha512(orderId + statusCode + grossAmount + serverKey)
-  return hash === providedSignature
+  if (!hash || typeof hash !== 'string') return false
+
+  return timingSafeEqualHex(hash.toLowerCase(), provided)
 }
