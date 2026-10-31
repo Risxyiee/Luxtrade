@@ -2901,3 +2901,39 @@ yang dibaca SEBELUM CAS → dua request paralel bisa timpa pakai saldo basi
 - RUTE AKTIF: withdraw kini lewat RPC atomik (lock baris + 1 transaksi);
   fallback CAS FIX #1 tetap terpasang sebagai jaring pengaman.
 - 🏁 PAPAN AUDIT E2E: P0/P1/P2/P3 SEMUA TUNTAS + terverifikasi produksi.
+
+## 🔒 HARDENING TERAKHIR: TABEL profiles — TULISAN CLIENT DITUTUP TOTAL (2026-02-09)
+Bos: "gass" pada rekomendasi hardening kolom profiles (temuan sisa 021:
+client masih nulis is_pro/subscription_status langsung).
+
+### PETA TULISAN CLIENT (sapu menyeluruh, hanya 2 titik)
+1. src/lib/auth-context.tsx checkAndLockExpired → UPDATE is_pro=false +
+   subscription_status='expired' dari BROWSER (pola sama bisa dipakai
+   user nakal self-PRO via console).
+2. src/app/auth/callback/page.tsx → UPSERT profiles dari browser dgn
+   onConflict id — bisa menyelipkan role/plan/status apa pun ke baris
+   sendiri (fallback halaman admin membaca profiles.role!).
+Kontrol: admin/affiliate/page.tsx hanya SELECT role; onboarding,
+sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
+
+### REFAKTOR (kode terpush SEBELUM SQL — aman dua arah)
+- auth-context: checkAndLockExpired kini murni override IN-MEMORY
+  (tanpa tulis DB). Penurunan PRO expired milik server: cron
+  downgrade-expired-pro + isUserPro() yang selalu cek tanggal.
+- auth/callback: upsert diganti POST /api/auth/ensure-profile
+  (cookie sesi @supabase/ssr + Bearer access_token belt-and-braces;
+  requireAuth cookie-first lalu bearer). ensure-profile = self-only,
+  role='USER' hardcoded, service-role.
+
+### MIGRASI 024 — supabase-migrations/024_profiles_client_write_lockdown.sql
+- REVOKE INSERT, UPDATE, DELETE ON profiles FROM authenticated & anon.
+- SELECT tetap terbuka (alur auth/dashboard). Policies TIDAK dihapus
+  (privilege = gerbang luar; policy tanpa privilege tak pernah menyala —
+  prinsip "kalau ragu gausah dihapus"). service_role tak tersentuh.
+- Idempotent. ⏳ MENUNGGU BOS JALANKAN di SQL Editor + query verifikasi
+  di ekor file (harus hanya SELECT utk anon/authenticated).
+
+### GERBANG & SMOKE
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Dev: landing 200, /auth/callback?code=dummy 200 (halaman compile).
+- Agent Browser: landing render sempurna, tanpa page error.

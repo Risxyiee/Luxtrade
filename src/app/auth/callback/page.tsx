@@ -40,22 +40,35 @@ export default function AuthCallbackPage() {
             return
           }
 
-          // Create profile if new user (to Supabase profiles)
+          // Create profile if new user — lewat API service-role (🔒 migrasi 024):
+          // client TIDAK BOLEH upsert profiles langsung. Dulu upsert dari
+          // browser bisa menyelipkan role/plan/status apa pun ke baris sendiri.
+          // ensure-profile: self-only (userId === sesi), role='USER' hardcoded.
           if (data.user) {
-            console.log('✅ Auth callback successful, syncing to Prisma...')
+            console.log('✅ Auth callback successful, ensuring profile via API...')
 
-            const { error: profileError } = await supabase.from('profiles').upsert({
-              id: data.user.id,
-              email: data.user.email,
-              full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
-              subscription_status: 'FREE',
-              is_pro: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'id' })
-
-            if (profileError) {
-              console.error('Profile upsert error:', profileError)
+            try {
+              const ensureRes = await fetch('/api/auth/ensure-profile', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(data.session?.access_token
+                    ? { Authorization: `Bearer ${data.session.access_token}` }
+                    : {}),
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                  userId: data.user.id,
+                  email: data.user.email,
+                  fullName: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
+                }),
+              })
+              const ensureJson = await ensureRes.json().catch(() => null)
+              if (!ensureRes.ok) {
+                console.error('Ensure profile failed:', ensureRes.status, ensureJson)
+              }
+            } catch (ensureErr) {
+              console.error('Ensure profile error:', ensureErr)
             }
 
             // Sync user to Prisma (User table in SQLite)
