@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail } from 'lucide-react'
+import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail, Send, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
@@ -26,6 +26,11 @@ const strings = {
     iosBannerDesc: 'Install LuxTradee ke Home Screen biar push notification bisa jalan.',
     iosBannerAction: 'Lihat Cara Install',
     permissionError: 'Gagal meminta izin notifikasi',
+    testBtn: 'Kirim Notifikasi Tes',
+    testingBtn: 'Mengirim...',
+    testOk: 'Terkirim! Cek HP kamu 📲',
+    testEmpty: 'Belum ada perangkat terdaftar — nyalakan dulu',
+    testFail: 'Gagal terkirim — coba lagi',
   },
   en: {
     enableBtn: 'Enable Notifications',
@@ -43,6 +48,11 @@ const strings = {
     iosBannerDesc: 'Install LuxTradee to Home Screen so push notifications can work.',
     iosBannerAction: 'See How to Install',
     permissionError: 'Failed to request notification permission',
+    testBtn: 'Send Test Notification',
+    testingBtn: 'Sending...',
+    testOk: 'Sent! Check your phone 📲',
+    testEmpty: 'No device registered — enable first',
+    testFail: 'Send failed — try again',
   },
 } as const
 
@@ -74,6 +84,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [showIOSBanner, setShowIOSBanner] = useState(false)
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'empty' | 'fail'>('idle')
 
   useEffect(() => {
     setIsIOS(isIOSSafari())
@@ -103,6 +114,22 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const handleDisable = useCallback(async () => {
     await unsubscribe()
   }, [unsubscribe])
+
+  /** FASE 5A: kirim push TES ke diri sendiri — bukti notif beneran sampai HP */
+  const handleSendTest = useCallback(async () => {
+    setTestState('sending')
+    try {
+      const res = await fetch('/api/push/test', { method: 'POST' })
+      if (!res.ok) {
+        setTestState('fail')
+        return
+      }
+      const data = await res.json()
+      setTestState(data.sent > 0 ? 'ok' : 'empty')
+    } catch {
+      setTestState('fail')
+    }
+  }, [])
 
   // Whether push can actually work on this device
   const pushCanWork = isSupported && (!isIOS || isStandalone)
@@ -165,6 +192,33 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
             <Mail className="w-3 h-3 text-emerald-400/60" />
             <p className="text-[10px] text-emerald-400/60">{t.emailNote}</p>
+          </div>
+        )}
+
+        {/* FASE 5A: tes notifikasi (hanya saat sudah berlangganan) */}
+        {isSubscribed && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+            <button
+              onClick={handleSendTest}
+              disabled={testState === 'sending'}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/25 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {testState === 'sending' ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Send className="w-3 h-3" />
+              )}
+              {testState === 'sending' ? t.testingBtn : t.testBtn}
+            </button>
+            {testState === 'ok' && (
+              <span className="flex items-center gap-1 text-[10px] text-emerald-400"><CheckCircle2 className="w-3 h-3" />{t.testOk}</span>
+            )}
+            {testState === 'empty' && (
+              <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testEmpty}</span>
+            )}
+            {testState === 'fail' && (
+              <span className="flex items-center gap-1 text-[10px] text-red-400"><AlertCircle className="w-3 h-3" />{t.testFail}</span>
+            )}
           </div>
         )}
 
@@ -265,18 +319,43 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             )}
 
             {isSubscribed && (
-              <button
-                onClick={handleDisable}
-                disabled={isLoading}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 text-xs text-white/50 hover:text-white/80 hover:bg-white/10 transition-all disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <BellOff className="w-3 h-3" />
-                )}
-                {isLoading ? t.disablingBtn : t.disableBtn}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleDisable}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 text-xs text-white/50 hover:text-white/80 hover:bg-white/10 transition-all disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <BellOff className="w-3 h-3" />
+                  )}
+                  {isLoading ? t.disablingBtn : t.disableBtn}
+                </button>
+                <button
+                  onClick={handleSendTest}
+                  disabled={testState === 'sending'}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/15 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {testState === 'sending' ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Send className="w-3 h-3" />
+                  )}
+                  {testState === 'sending' ? t.testingBtn : t.testBtn}
+                </button>
+              </div>
+            )}
+
+            {/* FASE 5A: feedback tes notifikasi */}
+            {isSubscribed && testState === 'ok' && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />{t.testOk}</p>
+            )}
+            {isSubscribed && testState === 'empty' && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testEmpty}</p>
+            )}
+            {isSubscribed && testState === 'fail' && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-red-400"><AlertCircle className="w-3.5 h-3.5" />{t.testFail}</p>
             )}
           </div>
         </div>

@@ -4,20 +4,24 @@ import { getEnvVar } from '@/lib/cloudflare-bindings'
 import {
   getReEngagementNoTradeHtml,
   getReEngagementHasTradeHtml,
+  getReEngagementDay7Html,
 } from '@/lib/email'
 import { getCronAdmin, fetchAllRows, isMissingTableError, chunk } from '@/lib/cron-supabase'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * GET/POST /api/cron/re-engage
- * Cron job: sends re-engagement email to users who signed up 24-48h ago
- * but never came back (last_sign_in_at = signup day).
+ * Cron job: drips re-engagement emails (FASE 5B) — DUA langkah:
  *
- * TWO email variants:
- *   - no_trade: user has 0 trades → "upload 1 trade, get 1 day PRO free"
- *   - has_trade: user has ≥1 trades → "your first trade is saved, add more"
+ *   STEP D+1 (24-48 jam setelah daftar, belum pernah balik):
+ *     - no_trade: user has 0 trades → "upload 1 trade, get 1 day PRO free"
+ *     - has_trade: user has ≥1 trades → "your first trade is saved, add more"
+ *   STEP D+7 (daftar 7-8 hari lalu, MASIH 0 trade):
+ *     - day7_autoimport → pitch "cara otomatis" (screenshot AI /
+ *       auto-import FXBlue/MyFxBook) — dulu user ini hilang selamanya.
  *
- * Only sends ONCE per user (tracked in re_engagement_emails table).
+ * Tracking: re_engagement_emails unik per (user_id, email_type) — SQL 036.
+ * Satu user bisa terima maksimal 1 email per langkah.
  * Supports ?dry=true for preview without sending.
  *
  * Cron: runs daily at 10:00 AM WIB (03:00 UTC) via Cloudflare Workers cron trigger
@@ -33,7 +37,9 @@ interface TargetUser {
   created_at: string
   last_sign_in_at: string | null
   trade_count: number
-  email_type: 'no_trade' | 'has_trade'
+  email_type: 'no_trade' | 'has_trade' | 'day7_autoimport'
+  /** langkah drip asal kandidat: d1 = 24-48 jam, d7 = 7-8 hari */
+  step: 'd1' | 'd7'
 }
 
 /**
@@ -45,8 +51,13 @@ interface TargetUser {
  */
 async function getTargetUsers(admin: SupabaseClient, force: boolean): Promise<TargetUser[]> {
   const now = Date.now()
-  const windowStart = new Date(now - 48 * 3600 * 1000)
-  const windowEnd = new Date(now - 24 * 3600 * 1000)
+  // STEP D+1: daftar 24-48 jam lalu & tidak pernah balik setelah hari daftar
+  const freshStart = new Date(now - 48 * 3600 * 1000)
+  const freshEnd = new Date(now - 24 * 3600 * 1000)
+  // STEP D+7: daftar 7-8 hari lalu (tetap dikirim walau pernah balik —
+  // yang jadi syarat adalah jurnal masih NOL trade, dicek di bawah)
+  const weekStart = new Date(now - 8 * 86400_000)
+  const weekEnd = new Date(now - 7 * 86400_000)
 
   // 1. List all auth users (paginated, 200/page)
   const candidates: TargetUser[] = []
@@ -58,53 +69,69 @@ async function getTargetUsers(admin: SupabaseClient, force: boolean): Promise<Ta
     for (const u of users) {
       if (!u.email || !(u as any).email_confirmed_at) continue
       const createdAt = new Date(u.created_at || 0)
-      if (!force) {
-        // Signed up 24-48h ago AND never came back after signup day
-        if (createdAt < windowStart || createdAt > windowEnd) continue
-        const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null
-        if (lastSignIn && lastSignIn.toISOString().slice(0, 10) !== createdAt.toISOString().slice(0, 10)) continue
-      }
-      candidates.push({
+      const base = {
         user_id: u.id,
         email: u.email,
         full_name: (u.user_metadata as any)?.full_name || u.email?.split('@')[0] || 'Trader',
         created_at: u.created_at || '',
         last_sign_in_at: u.last_sign_in_at || null,
         trade_count: 0,
-        email_type: 'no_trade',
-      })
+      }
+      if (force) {
+        // mode tes: semua user terkonfirmasi = kandidat D+1 ( perilaku lama )
+        candidates.push({ ...base, email_type: 'no_trade', step: 'd1' })
+        continue
+      }
+      if (createdAt >= freshStart && createdAt <= freshEnd) {
+        // D+1 hanya untuk yang TIDAK pernah balik setelah hari daftar
+        const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null
+        if (!lastSignIn || lastSignIn.toISOString().slice(0, 10) === createdAt.toISOString().slice(0, 10)) {
+          candidates.push({ ...base, email_type: 'no_trade', step: 'd1' })
+        }
+        continue
+      }
+      if (createdAt >= weekStart && createdAt <= weekEnd) {
+        candidates.push({ ...base, email_type: 'day7_autoimport', step: 'd7' })
+      }
     }
     if (users.length < perPage) break
   }
   if (candidates.length === 0) return []
 
-  // 2. Skip users who already received a re-engagement email (log table may be missing — degrade)
+  // 2. Skip pasangan (user, email_type) yang sudah pernah terkirim
+  //    (log table may be missing — degrade gracefully)
   const emailedSet = new Set<string>()
   try {
     const emailedRows = await fetchAllRows<any>((from, to) =>
-      admin.from('re_engagement_emails').select('user_id').range(from, to)
+      admin.from('re_engagement_emails').select('user_id, email_type').range(from, to)
     )
-    emailedRows.forEach((r: any) => emailedSet.add(r.user_id))
+    emailedRows.forEach((r: any) => emailedSet.add(`${r.user_id}|${r.email_type || 'no_trade'}`))
   } catch (err: any) {
     if (!isMissingTableError(err)) console.warn('[re-engage] log query failed:', err.message)
   }
-  const filtered = candidates.filter(c => !emailedSet.has(c.user_id))
-  if (filtered.length === 0) return []
 
   // 3. Count trades per candidate (chunked)
   const tradeCounts = new Map<string, number>()
-  for (const c of chunk(filtered.map(f => f.user_id), 100)) {
+  for (const c of chunk(candidates.map(f => f.user_id), 100)) {
     const rows = await fetchAllRows<any>((from, to) =>
       admin.from('trades').select('user_id').in('user_id', c).range(from, to)
     )
     rows.forEach((r: any) => tradeCounts.set(r.user_id, (tradeCounts.get(r.user_id) || 0) + 1))
   }
 
-  return filtered.map(c => ({
-    ...c,
-    trade_count: tradeCounts.get(c.user_id) || 0,
-    email_type: (tradeCounts.get(c.user_id) || 0) > 0 ? ('has_trade' as const) : ('no_trade' as const),
-  }))
+  // 4. Final: D+1 → no_trade/has_trade; D+7 → HANYA yang masih 0 trade
+  return candidates
+    .filter(c => c.step !== 'd7' || (tradeCounts.get(c.user_id) || 0) === 0)
+    .map(c => ({
+      ...c,
+      trade_count: tradeCounts.get(c.user_id) || 0,
+      email_type: c.step === 'd7'
+        ? ('day7_autoimport' as const)
+        : (tradeCounts.get(c.user_id) || 0) > 0
+          ? ('has_trade' as const)
+          : ('no_trade' as const),
+    }))
+    .filter(c => !emailedSet.has(`${c.user_id}|${c.email_type}`))
 }
 
 async function sendReEngagementEmail(user: TargetUser): Promise<boolean> {
@@ -118,6 +145,9 @@ async function sendReEngagementEmail(user: TargetUser): Promise<boolean> {
   if (user.email_type === 'has_trade') {
     html = getReEngagementHasTradeHtml(name, user.trade_count, ctaUrl, unsubUrl)
     subject = `Trade pertamamu udah tersimpan! 📊 — Yuk lanjutin di LuxTradee`
+  } else if (user.email_type === 'day7_autoimport') {
+    html = getReEngagementDay7Html(name, ctaUrl, unsubUrl)
+    subject = `Jurnal masih kosong? Coba cara otomatisnya 📸 — LuxTradee`
   } else {
     html = getReEngagementNoTradeHtml(name, ctaUrl, unsubUrl)
     subject = `Yuk Coba LuxTradee! 👑 — Upload 1 trade, dapat 1 hari PRO gratis`
@@ -138,7 +168,7 @@ async function logSentEmail(user: TargetUser, success: boolean): Promise<void> {
         email_type: user.email_type,
         sent_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id', ignoreDuplicates: false }
+      { onConflict: 'user_id,email_type', ignoreDuplicates: false }
     )
     if (error && !isMissingTableError(error)) {
       console.warn(`[re-engage] Failed to log email for ${user.user_id}:`, error.message)

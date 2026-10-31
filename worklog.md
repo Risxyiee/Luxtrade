@@ -3723,3 +3723,39 @@ dari HP. Sekarang disimpan ke Supabase + papan admin.
   • GET /dashboard/admin/csp tanpa login → 307 → /auth/login?redirect=…
 - Papan hidup mode observasi: data pelanggaran nyata terkumpul ±1 minggu
   → baru putuskan report-only → ENFORCE (badge papan sudah memandu).
+
+## FASE 5 — NOTIFIKASI TES + DRIP AKTIVASI D+7 (2026-10-31)
+
+### Latar (pertanyaan Bos)
+"Notifikasi gabisa dibikin kaya WA ya?" + "kenapa user cuma daftar doang?"
+Bedah kode: infra Web Push ternyata SUDAH lengkap (subscribe, VAPID, sw.js
+push handler, 3 cron pengirim) tapi tak pernah ada cara verifikasi ke HP;
+drip D+1 (re-engage) sudah jalan harian — yang hilang: tes notifikasi (5A)
+dan langkah D+7 (5B).
+
+### 5A — Tombol Kirim Notifikasi Tes
+- Endpoint BARU POST /api/push/test: auth WAJIB (kirim ke diri sendiri,
+  tanpa parameter userId), rate-limit IP 5/menit, subscription expired
+  (410/404) ikut dihapus, jawaban jujur (sent/total/message).
+  User free tanpa subscription → "Belum ada perangkat terdaftar".
+- UI NotificationSetup: tombol "Kirim Notifikasi Tes" (compact sidebar +
+  kartu penuh) + feedback i18n id/en (Terkirim 📲 / Belum ada perangkat /
+  Gagal). Hanya tampil saat isSubscribed.
+
+### 5B — Drip D+7 "cara otomatis" (auto-import pitch)
+- email.ts: template BARU getReEngagementDay7Html (📸 pitch screenshot AI
+  + auto-import FXBlue/MyFxBook, gaya amber gradient sama dengan D+1).
+- cron re-engage: DUA langkah — D+1 (24-48 jam, belum balik; no_trade/
+  has_trade) + D+7 (daftar 7-8 hari, syarat: masih NOL trade;
+  day7_autoimport). Tracking unik per (user_id, email_type) — SQL 036;
+  onConflict 'user_id,email_type'; dry-run tetap tersedia (?dry=true).
+- SQL 036 reengage_drip_multi_step.sql: buat tabel bila belum ada, lepas
+  unique lama (user_id saja), pasang unique (user_id, email_type),
+  RLS ENABLE tanpa policy (service_role saja). IDEMPOTENT + NOTICE.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Lokal: POST /api/push/test tanpa login → 401; re-engage ?dry=true →
+  200 (degrade jujur "Database not available" — env lokal memang minim;
+  jalur data produksi sudah terbukti oleh D+1 yang jalan harian).
+- Produksi: menunggu Bos (SQL 036 + tes push dari HP).
