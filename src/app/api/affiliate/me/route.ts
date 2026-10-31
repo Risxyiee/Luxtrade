@@ -45,13 +45,20 @@ export async function GET(request: NextRequest) {
 
     if (!finalAffiliate) {
       const referralCode = await generateUniqueReferralCode(admin)
-      const { data: created } = await admin.from('affiliates').insert({
+      // ⚠️ Kolom saldo = current_balance (kolom `balance` TIDAK ADA — probe
+      // produksi 42703). Dulu insert pakai `balance: 0` → selalu gagal →
+      // user baru PASTI kena 500 di halaman affiliate.
+      const { data: created, error: createErr } = await admin.from('affiliates').insert({
         user_id: authUser.id,
         referral_code: referralCode,
         total_earned: 0,
         total_withdrawn: 0,
-        balance: 0,
+        current_balance: 0,
       }).select().single()
+      if (createErr || !created) {
+        console.error('Failed to create affiliate record:', createErr)
+        return NextResponse.json({ error: 'Gagal menyiapkan akun affiliate, coba lagi' }, { status: 500 })
+      }
       finalAffiliate = created
     }
 
@@ -68,8 +75,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       referralCode: finalAffiliate!.referral_code,
       totalEarned: finalAffiliate!.total_earned ?? 0,
-      totalPaid: finalAffiliate!.total_withdrawn ?? 0,
-      currentBalance: finalAffiliate!.balance ?? 0,
+      // total_paid di-increment admin saat mark PAID; total_withdrawn = fallback
+      totalPaid: finalAffiliate!.total_paid ?? finalAffiliate!.total_withdrawn ?? 0,
+      // ⚠️ Saldo dibaca dari current_balance (bukan `balance` yang tak ada)
+      currentBalance: finalAffiliate!.current_balance ?? 0,
       referralLink,
     })
   } catch (error) {

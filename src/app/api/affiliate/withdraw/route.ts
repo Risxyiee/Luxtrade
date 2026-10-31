@@ -58,15 +58,56 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate sufficient balance
-    if (amount > affiliate.balance) {
+    // ⚠️ KOLOM SALDO YANG BENAR = current_balance (kolom `balance` TIDAK ADA —
+    // probe produksi 42703; audit worklog 2026-10-30). Komisi selalu masuk ke
+    // current_balance, jadi cek saldo HARUS pakai kolom yang sama.
+    const currentBalance = Number(affiliate.current_balance ?? 0)
+    if (amount > currentBalance) {
       return NextResponse.json(
-        { error: `Insufficient balance. Current balance: Rp${affiliate.balance.toLocaleString('id-ID')}` },
+        { error: `Insufficient balance. Current balance: Rp${currentBalance.toLocaleString('id-ID')}` },
         { status: 400 }
       )
     }
 
-    // Create withdrawal and deduct balance
-    // Supabase doesn't support transactions natively in JS client, so we do sequential operations
+    // 🛡️ Anti double-spend: hanya BOLEH ada SATU pengajuan REQUESTED per
+    // affiliate. Tanpa ini, N request paralel semuanya lolos cek saldo.
+    const { data: pendingDup } = await admin
+      .from('affiliate_withdrawals')
+      .select('id')
+      .eq('affiliate_id', affiliate.id)
+      .eq('status', 'REQUESTED')
+      .limit(1)
+    if (pendingDup && pendingDup.length > 0) {
+      return NextResponse.json(
+        { error: 'Kamu masih punya pengajuan penarikan yang menunggu diproses. Tunggu sampai diproses dulu ya.' },
+        { status: 400 }
+      )
+    }
+
+    // 💰 POTONG SALDO DULU (CAS atomik di level DB): UPDATE ... WHERE
+    // current_balance >= amount. Kalau baris kosong = saldo berubah di
+    // antara read & write (race) → tolak. Supabase JS tak dukung transaksi,
+    // tapi UPDATE tunggal dgn filter PostgREST ini atomik per baris.
+    const { data: deducted, error: deductError } = await admin
+      .from('affiliates')
+      .update({ current_balance: currentBalance - amount })
+      .eq('id', affiliate.id)
+      .gte('current_balance', amount)
+      .select('current_balance')
+
+    if (deductError) {
+      console.error('Failed to deduct balance:', deductError)
+      return NextResponse.json({ error: 'Gagal memotong saldo, coba lagi' }, { status: 500 })
+    }
+    if (!deducted || deducted.length === 0) {
+      return NextResponse.json(
+        { error: 'Insufficient balance. Current balance: Rp' + currentBalance.toLocaleString('id-ID') },
+        { status: 400 }
+      )
+    }
+
+    // Create withdrawal record (saldo sudah terpotong — kalau ini gagal,
+    // REFUND saldo biar duit user tidak hilang)
     const { data: withdrawal, error: withdrawError } = await admin.from('affiliate_withdrawals').insert({
       affiliate_id: affiliate.id,
       amount,
@@ -75,13 +116,13 @@ export async function POST(request: NextRequest) {
     }).select().single()
 
     if (withdrawError) {
-      console.error('Failed to create withdrawal:', withdrawError)
+      console.error('Failed to create withdrawal (refund saldo):', withdrawError)
+      await admin
+        .from('affiliates')
+        .update({ current_balance: currentBalance })
+        .eq('id', affiliate.id)
       return NextResponse.json({ error: 'Failed to create withdrawal' }, { status: 500 })
     }
-
-    // Deduct from current balance
-    const newBalance = (affiliate.balance ?? 0) - amount
-    await admin.from('affiliates').update({ balance: newBalance }).eq('id', affiliate.id)
 
     return NextResponse.json({
       success: true,
@@ -89,7 +130,7 @@ export async function POST(request: NextRequest) {
         id: withdrawal.id,
         amount: withdrawal.amount,
         status: withdrawal.status,
-        requestedAt: withdrawal.created_at,
+        requestedAt: withdrawal.requested_at,
       },
     })
   } catch (error) {
@@ -121,12 +162,14 @@ export async function GET(request: NextRequest) {
 
     // Get withdrawals for this affiliate (with limit)
     const searchParams = request.nextUrl.searchParams
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50') || 50, 200)
 
+    // ⚠️ Kolom waktu = requested_at (kolom `created_at` TIDAK ADA — probe
+    // produksi 42703; tanpa ini seluruh riwayat withdraw 42703).
     const { data: withdrawals } = await admin.from('affiliate_withdrawals')
       .select('*')
       .eq('affiliate_id', affiliate.id)
-      .order('created_at', { ascending: false })
+      .order('requested_at', { ascending: false })
       .limit(limit)
 
     return NextResponse.json({
@@ -135,7 +178,7 @@ export async function GET(request: NextRequest) {
         amount: w.amount,
         status: w.status,
         bankAccountInfo: w.bank_account_info,
-        requestedAt: w.created_at,
+        requestedAt: w.requested_at,
         paidAt: w.paid_at,
       })),
     })

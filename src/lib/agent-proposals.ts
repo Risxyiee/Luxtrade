@@ -27,7 +27,7 @@
  * { ok:false, reason:'TABLE_MISSING' } — tidak crash, tidak pura2.
  */
 
-import { bagasCooldownSince, bagasCooldownOrFilter, contactsFromTaskRows } from '@/lib/bagas-cooldown'
+import { bagasCooldownSince, bagasCooldownOrFilter, contactsFromTaskRows, emailsFromActionRows } from '@/lib/bagas-cooldown'
 
 /* ================= ENV RESOLUTION ================= */
 
@@ -392,8 +392,49 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
   const prof = await sbSelect(cfg, 'profiles', `select=id,email,last_sign_in_at,is_pro&id=in.(${activeIds.join(',')})&limit=500`)
   if (!prof.ok) return null
   const cutoff = isoAgo(24 * 3)
-  const targets = prof.rows
+  const candidates = prof.rows
     .filter((p: any) => p.email && String(p.last_sign_in_at || '') < cutoff)
+
+  /* 🔗 UNIFIKASI COOLDOWN MAYA (penutup temuan "dobel karyawan" — arah sama
+     dgn unifikasi Bagas): kandidat yang baru di-winback 14 hari terakhir
+     (KV `winback:{email}`, semantik SAMA dgn agentMaya di master-autonomous)
+     atau baru masuk antrean Bagas 7 hari terakhir TIDAK diusulkan lagi.
+     Fail-open: kalau query gagal (tabel/KV belum ada) → set kosong →
+     perilaku lama. Nol migrasi baru. */
+  const WB_TTL_MS = 14 * 24 * 3600_000
+  const nowMs = Date.now()
+  const wbRecent = new Set<string>()
+  try {
+    const wb = await sbSelect(cfg, 'agent_kv', `select=key,value&key=like.winback.*&limit=500`)
+    if (wb.ok) {
+      for (const row of wb.rows as Array<{ key: string; value: string }>) {
+        const ts = new Date(row.value || '').getTime()
+        if (Number.isFinite(ts) && nowMs - ts < WB_TTL_MS) wbRecent.add(String(row.key).toLowerCase())
+      }
+    }
+  } catch { /* fail-open */ }
+  const bagasRecent = new Set<string>()
+  try {
+    const sinceCd = bagasCooldownSince()
+    const [tasksCd, actionsCd] = await Promise.all([
+      sbSelect(cfg, 'ai_pending_tasks', `select=target_user_id,context_data&agent_type=eq.COO&${bagasCooldownOrFilter(sinceCd)}&limit=200`),
+      sbSelect(cfg, 'ai_pending_actions', `select=action_payload&agent_name=eq.Bagas&${bagasCooldownOrFilter(sinceCd)}&limit=200`),
+    ])
+    if (tasksCd.ok) {
+      for (const e of contactsFromTaskRows(tasksCd.rows).emails) bagasRecent.add(e)
+    }
+    if (actionsCd.ok) {
+      for (const e of emailsFromActionRows(actionsCd.rows)) bagasRecent.add(e)
+    }
+  } catch { /* fail-open */ }
+
+  const targets = candidates
+    .filter((p: any) => {
+      const em = String(p.email).toLowerCase()
+      if (wbRecent.has(`winback:${em}`)) return false // baru di-winback 14 hari
+      if (bagasRecent.has(em)) return false // baru ditawarin PRO sama Bagas 7 hari
+      return true
+    })
     .slice(0, 30)
   if (targets.length === 0) return null
 
@@ -410,6 +451,12 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
   const action = j?.proposed_action || {}
   const subject = String(action.subject || 'Kangen lihat jurnalmu kosong — balik yuk?')
   const htmlBody = String(action.html_body || `<p>Halo trader,</p><p>Kami lihat kamu aktif trading minggu ini tapi belum login 3 hari terakhir. Jurnal yang kosong itu kehilangan data — trade bagus hari ini bisa jadi pelajaran besok.</p><p>Upload 1 screenshot, AI LuxTradee evaluasi dalam 2 menit: <b>https://luxtradee.web.id</b></p>`)
+  // Catat cooldown winback SEKARANG (semantik master-autonomous: KV di-set
+  // saat proposal dibuat) → sweep berikutnya 14 hari tidak mengusulkan
+  // email yang sama, meskipun dedup 24 jam insertPendingAction sudah lolos.
+  for (const t of targets as Array<{ email: string }>) {
+    try { await kvSetKey(cfg, `winback:${String(t.email).toLowerCase()}`, new Date().toISOString()) } catch { /* opsional */ }
+  }
   return {
     agentName: 'Maya',
     actionType: 'SEND_WINBACK_EMAIL',

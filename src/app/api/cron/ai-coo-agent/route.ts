@@ -451,7 +451,7 @@ async function handleRequest(request: NextRequest) {
         .select('action_payload')
         .eq('agent_name', 'Bagas')
         .or(bagasCooldownOrExpr(sinceCooldown))
-        .limit(60)
+        .limit(200) // dulu 60 — volume Bagas 7 hari bisa lewat 60 → silent truncation
       for (const e of emailsFromActionRows(recentActions || [])) crossActionEmails.add(e)
     } catch { /* tabel opsional (migrasi 015 belum jalan) — fail-open */ }
   }
