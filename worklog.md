@@ -3524,3 +3524,11 @@ Yang BOLONG — kini ditutup (13 endpoint):
   ("Successfully deleted 19 file(s)").
 - Verifikasi: count objek root `trade-screenshots` = 0 → root bucket bersih,
   100% isi = folder uid pemilik. Storage story #7 CLOSED penuh.
+
+### TES VISUAL FINAL — PENUTUP #7 ✅
+- Bos konfirmasi dari produksi: screenshot trade lama TAMPIL normal
+  → signed-URL resolver bekerja sempurna pasca-flip private.
+- #7 RESMI SELESAI — security checklist #1–#7: 100% PENUH.
+- Backlog non-blocking tersisa:
+  (1) keputusan 6 tabel hantu (rekomendasi: biarkan, sudah graceful);
+  (2) CSP enforce setelah ±1 minggu data csp-report terkumpul.
