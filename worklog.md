@@ -3171,3 +3171,71 @@ landing/aset. Semua perubahan NON-Fungsional (nol perubahan perilaku bisnis).
 - Hasil struktural: reload mobile hemat ±1.5-2s dead time + 1 roundtrip
   network (repeat visit), payload gambar landing −95%, bundle awal
   landing & dashboard lebih ramping.
+
+---
+## [AUDIT RLS TABEL NON-UANG] Audit penuh + Migrasi 027 — 23 tabel ditutup dari client
+
+Tanggal: (sesi lanjutan setelah bab perf) · Status: migrasi MENUNGGU BOS JALANKAN di SQL Editor
+
+### KONTEKS
+Perintah Bos "1 dulu karyawan" = eksekusi prioritas #1 dari rak keamanan:
+audit RLS/privileges tabel NON-uang (pola sama dgn 026).
+
+### METODE AUDIT (lebih dalam dari 026)
+- Script baru `scripts/audit-table-clients.ts`: memetakan SEMUA akses
+  tabel di src/ → tipe client-nya per file:
+  ADMIN = service_role (kebal REVOKE client) vs USER = user-JWT
+  (anon key + cookie/Bearer user → jalan sebagai role `authenticated`/
+  `anon` via createClientForApi/getServerClient/createSupabaseClient).
+- 48 tabel publik teridentifikasi. Pola lain dicek manual: .from()
+  dinamis (cuma storage bucket + tableExists di route server), fetch
+  rest/v1 (semua service-key di lib/route server — agent-proposals
+  terverifikasi TIDAK pernah sampai browser), realtime (NOL), .rpc()
+  (2, semua route server).
+- ⚠️ Kunci pemahaman baru: `src/lib/supabase/server.ts` createClient/
+  createClientForApi = client user-JWT → query route API jalan sebagai
+  role `authenticated` → tabel yang dipakai jalur ini TIDAK BOLEH
+  di-REVOKE (keamanan lewat RLS policy, bukan privilege).
+
+### HASIL KLASIFIKASI (48 tabel)
+- 23 tabel ADMIN-only → LOCKDOWN 027 (REVOKE ALL dari authenticated+anon):
+  affiliate_withdrawals, user_subscriptions, achievements,
+  user_achievements, user_quotas, agent_kv, ai_pending_actions,
+  ai_pending_tasks, office_memory, tiktok_posts, email_broadcasts,
+  weekly_summary_emails, re_engagement_emails, daily_reminder_logs,
+  contact_messages, community_trades, blog_posts, bug_reports,
+  pine_scripts, pine_alert_log, pine_alert_subscriptions,
+  protected_scripts (re-assert B1), push_subscriptions.
+- 25 tabel KEEP (client user-JWT/anon BY DESIGN — profiles, trades,
+  journal_entries, trading_accounts, prop_firm_*, dll.) → tak disentuh;
+  keamanan = RLS + policy (diaudit via VERIFIKASI 3 di 027).
+- 5 tabel uang sudah dikunci 026. "notifications" tidak ada (yang ada
+  notification_preferences [KEEP] + push_subscriptions [LOCK]).
+  "screenshots" = storage bucket, bukan tabel (item checklist lain).
+
+### ⚠️ DUA TEMUAN PENTING (ditutup oleh 027)
+1. **affiliate_withdrawals = TABEL UANG TERLEWAT DARI 026!** 026 mengunci
+   "withdrawals" tapi "affiliate_withdrawals" masih pegang GRANT SELECT
+   dari migrasi 2026-07-28. Semua query-nya admin (route withdraw +
+   admin) → aman dikunci.
+2. **user_subscriptions = risiko SELF-UPGRADE PRO.** Migrasi 2026-07-28
+   memberi GRANT UPDATE + policy "Users can update own subscriptions"
+   → user nakal berpotensi mengubah langganan sendiri via PostgREST.
+   Audit: SEMUA query user_subscriptions = admin/svc → dikunci total.
+
+### MIGRASI 027 — supabase-migrations/027_non_money_tables_client_lockdown.sql
+- Satu DO block + guard to_regclass (pola 026 v2): tabel yang ada
+  dikunci, yang tidak ada dilewati NOTICE. Idempotent.
+- Policies TIDAK di-drop (铁律 kalau ragu gausah dihapus) — policy tanpa
+  privilege = surat mati. service_role tak tersentuh.
+- 3 query verifikasi tersemat: (1) grants sisa 23 tabel = HARUS 0 baris;
+  (2) red-flag tabel RLS-OFF yang masih pegang grant client = HARUS 0
+  baris; (3) dump policy 20 tabel KEEP utk dicek owner-scoped (hasil
+  dikirim ke Z).
+- ⏳ MENUNGGU BOS JALANKAN di Supabase SQL Editor + kirim hasil
+  VERIFIKASI 1-3.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (铁律 #1 aman).
+- File baru: scripts/audit-table-clients.ts (alat audit, dipakai ulang),
+  supabase-migrations/027_non_money_tables_client_lockdown.sql.
