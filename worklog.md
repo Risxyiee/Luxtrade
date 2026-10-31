@@ -2852,3 +2852,42 @@ untuk aktivasi yang sama via subscription_until.
 - SISA opsional: set MIDTRANS_SERVER_KEY/CLIENT_KEY sudah di CF env (produksi
   MIDTRANS_IS_PRODUCTION=true); webhook URL di dashboard Midtrans →
   https://luxtradee.web.id/api/midtrans/webhook.
+
+## [P3 FINAL] TEMUAN #5 RACE WITHDRAW — DITUTUP TOTAL DGN RPC ATOMIK (2026-02-09)
+Bos: "selanjutnya apa kerjain P3? udah selese apa belum".
+STATUS VERIFIKASI: inti P3 (TEMUAN #5 race withdraw) SUDAH tertutup bareng
+FIX #1 (P0) — satu route yang sama: CAS PostgREST (UPDATE ... WHERE
+current_balance >= amount + cek baris), anti-stack 1 REQUESTED, refund
+insert-gagal. Saldo tak mungkin negatif.
+
+SISA LUBANG HALUS (kini ditutup): nilai potong dihitung aplikasi dari saldo
+yang dibaca SEBELUM CAS → dua request paralel bisa timpa pakai saldo basi
+(lost update — bukan negatif, tapi potongan kurang dari seharusnya).
+
+### MIGRASI 023 — supabase-migrations/023_affiliate_withdraw_rpc_atomic.sql
+- FUNCTION request_affiliate_withdrawal(p_affiliate_id, p_amount,
+  p_bank_account_info, p_min_withdrawal) — SECURITY DEFINER, plpgsql:
+  1. SELECT ... FOR UPDATE affiliates (serialisasi race di level DB)
+  2. Anti-stack: maks 1 REQUESTED per affiliate
+  3. Validasi minimum + saldo (nilai PASTI segar)
+  4. UPDATE saldo + INSERT withdrawal — SATU transaksi: insert gagal =
+     rollback total = saldo otomatis utuh (refund tak diperlukan lagi).
+- id withdrawal dibangkitkan 'wd_'||gen_random_bytes(12) eksplisit (aman utk
+  TEXT dgn/tanpa DEFAULT — cuid Prisma tak selalu punya default DB);
+  EXCEPTION undefined_column → insert tanpa requested_at (skema lama).
+- REVOKE PUBLIC/anon/authenticated, GRANT EXECUTE hanya service_role.
+- Idempotent: CREATE OR REPLACE. ⏳ MENUNGGU BOS JALANKAN di SQL Editor.
+
+### ROUTE withdraw — pola aman dua arah
+- src/app/api/affiliate/withdraw/route.ts POST: panggil RPC DULU →
+  ok=true balas sukses (id/amount/status/requestedAt dari RPC);
+  ok=false dipetakan ke pesan SAMA dgn inline (pending_exists,
+  insufficient_balance dgn balance segar, below_minimum,
+  affiliate_not_found). rpcError (fungsi belum ada) → fallback CAS inline
+  FIX #1 — produksi TETAP AMAN sebelum & sesudah migrasi. Pesan user
+  tidak berubah → nol dampak UI.
+
+### GERBANG & SMOKE
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Dev server: landing 200; withdraw POST tanpa admin-key lokal → 500
+  fail-closed guard env (urutan guard tak berubah; produksi 401 anon).
