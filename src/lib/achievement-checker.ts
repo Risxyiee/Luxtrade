@@ -187,18 +187,25 @@ async function checkAchievementCriteria(
       }
 
       case 'win_streak': {
-        const { data: winTrades } = await admin
+        // 🛡️ FIX win streak: hitung BERUNTUN dari close_time terbaru,
+        // berhenti di loss pertama (dulu = total semua trade profit → overgrant)
+        const { data: recentTrades } = await admin
           .from('trades')
-          .select('profit_loss')
+          .select('profit_loss, close_time')
           .eq('user_id', userId)
-          .gt('profit_loss', 0)
           .order('close_time', { ascending: false })
+          .limit(500)
 
+        const closed = (recentTrades || []).filter((t: any) => t.close_time)
         let currentStreak = 0
-        if (winTrades && winTrades.length > 0) {
-          currentStreak = winTrades.length // All positive trades count as win streak
+        for (const t of closed) {
+          if (Number(t.profit_loss) > 0) {
+            currentStreak++
+          } else {
+            break
+          }
         }
-        console.log(`[Achievement Checker] Win streak: ${currentStreak}, Target: ${achievement.criteria.target}`)
+        console.log(`[Achievement Checker] Win streak (consecutive): ${currentStreak}, Target: ${achievement.criteria.target}`)
         return currentStreak >= achievement.criteria.target
       }
 

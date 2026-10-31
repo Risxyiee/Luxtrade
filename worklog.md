@@ -2625,3 +2625,94 @@ ignoreBuildErrors); lint bersih.
   (b) migrasi 021: unique index user_submissions(user_id, achievement_key);
   (c) win_streak hitung beruntun beneran;
   (d) auth di /api/push/unsubscribe.
+
+---
+
+## 🔧 EKSEKUSI FIX AUDIT E2E — Fitur A (Missions Claim), Fitur B (Affiliate Withdraw), & Karyawan AI (2026-02-09)
+
+Perintah Bos: "a sm b karyawan" → semua kandidat perbaikan dari audit di atas DIEKSEKUSI,
+plus unifikasi cooldown karyawan Maya (penerjang lanjutan kasus "DOBEL BAGAS").
+
+### FIX #1 (P0 — UANG): affiliate withdraw split-brain + double-spend
+- `src/app/api/affiliate/withdraw/route.ts`:
+  - `affiliate.balance` → `affiliate.current_balance` (probe produksi: kolom
+    `balance` TIDAK ADA → 42703; cek saldo dulu selalu lolos nominal apapun).
+  - Urutan dibalik jadi aman: POTONG SALDO DULU via CAS atomik PostgREST
+    (UPDATE ... WHERE current_balance >= amount + `.select()` cek baris) →
+    baru INSERT withdrawal; INSERT gagal → REFUND saldo otomatis.
+  - Gerbang anti-stack: maks 1 pengajuan status REQUESTED per affiliate.
+  - GET riwayat: `.order('created_at')` → `requested_at` (dulu SELURUH riwayat
+    42703) + `parseInt` NaN guard.
+- `src/app/api/affiliate/me/route.ts`: insert `balance: 0` → `current_balance: 0`
+  (dulu user baru PASTI 500 — insert gagal → finalAffiliate null → TypeError),
+  insert error didestruksi, `currentBalance` dibaca dari `current_balance`,
+  `totalPaid` fallback `total_paid ?? total_withdrawn`.
+
+### FIX #2 (P0): missions claim — race dobel-klaim + win_streak salah hitung
+- `src/app/api/missions/claim/route.ts`: insert kena 23505 (unique index migrasi
+  021) → balas 400 "Achievement already claimed", bukan 500 → idempoten.
+- Win streak kini BERUNTUN beneran (urut close_time desc, berhenti di loss
+  pertama, helper `computeConsecutiveWinStreak`) — dulu `winTrades.length` =
+  total SEMUA trade profit → misi "3 win beruntun" keklaim dgn 3 win tersebar
+  → overgrant 30–60 hari PRO. Sinkron di 3 tempat: validator POST, GET
+  progress, dan `src/lib/achievement-checker.ts` (jalur auto-claim).
+
+### FIX #3 (P1): push unsubscribe tanpa auth → terkunci
+- `src/app/api/push/unsubscribe/route.ts`: wajib login (getAuthenticatedUser)
+  + delete di-scope `.eq('user_id', ...)` — dulu siapa pun yg tahu endpoint
+  bisa hapus subscription user lain. Client hook tak baca respons → UX aman.
+
+### FIX #4 (P1): auto-journal dedup ticket
+- `src/app/api/auto-journal/route.ts`: ticket non-kosong yang sudah pernah
+  dijurnal user sama → 409 SEBELUM insert apa pun (dulu screenshot 2× =
+  2 jurnal + 2 trade duplikat, nyecrol statistik & misi).
+
+### FIX #5 (karyawan): unifikasi cooldown MAYA + anti silent truncation
+- `src/lib/agent-proposals.ts` `mayaWinbackProposal`: kandidat winback kini
+  difilter (a) KV `winback:{email}` 14 hari — semantik SAMA dgn agentMaya
+  master-autonomous; (b) cooldown Bagas 7 hari lintas-agen (ai_pending_tasks
+  agent_type=COO + ai_pending_actions agent_name=Bagas via bagas-cooldown.ts).
+  KV winback di-set saat proposal dibuat (semantik master). Fail-open:
+  query gagal → set kosong → perilaku lama. Nol migrasi baru.
+- Lead kena Bagas hari ini → tidak di-winback Maya di pagi yang sama (dan
+  sebaliknya) → penutup dua arah kasus "dobel karyawan".
+- Limit query cooldown: ai-coo-agent 60→200; master-autonomous 60→200 &
+  120→500 (anti silent truncation bila volume > limit).
+
+### MIGRASI 021 (SQL manual Bos, pola 020) — `supabase-migrations/021_fix_claim_dedupe_affiliate_rls.sql`
+1. Dedupe user_submissions APPROVED (simpan klaim terawal) + partial unique
+   index `(user_id, achievement_key) WHERE status='APPROVED'`.
+2. Policy INSERT submissions → WITH CHECK status='PENDING' (tutup self-approve
+   via PostgREST); policy UPDATE → row harus tetap PENDING.
+3. Policy "Users can update own affiliate" DI-DROP + REVOKE UPDATE → tutup
+   lubang PATCH saldo sendiri (semua tulisan legit lewat service-role).
+- ⚠️ SENGAJA TIDAK termasuk: hardening kolom `profiles` (subscription_until/
+  plan/role) — client auth-context.tsx masih nulis is_pro/subscription_status
+  langsung (auto-lock PRO expired); refactor dulu, kerjakan terpisah.
+
+### GERBANG & VERIFIKASI (cek dulu baru push)
+- `bunx tsc --noEmit` EXIT 0 (setelah 1 fix await) + `bun run lint` EXIT 0.
+- Probe produksi (PostgREST anon): affiliates.balance 42703 ✗,
+  affiliate_withdrawals.created_at 42703 ✗ (bukti bug), current_balance/
+  requested_at/total_paid 42501 ✓ (kolom ada, RLS ketat), kolom
+  user_submissions & profiles lengkap ✓.
+
+### SISA TEMUAN (report-only, menunggu pesanan Bos)
+- ceo-agent `sendPassiveEmails` AUTO-ACC kirim email Maya TANPA antrean &
+  tanpa cek cooldown lintas-tabel (autoacc default ON; bisa dimatikan runtime
+  via KV `autoacc=off` — keputusan Bos).
+- Tidak ada suppression list global: unsubscribe per-kampanye cron tidak
+  dibaca jalur agen; bounce hanya dihormati follow-up Bagas.
+- CS/Marketing agents pensiunan masih bisa insert antrean zombie via cron
+  manual; naming bug `CooEmployee3D.tsx:298` ("Raka — COO", padahal Bagas).
+- Raka BROADCAST_MAINTENANCE kirim ke ≤200 email tanpa filter unsubscribe.
+- affiliate-ws (mini-service 3004) tanpa auth (event spoofing lokal).
+- `check-alerts.ts` (prop-firm) pakai Prisma di CF Workers → push PropFirm
+  kemungkinan mati diam-diam.
+- PATCH /api/profile/me masih menerima `total_xp` dari body (kosmetik);
+  komisi aktivasi dobel jalur (admin/activate vs subscriptions/[id]/activate)
+  + `affiliate_referrals` tak pernah diisi → daftar referral selalu kosong.
+
+- STATUS: KODE TERPUSH (tsc 0, lint 0). MENUNGGU: Bos jalankan migrasi 021
+  di Supabase SQL Editor (bagian 1a boleh dijalankan sendiri dulu buat lihat
+  duplikat sebelum 1b/1c).

@@ -169,6 +169,16 @@ export async function POST(request: NextRequest) {
 
     if (subError) {
       console.error('[missions/claim] Error creating submission:', subError)
+      // 🛡️ Anti dobel-klaim (race): dua POST paralel sama-sama lolos cek
+      // existingClaim → insert kedua kena unique index (migrasi 021) →
+      // tangkap 23505 dan balas "already claimed", BUKAN 500.
+      if (subError.code === '23505' || subError.message?.includes('duplicate key')) {
+        console.log('[missions/claim] Duplicate submission blocked by unique index:', missionId)
+        return NextResponse.json(
+          { error: 'Achievement already claimed' },
+          { status: 400 }
+        )
+      }
       // Check for RLS / type mismatch issues
       if (subError.code === '42501' || subError.message?.includes('row-level security') || subError.message?.includes('permission denied')) {
         console.error('[missions/claim] RLS violation — auth.uid()::text cast may be missing for user_submissions. Run the 20261001 migration.')
@@ -273,6 +283,21 @@ export async function POST(request: NextRequest) {
   }
 }
 
+async function computeConsecutiveWinStreak(trades: Array<{ profit_loss?: number | null; close_time?: string | null }>): Promise<number> {
+  const closed = (trades || [])
+    .filter(t => t.close_time)
+    .sort((a, b) => new Date(b.close_time!).getTime() - new Date(a.close_time!).getTime())
+  let streak = 0
+  for (const t of closed) {
+    if (Number(t.profit_loss) > 0) {
+      streak++
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
 async function validateAutomaticAchievement(
   admin: ReturnType<typeof getSupabaseAdmin> & NonNullable<ReturnType<typeof getSupabaseAdmin>>,
   userId: string,
@@ -303,17 +328,17 @@ async function validateAutomaticAchievement(
       }
 
       case 'win_streak': {
-        const { data: winTrades } = await admin.from('trades')
+        // 🛡️ FIX win streak: dulu `winTrades.length` = SEMUA trade profit
+        // (3 win tersebar sebulan pun lolos → overgrant PRO). Sekarang
+        // dihitung BERUNTUN dari close_time terbaru, berhenti di loss pertama.
+        const { data: recentTrades } = await admin.from('trades')
           .select('profit_loss, close_time')
           .eq('user_id', userId)
-          .gt('profit_loss', 0)
           .order('close_time', { ascending: false })
+          .limit(500)
 
-        let currentStreak = 0
-        if (winTrades && winTrades.length > 0) {
-          currentStreak = winTrades.length
-        }
-        console.log(`[Achievement Validator] Win streak: ${currentStreak}, Target: ${achievement.criteria.target}`)
+        const currentStreak = computeConsecutiveWinStreak(recentTrades || [])
+        console.log(`[Achievement Validator] Win streak (consecutive): ${currentStreak}, Target: ${achievement.criteria.target}`)
         return currentStreak >= achievement.criteria.target
       }
 
@@ -423,7 +448,9 @@ export async function GET(request: NextRequest) {
     const totalTrades = trades.length
     const profitableTrades = trades.filter((t: any) => Number(t.profit_loss) > 0)
     const totalProfit = profitableTrades.reduce((sum: number, t: any) => sum + Number(t.profit_loss), 0)
-    const winStreak = profitableTrades.length
+    // 🛡️ FIX: win streak = BERUNTUN (bukan total trade profit) — sinkron
+    // dengan validator POST + migrasi 021
+    const winStreak = await computeConsecutiveWinStreak(trades as Array<{ profit_loss?: number | null; close_time?: string | null }>)
 
     const progressData = ACHIEVEMENTS.map((achievement) => {
       let currentProgress = 0

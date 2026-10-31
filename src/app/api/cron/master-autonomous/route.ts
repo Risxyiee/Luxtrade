@@ -864,10 +864,10 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
   const contacted = new Set<string>()
   try {
     const { data: recentActions } = await admin.from('ai_pending_actions').select('action_payload')
-      .eq('agent_name', 'Bagas').or(bagasCooldownOrExpr(sinceCooldown)).limit(60)
+      .eq('agent_name', 'Bagas').or(bagasCooldownOrExpr(sinceCooldown)).limit(200) // dulu 60 — anti silent truncation
     for (const e of emailsFromActionRows(recentActions || [])) contacted.add(e)
     const { data: recentTasks } = await admin.from('ai_pending_tasks').select('target_user_id,context_data')
-      .in('agent_type', ['COO', 'CS']).or(bagasCooldownOrExpr(sinceCooldown)).limit(120)
+      .in('agent_type', ['COO', 'CS']).or(bagasCooldownOrExpr(sinceCooldown)).limit(500) // dulu 120 — anti silent truncation
     for (const r of (recentTasks || []) as Array<{ target_user_id: string | null; context_data?: { email?: unknown } | null }>) {
       if (r.target_user_id) contacted.add(r.target_user_id)
       const em = String(r.context_data?.email ?? '').trim().toLowerCase()

@@ -665,6 +665,27 @@ export async function POST(request: NextRequest) {
     const journalId = edgeCrypto.randomUUID()
     const userId = user.id
 
+    // 🛡️ Dedup ticket (audit E2E): dulu screenshot sama di-upload 2× →
+    // 2 jurnal + 2 trade duplikat (nyecrol statistik & misi). Kalau ticket
+    // non-kosong dan sudah pernah dijurnal user ini → tolak SEBELUM
+    // membuat apa pun (tidak ada jurnal yatim).
+    const ticketNumber = ai.ticketNumber || null
+    if (ticketNumber) {
+      const { data: dupTrade } = await client
+        .from('trades')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('ticket_number', ticketNumber)
+        .limit(1)
+      if (dupTrade && dupTrade.length > 0) {
+        log('⛔', `Duplicate trade ticket ${ticketNumber} — sudah pernah dijurnal`)
+        return NextResponse.json(
+          { error: 'Trade dengan ticket ini sudah pernah dibuat jurnalnya. Cek daftar jurnal kamu ya.', step: 'duplicate_ticket' },
+          { status: 409 }
+        )
+      }
+    }
+
     const { data: journalRecord, error: journalErr } = await client
       .from('journal_entries')
       .insert([{
