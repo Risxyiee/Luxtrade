@@ -2804,3 +2804,51 @@ breach PropFirm tidak pernah terkirim di produksi. Kini jalan.
   + pasang applyActivationCommission di callback + mode production;
   (B) biarkan pensiun (status quo); (C) tombol konfirmasi pembayaran Skrill
   yang membuat antrean ACC admin (tanpa otomatis PRO).
+
+## [PAYMENT] BERSIH TOTAL NON-MIDTRANS + UNIFIKASI KOMISI WEBHOOK
+Keputusan Bos: "kan saya make midtrans bukan sakura atau doku — hapus semua
+selain midtrans". Eksekusi:
+
+### HAPUS (8 file)
+- src/lib/payment/sakura.ts (SakuraPay API lib penuh).
+- src/app/api/payment/ SELURUHNYA: callback, callback-debug, confirm-payment,
+  create-order, order-status (semuanya Sakura + Prisma — mati diam-diam di CF
+  Workers), skrill-redirect, dan route.ts (info transfer manual Bank Jago,
+  tanpa pemanggil UI).
+
+### BERSIHKAN REFERENSI
+- src/app/page.tsx: handleProUpgrade cabang EN → Skrill redirect DIHAPUS,
+  kini selalu buka LandingCheckoutModal (Midtrans) untuk ID & EN.
+- src/components/PaywallModal.tsx: SKRILL_LINKS dihapus; 3 handler upgrade
+  langsung onUpgrade(); panduan pembayaran EN diganti Midtrans (QRIS/VA/
+  e-wallet, aktivasi otomatis).
+- chat + support route: "Payment: Midtrans (IDR), Skrill (USD)" → Midtrans Snap.
+- wrangler.jsonc + .env.ci: NEXT_PUBLIC_SKRILL_* dihapus.
+- db-sync: kolom legacy doku_transaction_id/doku_payment_url dibuang dari
+  CREATE TABLE payment_orders (aman — IF NOT EXISTS, tabel prod tak tersentuh).
+
+### UNIFIKASI KOMISI JALUR PAYMENT (jawaban temuan audit #6 lanjutan)
+Bedah webhook Midtrans menemukan: webhook LAMA SEKALI tidak membayar komisi
+affiliate (0 logika komisi di /api/midtrans/*). Kini webhook panggil lib
+bersama applyActivationCommission (ledger affiliate_referrals + saldo
+affiliates + profiles, dedupe activation_key + unique index migrasi 022).
+Rate selaras jalur admin: PRO 20%, Lifetime 15%. Fail-open — gagal komisi
+tidak pernah menggagalkan upgrade user. Catatan: dedupe webhook memakai
+planType 'PRO'/'PRO_LIFETIME' (dari payment_orders.plan) — beda namespace
+dengan tombol admin ('PRO_30_DAYS' dst), tapi ledger tetap mencegah dobel
+untuk aktivasi yang sama via subscription_until.
+
+### GERBANG & VERIFIKASI
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0 (setelah .next/types stale
+  dibersihkan — error TS2307 hanya sisa cache route terhapus).
+- Dev server restart (next dev sempat menggantung setelah pembersihan cache).
+- Smoke: landing 200; /api/midtrans/create-transaction GET respons config;
+  /api/payment/skrill-redirect & /api/payment/callback → 404; webhook POST
+  signature palsu → ditolak terkontrol (200 + error "Invalid signature").
+- Agent Browser: landing ID & EN render tanpa page error; tombol "Upgrade ke
+  PRO" (kedua bahasa) membuka modal checkout Midtrans — TIDAK ada lagi
+  redirect Skrill/tab eksternal. Console error hanya isu sandbox lokal
+  (anon key Supabase tidak ada di .env lokal; terisi di CF produksi).
+- SISA opsional: set MIDTRANS_SERVER_KEY/CLIENT_KEY sudah di CF env (produksi
+  MIDTRANS_IS_PRODUCTION=true); webhook URL di dashboard Midtrans →
+  https://luxtradee.web.id/api/midtrans/webhook.

@@ -31,7 +31,7 @@ INFO PRODUK:
 - Paket PRO: Rp49K/bulan, unlimited trades, AI pattern detection, auto extract screenshot MT5/TV, equity curve, export CSV/PDF, psychology tracking
 - AI Vision: upload screenshot MT5/TradingView → auto extract data trade
 - AI Pattern Detection: deteksi pola loss berulang (FOMO, overtrading, dll)
-- Payment: Midtrans (IDR), Skrill (USD)
+- Payment: Midtrans (QRIS, Virtual Account, e-wallet — via Midtrans Snap)
 - Support: Telegram @Risxyiee, email luxtradee@gmail.com, Discord
 - Bisa import dari MT4/MT5/cTrader via CSV atau screenshot
 - Data aman, terenkripsi, nggak dijual ke pihak ketiga

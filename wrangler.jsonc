@@ -57,9 +57,6 @@
                 "NEXT_PUBLIC_VAPID_PUBLIC_KEY": "BNTL6FFlfUygscRgM-1grOaHx57xsGDB2Vad_rZ1oOdeW6rLtrCLqr8AOcZf5Cp0gC5cobm8NvfvCpIV5QUHCYI",
                 "VAPID_SUBJECT": "mailto:support@luxtradee.web.id",
 
-                "NEXT_PUBLIC_SKRILL_PRO_URL": "https://www.skrill.com/en/",
-                "NEXT_PUBLIC_SKRILL_LIFETIME_URL": "https://www.skrill.com/en/",
-
                 "MIDTRANS_IS_PRODUCTION": "true"
         },
 
