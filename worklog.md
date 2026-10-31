@@ -3015,3 +3015,43 @@ sync-profile, ensure-profile, profile/me PATCH = SEMUA service-role ✅.
 - updateLoginStreak mengirim {action:'update-streak'} tapi handler PATCH
   tidak menangani 'action' → streak login saat ini diam (return 0).
   Perlu keputusan Bos: hidupkan lagi di server atau buang alurnya.
+
+---
+## [STREAK REVIVED] update-streak dihidupkan server-side + MIGRASI 025 disederhanakan
+
+### AKAR MASALAH
+- updateLoginStreak (streak-tracker) mengirim {action:'update-streak'}
+  ke PATCH /api/profile/me, tapi handler tidak pernah menangani
+  'action' → streak login diam di 0. Efek berantai: achievement
+  login_streak (achievement-checker) tidak pernah lolos, misi bertipe
+  streak tidak jalan, leaderboard streak cuma angka 0.
+
+### FIX — PATCH /api/profile/me (server-side penuh)
+- action 'update-streak': baca streak_count/best_streak/last_login_at
+  (admin client), hitung kandidat dgn batas hari WIB:
+  belum pernah → 1; terakhir kemarin → +1; bolong ≥2 hari → reset 1;
+  hari ini sudah → nilaian berjalan.
+- ANTI DOUBLE-COUNT / RACE: UPDATE di-guard
+  or=(last_login_at.is.null, last_login_at.lt.<awal hari WIB>) —
+  0 baris ter-update = hari ini sudah dihitung → balikin nilai sekarang.
+- best_streak ikut dimutakhirkan (max). last_login_at kini TERISI —
+  bonus: cron daily-reminder & landing-stats (user aktif 30 hari)
+  yang selama ini membaca kolom kosong jadi hidup fungsi.
+- Fail-open: error streak tidak pernah bikin login gagal.
+- Response {streakCount} — cocok dgn konsumsi streak-tracker.
+- Alur aman-2-arah: tanpa deploy baru pun handler lama tidak rusak;
+  dgn deploy baru, client lama tetap kompatibel.
+
+### MIGRASI 025 DISEDERHANAKAN (REVOKE saja)
+- VERIFIKASI-2 Bos membuktikan: RLS profiles SUDAH ON + semua policy
+  owner-scoped (view/insert/update/delete own + service role full).
+  → CREATE POLICY dibuang dari 025; policy write lama jadi surat mati
+  (privilege sudah dicabut, policy tanpa privilege tak pernah menyala)
+  — dibiarkan (kalau ragu gausah dihapus).
+- Isi 025 final: REVOKE REFERENCES/TRIGGER/TRUNCATE FROM authenticated
+  + REVOKE ALL FROM anon + verifikasi grants (harus tinggal SELECT).
+
+### GERBANG & SMOKE
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Landing 200. PATCH update-streak tanpa env → fail-closed 500
+  (sandbox wajar; produksi 401 utk tamu).
