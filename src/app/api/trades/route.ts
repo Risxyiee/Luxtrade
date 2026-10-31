@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 // Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
 async function invalidateAnalytics(userId: string) {
   try {
-    const { invalidateAnalyticsCache } = await import('@/app/api/analytics/route')
+    const { invalidateAnalyticsCache } = await import('@/lib/analytics-cache')
     invalidateAnalyticsCache(userId)
   } catch { /* best effort */ }
 }
