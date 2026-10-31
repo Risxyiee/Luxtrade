@@ -3403,3 +3403,46 @@ Yang BOLONG — kini ditutup (13 endpoint):
 - Worklog 029 (testimonials revive) terkonfirmasi sukses oleh Bos
   ("sukses semua") — V1: tepat 3 policy benar (SELECT approved /
   INSERT pending anti-forgery / DELETE owner).
+
+## 2026-11-01 — Security Audit #7 STORAGE + tabel hantu + CSP Report-Only (list 7/7 SELESAI)
+
+### #7 STORAGE bucket `trade-screenshots` (audit + hardening bertahap)
+- Peta upload: 2 jalur, keduanya SERVICE KEY (bypass RLS):
+  1. extractTradeData.uploadScreenshot() → `{userId}/{timestamp}.jpg` (sudah owner-scoped)
+  2. /api/analyze-screenshot → DULU dilempar di ROOT bucket `{ts}_{rand}_ai.{ext}`
+     (tanpa pemilik). FIX: sekarang `{userId}/ai_{ts}_{rand}.{ext}` — konsisten
+     dengan skema 1, siap untuk policy owner.
+- URL yang disimpan di trades.screenshot_url = PUBLIC URL → bucket diduga
+  PUBLIC (fitur tampil gambar jalan). Public bucket bukan desain privacy
+  yang benar, tapi flip langsung = semua URL lama mati → fitur rusak.
+- supabase-migrations/030_storage_trade_screenshots_hardening.sql (Bos eksekusi):
+  A. Pastikan bucket ada (buat PRIVATE kalau belum) + limit 10MB + MIME image/*
+  B. 4 policy owner-scoped storage.objects (select/insert/update/delete,
+     folder pertama = auth.uid()) — no-op selama bucket masih public,
+     WAJIB terpasang sebelum flip
+  C. DIAGNOSTIK: status bucket, policy, jumlah objek root vs {userId}/
+  D. Flip private DIKOMENTARI — hanya setelah signed URL aktif (keputusan Bos)
+
+### TABEL HANTU — VERIFIKASI FINAL: zero breakage, TIDAK dihapus
+- Semua jalur server ke 6 tabel (targets/goals/trading_integrations/
+  prop_firm_rules/referral_tracking/equity_curve) ternyata sudah graceful:
+  • checkWebhookAlerts (webhook after-trade): fire-and-forget try/catch
+  • checkPropFirmAlerts (cron auto-sync): rulesError → return kosong
+- Frontend TIDAK memanggil /api/targets, /api/goals, /api/integrations,
+  /api/prop-firm (rules), /api/widget-data/equity (hanya manifest widget
+  mereferensikan URL-nya). Endpoint = mati secara fungsional.
+- KEPUTUSAN (iron rule #2 "kalau ragu gausah dihapus"): kode TIDAK dihapus
+  hari ini — aplikasi Capacitor versi lama di device user masih bisa
+  memanggil endpoint prod. Kandidat penghapusan ditandai; Eksekusi hanya
+  atas persetujuan Bos (atau ganti respons jadi 410 seperti subscriptions).
+
+### CSP REPORT-ONLY (lanjutan #6, zero-risk)
+- next.config.ts: header Content-Security-Policy-Report-Only (draft ketat:
+  script tanpa unsafe-eval, object-src none, frame-src none, dll) —
+  TIDAK memblokir apa pun, hanya melaporkan.
+- Endpoint baru /api/security/csp-report: POST, rate limit IP 60/men,
+  body cap 8KB, console.warn → CF Observability. Data = bahan CSP ENFORCE.
+
+### GERBANG
+- bunx tsc --noEmit EXIT 0 + bun run lint EXIT 0.
+- Push commit ini menutup security checklist #1–#7 SELURUHNYA.

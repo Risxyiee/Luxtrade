@@ -192,11 +192,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique file name
+    // Generate unique file name — OWNER-SCOPED (P0 #7 hardening).
+    // Dulu: file AI upload dilempar di ROOT bucket (tanpa pemilik) →
+    // saat bucket flip ke private, tak ada policy yang bisa membedakan
+    // pemiliknya. Sekarang: `{userId}/ai_...` — konsisten dengan skema
+    // uploadScreenshot() di extractTradeData (`{userId}/{timestamp}.jpg`)
+    // → policy storage.objects bisa enforce `folder pertama = auth.uid()`.
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 10)
     const fileExt = image.name.split('.').pop()
-    const fileName = `${timestamp}_${randomString}_ai.${fileExt}`
+    const fileName = `${user.id}/ai_${timestamp}_${randomString}.${fileExt}`
 
     console.log(`📁 [Analyze Screenshot] Bucket: ${BUCKET_NAME}, File: ${fileName}`)
 

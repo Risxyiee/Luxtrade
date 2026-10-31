@@ -55,7 +55,9 @@ const nextConfig: NextConfig = {
   //  - nosniff       : browser wajib hormati Content-Type (anti XSS via MIME sniffing)
   //  - Referrer-Policy : jangan bocorkan URL penuh ke situs luar
   //  - Permissions-Policy : kunci kamera/mic/geolokasi ke origin sendiri
-  // (CSP belum dipasang — butuh audit inline script dulu, jangan asal pasang.)
+  //  - CSP Report-Only  : draft policy TIDAK memblokir apa pun; pelanggaran
+  //    dilaporkan ke /api/security/csp-report (log → CF Observability).
+  //    Datanya dipakai untuk menyusun CSP ENFORCE tanpa merusak fitur.
   async headers() {
     const securityHeaders = [
       { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
@@ -63,6 +65,26 @@ const nextConfig: NextConfig = {
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self), payment=()' },
+      {
+        key: 'Content-Security-Policy-Report-Only',
+        value: [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob: https:",
+          "media-src 'self' https: blob:",
+          "font-src 'self' data:",
+          "connect-src 'self' https: wss:",
+          "worker-src 'self' blob:",
+          "manifest-src 'self'",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "frame-src 'none'",
+          "frame-ancestors 'none'",
+          'report-uri /api/security/csp-report',
+        ].join('; '),
+      },
     ]
     return [
       {
