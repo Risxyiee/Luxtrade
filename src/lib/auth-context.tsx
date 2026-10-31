@@ -242,15 +242,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Delay auth init slightly to allow SW install to complete first
-    // This prevents Supabase requests from blocking PWA network-idle
-    const initTimer = setTimeout(() => {
-      initializeSupabase()
-    }, 1500)
+    // PERF FIX: init auth SEKARANG (tanpa delay artifisial).
+    // Dulu setTimeout 1500ms — alasan aslinya supaya request Supabase tidak
+    // menabrak install SW (audit PWA). Tapi efek nyatanya: SETIAP reload
+    // mobile buang 1.5 detik untuk MENUNGGU sebelum mulai cek session.
+    // Semua request di sini sudah non-blocking (profile di-fetch belakangan),
+    // dan total durasinya jauh di bawah window network-idle 20s auditor PWA —
+    // jadi mulai lebih awal = selesai lebih awal, audit tetap lolos.
+    initializeSupabase()
 
     return () => {
       mounted = false
-      clearTimeout(initTimer)
     }
   }, [])
 

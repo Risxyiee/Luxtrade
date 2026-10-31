@@ -3,12 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useLanguage } from '@/contexts/LanguageContext'
-import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
+import type { LegalPageTab } from '@/components/LegalPagesModal'
 import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
 import HeroSection from '@/components/landing/HeroSection'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
-import LandingCheckoutModal from '@/components/landing/LandingCheckoutModal'
+
+// PERF: modal HANYA tampil saat diklik (legal/checkout) — jangan ikut bundle
+// awal landing. framer-motion + isi legal ±ratusan KB JS tak perlu di-parse
+// sebelum user butuh. ssr:false aman karena modal butuh state client.
+const LegalPagesModal = dynamic(() => import('@/components/LegalPagesModal').then(m => ({ default: m.default })), { ssr: false })
+const LandingCheckoutModal = dynamic(() => import('@/components/landing/LandingCheckoutModal').then(m => ({ default: m.default })), { ssr: false })
 
 const loadingDiv = <div className="h-32" />
 

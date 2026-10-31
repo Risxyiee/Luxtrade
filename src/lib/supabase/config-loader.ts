@@ -13,6 +13,44 @@ interface SupabaseConfig {
 let cachedConfig: SupabaseConfig | null = null
 let fetchPromise: Promise<SupabaseConfig> | null = null
 
+// ─── PERF: localStorage cache untuk config Supabase ─────────────────────────
+// Dulu SETIAP reload fetch '/api/supabase/config' dulu (1 roundtrip network)
+// sebelum client Supabase bisa dibuat → session check & dashboard selalu
+// nunggu jaringan. Kini: kunjungan pertama simpan config ke localStorage;
+// reload berikutnya baca instan dari cache (0ms) + revalidate diam-diam di
+// background supaya tetap segar kalau key di-rotate. Offline → cache tetap
+// terpakai (reload offline pun jalan).
+
+const CONFIG_CACHE_KEY = 'luxtrade_sb_config'
+const CONFIG_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 jam
+
+function readLocalConfigCache(): SupabaseConfig | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(CONFIG_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { config?: SupabaseConfig; ts?: number }
+    const cfg = parsed?.config
+    if (!cfg?.url || !cfg.anonKey || !cfg.isConfigured) return null
+    if (typeof parsed.ts !== 'number' || Date.now() - parsed.ts > CONFIG_CACHE_TTL) return null
+    return cfg
+  } catch {
+    return null
+  }
+}
+
+function writeLocalConfigCache(config: SupabaseConfig): void {
+  if (typeof window === 'undefined') return
+  // Hanya cache config yang BENAR-BENAR terkonfigurasi — jangan pernah
+  // menyimpan hasil error/anonKey null (bisa bikin auth mati sampai TTL habis).
+  if (!config.isConfigured || !config.anonKey) return
+  try {
+    window.localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify({ config, ts: Date.now() }))
+  } catch {
+    // storage penuh / private mode — biarkan, network path tetap jalan
+  }
+}
+
 /**
  * Fetch Supabase configuration from the API endpoint.
  * This allows the config to be set at runtime in Cloudflare Pages.
@@ -66,6 +104,26 @@ export async function loadSupabaseConfig(): Promise<SupabaseConfig> {
     return cachedConfig
   }
 
+  // PERF: instant path — localStorage cache (kunjungan berulang, 0 roundtrip)
+  if (!cachedConfig) {
+    const local = readLocalConfigCache()
+    if (local) {
+      cachedConfig = local
+      // Revalidate diam-diam di background — kalau config di server berubah
+      // (key rotate), cache lokal ikut segar untuk reload berikutnya.
+      // Gagal (offline) → cache lokal tetap dipakai, tidak ada pun yang rusak.
+      fetchSupabaseConfig()
+        .then(fresh => {
+          if (fresh.isConfigured) {
+            cachedConfig = fresh
+            writeLocalConfigCache(fresh)
+          }
+        })
+        .catch(() => {})
+      return local
+    }
+  }
+
   // If there's an ongoing fetch, return that promise
   if (fetchPromise) {
     return await fetchPromise
@@ -77,8 +135,9 @@ export async function loadSupabaseConfig(): Promise<SupabaseConfig> {
   const config = await fetchPromise
   fetchPromise = null
 
-  // Cache the config
+  // Cache the config (memori + localStorage)
   cachedConfig = config
+  writeLocalConfigCache(config)
   return config
 }
 
@@ -96,4 +155,7 @@ export function getSupabaseConfigSync(): SupabaseConfig | null {
 export function clearSupabaseConfigCache(): void {
   cachedConfig = null
   fetchPromise = null
+  if (typeof window !== 'undefined') {
+    try { window.localStorage.removeItem(CONFIG_CACHE_KEY) } catch {}
+  }
 }
