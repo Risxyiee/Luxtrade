@@ -23,21 +23,32 @@
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
 //               + SWEEP proposal agen otonom (Task 34: 7 agen deteksi trigger
 //                 → INSERT ai_pending_actions → CEO ACC di Antrean Eksekusi)
+//               + PRICE ALERTS (watchlist target_price → push layar HP;
+//                 numpang slot — CF Free maks 5 cron trigger)
 const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts'],
 }
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
    dan bisa jalan lama (briefing = 1 panggilan Gemini + kirim ±50 email
    berurutan) — makanya timeout-nya 120 dtk, bukan 30 dtk.
    Task 34: /api/agent-proposals?run=sweep ikut pola yang sama (detektor
-   bisa memanggil LLM utk menyusun draf proposal → butuh timeout panjang). */
+   bisa memanggil LLM utk menyusun draf proposal → butuh timeout panjang).
+   Price-alerts: 1 fetch quote per simbol unik (maks 40 × ~2 dtk) →
+   butuh timeout 90 dtk biar batch besar tidak kepotong. */
 const CEO_TIMEOUT_MS = 120_000
 const DEFAULT_TIMEOUT_MS = 30_000
+const PRICE_ALERTS_TIMEOUT_MS = 90_000
 const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
+const timeoutFor = (route: string) =>
+  ceoRoute(route)
+    ? CEO_TIMEOUT_MS
+    : route.startsWith('/api/cron/price-alerts')
+      ? PRICE_ALERTS_TIMEOUT_MS
+      : DEFAULT_TIMEOUT_MS
 
 export default {
   async fetch(request, env, ctx) {
@@ -106,7 +117,7 @@ export default {
             const res = await fetch(`${siteUrl}${path}`, {
               method: 'GET',
               headers,
-              signal: AbortSignal.timeout(isCeo ? CEO_TIMEOUT_MS : DEFAULT_TIMEOUT_MS),
+              signal: AbortSignal.timeout(timeoutFor(route)),
             })
 
             if (!res.ok) {

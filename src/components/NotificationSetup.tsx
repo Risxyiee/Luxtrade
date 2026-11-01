@@ -46,6 +46,16 @@ const strings = {
     resubbing: 'Memperbarui token...',
     devicesTitle: 'Perangkat terdaftar',
     devicesEmpty: 'Belum ada perangkat terdaftar di server — toggle Push di device yang mau kamu terima notif-nya.',
+    autoTitle: 'Otomatis tampil di layar HP-mu',
+    autoItems: [
+      '🚨 Guard prop firm — batas rugi / akun terancam',
+      '📈 Sinyal strategi Pine — BUY/SELL detik ini',
+      '🎯 Price alert — watchlist menyentuh target',
+      '💥 Big win / big loss / streak / batas rugi harian',
+      '📅 Kalender ekonomi — 15 menit sebelum rilis berdampak',
+      '🌅 Reminder jurnal harian (pagi)',
+      '📊 Rekap mingguan (Senin pagi)',
+    ],
     deviceIOS: 'iPhone/iPad',
     deviceChrome: 'Chrome',
     deviceFirefox: 'Firefox',
@@ -89,6 +99,16 @@ const strings = {
     resubbing: 'Refreshing token...',
     devicesTitle: 'Registered devices',
     devicesEmpty: 'No devices registered on the server — toggle Push on the device that should receive notifications.',
+    autoTitle: 'Shows automatically on your phone',
+    autoItems: [
+      '🚨 Prop firm guard — loss limit / account at risk',
+      '📈 Pine strategy signals — live BUY/SELL',
+      '🎯 Price alerts — watchlist hits your target',
+      '💥 Big win / big loss / streak / daily loss limit',
+      '📅 Economic calendar — 15 min before high impact',
+      '🌅 Daily journal reminder (morning)',
+      '📊 Weekly recap (Monday morning)',
+    ],
     deviceIOS: 'iPhone/iPad',
     deviceChrome: 'Chrome',
     deviceFirefox: 'Firefox',
@@ -401,6 +421,18 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
     </div>
   )
 
+  // ── Auto notification matrix (info: apa yang tampil otomatis) ──────────
+  const autoNotifBlock = (
+    <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1.5">{t.autoTitle}</p>
+      <ul className="flex flex-col gap-0.5">
+        {(t.autoItems as readonly string[]).map((item) => (
+          <li key={item} className="text-[10px] leading-relaxed text-white/60">{item}</li>
+        ))}
+      </ul>
+    </div>
+  )
+
   // ─── Test buttons row (dipakai di compact & full) ───────────────────────────
   const testButtons = (
     <>
@@ -558,6 +590,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
         {/* Daftar perangkat terdaftar (server truth) — diagnostik token HP */}
         {deviceListBlock}
 
+        {/* Matriks notifikasi otomatis — transparansi utk user */}
+        {autoNotifBlock}
+
         {/* FASE 5A: tes notifikasi (hanya saat sudah berlangganan) */}
         {isSubscribed && (
           <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10">
@@ -652,6 +687,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
 
             {/* Daftar perangkat terdaftar (server truth) */}
             <div className="mb-3">{deviceListBlock}</div>
+
+            {/* Matriks notifikasi otomatis */}
+            <div className="mb-3">{autoNotifBlock}</div>
 
             {/* Action buttons */}
             {!isSubscribed && pushCanWork && permission !== 'denied' && (

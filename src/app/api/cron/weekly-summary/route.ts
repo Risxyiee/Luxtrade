@@ -220,6 +220,26 @@ async function sendWeeklyEmail(
   const subject = `📊 Weekly Report: ${stats.trade_count} trades ${stats.total_pnl >= 0 ? '+' : ''}${stats.total_pnl.toLocaleString('en-US', { maximumFractionDigits: 0 })} PnL — LuxTradee`
 
   const result = await sendEmail({ to: stats.email, subject, html })
+
+  /* Push rekap singkat (baru) — Senin pagi tampil di layar HP:
+     angka utama dalam 1 notif, detail panjang tetap lewat email. */
+  try {
+    const admin = await getCronAdmin()
+    if (admin) {
+      const { pushToUser } = await import('@/lib/push-notify')
+      const pnlStr = `${stats.total_pnl >= 0 ? '+' : '-'}$${Math.abs(stats.total_pnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+      await pushToUser(admin, stats.user_id, {
+        title: `📊 Mingguan: ${stats.trade_count} trade · ${pnlStr} PnL`,
+        body: `Winrate ${winRate}%${stats.streak_count ? ` · streak ${stats.streak_count}` : ''} — buka rekap lengkapnya.`,
+        tag: 'weekly-summary',
+        type: 'general',
+        url: '/dashboard',
+      })
+    }
+  } catch {
+    // non-fatal — email sudah terkirim
+  }
+
   return result.success
 }
 

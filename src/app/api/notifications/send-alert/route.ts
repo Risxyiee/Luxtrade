@@ -214,6 +214,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, reason: `${type} alerts are disabled` })
   }
 
+  /* ── PUSH LAYAR HP (baru) — alert trade tampil otomatis di lock screen,
+     TIDAK butuh email; tetap hormati rate-limit 3/hari + saklar
+     tradeAlerts di atas. Gagal push tidak membatalkan email. */
+  let pushSent = 0
+  try {
+    const { getSupabaseAdmin } = await import('@/lib/supabase-admin-alt')
+    const { pushToUser } = await import('@/lib/push-notify')
+    const admin = getSupabaseAdmin()
+    if (admin) {
+      const copy = tradePushCopy(type, data)
+      const push = await pushToUser(admin, user.id, {
+        title: copy.title,
+        body: copy.body,
+        tag: `tradealert-${type}`,
+        type: 'trade',
+        url: '/journal',
+        urgency: 'high',
+      })
+      pushSent = push.sent
+    }
+  } catch {
+    // non-fatal — email tetap jalan
+  }
+
   // Need user email to send
   if (!userEmail) {
     userEmail = user.email ?? null
@@ -239,8 +263,46 @@ export async function POST(request: NextRequest) {
   })
 
   if (result.success) {
-    return NextResponse.json({ success: true, type })
+    return NextResponse.json({ success: true, type, pushSent })
+  } else if (pushSent > 0) {
+    // Email gagal tapi push sampai — tetap sukses (alert tersampaikan)
+    return NextResponse.json({ success: true, type, pushSent, emailFailed: true })
   } else {
     return NextResponse.json({ error: 'Failed to send alert email', details: result.error }, { status: 500 })
+  }
+}
+
+/* Copy push singkat per tipe alert — judul + 1 baris yang laku dibaca
+   2 detik di lock screen. Angka diambil dari data analisis jurnal. */
+function tradePushCopy(type: string, data: AlertRequestBody['data']): { title: string; body: string } {
+  switch (type) {
+    case 'big_win':
+      return {
+        title: `🎉 Big Win${data.amount !== undefined ? ` +$${data.amount.toFixed(2)}` : ''}`,
+        body: `${data.symbol ? `${data.symbol} · ` : ''}Kunci momentumnya — catat di jurnal.`,
+      }
+    case 'big_loss':
+      return {
+        title: `📉 Big Loss${data.amount !== undefined ? ` -$${Math.abs(data.amount).toFixed(2)}` : ''}`,
+        body: `${data.symbol ? `${data.symbol} · ` : ''}Saatnya review strategi, bukan balas dendam.`,
+      }
+    case 'streak': {
+      const win = (data.streakCount ?? 0) >= 0
+      const n = Math.abs(data.streakCount ?? 0)
+      return {
+        title: win ? `🔥 Win streak ${n} trade!` : `🧊 Loss streak ${n} trade`,
+        body: win ? 'Luar biasa — jaga disiplin & ukuran posisi.' : 'Tarik napas — istirahat dulu, evaluasi dulu.',
+      }
+    }
+    case 'daily_limit':
+      return {
+        title: '🛑 Batas rugi harian tercapai',
+        body:
+          data.totalPL !== undefined
+            ? `P/L hari ini ${data.totalPL >= 0 ? '+' : '-'}$${Math.abs(data.totalPL).toFixed(2)} · stop dulu, lanjut besok.`
+            : 'Stop trading hari ini — lindungi akunmu.',
+      }
+    default:
+      return { title: '📈 Alert Trade', body: 'Cek jurnal kamu.' }
   }
 }

@@ -15,6 +15,9 @@
  *      + alert_rules declaratif (cross_above/cross_below/above/below)
  *   4. Dedupe per-bar via pine_alert_log (unique index) + mem map
  *   5. sendTelegramToUser (chat_id dari profiles)
+ *   6. PUSH LAYAR HP (push-notify.ts) — sinyal tampil otomatis di HP
+ *      walau app tertutup; user TANPA Telegram pun kebagian (dulu
+ *      `continue` di gate chatId → hanya Telegram yang menerima).
  *
  * File ini WAJIB hanya diimpor dari server (API route).
  */
@@ -25,6 +28,7 @@ import {
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { pushToUser, signalEmoji } from '@/lib/push-notify'
 import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export interface RunnerScript {
@@ -181,9 +185,10 @@ export async function runAlertGroup(
   const supabase = getSupabaseAdmin()
   outcome.perUser = []
   for (const u of users) {
-    if (!u.chatId) { outcome.perUser.push({ userId: u.userId, ok: false, reason: 'telegram belum terhubung' }); continue }
+    /* GATE chatId DIHAPUS — user tanpa Telegram tetap dilayani lewat push
+       layar HP; keduanya gagal baru dianggap gagal. */
     let sentThis = false
-    let reason = ''
+    let reason = u.chatId ? '' : 'telegram belum terhubung'
     for (const t of outcome.triggers) {
       const memKey = `${u.userId}:${script.id}:${symbol}:${t.signal}:${t.time}`
       if (!memDedupeOk(memKey)) { reason = 'dedupe 5 menit'; continue }
@@ -217,14 +222,40 @@ export async function runAlertGroup(
       }
       if (!isNew) { reason = 'sudah terkirim di bar ini'; continue }
 
-      const html = formatSignalMessage({
-        scriptName: script.name, symbol, interval,
-        signal: t.signal, price: t.price, barTimeSec: t.time,
-        extra: t.message && t.message !== t.signal ? `💬 ${t.message}` : undefined,
-      })
-      const okTg = await sendTelegramToUser(u.chatId, html)
-      if (okTg) { outcome.sent++; sentThis = true }
-      else reason = 'gagal kirim Telegram'
+      /* ── Jalur 1: Telegram (kalau chat_id terhubung) ── */
+      let okTg = false
+      if (u.chatId) {
+        const html = formatSignalMessage({
+          scriptName: script.name, symbol, interval,
+          signal: t.signal, price: t.price, barTimeSec: t.time,
+          extra: t.message && t.message !== t.signal ? `💬 ${t.message}` : undefined,
+        })
+        okTg = await sendTelegramToUser(u.chatId, html)
+        if (okTg) { outcome.sent++; sentThis = true; reason = '' }
+        else reason = 'gagal kirim Telegram'
+      }
+
+      /* ── Jalur 2: push layar HP (baru) — tampil otomatis walau app
+         tertutup; tetap dikirim walau Telegram sukses (kanal beda).
+         Dedupe bar sudah dijaga pine_alert_log di atas → dedupe:false. */
+      if (supabase) {
+        const push = await pushToUser(supabase, u.userId, {
+          title: `${signalEmoji(t.signal)} ${t.signal.toUpperCase()} — ${symbol} ${interval}`,
+          body: `${script.name}${t.price ? ` · Harga ~${t.price}` : ''}`,
+          tag: `pine-${script.id}-${symbol}-${t.signal}`,
+          type: 'trade',
+          url: '/dashboard',
+          urgency: 'high',
+        }, { dedupe: false })
+        if (push.sent > 0) {
+          sentThis = true
+          if (!okTg) reason = ''
+        } else if (!okTg) {
+          reason = u.chatId
+            ? (reason || 'telegram & push gagal')
+            : (push.skipped === 'no-subs' ? 'telegram & push belum terhubung' : (push.error || 'push gagal'))
+        }
+      }
     }
     outcome.perUser.push({ userId: u.userId, ok: sentThis, reason: sentThis ? undefined : reason })
   }

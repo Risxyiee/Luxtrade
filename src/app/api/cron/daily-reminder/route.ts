@@ -344,6 +344,22 @@ async function handleRequest(request: NextRequest) {
         const success = await sendDailyReminder(admin, user, news)
         await logSentEmail(user, success)
 
+        /* Push layar HP (baru) — nudge 1 baris di samping email panjang.
+           Dedupe push-notify 90s menahan dobel jika cron dipicu ulang. */
+        try {
+          const { pushToUser } = await import('@/lib/push-notify')
+          const streak = user.streak_count
+          await pushToUser(admin, user.user_id, {
+            title: streak > 0 ? `🔥 Streak ${streak} hari — jangan putus!` : '🌅 Ayo catat trade pertamamu hari ini',
+            body: streak > 0 ? 'Jurnal 1 menit hari ini biar streak tetap jalan.' : 'Cukup 1 trade: upload screenshot, sisanya AI.',
+            tag: 'daily-reminder',
+            type: 'general',
+            url: '/dashboard',
+          })
+        } catch {
+          // non-fatal — email sudah terkirim
+        }
+
         if (success) {
           sentCount++
           console.log(`✅ [daily-reminder] Sent to ${user.email} (streak: ${user.streak_count})`)
