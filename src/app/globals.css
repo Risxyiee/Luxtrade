@@ -958,3 +958,22 @@ button, a, [role="button"], [type="button"], [type="submit"] {
 .ai-staff-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+
+/* Scrollbar tipis khusus panel notifikasi (Bell dropdown) */
+.notif-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lux-scrollbar-thumb) var(--lux-scrollbar-track);
+}
+.notif-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.notif-scroll::-webkit-scrollbar-track {
+  background: var(--lux-scrollbar-track);
+}
+.notif-scroll::-webkit-scrollbar-thumb {
+  background: var(--lux-scrollbar-thumb);
+  border-radius: 9999px;
+}
+.notif-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--lux-scrollbar-thumb-hover);
+}

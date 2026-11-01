@@ -72,7 +72,36 @@ export async function getPushSubs(
   }
 }
 
-/* ── Push ke SATU user ──────────────────────────────────────────────────── */
+/* ── Log pusat notifikasi (notification_log) ──────────────────────────────
+   Setiap notifikasi yang melewati push-notify ikut DISIMPAN → tampil di
+   Bell/NotificationCenter dashboard (desktop & user tanpa push tetap
+   kebagian riwayat). Best-effort: tabel belum ada = diam saja, push
+   utama TIDAK terganggu. Retensi 30 hari (dibersihkan daily-reminder). */
+let logTableWarned = false
+
+async function logNotification(
+  admin: SupabaseClient,
+  userId: string,
+  payload: PushNotifyPayload
+): Promise<void> {
+  try {
+    const { error } = await admin.from('notification_log').insert({
+      user_id: userId,
+      title: payload.title,
+      body: payload.body,
+      type: payload.type ?? 'general',
+      url: payload.url ?? null,
+      tag: payload.tag ?? null,
+    })
+    if (error && !logTableWarned) {
+      logTableWarned = true
+      console.warn('[push-notify] notification_log gagal (jalankan SQL 20261101_notification_log.sql):', error.message)
+    }
+  } catch {
+    // non-fatal — feed in-app opsional, push utama tetap jalan
+  }
+}
+
 export async function pushToUser(
   admin: SupabaseClient,
   userId: string,
@@ -86,6 +115,10 @@ export async function pushToUser(
         return { sent: 0, hadSubs: true, removedExpired: 0, skipped: 'dedupe' }
       }
     }
+
+    // Simpan ke feed in-app DULU (tanpa bergantung ada-tidaknya push subs
+    // — desktop/user tanpa token tetap kebagian riwayat di Bell).
+    await logNotification(admin, userId, payload)
 
     const subs = await getPushSubs(admin, userId)
     if (!subs.length) {

@@ -339,33 +339,24 @@ export async function checkPropFirmAlerts(
     const pushAlerts = alerts.filter(a => a.type === 'danger' || a.type === 'breach')
     if (pushAlerts.length > 0) {
       try {
-        const { sendPushToUser } = await import('@/lib/web-push')
+        /* SATU PINTU (push-notify): baca subs service-role + push + auto-log
+           ke notification_log (feed in-app) + auto-hapus endpoint 410/404.
+           PENUTUP TEMUAN AUDIT LAMA: Prisma tidak dipakai lagi (mati diam-
+           diam di CF Workers) — service-role Supabase di dalam pushToUser. */
+        const { pushToUser } = await import('@/lib/push-notify')
 
-        /* PENUTUP TEMUAN AUDIT: dulu pakai Prisma (db.pushSubscription.findMany)
-           — Prisma MATI diam-diam di CF Workers (fallback catch menelan error)
-           → push PropFirm tidak pernah terkirim di produksi. Kini baca lewat
-           Supabase (service-role, sama dgn pola /api/push/send & cron
-           prop-firm-guard yang sudah terbukti jalan). */
-        const { data: pushSubs, error: pushSubErr } = await supabaseAdmin
-          .from('push_subscriptions')
-          .select('endpoint, p256dh, auth')
-          .eq('user_id', userId)
-        if (pushSubErr) throw new Error(pushSubErr.message)
-        const subscriptions = (pushSubs ?? []) as { endpoint: string; p256dh: string; auth: string }[]
-
-        if (subscriptions.length > 0) {
-          for (const alert of pushAlerts) {
-            await sendPushToUser(subscriptions, {
-              title: alert.type === 'breach'
-                ? `❌ ${alert.firmName} BREACHED`
-                : `🚨 ${alert.firmName} DANGER`,
-              body: alert.message,
-              icon: '/icon-192x192.png',
-              tag: `propfirm-${alert.ruleId}`,
-              type: 'trade',
-              url: '/dashboard',
-            })
-          }
+        for (const alert of pushAlerts) {
+          await pushToUser(supabaseAdmin, userId, {
+            title: alert.type === 'breach'
+              ? `❌ ${alert.firmName} BREACHED`
+              : `🚨 ${alert.firmName} DANGER`,
+            body: alert.message,
+            icon: '/icon-192x192.png',
+            tag: `propfirm-${alert.ruleId}`,
+            type: 'trade',
+            url: '/dashboard',
+            urgency: 'high',
+          }, { dedupe: false })
         }
       } catch (pushErr) {
         console.warn('[check-alerts] Push notification failed:', pushErr)

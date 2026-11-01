@@ -333,6 +333,14 @@ async function handleRequest(request: NextRequest) {
       })
     }
 
+    // Retensi feed in-app: buang notifikasi > 30 hari (SQL 20261101, best-effort)
+    try {
+      const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+      await admin.from('notification_log').delete().lt('created_at', cutoff)
+    } catch {
+      // tabel belum ada / gagal — non-fatal
+    }
+
     // Send emails
     let sentCount = 0
     let failCount = 0
