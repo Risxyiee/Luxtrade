@@ -8,7 +8,7 @@ import {
   Clock, Ban, CheckCircle, XCircle, Share2, CreditCard,
   AlertTriangle, Bug, Info, DatabaseBackup,
   Tag, Send, UserPen, ChevronDown, ChevronLeft, ChevronRight,
-  Link2, Award, Bot, ShieldAlert,
+  Link2, Award, Bot, ShieldAlert, Copy, Activity as ActivityIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -63,6 +70,10 @@ const quickActions = [
   { href: '/dashboard/admin/social-links', label: 'Social Links', icon: Link2 },
   { href: '/dashboard/admin/testimonials', label: 'Testimonials', icon: Award },
   { href: '/dashboard/admin/csp', label: 'Laporan CSP', icon: ShieldAlert },
+  // Rapikan (laporan Bos): halaman system-health sudah ada tapi orphan —
+  // tak terjangkau dari UI mana pun. Di-wire ke sini, fitur ga dobel
+  // (cek endpoint/health terpusat di halaman ini, bukan dibuat lagi).
+  { href: '/dashboard/admin/system-health', label: 'System Health', icon: ActivityIcon },
 ]
 
 export default function AdminPanelClient() {
@@ -80,8 +91,16 @@ export default function AdminPanelClient() {
   const [dataNotice, setDataNotice] = useState<string | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
-  // Fix RLS state
-  const [fixingRls, setFixingRls] = useState(false)
+  // Fix RLS state → diganti DB Health (laporan Bos: tombol lama cuma toast
+  // "0 ok, 0 error" yang menyesatkan; SQL fix-nya cuma masuk console)
+  const [dbHealthOpen, setDbHealthOpen] = useState(false)
+  const [dbHealthLoading, setDbHealthLoading] = useState(false)
+  const [dbHealthData, setDbHealthData] = useState<{
+    success: boolean
+    results: { name: string; status: 'ok' | 'error'; detail?: string }[]
+    sql?: string
+    instructions?: string
+  } | null>(null)
 
   // Fetch users
   const fetchUsers = async (showErrorToast = false) => {
@@ -142,30 +161,41 @@ export default function AdminPanelClient() {
     }
   }
 
-  // Fix RLS function
-  const fixRls = async () => {
-    if (fixingRls) return
-    if (!confirm('Fix RLS policies untuk user_submissions & mission_progress? Ini akan mengubah keamanan database.')) return
-    setFixingRls(true)
+  // DB Health — cek tabel + kolom wajib, tampilkan SQL fix kalau ada yang kurang
+  const runDbHealth = async () => {
+    if (dbHealthLoading) return
+    setDbHealthOpen(true)
+    setDbHealthLoading(true)
     try {
       const res = await authFetch('/api/fix-rls', {
         method: 'POST',
         credentials: 'include',
       })
       const data = await res.json()
-      if (res.ok && data.success) {
-        const okCount = data.results?.filter((r: any) => r.status === 'ok').length || 0
-        const errCount = data.results?.filter((r: any) => r.status === 'error').length || 0
-        toast.success(`RLS fixed! ${okCount} ok, ${errCount} error`, { duration: 8000 })
-        console.log('RLS fix results:', data.results)
-      } else {
-        toast.error(data.error || 'Gagal fix RLS', { duration: 8000 })
-        console.error('RLS fix error:', data)
-      }
+      setDbHealthData({
+        success: !!data.success,
+        results: data.results || [],
+        sql: data.sql,
+        instructions: data.instructions,
+      })
     } catch (err) {
-      toast.error('Network error saat fix RLS')
+      setDbHealthData({
+        success: false,
+        results: [],
+        instructions: 'Network error — gagal terhubung ke server. Coba lagi.',
+      })
     } finally {
-      setFixingRls(false)
+      setDbHealthLoading(false)
+    }
+  }
+
+  const copyDbHealthSql = async () => {
+    if (!dbHealthData?.sql) return
+    try {
+      await navigator.clipboard.writeText(dbHealthData.sql)
+      toast.success('SQL ter-copy — paste di Supabase Dashboard → SQL Editor → Run')
+    } catch {
+      toast.error('Gagal copy — blok SQL bisa di-select manual')
     }
   }
 
@@ -226,44 +256,8 @@ export default function AdminPanelClient() {
     }
   }, [])
 
-  // Activate 30 Days PRO
-  const activatePRO = async (userId: string) => {
-    setUpdatingId(userId)
-    try {
-      console.log('🔧 [ADMIN PANEL] Activating PRO for user:', userId)
-
-      const res = await authFetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId, action: 'activate', days: 30 }),
-        credentials: 'include'
-      })
-
-      const data = await res.json()
-
-      console.log('🔧 [ADMIN PANEL] Activation response:', data)
-
-      if (res.ok) {
-        toast.success(data.message || 'PRO activated for 30 days!')
-        fetchUsers()
-      } else {
-        console.error('🔧 [ADMIN PANEL] Activation failed:', data)
-        const errorMessage = data.details || data.error || 'Failed to activate PRO'
-        if (data.solution) {
-          toast.error(`${errorMessage}. ${data.solution}`, { duration: 8000 })
-        } else {
-          toast.error(errorMessage)
-        }
-      }
-    } catch (error) {
-      console.error('Error activating PRO:', error)
-      toast.error('Failed to activate PRO')
-    } finally {
-      setUpdatingId(null)
-    }
-  }
+  // (Rapikan/anti-dobel: fungsi activatePRO 30-hari lama DIHAPUS —
+  //  duplikat jalur activateWithPlan('PRO_30_DAYS'). Satu pintu saja.)
 
   // Revoke PRO
   const revokePRO = async (userId: string) => {
@@ -442,24 +436,94 @@ export default function AdminPanelClient() {
             </Link>
           ))}
           <Button
-            onClick={fixRls}
-            disabled={fixingRls}
+            onClick={runDbHealth}
+            disabled={dbHealthLoading}
             variant="outline"
             size="sm"
             className="border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 disabled:opacity-50 h-8 text-xs gap-1.5"
-            title="Fix RLS policies untuk user_submissions & mission_progress"
+            title="Cek tabel & kolom DB — tampilkan SQL perbaikan kalau ada yang kurang"
           >
-            <Shield className={`w-3.5 h-3.5 ${fixingRls ? 'animate-pulse' : ''}`} />
-            {fixingRls ? 'Fixing...' : 'Fix RLS'}
+            <DatabaseBackup className={`w-3.5 h-3.5 ${dbHealthLoading ? 'animate-pulse' : ''}`} />
+            {dbHealthLoading ? 'Checking...' : 'DB Health'}
           </Button>
         </div>
+
+        {/* DB Health Dialog — hasil cek + SQL fix (copy-paste ke Supabase SQL Editor).
+            Laporan Bos: tombol "Fix RLS" lama cuma toast "0 ok, 0 error" yang
+            menyesatkan dan SQL fix-nya nyangkut di console. Sekarang ada UI. */}
+        <Dialog open={dbHealthOpen} onOpenChange={setDbHealthOpen}>
+          <DialogContent className="max-w-xl bg-[#0e1117] border-white/10 text-white max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <DatabaseBackup className="w-4 h-4 text-amber-400" />
+                DB Health — Tabel &amp; Kolom
+              </DialogTitle>
+              <DialogDescription className="text-white/50 text-xs">
+                Cek akses service-role + kolom yang diminta aplikasi. DDL tak bisa dijalankan dari app — kalau ada yang kurang, copy SQL-nya ke Supabase SQL Editor.
+              </DialogDescription>
+            </DialogHeader>
+
+            {dbHealthLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Hasil cek */}
+                <div className="rounded-lg border border-white/10 divide-y divide-white/5 max-h-56 overflow-y-auto">
+                  {(dbHealthData?.results || []).map((r, i) => (
+                    <div key={i} className="flex items-start gap-2 px-3 py-2 text-xs">
+                      {r.status === 'ok' ? (
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-white/85 font-medium">{r.name}</p>
+                        {r.detail && <p className="text-white/40 mt-0.5 break-words">{r.detail}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  {dbHealthData && dbHealthData.results.length === 0 && (
+                    <div className="px-3 py-4 text-xs text-white/40">Tidak ada data hasil cek.</div>
+                  )}
+                </div>
+
+                {/* Status ringkas */}
+                <div className={`text-xs px-3 py-2 rounded-lg border ${dbHealthData?.success ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'}`}>
+                  {dbHealthData?.success
+                    ? '✅ Semua tabel & kolom lengkap — tidak ada yang perlu diperbaiki.'
+                    : (dbHealthData?.instructions || 'Ada yang perlu diperbaiki.')}
+                </div>
+
+                {/* SQL fix */}
+                {dbHealthData?.sql && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-white/70">SQL Perbaikan</span>
+                      <Button
+                        size="sm"
+                        onClick={copyDbHealthSql}
+                        className="h-7 text-xs gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold"
+                      >
+                        <Copy className="w-3 h-3" />
+                        Copy SQL
+                      </Button>
+                    </div>
+                    <pre className="text-[10px] leading-relaxed bg-black/60 border border-white/10 rounded-lg p-3 overflow-x-auto text-emerald-300/90 whitespace-pre">{dbHealthData.sql}</pre>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6"
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6"
         >
           <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
             <CardContent className="p-4">

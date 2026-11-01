@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -218,12 +218,16 @@ interface OnboardingTabProps {
 export default function OnboardingTab({ language: langProp, setActiveTab, setAddTradeOpen, userId }: OnboardingTabProps) {
   const { t, language: ctxLang } = useLanguage()
   const language = langProp || ctxLang
+  const isId = language === 'id'
 
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const [activeStepId, setActiveStepId] = useState<string | null>(null)
   const [celebrationStep, setCelebrationStep] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [loaded, setLoaded] = useState(false)
+
+  // Cermin state utk closure — toggleStep ga perlu param dep, anti stale-closure
+  const completedRef = useRef<Set<string>>(new Set())
 
   // Load progress from API first, then fall back to localStorage
   useEffect(() => {
@@ -234,7 +238,9 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
         if (res.ok) {
           const data = await res.json()
           if (data.steps && Array.isArray(data.steps) && data.steps.length > 0) {
-            setCompletedSteps(new Set(data.steps))
+            const s = new Set<string>(data.steps)
+            completedRef.current = s
+            setCompletedSteps(s)
             // Also cache to localStorage for offline use
             localStorage.setItem('luxtrade-onboarding-progress', JSON.stringify(data.steps))
             setLoaded(true)
@@ -250,7 +256,9 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
         const saved = localStorage.getItem('luxtrade-onboarding-progress')
         if (saved) {
           const parsed = JSON.parse(saved) as string[]
-          setCompletedSteps(new Set(parsed))
+          const s = new Set<string>(parsed)
+          completedRef.current = s
+          setCompletedSteps(s)
         }
       } catch {}
       setLoaded(true)
@@ -258,14 +266,17 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
     loadProgress()
   }, [])
 
-  // Save progress to both localStorage and API
-  const saveProgress = useCallback(async (steps: Set<string>) => {
-    // Always save to localStorage immediately
+  // Save progress to both localStorage and API.
+  // Laporan Bos: "progresnya ga jalan" — selain UX klik, persist ke DB dulu
+  // selalu gagal karena kolom profiles.onboarding_steps belum ada (42703).
+  // Sekarang: localStorage tetap instan, POST jalan best-effort, dan kalau
+  // server bilang gagal persist → toast SEKALI (jangan spam tiap klik).
+  const persistWarnedRef = useRef(false)
+  const persistSteps = useCallback(async (steps: Set<string>) => {
     try {
       localStorage.setItem('luxtrade-onboarding-progress', JSON.stringify([...steps]))
     } catch {}
 
-    // Also persist to API (non-blocking)
     try {
       setSyncing(true)
       const res = await fetch('/api/onboarding/progress', {
@@ -274,8 +285,10 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
         credentials: 'include',
         body: JSON.stringify({ steps: [...steps] }),
       })
-      if (!res.ok) {
-        console.warn('[OnboardingTab] Failed to sync progress to server:', res.status)
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.persisted === false && !persistWarnedRef.current) {
+        persistWarnedRef.current = true
+        console.warn('[OnboardingTab] Progress tersimpan lokal saja — jalankan SQL migrasi onboarding_steps agar persist ke server')
       }
     } catch (err) {
       console.warn('[OnboardingTab] Failed to sync progress to server:', err)
@@ -284,34 +297,46 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
     }
   }, [])
 
+  // Toggle step — side effects (toast/celebration/persist) DI LUAR updater
+  // (dulu side-effect di dalam setState updater = anti-pattern React 18).
   const toggleStep = useCallback((stepId: string) => {
-    setCompletedSteps(prev => {
-      const next = new Set(prev)
-      const wasCompleted = next.has(stepId)
-      if (wasCompleted) {
-        next.delete(stepId)
-      } else {
-        next.add(stepId)
-        // Celebration animation
-        setCelebrationStep(stepId)
-        setTimeout(() => setCelebrationStep(null), 1500)
-        // Show toast for completion
-        toast.success(isId ? 'Step diselesaikan! 🎉' : 'Step completed! 🎉')
-      }
-      saveProgress(next)
-      return next
-    })
-  }, [saveProgress, language])
+    const next = new Set(completedRef.current)
+    const wasCompleted = next.has(stepId)
+    if (wasCompleted) {
+      next.delete(stepId)
+    } else {
+      next.add(stepId)
+      setCelebrationStep(stepId)
+      setTimeout(() => setCelebrationStep(null), 1500)
+      toast.success(isId ? 'Step diselesaikan! 🎉' : 'Step completed! 🎉')
+    }
+    completedRef.current = next
+    setCompletedSteps(next)
+    void persistSteps(next)
 
+    // 10/10 → tandai onboarding selesai di DB (auto stop buka tab ini tiap login)
+    if (!wasCompleted && next.size >= steps.length) {
+      fetch('/api/onboarding', { method: 'POST', credentials: 'include' }).catch(() => {})
+      toast.success(isId ? 'Semua step selesai! Selamat trading! 🚀' : 'All steps done! Happy trading! 🚀')
+    }
+  }, [isId, persistSteps])
+
+  // Aksi ("Buka Tab Akun" dll) → otomatis tandai step selesai + pindah tab.
+  // Laporan Bos: user klik tombol aksi tapi progres diam — sekarang progress
+  // jalan sendiri begitu user benar-benar gerak ke fiturnya.
   const handleAction = useCallback((step: OnboardingStep) => {
+    if (!completedRef.current.has(step.id)) {
+      toggleStep(step.id)
+    }
     if (step.action === 'add-trade') {
       setAddTradeOpen?.(true)
     } else if (step.action && setActiveTab) {
       setActiveTab(step.action)
     }
-  }, [setActiveTab, setAddTradeOpen])
+  }, [toggleStep, setAddTradeOpen, setActiveTab])
 
   const resetProgress = useCallback(() => {
+    completedRef.current = new Set()
     setCompletedSteps(new Set())
     localStorage.removeItem('luxtrade-onboarding-progress')
   }, [])
@@ -338,8 +363,6 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
     const done = catSteps.filter(s => completedSteps.has(s.id)).length
     return { done, total: catSteps.length, pct: Math.round((done / catSteps.length) * 100) }
   }
-
-  const isId = language === 'id'
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -464,39 +487,49 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
                   >
                     <Card
                       className={`
-                        cursor-pointer transition-all duration-200 overflow-hidden
+                        transition-all duration-200 overflow-hidden
                         ${isCompleted
                           ? 'bg-emerald-500/5 border-emerald-500/20'
                           : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-blue-500/30'
                         }
                       `}
                     >
+                      {/* Baris utama = SATU target klik besar utk toggle selesai.
+                          Laporan Bos: dulu cuma lingkaran kecil (24px) yang bisa
+                          dicentang — di HP susah kena, klik kartu cuma buka detail
+                          → "progresnya ga jalan". Sekarang klik di mana pun = centang. */}
                       <div
-                        className="flex items-center gap-3 p-4"
-                        onClick={() => setActiveStepId(isExpanded ? null : step.id)}
-                      >
-                        {/* Checkbox */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isCompleted}
+                        aria-label={isCompleted ? (isId ? 'Tandai belum selesai' : 'Mark incomplete') : (isId ? 'Tandai selesai' : 'Mark complete')}
+                        onClick={() => toggleStep(step.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
                             toggleStep(step.id)
-                          }}
+                          }
+                        }}
+                        className="flex items-center gap-3 p-4 cursor-pointer select-none min-h-[64px] active:scale-[0.99] transition-transform"
+                      >
+                        {/* Checkbox (visual — toggle ada di seluruh baris) */}
+                        <span
                           className={`
                             flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center
                             transition-all duration-200
                             ${isCompleted
                               ? 'bg-emerald-500 border-emerald-500'
-                              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                              : 'border-gray-300 dark:border-gray-600'
                             }
                           `}
-                          aria-label={isCompleted ? (isId ? 'Tandai belum selesai' : 'Mark incomplete') : (isId ? 'Tandai selesai' : 'Mark complete')}
+                          aria-hidden="true"
                         >
                           {isCompleted ? (
                             <CheckCircle2 className="w-4 h-4 text-white" />
                           ) : (
                             <Circle className="w-4 h-4 text-transparent" />
                           )}
-                        </button>
+                        </span>
 
                         {/* Icon */}
                         <div className={`
@@ -514,11 +547,23 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
                           </h3>
                         </div>
 
-                        {/* Expand arrow */}
-                        <ChevronRight className={`
-                          w-4 h-4 flex-shrink-0 text-gray-400 transition-transform duration-200
-                          ${isExpanded ? 'rotate-90' : ''}
-                        `} />
+                        {/* Expand arrow — TERPISAH dari toggle: klik di sini buka
+                            detail (deskripsi + tombol aksi), ga ikut mencentang */}
+                        <button
+                          type="button"
+                          aria-expanded={isExpanded}
+                          aria-label={isExpanded ? (isId ? 'Tutup detail' : 'Hide details') : (isId ? 'Lihat detail' : 'Show details')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setActiveStepId(isExpanded ? null : step.id)
+                          }}
+                          className="flex-shrink-0 p-2 -m-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 dark:hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        >
+                          <ChevronRight className={`
+                            w-4 h-4 transition-transform duration-200
+                            ${isExpanded ? 'rotate-90' : ''}
+                          `} />
+                        </button>
                       </div>
 
                       {/* Expanded Content */}
@@ -548,7 +593,8 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
                                   </div>
                                 )}
 
-                                {/* Action Button */}
+                                {/* Action Button — klik = auto-tandai selesai + pindah tab.
+                                    Udah selesai → tampilkan status, bukan tombol (anti dobel) */}
                                 {step.action && !isCompleted && (
                                   <Button
                                     size="sm"

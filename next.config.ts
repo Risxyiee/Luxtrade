@@ -87,7 +87,10 @@ const nextConfig: NextConfig = {
         key: 'Content-Security-Policy',
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' https://app.midtrans.com https://app.sandbox.midtrans.com",
+          // static.cloudflareinsights.com = beacon Cloudflare Web Analytics yang
+          // diinjeksi otomatis CF pada domain ter-proxy (log csp-report Bos:
+          // script-src-elem blocked). Tanpa ini, analytics keblock diam-diam.
+          "script-src 'self' 'unsafe-inline' https://app.midtrans.com https://app.sandbox.midtrans.com https://static.cloudflareinsights.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "media-src 'self' https: blob:",
