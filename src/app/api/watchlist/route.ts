@@ -135,6 +135,72 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH - Update target_price item (set / ubah / hapus target)
+// Dipakai tombol "Set Target Harga" di WatchlistTab. Saat target
+// terisi, cron /api/cron/price-alerts akan push layar HP user saat
+// harga menyentuh/menyeberang target (dedupe per user+item+target).
+export async function PATCH(request: NextRequest) {
+  try {
+    const { user, client } = await getUserWithSession(request)
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(user.id)
+    if (!pro) {
+      return NextResponse.json({ error: 'PRO_REQUIRED', code: 'PRO_REQUIRED' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const id = typeof body?.id === 'string' ? body.id.trim() : ''
+
+    if (!id) {
+      return NextResponse.json({ error: 'Item ID is required' }, { status: 400 })
+    }
+
+    // null/undefined string kosong = hapus target; angka valid = set target
+    let target: number | null = null
+    const raw = body?.target_price
+    if (raw !== null && raw !== undefined && String(raw).trim() !== '') {
+      const n = Number(raw)
+      if (!Number.isFinite(n) || n <= 0) {
+        return NextResponse.json({ error: 'Target price must be a positive number' }, { status: 400 })
+      }
+      target = n
+    }
+
+    // Update dengan user_id guard (ownership, juga di-enforce RLS)
+    const { data: item, error } = await client
+      .from('watchlist')
+      .update({ target_price: target })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('id, symbol, name, target_price, notes, created_at')
+      .single()
+
+    if (error || !item) {
+      console.error('[watchlist PATCH] Supabase error:', error)
+      return NextResponse.json({ error: 'Failed to update target' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      item: {
+        id: item.id,
+        symbol: item.symbol,
+        name: item.name,
+        target_price: item.target_price,
+        notes: item.notes,
+        created_at: item.created_at,
+      }
+    })
+  } catch (error: any) {
+    console.error('[watchlist PATCH] Error:', error)
+    return NextResponse.json({ error: 'Failed to update target' }, { status: 500 })
+  }
+}
+
 // DELETE - Remove from watchlist
 export async function DELETE(request: NextRequest) {
   try {

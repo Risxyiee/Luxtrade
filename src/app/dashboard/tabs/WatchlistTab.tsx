@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock, CheckCircle2, RefreshCw, AlertTriangle, Target, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 // PERF (F2): normalisasi simbol PINDAH ke server (/api/forex-batch pakai
@@ -24,6 +27,7 @@ interface WatchlistTabProps {
   loading: boolean
   onAdd: () => void
   onDelete: (id: string) => void
+  onUpdateTarget?: (id: string, target: number | null) => Promise<boolean>
   isPro?: boolean
   onUpgrade?: () => void
   language?: 'id' | 'en'
@@ -34,6 +38,7 @@ export default function WatchlistTab({
   loading,
   onAdd,
   onDelete,
+  onUpdateTarget,
   isPro,
   onUpgrade,
   language = 'id'
@@ -94,6 +99,49 @@ export default function WatchlistTab({
       localStorage.setItem('luxtradee-watchlist-alerts', JSON.stringify([...next]))
       return next
     })
+  }
+
+  // ===== Set Target Harga (push otomatis via cron 15-menit-an) =====
+  const [targetItem, setTargetItem] = useState<WatchlistItem | null>(null)
+  const [targetInput, setTargetInput] = useState('')
+  const [targetSaving, setTargetSaving] = useState(false)
+
+  const openTargetDialog = (item: WatchlistItem) => {
+    setTargetItem(item)
+    setTargetInput(item.target_price != null ? String(item.target_price) : '')
+  }
+
+  const saveTarget = async () => {
+    if (!targetItem || !onUpdateTarget) return
+    const raw = targetInput.trim()
+    const n = Number(raw)
+    if (raw === '' || !Number.isFinite(n) || n <= 0) {
+      toast.error(language === 'id' ? 'Masukkan target harga yang valid (> 0)' : 'Enter a valid target price (> 0)')
+      return
+    }
+    setTargetSaving(true)
+    const ok = await onUpdateTarget(targetItem.id, n)
+    setTargetSaving(false)
+    if (ok) {
+      toast.success(
+        language === 'id'
+          ? `🎯 Target ${n} tersimpan — push otomatis saat ${targetItem.symbol} menyentuhnya`
+          : `🎯 Target ${n} saved — automatic push when ${targetItem.symbol} reaches it`,
+        { duration: 5000 }
+      )
+      setTargetItem(null)
+    }
+  }
+
+  const removeTarget = async () => {
+    if (!targetItem || !onUpdateTarget) return
+    setTargetSaving(true)
+    const ok = await onUpdateTarget(targetItem.id, null)
+    setTargetSaving(false)
+    if (ok) {
+      toast.success(language === 'id' ? 'Target dihapus' : 'Target removed')
+      setTargetItem(null)
+    }
   }
 
   // Format price for display
@@ -311,6 +359,14 @@ export default function WatchlistTab({
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        {/* Set target harga — push otomatis saat harga menyentuh target */}
+                        <button
+                          onClick={() => openTargetDialog(item)}
+                          className={`p-1.5 rounded-lg transition-all ${item.target_price != null ? 'text-emerald-400 bg-emerald-500/15 hover:bg-emerald-500/25' : 'text-lux-text-muted dark:text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 dark:bg-white/5'}`}
+                          title={language === 'id' ? 'Set target harga (push otomatis ke HP)' : 'Set target price (auto push to phone)'}
+                        >
+                          <Target className="w-4 h-4" />
+                        </button>
                         {/* Alert toggle button */}
                         <button
                           onClick={() => toggleAlert(item.id)}
@@ -355,19 +411,28 @@ export default function WatchlistTab({
                         </span>
                       </div>
                     )}
-                    {item.target_price && (
-                      <div className="mb-2">
+                    {item.target_price != null && (
+                      <button
+                        onClick={() => openTargetDialog(item)}
+                        className="mb-2 text-left w-full group/target"
+                        title={language === 'id' ? 'Klik untuk ubah target' : 'Click to edit target'}
+                      >
                         <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>
                         {triggeredAlerts.has(item.id) ? (
-                          <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                          <span className="text-sm font-bold text-emerald-400 inline-flex items-center gap-1">
                             {item.target_price}
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                             <span className="text-[10px] font-medium">{language === 'id' ? 'Tercapai!' : 'Reached!'}</span>
                           </span>
                         ) : (
-                          <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
+                          <span className="text-sm font-bold text-emerald-400 inline-flex items-center gap-1">
+                            {item.target_price}
+                            <span className="text-[10px] font-medium text-emerald-400/60 opacity-0 group-hover/target:opacity-100 transition-opacity">
+                              ✏️
+                            </span>
+                          </span>
                         )}
-                      </div>
+                      </button>
                     )}
                     {item.notes && (
                       <p className="text-xs text-lux-text-secondary dark:text-gray-400 line-clamp-2">{item.notes}</p>
@@ -404,6 +469,98 @@ export default function WatchlistTab({
           </div>
         </>
       )}
+
+      {/* ===== Dialog Set Target Harga ===== */}
+      <Dialog open={!!targetItem} onOpenChange={(open) => { if (!open) setTargetItem(null) }}>
+        <DialogContent className="sm:max-w-md bg-lux-bg-card dark:bg-[#0b0e17] border-lux-border dark:border-blue-900/30 text-lux-text-primary">
+          {targetItem && (() => {
+            const cur = currentPrices[targetItem.symbol]
+            const parsed = Number(targetInput)
+            const hasTarget = targetInput.trim() !== '' && Number.isFinite(parsed) && parsed > 0
+            const above = hasTarget && cur != null && parsed > cur
+            const below = hasTarget && cur != null && parsed < cur
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-emerald-400" />
+                    {language === 'id' ? 'Set Target Harga' : 'Set Target Price'}
+                    <span className="font-mono text-emerald-400">{targetItem.symbol}</span>
+                  </DialogTitle>
+                  <DialogDescription className="text-lux-text-secondary dark:text-gray-400">
+                    {language === 'id'
+                      ? 'Saat harga menyentuh target, notifikasi otomatis dikirim ke layar HP-mu (dicek setiap 15 menit).'
+                      : 'When price reaches the target, an automatic notification is pushed to your phone (checked every 15 minutes).'}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-1">
+                  {cur != null && (
+                    <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2">
+                      <span className="text-xs text-lux-text-secondary dark:text-gray-400">
+                        {language === 'id' ? 'Harga sekarang' : 'Current price'}
+                      </span>
+                      <span className="text-sm font-mono font-bold text-blue-400">{formatPrice(targetItem.symbol, cur)}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="target-price-input" className="text-lux-text-primary">
+                      {language === 'id' ? 'Target harga' : 'Target price'}
+                    </Label>
+                    <Input
+                      id="target-price-input"
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      min="0"
+                      placeholder={language === 'id' ? 'cth: 1.0850' : 'e.g. 1.0850'}
+                      value={targetInput}
+                      onChange={(e) => setTargetInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveTarget() }}
+                      autoFocus
+                      className="font-mono"
+                    />
+                    {hasTarget && cur != null && (above || below) && (
+                      <p className={`text-xs ${above ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {above
+                          ? (language === 'id'
+                            ? '▲ Target di atas harga — alert saat NAIK ke target'
+                            : '▲ Target above price — alert when price RISES to it')
+                          : (language === 'id'
+                            ? '▼ Target di bawah harga — alert saat TURUN ke target'
+                            : '▼ Target below price — alert when price FALLS to it')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter className="flex gap-2">
+                  {targetItem.target_price != null && (
+                    <Button
+                      onClick={removeTarget}
+                      disabled={targetSaving}
+                      variant="outline"
+                      className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 mr-auto"
+                    >
+                      {targetSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+                      {language === 'id' ? 'Hapus Target' : 'Remove Target'}
+                    </Button>
+                  )}
+                  <Button
+                    onClick={saveTarget}
+                    disabled={targetSaving}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white"
+                  >
+                    {targetSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                    {language === 'id' ? 'Simpan Target' : 'Save Target'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

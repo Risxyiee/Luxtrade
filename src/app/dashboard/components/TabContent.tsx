@@ -63,6 +63,7 @@ interface TabContentProps {
   onJournalEdit: (entry: JournalEntry) => void
   onJournalDelete: (id: string) => void
   onWatchlistDelete: (id: string) => void
+  onWatchlistUpdateTarget?: (id: string, target: number | null) => Promise<boolean>
   onGetTips: () => void
   onGetMarket: () => void
   onGetRecommendations: () => void
@@ -111,6 +112,7 @@ export default function TabContent({
   onJournalEdit,
   onJournalDelete,
   onWatchlistDelete,
+  onWatchlistUpdateTarget,
   onGetTips,
   onGetMarket,
   onGetRecommendations,
@@ -212,6 +214,7 @@ export default function TabContent({
               loading={loading}
               onAdd={() => setAddWatchlistOpen(true)}
               onDelete={onWatchlistDelete}
+              onUpdateTarget={onWatchlistUpdateTarget}
               isPro={isPro}
               onUpgrade={() => setPlanSelectionModalOpen(true)}
               language={language}

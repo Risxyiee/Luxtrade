@@ -901,7 +901,8 @@ function LuxTradeDashboardContent() {
   // Watchlist Handlers
   const {
     handleAddWatchlist,
-    handleDeleteWatchlist
+    handleDeleteWatchlist,
+    handleUpdateWatchlistTarget
   } = createWatchlistHandlers({
     watchlistForm,
     setWatchlistForm,
@@ -911,6 +912,16 @@ function LuxTradeDashboardContent() {
     setSaving,
     fetchData
   })
+
+  // Set/ubah/hapus target harga item watchlist (PATCH) — update state
+  // optimis via onSuccess agar kartu langsung reflect tanpa refresh penuh.
+  const handleWatchlistTarget = async (id: string, target: number | null) => {
+    return handleUpdateWatchlistTarget(id, target, (updated) => {
+      setWatchlistItems(prev => prev.map(it =>
+        it.id === updated.id ? { ...it, target_price: updated.target_price } : it
+      ))
+    })
+  }
 
   // ==================== AI INSIGHTS ====================
 
@@ -1194,6 +1205,7 @@ function LuxTradeDashboardContent() {
           onJournalEdit={handleJournalEdit}
           onJournalDelete={handleDeleteJournal}
           onWatchlistDelete={handleDeleteWatchlist}
+          onWatchlistUpdateTarget={handleWatchlistTarget}
           onGetTips={getPerformanceTips}
           onGetMarket={getMarketInsight}
           onGetRecommendations={getRecommendations}

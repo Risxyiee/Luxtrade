@@ -64,8 +64,37 @@ export const createWatchlistHandlers = ({
     }
   }
 
+  // Set / ubah / hapus target harga item watchlist (null = hapus target).
+  // Sukses → update state lokal optimis agar UI langsung reflect tanpa
+  // fetchData penuh (hemat round-trip, harga polling tidak terputus).
+  const handleUpdateWatchlistTarget = async (
+    id: string,
+    target: number | null,
+    onSuccess?: (updated: { id: string; symbol: string; name: string; target_price: number | null; notes: string | null; created_at: string }) => void
+  ): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/watchlist', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id, target_price: target })
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.item) {
+        onSuccess?.(data.item)
+        return true
+      }
+      toast.error(data?.error || 'Failed to update target')
+      return false
+    } catch {
+      toast.error('Failed to update target')
+      return false
+    }
+  }
+
   return {
     handleAddWatchlist,
-    handleDeleteWatchlist
+    handleDeleteWatchlist,
+    handleUpdateWatchlistTarget
   }
 }
