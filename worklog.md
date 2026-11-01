@@ -4075,3 +4075,41 @@ sehat; masalah di "last mile" — dan setelah dibedah, masalahnya DI SISTEM KITA
   browser) jatuh ke "unparsed content-type" (warn di log) dan TIDAK masuk
   tabel csp_violations. Sekarang `csp-report` diterima & diparse — warn
   hilang + papan CSP admin (/dashboard/admin/csp) dapat data lengkap.
+
+## 2026-11-XX — FASE 5.6 — AKAR MASALAH SEJATI: Enkripsi aes128gcm Salah → Push TIDAK PERNAH Bekerja
+
+### Deduksi final (semua bukti menyatu)
+Android (FCM) + iOS (APNs) = dua push service & OS independen, token fresh,
+SW sehat (tes lokal tampil), receipt tanpa auth aktif — push event tetap
+tidak PERNAH fire di keduanya. Satu-satunya faktor sama = PENGIRIM kita
+`web-push-cf.ts`. Push service (FCM/APNs) hanya memvalidasi envelope HTTP
+(mereka terima 201) — DEKRIPSI terjadi di DEVICE. Payload kita rusak
+kriptografinya → device buang diam-diam → push event tidak fire → tanpa
+notif, tanpa receipt, tanpa error server. Sempurna konsisten dgn SEMUA gejala.
+
+### 2 Bug FATAL di `encryptAes128Gcm` (sejak file dibuat)
+1. **auth_secret TIDAK PERNAH dipakai** — signature cuma terima uaPublicKey;
+   RFC 8291 §3.3 wajib `ikm = HKDF(salt=AUTH SECRET, ikm=ECDH, info="WebPush:
+   info"||0x00||uaPublic||asPublic, 32)`. Dulu salt = 0x00*16.
+2. **HKDF Expand dilewati** — tiap derivasi cuma HMAC tunggal; RFC 5869 wajib
+   Extract (HMAC(salt,ikm)) lalu Expand (HMAC(PRK, info||0x01)).
+
+### Fix
+- `hkdf()` penuh (Extract+Expand SHA-256) di web-push-cf.ts
+- `encryptAes128Gcm(payload, uaPublic, AUTH)` — auth ikut derivasi
+- Caller kirim `subscription.keys.auth`
+- VAPID JWT & header sudah benar (tak diubah)
+
+### Bukti kripto (scripts/test-aes128gcm.ts, bun)
+Dekriptor independen sisi-device (RFC) + cross-check library `web-push` resmi:
+- A. Skema LAMA (salinan setia): ❌ GAGAL dekripsi → biang keladi terbukti
+- B. Library resmi: ✅ terdekripsi → dekriptor terverifikasi
+- C. KODE KITA (fix): ✅ terdekripsi sempurna → RFC 8291 benar
+- D. Auth salah: ❌ gagal → auth benar-benar dipakai
+Kesimpulan: web push produksi BELUM PERNAH bekerja sejak awal; semua bukti
+"Terkirim!" sebelumnya = HTTP 201 push service atas payload tak terbaca.
+
+### Catatan penting
+Subscriptions DB TIDAK perlu re-subscribe (kunci p256dh/auth device tidak
+berubah — yang berubah hanya enkripsi pesan keluar). Setelah deploy, tes
+langsung: notif muncul + receipt perangkat → "Sampai & tampil!".

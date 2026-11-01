@@ -46,18 +46,34 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
   return out
 }
 
-// ─── HMAC-SHA-256 (RFC 8291 memakai HMAC tunggal, bukan HKDF penuh) ─────────
-
-async function hmacSha256(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey(
+// ─── HKDF (RFC 5869) — Extract-then-Expand, SHA-256 ─────────────────────────
+// FIX FATAL (akar masalah "push gak pernah muncul di HP"): dulu tiap derivasi
+// cuma HMAC TUNGGAL — Expand (info || 0x01) dilewati total, dan salt langkah
+// pertama pakai 0x00*16 alih-alih AUTH SECRET. Output "mirip HKDF" tapi bukan
+// → device gagal dekripsi → push event tidak pernah fire → notif tidak muncul,
+// TANPA satu pun error di server (push service hanya validasi envelope).
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, len: number): Promise<Uint8Array> {
+  // Extract: PRK = HMAC(salt, IKM)
+  const extractKey = await crypto.subtle.importKey(
     'raw',
-    keyBytes as unknown as BufferSource,
+    salt as unknown as BufferSource,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   )
-  const mac = await crypto.subtle.sign('HMAC', key, data as unknown as BufferSource)
-  return new Uint8Array(mac)
+  const prk = new Uint8Array(await crypto.subtle.sign('HMAC', extractKey, ikm as unknown as BufferSource))
+  // Expand: T(1) = HMAC(PRK, info || 0x01) — cukup 1 blok utk len ≤ 32
+  const expandKey = await crypto.subtle.importKey(
+    'raw',
+    prk as unknown as BufferSource,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const t1 = new Uint8Array(
+    await crypto.subtle.sign('HMAC', expandKey, concatBytes(info, new Uint8Array([1])) as unknown as BufferSource)
+  )
+  return t1.slice(0, len)
 }
 
 // ─── VAPID JWT (RFC 8292, ES256) ─────────────────────────────────────────────
@@ -113,7 +129,8 @@ export async function createVapidJwt(endpoint: string, keys: CfVapidKeys): Promi
 
 export async function encryptAes128Gcm(
   payloadBytes: Uint8Array,
-  uaPublicKeyB64: string
+  uaPublicKeyB64: string,
+  authSecretB64: string
 ): Promise<Uint8Array> {
   // 1. Kunci publik user (subscription.keys.p256dh) → JWK
   const uaPublic = b64urlToBytes(uaPublicKeyB64)
@@ -151,20 +168,33 @@ export async function encryptAes128Gcm(
     b64urlToBytes(asJwk.y)
   )
 
-  // 3. Derivasi kunci RFC 8291 §3.3-3.4 (HMAC tunggal per langkah)
-  const PRK_key = await hmacSha256(new Uint8Array(16), ecdhSecret) // salt = 0x00*16
+  // 3. Derivasi kunci RFC 8291 §3.3-3.4 (HKDF penuh — Extract+Expand)
+  //    ikm = HKDF(salt = AUTH SECRET (dari subscription!), IKM = ECDH secret,
+  //               info = "WebPush: info" || 0x00 || uaPublic || asPublic, L = 32)
+  //    FIX FATAL #1: dulu salt-nya 0x00*16 — auth_secret BAHKAN TIDAK DIPAKAI
+  //    di seluruh file → device derivasi kunci beda → dekripsi gagal selalu.
   const enc = new TextEncoder()
-  const keyInfo = concatBytes(
-    enc.encode('WebPush: info'),
-    new Uint8Array([0]),
-    uaPublic,
-    asEphemeralPublic
+  const authSecret = b64urlToBytes(authSecretB64)
+  if (authSecret.length === 0) {
+    throw new Error('auth-secret-missing')
+  }
+  const ikm = await hkdf(
+    authSecret,
+    ecdhSecret,
+    concatBytes(
+      enc.encode('WebPush: info'),
+      new Uint8Array([0]),
+      uaPublic,
+      asEphemeralPublic
+    ),
+    32
   )
-  const IKM = await hmacSha256(PRK_key, keyInfo)
   const salt = crypto.getRandomValues(new Uint8Array(16))
-  const PRK = await hmacSha256(salt, IKM)
-  const CEK = (await hmacSha256(PRK, concatBytes(enc.encode('Content-Encoding: aes128gcm'), new Uint8Array([0])))).slice(0, 16)
-  const NONCE = (await hmacSha256(PRK, concatBytes(enc.encode('Content-Encoding: nonce'), new Uint8Array([0])))).slice(0, 12)
+  //    RFC 8188 §2: CEK = HKDF(salt header, ikm, "Content-Encoding: aes128gcm"||0x00, 16)
+  //                 NONCE = HKDF(salt header, ikm, "Content-Encoding: nonce"||0x00, 12)
+  //    FIX FATAL #2: dulu HKDF Expand dilewati (HMAC tunggal, tanpa 0x01)
+  const CEK = await hkdf(salt, ikm, concatBytes(enc.encode('Content-Encoding: aes128gcm'), new Uint8Array([0])), 16)
+  const NONCE = await hkdf(salt, ikm, concatBytes(enc.encode('Content-Encoding: nonce'), new Uint8Array([0])), 12)
 
   // 4. Record: payload || delimiter 0x02 (record terakhir) — RFC 8291 §3.5
   const record = concatBytes(payloadBytes, new Uint8Array([2]))
@@ -217,7 +247,9 @@ export async function sendPushNotificationCF(
     const jwt = await createVapidJwt(subscription.endpoint, vapid)
     const body = await encryptAes128Gcm(
       new TextEncoder().encode(payloadJson),
-      subscription.keys.p256dh
+      subscription.keys.p256dh,
+      // FIX: auth secret subscription WAJIB ikut derivasi kunci (RFC 8291 §3.3)
+      subscription.keys.auth
     )
 
     const res = await fetch(subscription.endpoint, {
