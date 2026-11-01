@@ -48,7 +48,11 @@ export async function GET(request: NextRequest) {
       // ⚠️ Kolom saldo = current_balance (kolom `balance` TIDAK ADA — probe
       // produksi 42703). Dulu insert pakai `balance: 0` → selalu gagal →
       // user baru PASTI kena 500 di halaman affiliate.
+      // FIX 23502: tabel produksi TIDAK punya DEFAULT di kolom id → insert
+      // tanpa id selalu gagal "null value violates not-null constraint".
+      // Isi id eksplisit di sini (tetap benar setelah SQL 20261101 dipasang).
       const { data: created, error: createErr } = await admin.from('affiliates').insert({
+        id: crypto.randomUUID(),
         user_id: authUser.id,
         referral_code: referralCode,
         total_earned: 0,
