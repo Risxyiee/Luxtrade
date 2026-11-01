@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSecureCookieOptions } from '@/lib/supabase/cookie-options'
 
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/contact', '/faq', '/terms', '/privacy', '/disclaimer', '/refund-policy', '/not-found', '/upgrade']
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
@@ -116,14 +117,20 @@ export async function middleware(request: NextRequest) {
       supabaseUrl,
       supabaseKey,
       {
+        // SECURITY (audit #5): override default library (secure:undefined,
+        // maxAge 400 hari) dengan cookie flags aman.
+        cookieOptions: getSecureCookieOptions(),
         cookies: {
           getAll() {
             return allCookies
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name: ckName, value: ckValue }) => {
+            cookiesToSet.forEach(({ name: ckName, value: ckValue, options: ckOptions }) => {
               request.cookies.set(ckName, ckValue)
-              response.cookies.set(ckName, ckValue)
+              // SECURITY (audit #5b): dulu `options` dari library DIBUANG di sini
+              // → cookie refresh kehilangan maxAge/secure. Sekarang diteruskan
+              // dan flag aman selalu menang.
+              response.cookies.set(ckName, ckValue, { ...ckOptions, ...getSecureCookieOptions() })
             })
           },
         },

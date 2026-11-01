@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createBrowserClient } from '@supabase/ssr'
+import { getSecureCookieOptions } from './supabase/cookie-options'
 
 function readEnv(name: string): string | undefined {
   const v = process.env[name]
@@ -48,7 +49,10 @@ export async function getClientBrowserAsync(): Promise<SupabaseClient | null> {
       }
 
       console.log(`[Supabase] Creating browser client with URL: ${config.url}`)
-      browserClient = createBrowserClient(config.url, config.anonKey) as any
+      // SECURITY (audit #5): cookie flags aman (secure di prod, sameSite lax)
+      browserClient = createBrowserClient(config.url, config.anonKey, {
+        cookieOptions: getSecureCookieOptions(),
+      }) as any
       return browserClient
     } catch (error) {
       console.error('[Supabase] Error initializing browser client:', error)
@@ -79,7 +83,10 @@ export function getClientBrowser(): SupabaseClient | null {
 
   if (config && config.anonKey) {
     console.log(`[Supabase] Creating browser client (sync) with URL: ${config.url}`)
-    browserClient = createBrowserClient(config.url, config.anonKey) as any
+    // SECURITY (audit #5): cookie flags aman (secure di prod, sameSite lax)
+    browserClient = createBrowserClient(config.url, config.anonKey, {
+      cookieOptions: getSecureCookieOptions(),
+    }) as any
     return browserClient
   }
 

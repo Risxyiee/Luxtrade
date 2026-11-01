@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { getSecureCookieOptions } from './cookie-options'
 
 function readEnv(name: string): string | undefined {
   const v = process.env[name]
@@ -35,6 +36,7 @@ export async function createClient() {
     // API routes will get auth errors gracefully instead of throwing
     const cookieStore = await cookies()
     return createServerClient(url, 'placeholder-key-not-configured', {
+      cookieOptions: getSecureCookieOptions(),
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value
@@ -56,6 +58,8 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(url, key, {
+    // SECURITY (audit #5): override default library dengan cookie flags aman
+    cookieOptions: getSecureCookieOptions(),
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value
@@ -131,6 +135,8 @@ export async function createClientForApi(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, key, {
+    // SECURITY (audit #5): override default library dengan cookie flags aman
+    cookieOptions: getSecureCookieOptions(),
     cookies: {
       get(name: string) {
         // Try Next.js parsed cookies first

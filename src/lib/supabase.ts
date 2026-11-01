@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
+import { getSecureCookieOptions } from '@/lib/supabase/cookie-options'
 
 function readEnv(name: string): string | undefined {
   const v = process.env[name]
@@ -47,6 +48,8 @@ export async function getServerClient(): Promise<SupabaseClient | null> {
       url,
       anon,
       {
+        // SECURITY (audit #5): override default library dengan cookie flags aman
+        cookieOptions: getSecureCookieOptions(),
         cookies: {
           getAll() {
             const allCookies = cookieStore.getAll()
@@ -56,7 +59,7 @@ export async function getServerClient(): Promise<SupabaseClient | null> {
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options)
+                cookieStore.set(name, value, { ...options, ...getSecureCookieOptions() })
               })
             } catch {
               // Ignore in static generation

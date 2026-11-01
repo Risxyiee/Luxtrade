@@ -5,6 +5,7 @@
 
 import { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { getSecureCookieOptions } from './cookie-options'
 
 /**
  * Create a Supabase client for API routes
@@ -15,6 +16,8 @@ export async function createSupabaseClient(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // SECURITY (audit #5): override default library dengan cookie flags aman
+      cookieOptions: getSecureCookieOptions(),
       cookies: {
         get(name: string) {
           return request.cookies.get(name)?.value
