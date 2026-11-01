@@ -150,6 +150,8 @@ DYNAMIC_API_DIRS=(
   "admin/social-links/[id]"
   "admin/plans/[id]"
   "social-links/[id]"
+  "prop-firm/[id]"
+  "targets/[id]"
 )
 
 gsp_count=0
@@ -158,7 +160,10 @@ for dir in "${DYNAMIC_API_DIRS[@]}"; do
   if [ -d "$route_dir" ]; then
     while IFS= read -r -d '' f; do
       if ! grep -q "generateStaticParams" "$f" 2>/dev/null; then
-        sed -i "/export const dynamic = 'force-static';/a\\
+        # Anchor TANPA trailing ';' — beberapa file menulis
+        # `export const dynamic = 'force-static'` tanpa semicolon
+        # (dikonversi dari force-dynamic oleh STEP 2 apa adanya).
+        sed -i "/^export const dynamic = 'force-static'/a\\
 export async function generateStaticParams() { return [{ id: '_' }] }" "$f"
         gsp_count=$((gsp_count + 1))
       fi
