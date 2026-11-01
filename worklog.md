@@ -4058,3 +4058,20 @@ sehat; masalah di "last mile" — dan setelah dibedah, masalahnya DI SISTEM KITA
 2. Kirim Notifikasi Tes → keluar app (jangan kill) → kunci layar → 30 dtk.
 3. Baca hasil per-device: okDevice / wrongDevice / partial / noReport.
 4. noReport → Resubscribe & Tes Ulang (token baru) → ulangi prosedur.
+
+## 2026-11-XX — FASE 5.5 — Bukti SW Sehat + Fix CSP Report "unparsed"
+
+### Bukti dari lapangan (screenshot Bos 08.42)
+- **Tes Tampil (Lokal) MUNCUL sebagai banner di HP** → izin notif + service
+  worker + showNotification di PWA iPhone = SEHAT 100%.
+- Token iPhone fresh ("baru saja") → resync/subscribe ulang jalan.
+- Kesimpulan: satu-satunya variabel tersisa = PENGIRIMAN push (prosedur tes
+  foreground / token lama saat tes sebelumnya) — menunggu tes background
+  dgn prosedur benar + receipt tanpa auth sebagai hakim akhir.
+
+### Fix kecil (log bersih + data CSP)
+- `/api/security/csp-report`: gate content-type hanya cek 'json' → semua
+  laporan format standar `application/csp-report` (report-uri, mayoritas
+  browser) jatuh ke "unparsed content-type" (warn di log) dan TIDAK masuk
+  tabel csp_violations. Sekarang `csp-report` diterima & diparse — warn
+  hilang + papan CSP admin (/dashboard/admin/csp) dapat data lengkap.

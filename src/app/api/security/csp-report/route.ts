@@ -85,7 +85,11 @@ export async function POST(request: NextRequest) {
       return new NextResponse(null, { status: 204 })
     }
 
-    if (contentType.includes('replies+json') || contentType.includes('json')) {
+    // FIX: browser klasik kirim `application/csp-report` (report-uri) —
+    // dulu gate cuma cek 'json' → semua laporan format standar jatuh ke
+    // "unparsed" (warn di log + TIDAK PERNAH masuk papan csp_violations).
+    // Body kedua format sama-sama JSON → parse keduanya.
+    if (contentType.includes('csp-report') || contentType.includes('json')) {
       // Application/reports+json → array; application/csp-report → { "csp-report": {...} }
       const parsed: unknown = JSON.parse(raw)
       const report = Array.isArray(parsed) ? parsed[0] : parsed
