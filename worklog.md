@@ -3880,3 +3880,49 @@ notifikasi beneran MUNCUL di layar HP saat tes → kalau ya, FASE 5 resmi tutup.
 
 ### Gerbang
 - tsc + lint EXIT 0.
+
+## 2026-11-01 — FASE 5.2 — Verifikasi Log Produksi + Tutup Lubang Subrequest Sisa
+
+### Bukti dari Bos (log CF versi 36098804 + 2 screenshot)
+- Log `[web-push] Node sender gak didukung runtime ini → kirim pakai
+  CF-native sender (fallback permanen isolate ini)` = **WARN sesuai desain**
+  fix sebelumnya — BUKAN error. Fix terbukti aktif di produksi.
+- Screenshot: toggle push HIJAU ("Aktif — notif masuk ke HP") + tombol tes
+  "Terkirim! Cek HP kamu 📱" (reason=ok, sent>0) → pipeline push produksi
+  sehat end-to-end. Pengaturan notifikasi (in-app, email harian, alert
+  Big Win/Loss/streak/batas rugi + threshold) tampil normal.
+
+### Lubang yang ditemukan Z (subrequest gelombang kedua)
+FASE 2 briefing (auto-acc email + QA sweep + E2E + talk CSO×CMO + auto-post
++ NBA) dulu jalan via `waitUntil` → MASIH invokasi sama dengan FASE 1 →
+budget ±50 subrequest (CF Workers free) bisa jebol lagi di tengah jalan:
+auto-acc bisa 50 penerima (1 fetch email + 2 subrequest kvIncr kuota per
+penerima!) + QA sweep 14 fetch + E2E 10 + talk/NBA ±10 per LLM. Gejala:
+email berhenti diam-diam, lampiran QA/talk/NBA hilang tanpa jejak.
+
+### Fix
+1. **FASE 2 → 3 invokasi terpisah** (pola self-heal watchdog): briefing
+   sekarang men-fire self-call `action=briefing-extras&step=emails|qa|talk`
+   (fire-and-forget via waitUntil) → tiap langkah dapat budget subrequest
+   BARU. Briefing manual dari browser forward header Authorization (sesi
+   owner) supaya invokasi anak lolos email-gate. Fallback inline 'all'
+   dipertahankan kalau req tidak tersedia.
+2. **Action baru `briefing-extras`**: context dibaca dari agent_kv
+   (`autoacc` + `briefing:last`) — URL self-call tetap pendek. `briefingExtras`
+   dapat filter step; merge ke `briefing:last` sekarang baca-FRESH→tulis-utuh
+   supaya 3 invokasi paralel tidak saling menimpa hasil FASE 1.
+3. **Cap email auto-acc 20/hari** (A vakum 12 + B never 8; sebelumnya 50):
+   tiap email = 1 fetch → budget invokasi emails ±47/50 aman. Resend free
+   100/hari tetap longgar. Counter kuota `email:<tgl>` di-BATCH: 1× baca +
+   1× tulis per run (dulu kvIncr per email = 2 subrequest × N penerima).
+4. **web-push deteksi PROAKTIF**: `navigator.userAgent === 'Cloudflare-Workers'`
+   (workerd) → `_nodePathBroken` diset sejak modul dimuat → kirim PERTAMA
+   di tiap isolate sudah langsung CF-native, tanpa 1 percobaan Node sia-sia
+   + tanpa log warn lagi. Catch unenv tetap jadi pengaman kedua.
+
+### Anggaran subrequest per invokasi (setelah fix, free plan ±50)
+- watchdog ±15-25 ✅ · briefing FASE 1 ±35-45 ✅ · step=emails ±47 ✅
+- step=qa ±34 ✅ · step=talk ±35 ✅
+
+### Gerbang
+- tsc + lint EXIT 0. Push → CF deploy otomatis.

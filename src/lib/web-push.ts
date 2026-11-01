@@ -232,6 +232,15 @@ export interface PushSendResult {
  */
 let _nodePathBroken = false
 
+/* Deteksi PROAKTIF runtime CF Workers (navigator.userAgent === 'Cloudflare-Workers'
+   di workerd — dokumentasi resmi Cloudflare): jalur Node langsung ditandai patah
+   sejak modul dimuat → kirim PERTAMA pun sudah bersih tanpa 1 percobaan sia-sia
+   + tanpa log warn. Deteksi runtime (catch unenv) di bawah tetap dipertahankan
+   sebagai pengaman kedua kalau penanda userAgent berubah. */
+if (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') {
+  _nodePathBroken = true
+}
+
 export async function sendPushNotification(
   subscription: PushSubscriptionData,
   payload: PushPayload

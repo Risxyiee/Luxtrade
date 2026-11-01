@@ -1033,7 +1033,7 @@ async function briefingFailEmail(e: Env, discordErr: string, briefingText: strin
   }).catch(() => {})
 }
 
-async function runMorningBriefing(e: Env) {
+async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   /* FASE 1 — LAPORAN INTI, DIKIRIM SECEPAT MUNGKIN.
      Riwayat insiden: dulu QA sweep + E2E login + AUTO-ACC (±50 email
      berurutan) dijalankan SEBELUM laporan dikirim → total sering >120 dtk →
@@ -1123,7 +1123,40 @@ async function runMorningBriefing(e: Env) {
   /* FASE 2 — lampiran & ekstra TIDAK BLOKIR response: auto-acc email,
      QA + E2E, diskusi CSO×CMO, NBA. cfWaitUntil → tetap jalan di Worker
      setelah response dikirim (kalau waitUntil tak tersedia → tetap dicoba). */
-  cfWaitUntil(briefingExtras(e, { day, autoOn, briefingText: text, summary }).catch(() => {}))
+  /* FIX "Too many subrequests" GELOMBANG KEDUA (log produksi): FASE 2 dulu
+     jalan via waitUntil — MASIH invokasi yang sama dgn FASE 1 → budget
+     ±50 subrequest CF Workers free TETAP bisa habis di tengah jalan
+     (auto-acc email bisa 50 penerima × 3 subrequest, QA sweep 14, E2E 10,
+     talk + NBA masing-masing ±10) → email berhenti diam-diam, lampiran
+     QA/talk/NBA hilang tanpa jejak.
+     Kini tiap langkah dipicu sbg INVOKASI TERPISAH via self-call HTTP
+     (pola yang sama dengan self-heal watchdog): invokasi baru = budget
+     subrequest BARU. Tiap langkah punya dedup harian sendiri (acc_email /
+     lamp:qa / cso-cmo / nba / cmo:posted) → re-run briefing tidak dobel
+     kirim. Tanpa req (mis. pemanggilan lama) → fallback inline waitUntil. */
+  try {
+    if (!req) throw new Error('req tidak tersedia')
+    const auth = req.headers.get('authorization') || ''
+    for (const step of ['emails', 'qa', 'talk']) {
+      const u2 = new URL(req.url)
+      u2.searchParams.set('action', 'briefing-extras')
+      u2.searchParams.set('step', step)
+      if (cronKey) u2.searchParams.set('key', cronKey)
+      cfWaitUntil(
+        fetch(u2.toString(), {
+          method: 'GET',
+          /* Briefing manual dari browser Bos tidak bawa CRON_SECRET →
+             forward sesi owner supaya invokasi anak lolos email-gate. */
+          headers: !cronKey && auth ? { Authorization: auth } : undefined,
+          signal: timeoutSignal(115_000),
+        })
+          .then((r) => console.log(`[briefing] fase-2 "${step}" (invokasi terpisah) → HTTP ${r.status}`))
+          .catch((x: any) => console.warn(`[briefing] fase-2 "${step}" gagal dipicu:`, String(x?.message || x)))
+      )
+    }
+  } catch {
+    cfWaitUntil(briefingExtras(e, { day, autoOn, briefingText: text, summary }).catch(() => {}))
+  }
 
   return summary
 }
@@ -1131,14 +1164,18 @@ async function runMorningBriefing(e: Env) {
 /* FASE 2 briefing — pekerjaan lambat SETELAH laporan utama aman di Discord.
    Semua hasil dikirim sebagai PESAN DISCORD TERPISAH + briefing:last
    di-merge supaya dashboard Ruang CEO tetap lengkap. */
-async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; briefingText: string; summary: Record<string, unknown> }): Promise<void> {
+async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; briefingText: string; summary: Record<string, unknown> }, step = 'all'): Promise<void> {
   const { day, autoOn, briefingText, summary } = ctx
+  /* step = 'emails' | 'qa' | 'talk' | 'all' — tiap langkah kini dijalankan
+     di INVOKASI TERPISAH (budget subrequest sendiri, lihat runMorningBriefing).
+     'all' hanya dipakai fallback inline lama. */
+  const runStep = (s: string) => step === 'all' || step === s
 
   /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
      (1×/hari, dedup via agent_kv acc_email:<tanggal>). Bos tidur, karyawan kerja.
      ±50 email berurutan itu LAMA — dulu bikin briefing lewat timeout cron. */
   try {
-    if (autoOn && !(await kvGet(e, `acc_email:${day}`))) {
+    if (runStep('emails') && autoOn && !(await kvGet(e, `acc_email:${day}`))) {
       await kvSet(e, `acc_email:${day}`, new Date().toISOString())
       let autoAcc = ''
       if (cfSecret(e, 'RESEND_API_KEY')) {
@@ -1153,7 +1190,7 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
   /* QA + E2E — Raka sweep semua fitur (lama) → hasil jadi LAMPIRAN terpisah.
      Dedup per hari supaya self-heal/manual re-run tidak dobel kirim. */
   try {
-    if (!(await kvGet(e, `lamp:qa:${day}`))) {
+    if (runStep('qa') && !(await kvGet(e, `lamp:qa:${day}`))) {
       await kvSet(e, `lamp:qa:${day}`, new Date().toISOString())
       const [qa, e2e] = await Promise.all([
         qaAgent(e).catch((x: any) => ({ total: 0, ok: 0, fails: [], avgMs: 0, err: String(x?.message || x) })),
@@ -1183,12 +1220,12 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
   /* DISKUSI HARIAN CSO × CMO — 1×/hari. Pesan Discord terpisah + panel
      Ruang CSO. Kalau Bos sudah jalankan manual hari ini → skip (no duplikat). */
   try {
-    if (!(await kvGet(e, `cso-cmo:${day}`))) {
+    if (runStep('talk') && !(await kvGet(e, `cso-cmo:${day}`))) {
       await kvSet(e, `cso-cmo:${day}`, new Date().toISOString())
       const talk = await csoCmoTalk(e)
       summary.talk = talk
       try { await sendDiscord(e, talkToDiscord(talk)); summary.talkSent = true } catch { /* ignore */ }
-    } else {
+    } else if (runStep('talk')) {
       const raw = await kvGet(e, 'cso-cmo:last')
       if (raw) summary.talk = JSON.parse(raw)
     }
@@ -1200,7 +1237,7 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
      di cmoAgent) supaya Fase 1 laporan tetap <60 dtk — pelajaran Task 29.
      Tanpa token → status JUJUR "belum diset", tidak ada simulasi sukses. */
   try {
-    if (!(await kvGet(e, `cmo:posted:${day}`)) && (await kvGet(e, 'cmo:autopost')) !== 'off') {
+    if (runStep('talk') && !(await kvGet(e, `cmo:posted:${day}`)) && (await kvGet(e, 'cmo:autopost')) !== 'off') {
       let draftText = ''
       try { draftText = String(JSON.parse((await kvGet(e, `cmo:${day}`)) || 'null')?.draft || '') } catch { /* ignore */ }
       if (draftText) {
@@ -1221,20 +1258,25 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
   /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
      (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */
   try {
-    if (!(await kvGet(e, `nba:${day}`))) {
+    if (runStep('talk') && !(await kvGet(e, `nba:${day}`))) {
       await kvSet(e, `nba:${day}`, new Date().toISOString())
       const t = await nextBestAction(e, briefingText)
       if (t) summary.nba = { at: new Date().toISOString(), text: t }
-    } else {
+    } else if (runStep('talk')) {
       const raw = await kvGet(e, 'nba:last')
       if (raw) summary.nba = JSON.parse(raw)
     }
   } catch { /* opsional */ }
 
-  /* Merge hasil fase 2 ke briefing:last (dashboard Ruang CEO lengkap). */
+  /* Merge hasil langkah ini ke briefing:last (dashboard Ruang CEO tetap
+     lengkap). Baca FRESH → tulis utuh: invokasi paralel antar langkah
+     tidak saling menimpa hasil FASE 1 / langkah lain. */
   try {
-    summary.partial = false
-    await kvSet(e, 'briefing:last', JSON.stringify(summary))
+    const raw = await kvGet(e, 'briefing:last')
+    const last = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>
+    Object.assign(last, summary)
+    last.partial = false
+    await kvSet(e, 'briefing:last', JSON.stringify(last))
   } catch { /* ignore */ }
 }
 /* ---------- flow "ACC EMAIL": email ke user pasif ----------
@@ -1341,7 +1383,10 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
                          → email rasa kangen/nilai jurnal (nada lama).
      GRUP B "never"    : BELUM pernah upload 1 trade pun & akun ≥3 hari
                          (baru daftar <3 hari tidak diganggu) → email ajakan pertama.
-     Maks total 50: A 30 + B 20 (Resend free 100/hari tetap aman). */
+     Maks total 20 (A 12 + B 8): selain Resend free 100/hari tetap aman, tiap
+     email = 1 fetch + langkah ini kini jalan di invokasi sendiri yang dibatasi
+     CF Workers free ±50 subrequest → 50 penerima dulu bikin budget jebol di
+     tengah antrean (email berhenti diam-diam). 20 = aman dgn headroom LLM/KV. */
   const tradeMap0 = await buildPerUserTradeMap(e)
 
   /* 🔗 UNIFIKASI COOLDOWN KARYAWAN (penutup temuan AUTO-ACC): lead yang sedang
@@ -1370,10 +1415,10 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
   const allTargets = profiles.filter((p) => p.email && p.id && !activeIds.has(p.id)
     && !cooledIds.has(p.id as string)
     && !cooledEmails.has(normEmail(p.email)))
-  const dormant = allTargets.filter((p) => (tradeMap0.get(p.id as string)?.n || 0) > 0).slice(0, 30)
+  const dormant = allTargets.filter((p) => (tradeMap0.get(p.id as string)?.n || 0) > 0).slice(0, 12)
   const never = allTargets
     .filter((p) => !(tradeMap0.get(p.id as string)?.n) && p.created_at && Date.now() - new Date(p.created_at).getTime() >= 3 * 86400_000)
-    .slice(0, 20)
+    .slice(0, 8)
   const targets = [...dormant, ...never]
 
   /* SOP Multi-Agent — MAYA (CSO) meracik draf email hari ini pakai model
@@ -1466,8 +1511,17 @@ async function sendPassiveEmails(e: Env): Promise<{ sent: number; ids: string[];
       sent++
       if (isDormant) sentDormant++; else sentNever++
       emailedIds.push(p.id as string)
-      await kvIncr(e, `email:${wibDay()}`).catch(() => {}) // CFO: pantau kuota Resend
     }
+  }
+  /* CFO: pantau kuota Resend — DI-BATCH 1× tulis. Dulu kvIncr per email =
+     2 subrequest per penerima (makan habis budget ±50 CF Workers free).
+     Hitung ulang dari 0 + sent tetap akurat: dedup harian menjamin satu
+     pengirim per hari, jadi tidak ada penulis paralel. */
+  if (sent) {
+    try {
+      const prev = parseInt((await kvGet(e, `email:${wibDay()}`)) || '0', 10)
+      await kvSet(e, `email:${wibDay()}`, String(prev + sent))
+    } catch { /* opsional */ }
   }
   /* simpan siapa saja yang di-email hari ini → besok dihitung "balik aktif" */
   if (emailedIds.length) await kvSet(e, `csmailed:${wibDay()}`, JSON.stringify(emailedIds.slice(0, 50))).catch(() => {})
@@ -2582,7 +2636,21 @@ async function handle(req: Request): Promise<Response> {
 
   switch (action) {
     case 'briefing':
-      return j(await runMorningBriefing(e))
+      return j(await runMorningBriefing(e, req, key))
+    case 'briefing-extras': {
+      /* FASE 2 briefing — dipicu runMorningBriefing sbg self-call (invokasi
+         terpisah = budget subrequest baru, fix "Too many subrequests").
+         ?step=emails|qa|talk · context dibaca dari agent_kv (autoacc +
+         briefing:last) supaya URL self-call tetap pendek. */
+      const step = (url.searchParams.get('step') || 'all').toLowerCase()
+      const day = wibDay()
+      const autoOn = (await kvGet(e, 'autoacc').catch(() => null)) !== 'off'
+      let briefingText = ''
+      try { briefingText = String((JSON.parse((await kvGet(e, 'briefing:last')) || 'null') as { text?: string } | null)?.text || '') } catch { /* ignore */ }
+      const summary: Record<string, unknown> = { extrasAt: new Date().toISOString(), extrasStep: step }
+      await briefingExtras(e, { day, autoOn, briefingText, summary }, step).catch(() => {})
+      return j({ ok: true, step, ...summary })
+    }
     case 'briefing-last': {
       const raw = await kvGet(e, 'briefing:last')
       return raw ? j(JSON.parse(raw)) : j({ error: 'belum ada briefing' }, 404)
@@ -2996,6 +3064,7 @@ async function handle(req: Request): Promise<Response> {
         owner: ownerEmail(e),
         actions: [
           'action=briefing (POST/GET) — laporan harian ke Discord: inti dulu (<60 dtk), lampiran QA/E2E + diskusi + NBA menyusul sebagai pesan terpisah',
+          'action=briefing-extras [&step=emails|qa|talk] — fase 2 briefing di invokasi terpisah (fix budget subrequest CF Workers; dipicu otomatis oleh briefing)',
           'action=agents[&only=cto,cso,cfo] — data agen (subset via only)',
           'action=diag — diagnostik env & tes query Supabase (Ruang CTO)',
           'action=quota — laporan kuota (CFO)',
