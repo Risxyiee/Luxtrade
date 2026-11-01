@@ -4,4 +4,20 @@
     <string name="title_activity_main">LuxTradee</string>
     <string name="package_name">web.id.luxtradee</string>
     <string name="custom_url_scheme">web.id.luxtradee</string>
+
+    <!-- preferences.xml — pengaturan notifikasi/display/cache -->
+    <string name="pref_notifications">Notifikasi</string>
+    <string name="pref_trades_notif">Notifikasi Trade</string>
+    <string name="pref_alerts_notif">Notifikasi Alert</string>
+    <string name="pref_twa_mode">Mode TWA</string>
+    <string name="pref_twa_mode_summary">Jalankan aplikasi sebagai Trusted Web Activity</string>
+    <string name="pref_cache">Cache</string>
+    <string name="pref_clear_cache">Bersihkan Cache</string>
+    <string name="pref_clear_cache_summary">Hapus cache aplikasi</string>
+
+    <!-- shortcuts.xml — shortcut launcher -->
+    <string name="shortcut_log_trade">Catat Trade</string>
+    <string name="shortcut_log_trade_long">Catat trade baru di LuxTradee</string>
+    <string name="shortcut_analytics">Analitik</string>
+    <string name="shortcut_analytics_long">Lihat analitik trading kamu</string>
 </resources>
