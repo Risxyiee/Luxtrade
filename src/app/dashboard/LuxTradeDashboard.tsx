@@ -33,7 +33,6 @@ import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
 import DemoDataModal from './components/DemoDataModal'
 import DashboardCSBotWidget from '@/components/dashboard/DashboardCSBotWidget'
-import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 
 
 // Extracted Utils & Hooks
@@ -1209,14 +1208,6 @@ function LuxTradeDashboardContent() {
 
         {/* Banner install aplikasi (Android APK / iOS guide) — dismissible, persist di localStorage */}
         <AppInstallBanner />
-
-        {/* Welcome onboarding checklist — dismissible, persist di localStorage */}
-        <OnboardingChecklist
-          onNavigate={setActiveTab}
-          onAddTrade={() => setAddTradeOpen(true)}
-          onUpgrade={() => setPlanSelectionModalOpen(true)}
-          isPro={isPro}
-        />
 
         {/* Tab Content */}
         <TabContent

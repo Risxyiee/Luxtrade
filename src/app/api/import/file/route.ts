@@ -304,14 +304,33 @@ function parseTextTrades(text: string): ParsedTrade[] {
 }
 
 // ==================== PARSE CSV ====================
+// MT5/MT4 export CSV sering pakai delimiter selain koma:
+// - "File → Save As → CSV" MT5      : koma
+// - Copy-paste dari tab Report MT5  : TAB
+// - Locale Eropa (Excel)            : titik-koma
+function detectCSVDelimiter(headerLine: string): string {
+  const candidates = [',', '\t', ';']
+  let best = ','
+  let bestCount = 0
+  for (const d of candidates) {
+    const count = headerLine.split(d).length - 1
+    if (count > bestCount) {
+      best = d
+      bestCount = count
+    }
+  }
+  return best
+}
+
 function parseCSV(content: string): ParsedTrade[] {
   const trades: ParsedTrade[] = []
-  const lines = content.split('\n').filter(l => l.trim())
+  const lines = content.split(/\r?\n/).filter(l => l.trim())
   
   if (lines.length < 2) return []
   
-  // Parse header
-  const headers = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''))
+  // Parse header — delimiter dideteksi otomatis (koma / tab / titik-koma)
+  const delimiter = detectCSVDelimiter(lines[0])
+  const headers = lines[0].toLowerCase().split(delimiter).map(h => h.trim().replace(/"/g, ''))
   
   // Find column indices
   const findIndex = (...keywords: string[]) => {
@@ -331,11 +350,11 @@ function parseCSV(content: string): ParsedTrade[] {
   const profitIdx = findIndex('profit', 'pnl', 'p/l', 'pl')
   const timeIdx = findIndex('time', 'date', 'open_time')
   
-  console.log(`📊 CSV columns - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Open: ${openPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}`)
+  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Open: ${openPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}`)
   
   // Parse rows
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''))
+    const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, ''))
     if (values.length < 3) continue
     
     const symbol = symbolIdx >= 0 ? values[symbolIdx]?.toUpperCase() : ''

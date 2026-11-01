@@ -807,7 +807,7 @@ export default function TradeWizardForm({
                   <Input
                     id="mt5-file"
                     type="file"
-                    accept=".csv,.txt,.xlsx,.xls"
+                    accept=".csv,.txt,.html,.htm,.pdf"
                     className="bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-xs"
                     onChange={handleMT5Upload}
                     disabled={uploadingMT5}
@@ -821,7 +821,7 @@ export default function TradeWizardForm({
                     ) : (
                       <>
                         <FileText className="w-3 h-3" />
-                        <span>{L ? 'Statement MT5' : 'MT5 Statement'}</span>
+                        <span>{L ? 'Statement MT5 (HTML/CSV/PDF)' : 'MT5 Statement (HTML/CSV/PDF)'}</span>
                       </>
                     )}
                   </div>
