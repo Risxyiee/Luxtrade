@@ -97,45 +97,71 @@ export default {
 
     console.log(`[cron] Triggered: ${event.cron} → ${routes.join(', ')}`)
 
-    for (const route of routes) {
-      ctx.waitUntil(
-        (async () => {
-          try {
-            const isCeo = ceoRoute(route)
-            // ceo-agent otentikasi via ?key=CRON_SECRET (isCron) ATAU
-            // ?key=ADMIN_SECRET (isAdmin). Fallback ke ADMIN_SECRET kalau
-            // CRON_SECRET belum diset — cron laporan 08:00 tidak lagi
-            // gagal 401 secara senyap.
-            const ceoKey = env.CRON_SECRET || env.ADMIN_SECRET
-            let path = route
-            if (isCeo && ceoKey)
-              path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(ceoKey)
+    // Semua route paralel (satu waitUntil induk — perilaku setara, tapi
+    // hasilnya terkumpul untuk health monitor di bawah).
+    ctx.waitUntil((async () => {
+      const failures: { route: string; status?: number; error?: string }[] = []
 
-            const headers = { 'Content-Type': 'application/json' }
-            if (cronSecret) {
-              headers['Authorization'] = `Bearer ${cronSecret}`
-              // FIX 401 pine-alerts: kirim DUA format sekaligus — route
-              // yang membaca x-cron-secret (bukan Bearer) tetap lolos.
-              headers['x-cron-secret'] = cronSecret
-            }
+      await Promise.all(routes.map(async (route) => {
+        try {
+          const isCeo = ceoRoute(route)
+          // ceo-agent otentikasi via ?key=CRON_SECRET (isCron) ATAU
+          // ?key=ADMIN_SECRET (isAdmin). Fallback ke ADMIN_SECRET kalau
+          // CRON_SECRET belum diset — cron laporan 08:00 tidak lagi
+          // gagal 401 secara senyap.
+          const ceoKey = env.CRON_SECRET || env.ADMIN_SECRET
+          let path = route
+          if (isCeo && ceoKey)
+            path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(ceoKey)
 
-            const res = await fetch(`${siteUrl}${path}`, {
-              method: 'GET',
-              headers,
-              signal: AbortSignal.timeout(timeoutFor(route)),
-            })
-
-            if (!res.ok) {
-              console.error(`[cron] ${route} → ${res.status}`)
-            } else {
-              const body = await res.text()
-              console.log(`[cron] ${route} OK:`, body.substring(0, 200))
-            }
-          } catch (err) {
-            console.error(`[cron] ${route} error:`, err?.message || err)
+          const headers = { 'Content-Type': 'application/json' }
+          if (cronSecret) {
+            headers['Authorization'] = `Bearer ${cronSecret}`
+            // FIX 401 pine-alerts: kirim DUA format sekaligus — route
+            // yang membaca x-cron-secret (bukan Bearer) tetap lolos.
+            headers['x-cron-secret'] = cronSecret
           }
-        })()
-      )
-    }
+
+          const res = await fetch(`${siteUrl}${path}`, {
+            method: 'GET',
+            headers,
+            signal: AbortSignal.timeout(timeoutFor(route)),
+          })
+
+          if (!res.ok) {
+            console.error(`[cron] ${route} → ${res.status}`)
+            failures.push({ route, status: res.status })
+          } else {
+            const body = await res.text()
+            console.log(`[cron] ${route} OK:`, body.substring(0, 200))
+          }
+        } catch (err) {
+          const msg = err?.message || String(err)
+          console.error(`[cron] ${route} error:`, msg)
+          failures.push({ route, error: msg })
+        }
+      }))
+
+      // ── Health monitor: LAPOR SELALU ke /api/cron/health-alert ──
+      // failures kosong = heartbeat sukses (dicatat ke cron_runs);
+      // failures > 0 = push + email ke admin (throttle 30 menit di route).
+      // Dulu: route gagal cuma muncul di log CF (sering tidak dilihat).
+      try {
+        const haRes = await fetch(`${siteUrl}/api/cron/health-alert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(cronSecret
+              ? { Authorization: `Bearer ${cronSecret}`, 'x-cron-secret': cronSecret }
+              : {}),
+          },
+          body: JSON.stringify({ cron: event.cron, failures, checked: routes, ts: new Date().toISOString() }),
+          signal: AbortSignal.timeout(15_000),
+        })
+        console.log(`[cron] health-alert → ${haRes.status}`)
+      } catch (e) {
+        console.error('[cron] health-alert error:', e?.message || e)
+      }
+    })())
   },
 }

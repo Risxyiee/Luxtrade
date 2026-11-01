@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, fetchAllRows } from '@/lib/cron-supabase'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { pushToUsers } from '@/lib/push-notify'
 
 /**
  * GET /api/cron/econ-calendar-notify
@@ -67,13 +68,16 @@ export async function GET(request: NextRequest) {
     // 2. Find events happening in the next 15 minutes
     const now = Date.now()
     const fifteenMin = 15 * 60 * 1000
-    const fiveMin = 5 * 60 * 1000
+    // Jendela (1 min .. 15 min]: cron jalan tiap 15 menit, jadi tiap event
+    // jatuh di tepat satu jendela. Threshold lama 5 menit MEMBUANG event
+    // di menit ke-16..20 setelah tick sebelumnya (diff < 5 saat tick berikut).
+    const oneMin = 60 * 1000
     const upcomingEvents = events.filter(evt => {
       if (evt.currency !== 'USD' || evt.impact !== 'high') return false
       const eventTime = new Date(evt.dateTime).getTime()
       const diff = eventTime - now
-      // Between 5 and 15 minutes from now (to avoid duplicate notifications)
-      return diff > fiveMin && diff <= fifteenMin
+      // Between 1 and 15 minutes from now (dedupe antar-tick via window)
+      return diff > oneMin && diff <= fifteenMin
     })
 
     if (upcomingEvents.length === 0) {
@@ -86,10 +90,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Database unavailable' })
     }
 
-    // 4. Find Pro users with push subscriptions
-    // Note: We send to ALL Pro users with push subscriptions - the client-side
-    // econ_cal_notify localStorage flag is a local preference, but for server-side
-    // we send to all Pro users since this is a critical market event alert
+    // 4. Find Pro users with push subscriptions + match currency watchlist
     const proUsers = await fetchAllRows<any>((from, to) =>
       admin.from('profiles')
         .select('id')
@@ -102,32 +103,58 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, notified: 0, message: 'No Pro users found' })
     }
 
-    // 5. Send push notifications for each upcoming event
-    const results: { event: string; success?: boolean; error?: string; notified?: number; [key: string]: any }[] = []
+    // Currency matching: user peduli event jika mata uangnya ada di watchlist
+    // (EURUSD → EUR+USD; XAUUSD → XAU+USD). Tanpa watchlist → USD saja
+    // (USD high-impact menggerakkan semua pair utama & gold).
+    const watchRows = await fetchAllRows<any>((from, to) =>
+      admin.from('watchlist')
+        .select('user_id,symbol')
+        .in('user_id', userIds)
+        .range(from, to)
+    )
+    const currByUser = new Map<string, Set<string>>()
+    for (const row of watchRows || []) {
+      const uid = row?.user_id
+      const sym = String(row?.symbol || '').toUpperCase().replace(/[^A-Z]/g, '')
+      if (!uid || sym.length < 6) continue
+      const set = currByUser.get(uid) ?? new Set<string>()
+      set.add(sym.slice(0, 3))
+      set.add(sym.slice(3, 6))
+      currByUser.set(uid, set)
+    }
+
+    // 5. Push langsung via pushToUsers (satu pintu — TANPA self-fetch ke
+    // send-batch): otomatis masuk feed in-app Bell + hygiene endpoint mati.
+    const results: { event: string; targets?: number; pushSent?: number; error?: string; message?: string }[] = []
     for (const evt of upcomingEvents) {
       try {
-        const pushRes = await fetch(`${siteUrl}/api/push/send-batch`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // P0: kirim CRON_SECRET saja (dulu: VAPID_PRIVATE_KEY || CRON_SECRET —
-            // secret yang salah; send-batch sekarang memvalidasi CRON_SECRET).
-            'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`,
-          },
-          body: JSON.stringify({
-            userIds,
-            title: `⚠️ High-Impact USD Event: ${evt.event}`,
+        const targets = userIds.filter(uid => {
+          const cur = currByUser.get(uid)
+          if (!cur || cur.size === 0) return evt.currency === 'USD'
+          return cur.has(evt.currency)
+        })
+        if (targets.length === 0) {
+          results.push({ event: evt.event, message: 'no watchlist match for ' + evt.currency })
+          continue
+        }
+
+        const sent = await pushToUsers(
+          admin,
+          targets,
+          {
+            title: `⚠️ High-Impact ${evt.currency} Event: ${evt.event}`,
             body: `Starting in ~15 min at ${evt.time} UTC. Forecast: ${evt.forecast || 'N/A'}. Stay alert!`,
             icon: '/icon-192x192.png',
             badge: '/icon-72x72.png',
             url: '/dashboard?tab=economic-calendar',
             tag: `econ-cal-${evt.id}`,
             type: 'news',
-          }),
-          signal: AbortSignal.timeout(30000),
-        })
-        const pushData = await pushRes.json()
-        results.push({ event: evt.event, ...pushData })
+            urgency: 'high',
+          },
+          { delayMs: 30 }
+        )
+        const pushSent = sent.filter(r => r.sent > 0).length
+        results.push({ event: evt.event, targets: targets.length, pushSent })
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         results.push({ event: evt.event, error: msg })
