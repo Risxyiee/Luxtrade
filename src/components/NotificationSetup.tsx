@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail } from 'lucide-react'
+import { Bell, BellOff, Loader2, AlertCircle, Smartphone } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
@@ -23,21 +23,10 @@ const strings = {
     denied: 'Izin ditolak. Buka Settings → Notifications → LuxTradee',
     iosSafariWarning: 'Di iPhone, notifikasi push cuma jalan kalau app di-install ke Home Screen.',
     iosInstallBtn: 'Cara Install',
-    emailNote: 'Email alert aktif sebagai fallback di iPhone',
     pushLabel: 'Push Notifications',
     iosBannerTitle: 'Aktifkan Push di iPhone',
     iosBannerDesc: 'Install LuxTradee ke Home Screen biar push notification bisa jalan.',
     iosBannerAction: 'Lihat Cara Install',
-    autoTitle: 'Notifikasi yang kamu terima otomatis',
-    autoItems: [
-      '🚨 Prop firm guard — loss limit / akun berisiko',
-      '📈 Pine strategy signals — BUY/SELL live',
-      '🎯 Price alerts — watchlist kena target',
-      '💥 Big win / big loss / streak / daily loss limit',
-      '📅 Economic calendar — 15 menit sebelum high impact',
-      '🌅 Daily journal reminder (pagi)',
-      '📊 Weekly recap (Senin pagi)',
-    ],
   },
   en: {
     enableBtn: 'Enable Notifications',
@@ -49,21 +38,10 @@ const strings = {
     denied: 'Permission denied. Open Settings → Notifications → LuxTradee',
     iosSafariWarning: 'On iPhone, push notifications only work if the app is installed to Home Screen.',
     iosInstallBtn: 'How to Install',
-    emailNote: 'Email alerts active as fallback on iPhone',
     pushLabel: 'Push Notifications',
     iosBannerTitle: 'Enable Push on iPhone',
     iosBannerDesc: 'Install LuxTradee to Home Screen so push notifications can work.',
     iosBannerAction: 'See How to Install',
-    autoTitle: 'Notifications you receive automatically',
-    autoItems: [
-      '🚨 Prop firm guard — loss limit / account at risk',
-      '📈 Pine strategy signals — live BUY/SELL',
-      '🎯 Price alerts — watchlist hits your target',
-      '💥 Big win / big loss / streak / daily loss limit',
-      '📅 Economic calendar — 15 min before high impact',
-      '🌅 Daily journal reminder (morning)',
-      '📊 Weekly recap (Monday morning)',
-    ],
   },
 } as const
 
@@ -129,18 +107,6 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   // Whether push can actually work on this device
   const pushCanWork = isSupported && (!isIOS || isStandalone)
 
-  // ── Auto notification matrix (info: apa yang tampil otomatis) ──────────
-  const autoNotifBlock = (
-    <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10">
-      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1.5">{t.autoTitle}</p>
-      <ul className="flex flex-col gap-0.5">
-        {(t.autoItems as readonly string[]).map((item) => (
-          <li key={item} className="text-[10px] leading-relaxed text-white/60">{item}</li>
-        ))}
-      </ul>
-    </div>
-  )
-
   // ─── Compact toggle (for sidebar settings) ──────────────────────────────────
   if (compact) {
     return (
@@ -193,17 +159,6 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             </button>
           )}
         </div>
-
-        {/* iOS email fallback note */}
-        {isIOS && !isStandalone && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-            <Mail className="w-3 h-3 text-emerald-400/60" />
-            <p className="text-[10px] text-emerald-400/60">{t.emailNote}</p>
-          </div>
-        )}
-
-        {/* Matriks notifikasi otomatis — transparansi utk user */}
-        {autoNotifBlock}
 
         {/* Error display */}
         {error && (
@@ -276,17 +231,6 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
                 {error}
               </div>
             )}
-
-            {/* Email fallback note on iOS */}
-            {isIOS && !isStandalone && (
-              <div className="flex items-center gap-1.5 mb-3 text-xs text-emerald-400/60">
-                <Mail className="w-3 h-3" />
-                {t.emailNote}
-              </div>
-            )}
-
-            {/* Matriks notifikasi otomatis */}
-            <div className="mb-3">{autoNotifBlock}</div>
 
             {/* Action buttons */}
             {!isSubscribed && pushCanWork && permission !== 'denied' && (

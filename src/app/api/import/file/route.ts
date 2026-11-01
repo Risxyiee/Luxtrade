@@ -465,11 +465,17 @@ export async function POST(request: NextRequest) {
     
     // Parse based on file type
     let trades: ParsedTrade[] = []
-    
+
+    // FIX (laporan Bos: file trade gabisa dikirim): Windows/browser sering
+    // kirim .csv dengan mime aneh (application/vnd.ms-excel, octet-stream,
+    // atau kosong) → dulu langsung ditolak "Tipe file tidak didukung".
+    // Sekarang: kalau isinya teks (bukan biner), coba parse CSV/heuristik.
+    const looksTextual = !content.slice(0, 200).includes('\u0000')
+
     if (mimeType === 'text/html' || name.endsWith('.html') || name.endsWith('.htm')) {
       console.log('📄 Parsing as HTML...')
       trades = parseHTMLReport(content)
-    } else if (mimeType === 'text/csv' || name.endsWith('.csv')) {
+    } else if (mimeType === 'text/csv' || name.endsWith('.csv') || mimeType === 'application/vnd.ms-excel' || mimeType === 'application/excel') {
       console.log('📊 Parsing as CSV...')
       trades = parseCSV(content)
     } else if (mimeType === 'text/plain' || name.endsWith('.txt')) {
@@ -535,11 +541,19 @@ export async function POST(request: NextRequest) {
           fileType: 'pdf_error'
         }, { status: 422 })
       }
+    } else if (looksTextual) {
+      // Mime tidak dikenal (kosong / octet-stream) tapi isinya teks →
+      // coba parse sebagai CSV, lalu heuristik teks. Jangan ditolak duluan.
+      console.log('🔍 Unknown mime but textual content — trying CSV/text parse...')
+      trades = parseCSV(content)
+      if (trades.length === 0) {
+        trades = parseTextTrades(content)
+      }
     } else {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         error: 'Tipe file tidak didukung',
-        message: `Tipe file "${mimeType || 'unknown'}" tidak didukung. Gunakan PDF, HTML, CSV, atau TXT.`
+        message: `Tipe file "${mimeType || 'unknown'}" tidak didukung. Gunakan PDF, HTML, CSV, atau TXT. Kalau filenya Excel (.xlsx/.xls), export dulu ke CSV dari Excel (File → Save As → CSV).`
       }, { status: 400 })
     }
     

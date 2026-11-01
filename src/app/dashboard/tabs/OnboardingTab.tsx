@@ -11,7 +11,7 @@ import {
   PlusCircle, CreditCard, BarChart3, BookOpen, Brain,
   Activity, Eye, Target, Flame, Trophy,
   Camera, Upload, Settings, Zap, Rocket,
-  ArrowRight, ExternalLink, PartyPopper,
+  ArrowRight, ExternalLink, PartyPopper, SkipForward,
   Lightbulb, Shield, TrendingUp, Loader2
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -316,6 +316,17 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
     localStorage.removeItem('luxtrade-onboarding-progress')
   }, [])
 
+  // Lewati panduan (laporan Bos: user baru ga boleh dipaksa tour tiap login)
+  // → tandai onboarding selesai di DB + localStorage, balik ke dashboard.
+  const handleSkip = useCallback(() => {
+    const id = language === 'id'
+    try { localStorage.setItem('luxtrade_onboarding_done', 'true') } catch {}
+    fetch('/api/onboarding', { method: 'POST', credentials: 'include' })
+      .catch(() => {})
+    toast.success(id ? 'Panduan dilewati. Kamu bisa buka lagi dari menu kapan aja.' : 'Guide skipped. You can reopen it from the menu anytime.')
+    setActiveTab?.('dashboard')
+  }, [language, setActiveTab])
+
   const totalSteps = steps.length
   const completedCount = completedSteps.size
   const progressPct = Math.round((completedCount / totalSteps) * 100)
@@ -340,6 +351,14 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
       >
         <Card className="overflow-hidden border-0">
           <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-6 md:p-8 text-white relative">
+            {/* Skip button (laporan Bos: onboarding jangan maksa) */}
+            <button
+              onClick={handleSkip}
+              className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-xs font-medium transition-colors"
+            >
+              <SkipForward className="w-3.5 h-3.5" />
+              {isId ? 'Lewati' : 'Skip'}
+            </button>
             {/* Decorative circles */}
             <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />

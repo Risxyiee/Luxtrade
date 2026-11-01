@@ -12,10 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard, Download, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
-// PERF (laporan Bos: loading dashboard berat): OnboardingModal menarik
-// framer-motion ke chunk awal walau jarang tampil → lazy chunk, hanya
-// diunduh saat showOnboarding=true.
-const OnboardingModal = dynamic(() => import('@/components/landing/OnboardingModal').then(m => ({ default: m.default })), { ssr: false })
+// Catatan (laporan Bos: onboarding terlalu ramai): welcome-modal 4 step
+// SUDAH DIHAPUS — onboarding sekarang cuma SATU sistem, yaitu tab
+// "Onboarding" (checklist interaktif) yang jadi tab default user baru.
 import { formatCurrency } from '@/lib/utils-currency'
 import { Trade, TradeFormData, emptyFormData, JournalEntry } from '../utils/types'
 import { moodOptions, marketConditions } from '../utils/helpers'
@@ -133,10 +132,6 @@ interface DashboardModalsProps {
   paymentConfirmationPlanPrice?: number
   paywallModalOpen: boolean
   setPaywallModalOpen: (open: boolean) => void
-  showOnboarding: boolean
-  setShowOnboarding: (show: boolean) => void
-  onOnboardingComplete: () => void
-  onAddFirstTrade: () => void
   onLoadSampleData: () => void
   addTradeOpen: boolean
   setAddTradeOpen: (open: boolean) => void
@@ -211,10 +206,6 @@ const DashboardModals = memo(function DashboardModals({
   handlePaymentSuccess,
   paymentConfirmationPlanName,
   paymentConfirmationPlanPrice,
-  showOnboarding,
-  setShowOnboarding,
-  onOnboardingComplete,
-  onAddFirstTrade,
   onLoadSampleData,
   addTradeOpen,
   setAddTradeOpen,
@@ -788,25 +779,6 @@ const DashboardModals = memo(function DashboardModals({
         }}
         remainingTrials={proTrialCount}
       /> */}
-
-      {/* Prop Firm Trader Onboarding Modal */}
-      {showOnboarding && (
-        <OnboardingModal
-          isOpen={showOnboarding}
-          onClose={onOnboardingComplete}
-          onComplete={onOnboardingComplete}
-          language={language}
-          onStepAction={(stepId) => {
-            if (stepId === 2) { // First trade step
-              onAddFirstTrade()
-              onOnboardingComplete()
-            } else if (stepId === 3) { // Prop guard step
-              // Could open watchlist or settings for prop firm setup
-              onOnboardingComplete()
-            }
-          }}
-        />
-      )}
     </>
   )
 })

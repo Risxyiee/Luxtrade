@@ -18,7 +18,6 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import { ContextGuideProvider } from '@/components/ContextGuide'
 import AppInstallBanner from '@/components/AppInstallBanner'
-import { PUSH_PROMPT_RESET_EVENT } from '@/components/PushNotificationSetup'
 
 // Tab components are now lazy-loaded via next/dynamic in TabContent.tsx
 
@@ -268,9 +267,6 @@ function LuxTradeDashboardContent() {
   const [aiChatMessages, setAiChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [aiChatInput, setAiChatInput] = useState('')
   
-  // Onboarding state
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  
   // Animation states
   const [chartAnimated, setChartAnimated] = useState(false)
   
@@ -438,28 +434,10 @@ function LuxTradeDashboardContent() {
     toast.success('Selamat! Akun PRO Anda sedang diproses. Refresh halaman dalam beberapa menit.')
   }, [refreshProfile])
 
-  const handleOnAddFirstTrade = useCallback(() => setAddTradeOpen(true), [])
-
-  const handleOnboardingComplete = useCallback(() => {
-    setShowOnboarding(false)
-
-    // FIX: banner push notif yang ke-tutup overlay onboarding dimunculkan lagi
-    // — skip/complete onboarding gak boleh bikin prompt "ilang". (Laporan Bos:
-    // "saat baru masuk dashboard itu ada, tapi setelah onboarding saya skip ilang")
-    try { window.dispatchEvent(new CustomEvent(PUSH_PROMPT_RESET_EVENT)) } catch {}
-
-    // Mark as completed in DB and localStorage
-    fetch('/api/onboarding', { method: 'POST', credentials: 'include' })
-      .then(res => {
-        if (res.ok) {
-          console.log('[Onboarding] Marked as completed in DB')
-        } else {
-          console.warn('[Onboarding] Failed to mark completed in DB:', res.status)
-        }
-      })
-      .catch(err => console.warn('[Onboarding] Error marking completed:', err))
-    localStorage.setItem('luxtrade_onboarding_done', 'true')
-  }, [])
+  // Catatan (laporan Bos: onboarding terlalu ramai): handler lama
+  // onboarding-modal (complete/skip + re-fire banner notif) dihapus —
+  // user baru sekarang langsung dilanding-kan ke tab Onboarding
+  // (checklist interaktif), tanpa popup modal terpisah.
 
   useEffect(() => {
     const checkMobile = () => {
@@ -767,27 +745,33 @@ function LuxTradeDashboardContent() {
   }, [authLoading, user, fetchData])
 
   // Check onboarding for first-time users — runs once after auth is ready
+  // Catatan (laporan Bos: onboarding terlalu ramai): welcome-modal popup
+  // DIHAPUS. User baru cukup diarahkan ke tab "Onboarding" (checklist
+  // interaktif) sebagai tab default — SATU sistem, tanpa popup.
   const onboardingCheckedRef = useRef(false)
   useEffect(() => {
     if (onboardingCheckedRef.current) return
     if (authLoading || !user) return
     onboardingCheckedRef.current = true
 
+    const landOnOnboardingTab = () => {
+      // Hanya redirect kalau user masih di tab default (belum pilih tab sendiri)
+      setActiveTab(prev => (prev === 'dashboard' ? 'onboarding' : prev))
+    }
+
     // Check API for onboarding status (database-backed)
-    // Do NOT wait for loading (data fetch) — this caused race condition
-    // where onboarding wouldn't show if data fetch was slow
     fetch('/api/onboarding', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (!data.completed) {
-          setShowOnboarding(true)
+          landOnOnboardingTab()
         }
       })
       .catch(() => {
         // Fallback to localStorage
         const onboardingDone = localStorage.getItem('luxtrade_onboarding_done')
         if (!onboardingDone) {
-          setShowOnboarding(true)
+          landOnOnboardingTab()
         }
       })
   }, [authLoading, user])
@@ -846,7 +830,7 @@ function LuxTradeDashboardContent() {
             viewTradeOpen || addJournalOpen || viewJournalOpen ||
             editJournalOpen || addWatchlistOpen || isAddAccountOpen ||
             paymentModalOpen || planSelectionModalOpen || shareCardOpen ||
-            paywallModalOpen || showOnboarding
+            paywallModalOpen
           if (anyModalOpen) {
             setAddTradeOpen(false)
             setEditTradeOpen(false)
@@ -861,7 +845,6 @@ function LuxTradeDashboardContent() {
             setPlanSelectionModalOpen(false)
             setShareCardOpen(false)
             setPaywallModalOpen(false)
-            setShowOnboarding(false)
           }
           break
       }
@@ -873,7 +856,7 @@ function LuxTradeDashboardContent() {
     activeTab, addTradeOpen, editTradeOpen, deleteTradeOpen,
     viewTradeOpen, addJournalOpen, viewJournalOpen, editJournalOpen,
     addWatchlistOpen, isAddAccountOpen, paymentModalOpen,
-    planSelectionModalOpen, shareCardOpen, paywallModalOpen, showOnboarding
+    planSelectionModalOpen, shareCardOpen, paywallModalOpen
   ])
 
   // ==================== CREATE ALL HANDLERS ====================
@@ -1288,10 +1271,6 @@ function LuxTradeDashboardContent() {
         setPaymentModalOpen={setPaymentModalOpen}
         paywallModalOpen={paywallModalOpen}
         setPaywallModalOpen={setPaywallModalOpen}
-        showOnboarding={showOnboarding}
-        setShowOnboarding={setShowOnboarding}
-        onOnboardingComplete={handleOnboardingComplete}
-        onAddFirstTrade={handleOnAddFirstTrade}
         onLoadSampleData={handleLoadSampleData}
         addTradeOpen={addTradeOpen}
         setAddTradeOpen={setAddTradeOpen}
