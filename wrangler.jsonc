@@ -38,6 +38,18 @@
         "images": { "binding": "IMAGES" },
         "ai": { "binding": "ai_luxtrade" },
         "browser": { "binding": "ai_run" },
+
+        // ─── Cloudflare Flagship (feature flags native Workers) ────────────────
+        // Evaluasi flag yang didefinisikan di CF dashboard (Flagship → app
+        // f60370a9…) langsung dari kode Worker, tanpa API call eksternal.
+        // Akses kode: env.luxtradee → helper di src/lib/cloudflare-bindings.ts
+        // (isFlagEnabled / getFlagString / getFlagNumber / getFlagObject).
+        // Diagnostik produksi: GET /api/flags/status
+        // JANGAN DIHAPUS — binding ini juga dibuat manual di dashboard;
+        // kalau hilang dari file ini, wrangler deploy akan menghapusnya di CF.
+        "flagship": [
+                { "binding": "luxtradee", "app_id": "f60370a9-2d76-40e7-b383-cb966ab5fbd9" }
+        ],
         "queues": {
                 "producers": [{ "binding": "queue", "queue": "luxtradee" }]
         },

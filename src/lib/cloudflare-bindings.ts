@@ -9,6 +9,7 @@
  * - env.ai_luxtrade     : Workers AI — LLM, embeddings
  * - env.ai_run          : Browser Rendering — PDF, screenshots
  * - env.queue           : Queue Producer — background jobs
+ * - env.luxtradee       : Cloudflare Flagship — feature flags (binding API)
  * - env.RATE_LIMITER    : (via CF Rate Limiting API)
  * - env.VECTORIZE_INDEX : Vectorize — semantic search (optional)
  */
@@ -35,6 +36,38 @@ declare abstract class CFAi {
   abstract run(model: string, inputs: any, options?: any): Promise<any>
 }
 
+/**
+ * Cloudflare Flagship binding (feature flags native Workers).
+ * Semua method menerima defaultValue → dikembalikan otomatis saat flag
+ * tidak ditemukan / evaluasi gagal. Context untuk targeting rules.
+ * Docs: developers.cloudflare.com/flagship/binding
+ */
+declare abstract class CFFlagship {
+  abstract get(flagKey: string, defaultValue?: unknown, context?: CFFlagshipContext): Promise<unknown>
+  abstract getBooleanValue(flagKey: string, defaultValue: boolean, context?: CFFlagshipContext): Promise<boolean>
+  abstract getStringValue(flagKey: string, defaultValue: string, context?: CFFlagshipContext): Promise<string>
+  abstract getNumberValue(flagKey: string, defaultValue: number, context?: CFFlagshipContext): Promise<number>
+  abstract getObjectValue<T extends object>(flagKey: string, defaultValue: T, context?: CFFlagshipContext): Promise<T>
+  abstract getBooleanDetails(flagKey: string, defaultValue: boolean, context?: CFFlagshipContext): Promise<CFFlagshipDetails<boolean>>
+  abstract getStringDetails(flagKey: string, defaultValue: string, context?: CFFlagshipContext): Promise<CFFlagshipDetails<string>>
+  abstract getNumberDetails(flagKey: string, defaultValue: number, context?: CFFlagshipContext): Promise<CFFlagshipDetails<number>>
+  abstract getObjectDetails<T extends object>(flagKey: string, defaultValue: T, context?: CFFlagshipContext): Promise<CFFlagshipDetails<T>>
+}
+
+interface CFFlagshipContext {
+  userId?: string
+  profile?: Record<string, unknown>
+  tags?: string[]
+}
+
+interface CFFlagshipDetails<T> {
+  value: T
+  reason?: string
+  variant?: string
+  flagKey?: string
+  error?: string
+}
+
 declare abstract class CFVectorizeIndex {
   abstract query(vector: number[], options?: { topK?: number; namespace?: string; returnMetadata?: boolean; returnValues?: boolean }): Promise<{ matches: Array<{ id: string; score: number; values?: number[]; metadata?: Record<string, string> }> }>
   abstract upsert(vectors: Array<{ id: string; values: number[]; metadata?: Record<string, string>; namespace?: string }>): Promise<void>
@@ -48,7 +81,7 @@ declare abstract class CFVectorizeIndex {
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
-export type { CFFetcher as Fetcher, CFKVNamespace as KVNamespace, CFAi as Ai, CFVectorizeIndex as VectorizeIndex }
+export type { CFFetcher as Fetcher, CFKVNamespace as KVNamespace, CFAi as Ai, CFVectorizeIndex as VectorizeIndex, CFFlagship as Flagship }
 // R2Bucket export disabled (error 10042)
 
 export interface CloudflareBindings {
@@ -59,6 +92,7 @@ export interface CloudflareBindings {
   ai_luxtrade?: CFAi            // Workers AI binding
   ai_run?: any                  // Browser Rendering binding
   queue?: any                   // Queue Producer binding
+  luxtradee?: CFFlagship        // Cloudflare Flagship — feature flags
   VECTORIZE_INDEX?: CFVectorizeIndex
   RATE_LIMITER?: any
 }
@@ -219,6 +253,93 @@ export async function getEnvVar(key: string, options?: { quiet?: boolean }): Pro
 /** Shorthand: get typed bindings */
 export async function getBindings(): Promise<CloudflareBindings> {
   return getCloudflareEnv()
+}
+
+// ─── Cloudflare Flagship (feature flags) ──────────────────────────────────
+
+/**
+ * Context untuk targeting rules Flagship (persentase rollout, atribut user).
+ * Pemakaian: getFlagContext('user-id', { plan: 'pro', country: 'ID' })
+ */
+export interface FlagContext {
+  userId?: string
+  plan?: string
+  country?: string
+  tags?: string[]
+  extra?: Record<string, unknown>
+}
+
+function toFlagshipContext(ctx?: FlagContext): CFFlagshipContext | undefined {
+  if (!ctx) return undefined
+  const profile: Record<string, unknown> = { ...(ctx.extra || {}) }
+  if (ctx.plan) profile.plan = ctx.plan
+  if (ctx.country) profile.country = ctx.country
+  const out: CFFlagshipContext = {}
+  if (ctx.userId) out.userId = ctx.userId
+  if (Object.keys(profile).length > 0) out.profile = profile
+  if (ctx.tags?.length) out.tags = ctx.tags
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+/**
+ * Flag boolean — kill-switch / rollout fitur.
+ * Binding absen (local dev tanpa wrangler) atau evaluasi gagal → fallback.
+ */
+export async function isFlagEnabled(key: string, fallback = false, ctx?: FlagContext): Promise<boolean> {
+  try {
+    const env = await getCloudflareEnv()
+    if (!env.luxtradee?.getBooleanValue) return fallback
+    return await env.luxtradee.getBooleanValue(key, fallback, toFlagshipContext(ctx))
+  } catch (e: any) {
+    console.warn(`[flags] ${key} evaluate failed → fallback ${fallback}:`, e?.message || e)
+    return fallback
+  }
+}
+
+/** Flag string — variant / konfigurasi teks (mis. 'v1' | 'v2') */
+export async function getFlagString(key: string, fallback: string, ctx?: FlagContext): Promise<string> {
+  try {
+    const env = await getCloudflareEnv()
+    if (!env.luxtradee?.getStringValue) return fallback
+    return await env.luxtradee.getStringValue(key, fallback, toFlagshipContext(ctx))
+  } catch (e: any) {
+    console.warn(`[flags] ${key} evaluate failed → fallback:`, e?.message || e)
+    return fallback
+  }
+}
+
+/** Flag number — persentase, limit, throttle dari dashboard tanpa deploy */
+export async function getFlagNumber(key: string, fallback: number, ctx?: FlagContext): Promise<number> {
+  try {
+    const env = await getCloudflareEnv()
+    if (!env.luxtradee?.getNumberValue) return fallback
+    return await env.luxtradee.getNumberValue(key, fallback, toFlagshipContext(ctx))
+  } catch (e: any) {
+    console.warn(`[flags] ${key} evaluate failed → fallback:`, e?.message || e)
+    return fallback
+  }
+}
+
+/** Flag object — konfigurasi kompleks (mis. { theme, items, enabled }) */
+export async function getFlagObject<T extends object>(key: string, fallback: T, ctx?: FlagContext): Promise<T> {
+  try {
+    const env = await getCloudflareEnv()
+    if (!env.luxtradee?.getObjectValue) return fallback
+    return await env.luxtradee.getObjectValue<T>(key, fallback, toFlagshipContext(ctx))
+  } catch (e: any) {
+    console.warn(`[flags] ${key} evaluate failed → fallback:`, e?.message || e)
+    return fallback
+  }
+}
+
+/** Binding Flagship tersedia? (diagnostik — false saat local dev tanpa wrangler) */
+export async function hasFlagshipBinding(): Promise<boolean> {
+  try {
+    const env = await getCloudflareEnv()
+    return !!env.luxtradee
+  } catch {
+    return false
+  }
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
