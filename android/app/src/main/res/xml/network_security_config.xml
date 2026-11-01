@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext only for local dev -->
+    <!-- Default sejak API 28+: cleartext dinonaktifkan. Blok eksplisit ini
+         mendokumentasikan domain produksi (luxtradee.web.id) + Supabase.
+         Catatan lint fix:
+         - domain lama "luxtradee.com" dihapus (stale + duplikat antar
+           domain-config tidak diizinkan [NetworkSecurityConfig])
+         - pin-set placeholder "ADD_YOUR_PIN_HERE" dihapus (bukan digest
+           SHA-256 valid [InvalidPinDigest]; pin ngasal = semua koneksi
+           ditolak). Tambahkan pin-set asli hanya jika boss punya SPKI
+           hash sertifikat + backup pin.
+         File ini tidak direferensikan AndroidManifest (yatim) — dipertahankan
+         agar siap dipakai bila nanti dibutuhkan. -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">luxtradee.com</domain>
+        <domain includeSubdomains="true">luxtradee.web.id</domain>
         <domain includeSubdomains="true">supabase.co</domain>
-    </domain-config>
-    <!-- Pin certificates for production -->
-    <domain-config>
-        <domain includeSubdomains="true">luxtradee.com</domain>
-        <pin-set>
-            <pin digest="SHA-256">ADD_YOUR_PIN_HERE</pin>
-        </pin-set>
     </domain-config>
 </network-security-config>
