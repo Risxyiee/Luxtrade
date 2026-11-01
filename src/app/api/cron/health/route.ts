@@ -20,8 +20,10 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
       ''
   ).trim()
   const cronSecret = String(process.env.CRON_SECRET || '').trim()
-  const vapidKey = String(process.env.VAPID_PRIVATE_KEY || '').trim()
-  const valid = [cronSecret, vapidKey].filter(Boolean)
+  // SECURITY (audit #17): VAPID_PRIVATE_KEY TIDAK lagi dipakai sebagai bearer
+  // cadangan — satu kunci satu fungsi (VAPID khusus tanda tangan web push).
+  // worker-entry mengirim Bearer/x-cron-secret CRON_SECRET, jadi cukup itu.
+  const valid = [cronSecret].filter(Boolean)
   if (valid.length === 0) return process.env.NODE_ENV === 'development'
   return valid.includes(provided)
 }
