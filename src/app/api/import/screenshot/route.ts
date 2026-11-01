@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireAuth } from '@/lib/api-auth'
 import { parseMT5TradeData } from '@/lib/simple-parser'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
@@ -64,9 +64,11 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const authUser = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    // FIX (audit #4-keluarga): dulu `if (!authUser)` pada hasil getAuthenticatedUser
+    // (objek selalu truthy) → cek auth TIDAK PERNAH jalan. Pakai requireAuth.
+    const { user: authUser, response: authError } = await requireAuth(request)
+    if (authError || !authUser) {
+      return authError ?? NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()

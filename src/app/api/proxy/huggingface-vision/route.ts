@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireAuth } from '@/lib/api-auth'
 
 /**
  * Proxy API for HuggingFace Vision to bypass DNS issues on Edge Runtime
@@ -7,9 +7,12 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
  */
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // FIX (audit #4-keluarga): dulu `if (!authUser)` pada hasil getAuthenticatedUser
+    // (objek selalu truthy) → cek auth TIDAK PERNAH jalan (proxy HF terbuka
+    // untuk anonim). Pakai requireAuth.
+    const { user: authUser, response: authError } = await requireAuth(request)
+    if (authError || !authUser) {
+      return authError ?? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { model, inputs, parameters } = await request.json()
