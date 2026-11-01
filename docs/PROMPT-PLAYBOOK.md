@@ -1,7 +1,7 @@
 # Prompt Playbook Bos
 
 > Kumpulan template prompt workflow (disimpan sesuai permintaan Bos, 1 Nov 2026).
-> Nomor mengikuti seri aslinya. #4 (Debug Error) ada di `docs/DEBUG-PROTOCOL.md`.
+> Berisi lengkap 5 protokol seri (#3–#7).
 > Cara pakai: sebut nama protokolnya + isi bagian `[...]` kalau ada.
 
 ---
@@ -39,6 +39,53 @@ Lalu urutkan semua temuan berdasarkan severity. JANGAN
 ubah kode apapun sebelum saya approve. Kalau satu kategori
 bersih, katakan eksplisit, jangan diam saja.
 ```
+
+---
+
+## 4/ Debug Error dengan Cepat
+
+> Membunuh death loop "coba ini... eh coba yang ini deh".
+
+```text
+Saya ada bug. JANGAN tulis fix dulu.
+
+Error / perilaku yang tidak diharapkan: [TEMPEL ERROR]
+Yang saya harapkan: [JELASKAN]
+Yang sebenarnya terjadi: [JELASKAN]
+Kode relevan: [TEMPEL ATAU TUNJUK FILE]
+Yang sudah saya coba: [DAFTAR]
+
+Langkah 1: Restate masalahnya pakai kata-katamu sendiri
+supaya kita satu pemahaman.
+Langkah 2: Daftar 3-5 kemungkinan root cause paling
+besar, urut berdasarkan probabilitas, tiap poin sertakan
+alasan.
+Langkah 3: Untuk tiap penyebab, kasih satu cara tercepat
+untuk konfirmasi atau eliminasi — satu log line, satu
+pengecekan, satu test singkat.
+Langkah 4: Berhenti dan tunggu hasil dari saya.
+Langkah 5: Setelah penyebabnya terkonfirmasi, baru tulis
+fix paling minimal, jelaskan kenapa itu berhasil, dan
+beri tahu persis apa yang harus saya tes untuk verifikasi.
+
+Jangan shotgun perubahan. Jangan refactor kode yang tidak
+terkait. Jangan benerin hal yang tidak saya minta.
+```
+
+### Ringkasan Aturan #4 (untuk assistant)
+
+1. **Diagnosa dulu, fix kemudian** — jangan pernah menulis perbaikan sebelum
+   root cause terkonfirmasi.
+2. **Restate masalah** dengan kata sendiri sebelum menganalisis.
+3. **3–5 hipotesis root cause** diurutkan dari probabilitas terbesar, lengkap
+   dengan alasan.
+4. **Satu cara konfirmasi/eliminasi per hipotesis** — semurah mungkin
+   (satu log, satu cek, satu test kecil).
+5. **Berhenti & tunggu** hasil investigasi dari Bos sebelum lanjut.
+6. **Fix paling minimal** setelah penyebab pasti — jelaskan mengapa berhasil
+   + cara verifikasinya.
+7. **Larangan:** no shotgun changes, no refactor tak terkait, no perbaikan
+   yang tidak diminta.
 
 ---
 
@@ -149,7 +196,7 @@ stuff", "changes" atau "wip".
 | # | Nama | Kapan dipakai | Aturan kunci |
 |---|------|---------------|--------------|
 | 3 | Security Audit | Sebelum deploy fitur besar | Temuan urut severity, JANGAN ubah kode sebelum approve, kategori bersih disebut eksplisit |
-| 4 | Debug Error | Ada bug/perilaku aneh | Diagnosa dulu → hipotesis → konfirmasi → tunggu → fix minimal (`docs/DEBUG-PROTOCOL.md`) |
+| 4 | Debug Error | Ada bug/perilaku aneh | Diagnosa dulu → hipotesis → konfirmasi → tunggu → fix minimal |
 | 5 | E2E Playwright | Sebelum rilis besar | Journey di-approve dulu, happy path + failure state, data-testid, auth fixture |
 | 6 | Dead Code Cleanup | Rutin / setelah fitur selesai | Fase 1 audit (no touch) → table + risk level → berhenti → fase 2 hanya yang di-approve |
 | 7 | Git Commit Rapi | Setiap selesai kerja | Conventional Commits, atomic, body jelaskan KENAPA, repo harus build di tiap langkah |
