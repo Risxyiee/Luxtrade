@@ -97,8 +97,11 @@ END $$;
 REVOKE ALL ON public.profiles FROM anon;
 GRANT SELECT ON public.profiles TO authenticated;
 GRANT UPDATE (full_name, display_name, device_id, updated_at) ON public.profiles TO authenticated;
-CREATE POLICY "Profiles readable only by owner" ON public.profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile (kolom aman saja)" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Profiles readable only by owner" ON public.profiles
+FOR SELECT USING (id = (select auth.uid()::text));
+CREATE POLICY "Users can update own profile (kolom aman saja)" ON public.profiles
+FOR UPDATE USING (id = (select auth.uid()::text))
+WITH CHECK (id = (select auth.uid()::text));
 
 -- 7. RLS Policies for referral_tracking
 CREATE POLICY "Allow anon insert for referral" ON public.referral_tracking FOR INSERT WITH CHECK (true);
