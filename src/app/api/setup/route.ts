@@ -96,7 +96,7 @@ END $$;
 --      (service_role, tidak terpengaruh grants authenticated).
 REVOKE ALL ON public.profiles FROM anon;
 GRANT SELECT ON public.profiles TO authenticated;
-GRANT UPDATE (full_name, avatar_url, device_id, updated_at) ON public.profiles TO authenticated;
+GRANT UPDATE (full_name, device_id, updated_at) ON public.profiles TO authenticated;
 CREATE POLICY "Profiles readable only by owner" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile (kolom aman saja)" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
