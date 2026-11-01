@@ -76,9 +76,12 @@ if new_content == content:
         new_content = re.sub(pattern_sync, r'\1\n' + bailout, content)
 
 # Pastikan NextResponse ter-import sebagai VALUE (bukan type-only).
-# Beberapa route hanya `import type { NextRequest }` → bailout yang
+# PENTING: JANGAN pakai backtick di komentar dalam string bash ini —
+# backtick = command substitution! (dulu: 'import type { NextRequest }'
+# dan 'next build' dieksekusi bash saat CI → build ghost + program python rusak)
+# Beberapa route hanya 'import type { NextRequest }' → bailout yang
 # memanggil NextResponse.json() melempar ReferenceError saat prerender
-# (error: 'NextResponse is not defined') dan mem-bunuh `next build` export.
+# (error: 'NextResponse is not defined') dan mem-bunuh build export.
 has_value_import = re.search(
     r'import\s+\{[^}]*\bNextResponse\b[^}]*\}\s+from\s+[\x27\x22]next/server[\x27\x22]',
     new_content,
@@ -178,7 +181,7 @@ for dir in "${DYNAMIC_API_DIRS[@]}"; do
     while IFS= read -r -d '' f; do
       if ! grep -q "generateStaticParams" "$f" 2>/dev/null; then
         # Anchor TANPA trailing ';' — beberapa file menulis
-        # `export const dynamic = 'force-static'` tanpa semicolon
+        # 'export const dynamic = "force-static"' tanpa semicolon
         # (dikonversi dari force-dynamic oleh STEP 2 apa adanya).
         sed -i "/^export const dynamic = 'force-static'/a\\
 export async function generateStaticParams() { return [{ id: '_' }] }" "$f"
