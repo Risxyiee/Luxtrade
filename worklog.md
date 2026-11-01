@@ -4020,3 +4020,41 @@ sehat; masalah di "last mile" — dan setelah dibedah, masalahnya DI SISTEM KITA
 - Daftar perangkat TANPA iPhone → toggle Push di HP (dari app PWA) → iPhone
   muncul di daftar → tes → harus `okDevice` atau `partial` yg jujur.
 - `wrongDevice` → konfirmasi bos: token HP gak pernah sampai server.
+
+## 2026-11-XX — FASE 5.4 — Isolasi "Terkirim tapi HP diam": Tes Lokal + Receipt Tanpa Auth
+
+### Temuan dari lapangan (screenshot Bos)
+- Daftar perangkat: HANYA iPhone/iPad (desktop tidak terdaftar) → push tes
+  memang 100% menuju HP; Apple terima (log bersih); tetap tidak tampil.
+- sw.js produksi terverifikasi versi terbaru (curl: handler push + receipt ada),
+  semua ikon payload ada.
+
+### Analisis sisa kemungkinan (tidak bisa dibedakan dari luar)
+1. iOS sering TIDAK menampilkan banner push saat PWA sedang FOREGROUND
+   (app terbuka) — hasil tes cuma masuk Notification Center. Bos selalu tes
+   dengan app terbuka → bisa jadi "gak ada apa-apa" itu push masuk di NC.
+2. Receipt per-endpoint pakai cookie sesi → push MALAM HARI (sesi expired)
+   → 401 → bukti hilang → UI selalu "belum ada laporan" walau notif tampil.
+
+### Fix
+1. **`/api/push/received` v3**: MODE BARU per-endpoint TANPA AUTH
+   (`pushrecv:ep:<tail>:<tag>`, TTL 120 dtk, rate-limit, tanpa data sensitif)
+   → laporan masuk walau sesi expired. GET ?tag&eps=a,b,c baca per-endpoint.
+   Mode lama per-user dipertahankan utk SW cached (backward-compat, ep=
+   'device' bucket).
+2. **UI "Tes Tampil (Lokal)"**: reg.showNotification() langsung dari halaman
+   (TANPA push) → kalau tampil: izin + SW SEHAT → masalah pasti di PENGIRIMAN
+   (token basi / app di-kill / iOS foreground). Kalau gagal → izin/SW rusak.
+3. **UI "Resubscribe & Tes Ulang"** (muncul saat noReport/wrongDevice/partial/
+   empty): resync penuh (token BARU) + tes otomatis — obat baku token basi.
+4. **Chip perangkat + umur token** (relTime: "5m lalu") → ketahuan token fresh
+   atau basi.
+5. **Panduan prosedur tes iOS yang benar** di pesan noReport: tekan tes →
+   keluar Home Screen (JANGAN swipe-kill) → kunci layar → tunggu 30 dtk →
+   cek Notification Center.
+
+### Alur diagnosa Bos berikutnya
+1. Tes Tampil (Lokal) → tampil? izin+SW sehat.
+2. Kirim Notifikasi Tes → keluar app (jangan kill) → kunci layar → 30 dtk.
+3. Baca hasil per-device: okDevice / wrongDevice / partial / noReport.
+4. noReport → Resubscribe & Tes Ulang (token baru) → ulangi prosedur.

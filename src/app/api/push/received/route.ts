@@ -11,15 +11,19 @@ import { checkRateLimit } from '@/lib/rate-limit'
  * DEVICE ITU SENDIRI: sw.js memanggil endpoint ini tepat setelah
  * showNotification() sukses → simpan bukti di KV (TTL 120 detik).
  *
- * FIX PER-DEVICE: dulu bukti disimpan per-USER (pushrecv:<uid>:<tag>) —
- * padahal /api/push/test kirim ke SEMUA perangkat user sekaligus. Device
- * pertama yang lapor (mis. DESKTOP yang kebetulan online) menimpa bukti →
- * UI bilang "Sampai di HP kamu!" padahal HP tidak pernah menerima.
- * Sekarang bukti berbentuk MAP per endpoint: { [epTail]: {at, ok, reason} }
- * → UI bisa bilang persis: "desktop ✓, iPhone ✗ belum lapor".
+ * FIX PER-DEVICE + TANPA AUTH (v3): dulu (1) bukti per-USER → device pertama
+ * yang lapor (mis. desktop online) dianggap "Sampai di HP" padahal HP tidak
+ * nerima; (2) laporan pakai cookie sesi → saat push datang malam hari sesi
+ * sering EXPIRED → 401 → bukti hilang → UI selalu "belum ada laporan"
+ * walau notif sebenarnya tampil. Sekarang 2 mode:
+ *   MODE BARU (sw kirim `ep`): simpan per-ENDPOINT tanpa auth
+ *     `pushrecv:ep:<tail>:<tag>` — tidak ada data sensitif (tail 16 char +
+ *     tag + ok + reason), TTL 120 dtk, rate-limit ketat. Sesi expired tidak
+ *     pengaruh → laporan notif malam hari pun terbaca.
+ *   MODE LAMA (sw cached tanpa `ep`): per-user pakai cookie (backward-compat).
  *
- * Kenapa KV: serverless multi-isolate — bukti harus terbaca lintas isolate,
- * dan TTL otomatis membereskan sampahnya. Tanpa data sensitif.
+ * GET ?tag=X&eps=a,b,c — UI tes bertanya: "device mana yang sudah lapor?"
+ * GET ?tag=X (tanpa eps) — mode lama per-user.
  */
 
 const RECEIPT_TTL = 120 // detik
@@ -47,27 +51,33 @@ export async function POST(request: NextRequest) {
   if (limited) return limited
 
   try {
-    const { user } = await getAuthenticatedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json().catch(() => ({}))
     const tag = sanitizeKey(body?.tag, 'default')
     const type = sanitizeKey(body?.type, 'general')
-    const ep = sanitizeKey(body?.ep, 'device', 40)
     /* ok:false = push SAMPAI di SW tapi showNotification GAGAL (reason=kenapa).
        Dulu hanya sukses yang dilaporkan → tombol tes gak bisa membedakan
        "gak sampai" vs "sampai tapi gagal tampil" (iOS Settings/Focus dsb). */
     const ok = body?.ok !== false
     const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 160) : undefined
 
-    // MAP per device — merge, jangan timpa laporan device lain
+    // ── MODE BARU: per-endpoint, TANPA auth (sesi expired tetap bisa lapor) ──
+    const ep = typeof body?.ep === 'string' ? body.ep.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) : ''
+    if (ep) {
+      const key = `pushrecv:ep:${ep}:${tag}`
+      await kvSet(key, { at: Date.now(), type, ok, ...(reason ? { reason } : {}) }, { ttl: RECEIPT_TTL })
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── MODE LAMA: per-user (sw cached tanpa ep) — butuh cookie sesi ──
+    const { user } = await getAuthenticatedUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    // Merge map per device ('device' = sw lama tanpa ep) — jangan timpa laporan lain
     const key = `pushrecv:${user.id}:${tag}`
     const existing = (await kvGet<ReceiptMap>(key)) || {}
-    existing[ep] = { at: Date.now(), type, ok, ...(reason ? { reason } : {}) }
+    existing['device'] = { at: Date.now(), type, ok, ...(reason ? { reason } : {}) }
     await kvSet(key, existing, { ttl: RECEIPT_TTL })
-
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     console.error('[push/received] POST error:', error?.message)
@@ -84,25 +94,50 @@ export async function GET(request: NextRequest) {
   if (limited) return limited
 
   try {
+    const tag = sanitizeKey(new URL(request.url).searchParams.get('tag'), 'default')
+    const epsParam = new URL(request.url).searchParams.get('eps')
+
+    // ── MODE BARU: UI kirim daftar ep yang dituju → baca per-endpoint ──
+    if (epsParam !== null) {
+      const eps = epsParam.split(',').map((s) => sanitizeKey(s, '', 40)).filter(Boolean).slice(0, 20)
+      const receipts: ReceiptMap = {}
+      await Promise.all(
+        eps.map(async (ep) => {
+          const r = await kvGet<DeviceReceipt>(`pushrecv:ep:${ep}:${tag}`)
+          if (r) receipts[ep] = r
+        })
+      )
+      // SW lama (tanpa ep) selalu jatuh ke bucket 'device'
+      const legacy = await kvGet<DeviceReceipt>(`pushrecv:ep:device:${tag}`)
+      if (legacy) receipts['device'] = legacy
+
+      const count = Object.keys(receipts).length
+      return NextResponse.json({
+        received: count > 0,
+        at: count ? receipts[Object.keys(receipts)[0]].at : null,
+        ok: count ? receipts[Object.keys(receipts)[0]].ok !== false : undefined,
+        reason: count ? receipts[Object.keys(receipts)[0]].reason : undefined,
+        count,
+        receipts,
+        note: count ? undefined : 'Belum ada laporan dari device (TTL 120s)',
+      })
+    }
+
+    // ── MODE LAMA: per-user ──
     const { user } = await getAuthenticatedUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const tag = sanitizeKey(new URL(request.url).searchParams.get('tag'), 'default')
     const receipts = (await kvGet<ReceiptMap>(`pushrecv:${user.id}:${tag}`)) || {}
-    const eps = Object.keys(receipts)
-
+    const eps2 = Object.keys(receipts)
     return NextResponse.json({
-      // Backward-compat: received = ada minimal 1 laporan masuk
-      received: eps.length > 0,
-      at: eps.length ? receipts[eps[0]].at : null,
-      ok: eps.length ? receipts[eps[0]].ok !== false : undefined,
-      reason: eps.length ? receipts[eps[0]].reason : undefined,
-      // BARU: laporan per perangkat → UI bedakan "desktop ✓ / HP ✗"
-      count: eps.length,
+      received: eps2.length > 0,
+      at: eps2.length ? receipts[eps2[0]].at : null,
+      ok: eps2.length ? receipts[eps2[0]].ok !== false : undefined,
+      reason: eps2.length ? receipts[eps2[0]].reason : undefined,
+      count: eps2.length,
       receipts,
-      note: eps.length ? undefined : 'Belum ada laporan dari device (TTL 120s)',
+      note: eps2.length ? undefined : 'Belum ada laporan dari device (TTL 120s)',
     })
   } catch (error: any) {
     console.error('[push/received] GET error:', error?.message)

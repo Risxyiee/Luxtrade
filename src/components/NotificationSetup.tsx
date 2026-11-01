@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail, Send, CheckCircle2, AlertTriangle, Monitor, HelpCircle } from 'lucide-react'
+import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail, Send, CheckCircle2, AlertTriangle, Monitor, HelpCircle, Wrench } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
@@ -30,19 +30,28 @@ const strings = {
     testingBtn: 'Mengirim...',
     testOk: 'Terkirim! Cek HP kamu 📲',
     testOkDevice: '📥 Sampai & tampil di perangkatmu!',
-    testWrongDevice: '⚠️ PC/laptop menerima, tapi HP TIDAK melapor. Token push HP-mu tidak ada / sudah basi di server. Buka app LuxTradee dari Home Screen (bukan Safari) → matikan lalu nyalakan toggle Push di HP → tes lagi.',
-    testPartial: 'Sampai di {ok}/{total} perangkat. Yang TIDAK melapor: {missing}. Buka app-nya dari Home Screen, toggle Push mati-nyala, tes lagi.',
-    testNoReport: 'Sampai ke push service ✅ tapi belum ada perangkat yang lapor (±30 dtk). Cek: buka app LuxTradee dari Home Screen (bukan Safari — biar service worker terbaru aktif), Settings → Notifications → LuxTradee → Allow + Banners, matikan Focus. Lalu toggle Push mati-nyala → tes lagi.',
+    testWrongDevice: '⚠️ Perangkat lain menerima, tapi HP TIDAK melapor. Token push HP-mu basi di server → tekan "Resubscribe & Tes Ulang" (dari app HP).',
+    testPartial: 'Sampai di {ok}/{total} perangkat. Yang TIDAK melapor: {missing}. Tekan "Resubscribe & Tes Ulang" dari HP.',
+    testNoReport: 'Sampai ke push service ✅ tapi belum ada perangkat yang lapor (±30 dtk). Catatan iOS: push ke app yang SEDANG TERBUKA sering tidak muncul bannernya. Prosedur benar: tekan Kirim Tes → langsung keluar ke Home Screen (JANGAN swipe-kill) → kunci layar → tunggu ±30 dtk. Cek juga Notification Center.',
     testSwFail: 'Sampai di HP tapi GAGAL ditampilkan',
     testEmpty: 'Belum kekirim — coba matikan & nyalakan lagi notifikasinya',
     testFail: 'Gagal terkirim — coba lagi',
     testServer: 'Server belum bisa kirim push — bukan salah HP-mu. Coba lagi nanti',
+    localTestBtn: 'Tes Tampil (Lokal)',
+    localTesting: 'Menampilkan...',
+    localOk: '✅ Notif lokal tampil → izin & service worker SEHAT. Masalahnya di PENGIRIMAN push, bukan tampilan: token basi (tekan Resubscribe & Tes Ulang) atau app di-swipe-kill (buka lagi app dari Home Screen, jangan di-kill).',
+    localDenied: 'Izin notif belum granted — buka Settings → Notifications → LuxTradee',
+    localFail: 'Gagal menampilkan notif lokal: {reason}',
+    resubBtn: 'Resubscribe & Tes Ulang',
+    resubbing: 'Memperbarui token...',
     devicesTitle: 'Perangkat terdaftar',
     devicesEmpty: 'Belum ada perangkat terdaftar di server — toggle Push di device yang mau kamu terima notif-nya.',
     deviceIOS: 'iPhone/iPad',
     deviceChrome: 'Chrome',
     deviceFirefox: 'Firefox',
     deviceOther: 'Perangkat lain',
+    agoSuffix: 'lalu',
+    justNow: 'baru saja',
   },
   en: {
     enableBtn: 'Enable Notifications',
@@ -64,19 +73,28 @@ const strings = {
     testingBtn: 'Sending...',
     testOk: 'Sent! Check your phone 📲',
     testOkDevice: '📥 Arrived & displayed on your device!',
-    testWrongDevice: '⚠️ PC/laptop received it, but your PHONE did NOT report. Your phone\'s push token is missing/stale on the server. Open the LuxTradee app from the Home Screen (not Safari) → toggle Push off & on on your phone → test again.',
-    testPartial: 'Arrived on {ok}/{total} devices. Did NOT report: {missing}. Open the app from Home Screen, toggle Push off & on, test again.',
-    testNoReport: 'Reached the push service ✅ but no device confirmed (~30s). Check: open LuxTradee from the Home Screen (not Safari — so the latest service worker activates), Settings → Notifications → LuxTradee → Allow + Banners, turn Focus off. Then toggle Push off & on → test again.',
+    testWrongDevice: '⚠️ Another device received it, but your PHONE did NOT report. Your phone\'s push token is stale on the server → press "Resubscribe & Test" (from the phone app).',
+    testPartial: 'Arrived on {ok}/{total} devices. Did NOT report: {missing}. Press "Resubscribe & Test" from your phone.',
+    testNoReport: 'Reached the push service ✅ but no device confirmed (~30s). iOS note: pushes to an OPEN app often show no banner. Correct procedure: press Send Test → go to Home Screen immediately (do NOT swipe-kill) → lock screen → wait ~30s. Also check Notification Center.',
     testSwFail: 'Reached your phone but FAILED to display',
     testEmpty: 'Not delivered — try toggling notifications off & on',
     testFail: 'Send failed — try again',
     testServer: 'Push server can’t send yet — not your phone’s fault. Try later',
+    localTestBtn: 'Local Display Test',
+    localTesting: 'Showing...',
+    localOk: '✅ Local notification shown → permission & service worker are HEALTHY. The problem is push DELIVERY, not display: stale token (press Resubscribe & Test) or the app was swipe-killed (reopen from Home Screen, don\'t kill it).',
+    localDenied: 'Notification permission not granted — open Settings → Notifications → LuxTradee',
+    localFail: 'Failed to show local notification: {reason}',
+    resubBtn: 'Resubscribe & Test',
+    resubbing: 'Refreshing token...',
     devicesTitle: 'Registered devices',
     devicesEmpty: 'No devices registered on the server — toggle Push on the device that should receive notifications.',
     deviceIOS: 'iPhone/iPad',
     deviceChrome: 'Chrome',
     deviceFirefox: 'Firefox',
     deviceOther: 'Other device',
+    agoSuffix: 'ago',
+    justNow: 'just now',
   },
 } as const
 
@@ -96,14 +114,29 @@ interface NotificationSetupProps {
   onShowIOSInstall?: () => void
 }
 
+/** Waktu relatif ringkas — "2m", "5j", "3h" */
+function relTime(iso?: string | null, justNow = 'baru saja', suffix = 'lalu'): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const diff = Date.now() - t
+  const m = Math.floor(diff / 60_000)
+  if (m < 1) return justNow
+  if (m < 60) return `${m}m ${suffix}`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}j ${suffix}`
+  return `${Math.floor(h / 24)}h ${suffix}`
+}
+
 /** Icon + label per platform device */
-function DeviceChip({ d, labels }: { d: DeviceInfo; labels: Record<string, string> }) {
+function DeviceChip({ d, labels, time }: { d: DeviceInfo; labels: Record<string, string>; time: string }) {
   const Icon = d.platform === 'ios' ? Smartphone : d.platform === 'other' ? HelpCircle : Monitor
   const label = labels[d.platform] || labels.other
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-white/50">
       <Icon className="w-3 h-3" />
       {label}
+      {time ? <span className="text-white/30">· {time}</span> : null}
     </span>
   )
 }
@@ -113,9 +146,11 @@ function DeviceChip({ d, labels }: { d: DeviceInfo; labels: Record<string, strin
  * - Detects iOS Safari and shows appropriate guidance
  * - Only requests push permission when in PWA/standalone mode (or non-iOS)
  * - Shows email fallback note on iOS
- * - Shows REGISTERED DEVICES (server truth) — diagnostic for "notif gak
- *   muncul di HP padahal toggle hijau" (biasanya token HP tidak/basi di DB)
- * - Test feedback is PER-DEVICE: desktop ✓ / HP ✗ beda cerita dgn HP ✓
+ * - Shows REGISTERED DEVICES (server truth) with token freshness
+ * - Test feedback is PER-DEVICE (receipt per endpoint): desktop ✓ / HP ✗
+ * - "Tes Tampil (Lokal)": tampilkan notif TANPA push → isolasi apakah
+ *   masalah di izin/SW vs di PENGIRIMAN push (token basi / app di-kill)
+ * - "Resubscribe & Tes Ulang": bikin token BARU lalu tes otomatis
  * - Works as compact toggle or full setup card
  */
 export default function NotificationSetup({ compact = false, onShowIOSInstall }: NotificationSetupProps) {
@@ -132,6 +167,10 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const [showIOSBanner, setShowIOSBanner] = useState(false)
   const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'okDevice' | 'wrongDevice' | 'partial' | 'noReport' | 'swFail' | 'empty' | 'fail' | 'server'>('idle')
   const [swFailReason, setSwFailReason] = useState('')
+  const [resubbing, setResubbing] = useState(false)
+  // Tes tampil lokal (tanpa push) — isolasi masalah izin/SW vs pengiriman
+  const [localState, setLocalState] = useState<'idle' | 'testing' | 'ok' | 'denied' | 'fail'>('idle')
+  const [localReason, setLocalReason] = useState('')
   // Breakdown tes: perangkat yang dituju vs yang tidak lapor
   const [sentDevices, setSentDevices] = useState<DeviceInfo[]>([])
   const [missingDevices, setMissingDevices] = useState<DeviceInfo[]>([])
@@ -196,8 +235,8 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
     * lalu kirim ulang. FIX F5: resync juga saat semua perangkat expired.
     *
     * FIX PER-DEVICE: server balas daftar perangkat yang dituju + sw tiap
-    * device lapor dengan ep-nya → UI bisa bedakan "desktop ✓ tapi HP ✗"
-    * (token HP basi — biang keladi keluhan Bos) dari "HP ✓ semua oke". */
+    * device lapor dengan ep-nya (TANPA auth — sesi expired gak masalah) →
+    * UI bedakan "desktop ✓ tapi HP ✗" (token HP basi) dari "HP ✓ semua oke". */
   const handleSendTest = useCallback(async () => {
     setTestState('sending')
     setMissingDevices([])
@@ -231,21 +270,25 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
       }
       if (data.sent > 0) {
         setTestState('ok')
-        setSentDevices(Array.isArray(data.devices) ? data.devices : [])
+        const expected: DeviceInfo[] = Array.isArray(data.devices) ? data.devices : []
+        setSentDevices(expected)
         // FASE 5 debug: tunggu laporan penerimaan dari device (sw lapor
         // setelah showNotification sukses). Apple 201 ≠ tampil di HP.
         // 15×2s = 30 dtk — Apple bisa menyajikan push lambat (device idle,
         // Low Power Mode) + SW baru butuh waktu aktif → dulu 11 dtk sering
         // keburu berhenti di "Terkirim!" padahal notif menyusul.
+        // Poll pakai eps → mode tanpa auth (bukti tetap masuk walau sesi mati)
+        const epsQ = expected.length
+          ? `&eps=${encodeURIComponent(expected.map((d) => d.ep).join(','))}`
+          : ''
         for (let i = 0; i < 15; i++) {
           await new Promise((r) => setTimeout(r, 2000))
           try {
-            const rc = await fetch('/api/push/received?tag=push-test')
+            const rc = await fetch(`/api/push/received?tag=push-test${epsQ}`)
             if (rc.ok) {
               const rj = await rc.json()
               if (rj.received) {
                 const receipts: Record<string, { ok?: boolean; reason?: string }> = rj.receipts || {}
-                const expected: DeviceInfo[] = Array.isArray(data.devices) ? data.devices : []
                 // Device "unknown" = SW lama (tanpa ep) — tetap dihitung lapor
                 const matched = expected.filter((d) => receipts[d.ep])
                 const missing = expected.filter((d) => !receipts[d.ep])
@@ -264,7 +307,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
                   break
                 }
                 // Sebagian device diam. THE MONEY DIAGNOSIS:
-                // desktop lapor tapi iPhone tidak → token HP basi/tak terdaftar
+                // device lain lapor tapi iPhone tidak → token HP basi
                 setMissingDevices(missing)
                 const phoneSilent = missing.some((d) => d.platform === 'ios')
                 const nonPhoneReported = matched.some((d) => d.platform !== 'ios')
@@ -276,8 +319,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
           } catch {}
         }
         // 30 dtk berlalu tanpa laporan device → server OK, HP belum konfirmasi:
-        // subscription basi / iOS Settings / Focus / SW lama. Panduan lengkap
-        // di pesan testNoReport — JANGAN biarkan status menggantung di "Terkirim!"
+        // subscription basi / iOS Settings / Focus / SW lama / app foreground.
+        // Panduan lengkap di pesan testNoReport — JANGAN biarkan status
+        // menggantung di "Terkirim!"
         setTestState((s) => (s === 'ok' ? 'noReport' : s))
         refreshDevices()
       } else if (data.reason === 'send_failed') {
@@ -292,8 +336,54 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
     }
   }, [resync, userId, isPro, refreshDevices])
 
+  /** Tes TAMPIL LOKAL (tanpa push): reg.showNotification() langsung dari
+    * halaman. Kalau ini tampil → izin + SW sehat → masalah pasti di
+    * PENGIRIMAN push (token basi / app di-swipe-kill / iOS foreground). */
+  const handleLocalTest = useCallback(async () => {
+    setLocalState('testing')
+    setLocalReason('')
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+        setLocalState('denied')
+        return
+      }
+      const reg = await navigator.serviceWorker.ready
+      await reg.showNotification('🔔 Tes Tampil Lokal — LuxTradee', {
+        body: 'Kalau ini muncul, izin & service worker kamu SEHAT. Masalah push = pengiriman, bukan tampilan.',
+        icon: '/icon-192x192.png',
+        badge: '/icon-72x72.png',
+        tag: 'local-test',
+      })
+      setLocalState('ok')
+    } catch (e: any) {
+      setLocalReason(String(e?.message || e).slice(0, 120))
+      setLocalState('fail')
+    }
+  }, [])
+
+  /** RESUBSCRIBE & TES: bikin token BARU (unsubscribe + subscribe) lalu tes
+    * otomatis — obat baku token basi hasil rotasi iOS. */
+  const handleResubscribeTest = useCallback(async () => {
+    if (!userId) return
+    setResubbing(true)
+    try {
+      const ok = await resync(userId, isPro)
+      if (!ok) {
+        setTestState('empty')
+        return
+      }
+      refreshDevices()
+      await handleSendTest()
+    } finally {
+      setResubbing(false)
+    }
+  }, [userId, isPro, resync, refreshDevices, handleSendTest])
+
   // Whether push can actually work on this device
   const pushCanWork = isSupported && (!isIOS || isStandalone)
+
+  // Tampilkan tombol resubscribe saat hasil tes mengarah ke token basi
+  const showResub = ['noReport', 'wrongDevice', 'partial', 'empty'].includes(testState) && !resubbing
 
   // ─── Device list block (dipakai di compact & full) ─────────────────────────
   const deviceListBlock = deviceList !== null && (
@@ -304,11 +394,55 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {deviceList.map((d) => (
-            <DeviceChip key={d.ep} d={d} labels={platformLabels} />
+            <DeviceChip key={d.ep} d={d} labels={platformLabels} time={relTime(d.updated, t.justNow, t.agoSuffix)} />
           ))}
         </div>
       )}
     </div>
+  )
+
+  // ─── Test buttons row (dipakai di compact & full) ───────────────────────────
+  const testButtons = (
+    <>
+      <button
+        onClick={handleSendTest}
+        disabled={testState === 'sending' || resubbing}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/25 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
+      >
+        {testState === 'sending' ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          <Send className="w-3 h-3" />
+        )}
+        {testState === 'sending' ? t.testingBtn : t.testBtn}
+      </button>
+      <button
+        onClick={handleLocalTest}
+        disabled={localState === 'testing' || testState === 'sending' || resubbing}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 text-[11px] font-semibold text-white/60 hover:bg-white/10 hover:text-white/80 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
+      >
+        {localState === 'testing' ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          <Bell className="w-3 h-3" />
+        )}
+        {localState === 'testing' ? t.localTesting : t.localTestBtn}
+      </button>
+      {showResub && (
+        <button
+          onClick={handleResubscribeTest}
+          disabled={resubbing || testState === 'sending'}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-[11px] font-semibold text-amber-400 hover:bg-amber-500/25 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
+        >
+          {resubbing ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Wrench className="w-3 h-3" />
+          )}
+          {resubbing ? t.resubbing : t.resubBtn}
+        </button>
+      )}
+    </>
   )
 
   // ─── Test feedback block (dipakai di compact & full) ────────────────────────
@@ -333,7 +467,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
         </span>
       )}
       {testState === 'noReport' && (
-        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[240px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.testNoReport}</span>
+        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[260px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.testNoReport}</span>
       )}
       {testState === 'swFail' && (
         <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><Smartphone className="w-3 h-3 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</span>
@@ -346,6 +480,16 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
       )}
       {testState === 'server' && (
         <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testServer}</span>
+      )}
+      {/* Feedback tes tampil lokal */}
+      {localState === 'ok' && (
+        <span className="flex items-start gap-1 text-[10px] text-emerald-400 max-w-[260px]"><CheckCircle2 className="w-3 h-3 mt-0.5 shrink-0" />{t.localOk}</span>
+      )}
+      {localState === 'denied' && (
+        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.localDenied}</span>
+      )}
+      {localState === 'fail' && (
+        <span className="flex items-start gap-1 text-[10px] text-red-400 max-w-[220px]"><AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />{t.localFail.replace('{reason}', localReason)}</span>
       )}
     </>
   )
@@ -416,20 +560,13 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
 
         {/* FASE 5A: tes notifikasi (hanya saat sudah berlangganan) */}
         {isSubscribed && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
-            <button
-              onClick={handleSendTest}
-              disabled={testState === 'sending'}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/25 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
-            >
-              {testState === 'sending' ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Send className="w-3 h-3" />
-              )}
-              {testState === 'sending' ? t.testingBtn : t.testBtn}
-            </button>
-            {testFeedback}
+          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+            <div className="flex flex-wrap items-center gap-2">
+              {testButtons}
+            </div>
+            <div className="mt-1.5 flex flex-col gap-1">
+              {testFeedback}
+            </div>
           </div>
         )}
 
@@ -546,57 +683,14 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
                   )}
                   {isLoading ? t.disablingBtn : t.disableBtn}
                 </button>
-                <button
-                  onClick={handleSendTest}
-                  disabled={testState === 'sending'}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/15 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 active:scale-[0.97] transition-all disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  {testState === 'sending' ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Send className="w-3 h-3" />
-                  )}
-                  {testState === 'sending' ? t.testingBtn : t.testBtn}
-                </button>
+                {testButtons}
               </div>
             )}
 
             {/* FASE 5A: feedback tes notifikasi */}
             {isSubscribed && (
-              <div className="mt-2">
-                {testState === 'ok' && (
-                  <p className="flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />{t.testOk}</p>
-                )}
-                {testState === 'okDevice' && (
-                  <p className="flex items-center gap-1.5 text-xs text-emerald-400"><Smartphone className="w-3.5 h-3.5" />{t.testOkDevice}</p>
-                )}
-                {testState === 'wrongDevice' && (
-                  <p className="flex items-start gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testWrongDevice}</p>
-                )}
-                {testState === 'partial' && (
-                  <p className="flex items-start gap-1.5 text-xs text-amber-400">
-                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    {t.testPartial
-                      .replace('{ok}', String(sentDevices.length - missingDevices.length))
-                      .replace('{total}', String(sentDevices.length))
-                      .replace('{missing}', missingDevices.map((d) => platformLabels[d.platform] || d.platform).join(', '))}
-                  </p>
-                )}
-                {testState === 'noReport' && (
-                  <p className="flex items-start gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testNoReport}</p>
-                )}
-                {testState === 'swFail' && (
-                  <p className="flex items-start gap-1.5 text-xs text-amber-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</p>
-                )}
-                {testState === 'empty' && (
-                  <p className="flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testEmpty}</p>
-                )}
-                {testState === 'fail' && (
-                  <p className="flex items-center gap-1.5 text-xs text-red-400"><AlertCircle className="w-3.5 h-3.5" />{t.testFail}</p>
-                )}
-                {testState === 'server' && (
-                  <p className="flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testServer}</p>
-                )}
+              <div className="mt-2 flex flex-col gap-1">
+                {testFeedback}
               </div>
             )}
           </div>
