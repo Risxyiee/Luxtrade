@@ -126,7 +126,9 @@ export function createAdminClient(): SupabaseClient | null {
     return null
   }
   if (diag.kind === 'non_jwt') {
-    console.warn('[supabase/admin] Service key bukan JWT legacy (kemungkinan format baru sb_secret_) — diteruskan apa adanya.')
+    // INFO, bukan warn — format baru sb_secret_ adalah format normal saat ini,
+    // diteruskan apa adanya (Cloudflare log warn per-request = noise).
+    console.log('[supabase/admin] Service key format baru (sb_secret_, non-JWT) — diteruskan apa adanya.')
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
@@ -167,7 +169,8 @@ export async function createAdminClientAsync(): Promise<SupabaseClient | null> {
     return null
   }
   if (diag.kind === 'non_jwt') {
-    console.warn('[supabase/admin] Service key bukan JWT legacy (kemungkinan format baru sb_secret_) — diteruskan apa adanya.')
+    // INFO, bukan warn — format baru sb_secret_ adalah format normal saat ini.
+    console.log('[supabase/admin] Service key format baru (sb_secret_, non-JWT) — diteruskan apa adanya.')
   }
 
   console.log(

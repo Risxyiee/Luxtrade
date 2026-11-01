@@ -64,7 +64,8 @@ interface ChallengeWithUser {
   currentTotalDD: number
   currentProgress: number
   alertAtPercent: number
-  lastAlertAt: Date | null
+  // NOTE: Supabase REST mengembalikan timestamp sebagai string ISO, bukan Date.
+  lastAlertAt: string | Date | null
   isBreached: boolean
   breachReason: string | null
   userEmail: string | null
@@ -132,6 +133,17 @@ async function getActiveChallenges(admin: NonNullable<Awaited<ReturnType<typeof 
   }
 
   return results
+}
+
+/**
+ * Safe ISO serializer untuk timestamp dari DB (bisa string ISO atau Date).
+ * Supabase REST TIDAK mengembalikan objek Date — paksa parse via new Date().
+ * Mengembalikan null untuk nilai kosong/invalid (tidak pernah throw).
+ */
+function toIsoOrNull(value: string | Date | null | undefined): string | null {
+  if (!value) return null
+  const d = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
 /**
@@ -504,7 +516,7 @@ async function handleRequest(request: NextRequest) {
               total_pl: totalPL,
               current_progress: Math.min(progressPercent, 100),
               current_balance: challenge.accountSize + totalPL,
-              last_alert_at: alertsSent.length > 0 ? new Date().toISOString() : challenge.lastAlertAt?.toISOString() || null,
+              last_alert_at: alertsSent.length > 0 ? new Date().toISOString() : toIsoOrNull(challenge.lastAlertAt),
               updated_at: new Date().toISOString(),
             })
             .eq('id', challenge.id)
