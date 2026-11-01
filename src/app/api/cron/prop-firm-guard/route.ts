@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { sendEmail, getPropFirmAlertHtml } from '@/lib/email'
-import { sendPushToUser } from '@/lib/web-push'
+import { pushToUser } from '@/lib/push-notify'
 
 /**
  * GET /api/cron/prop-firm-guard
@@ -212,8 +212,6 @@ async function sendAlert(
   roomLeftPercent: number,
   roomLeftDollar: number
 ): Promise<boolean> {
-  if (!challenge.userEmail) return false
-
   // Rate limit
   if (severity !== 'breach' && isAlertRateLimited(challenge.id)) {
     return false
@@ -222,63 +220,61 @@ async function sendAlert(
   const name = challenge.userName || 'Trader'
   const ctaUrl = `${SITE_URL}/dashboard`
 
-  const html = getPropFirmAlertHtml({
-    name,
-    firmName: challenge.firmName,
-    accountSize: challenge.accountSize,
-    challengePhase: challenge.challengePhase,
-    alertType,
-    severity,
-    currentDDPercent,
-    ddLimitPercent,
-    roomLeftPercent,
-    roomLeftDollar,
-    ctaUrl,
-  })
+  // Email opsional — user tanpa email TETAP dapat push (push = jalur utama).
+  let emailResult: { success: boolean } = { success: true }
+  if (challenge.userEmail) {
+    const html = getPropFirmAlertHtml({
+      name,
+      firmName: challenge.firmName,
+      accountSize: challenge.accountSize,
+      challengePhase: challenge.challengePhase,
+      alertType,
+      severity,
+      currentDDPercent,
+      ddLimitPercent,
+      roomLeftPercent,
+      roomLeftDollar,
+      ctaUrl,
+    })
 
-  // Build subject
-  let subject: string
-  if (severity === 'breach') {
-    subject = `🚫 CHALLENGE BREACHED — ${challenge.firmName} $${challenge.accountSize.toLocaleString()} | LuxTradee`
-  } else if (severity === 'success') {
-    subject = `🎉 Profit Target Reached! — ${challenge.firmName} | LuxTradee`
-  } else if (severity === 'urgent') {
-    subject = `🚨 URGENT: Drawdown ${currentDDPercent.toFixed(1)}% — ${challenge.firmName} | LuxTradee`
-  } else {
-    subject = `⚠️ Drawdown Warning ${currentDDPercent.toFixed(1)}% — ${challenge.firmName} | LuxTradee`
+    // Build subject
+    let subject: string
+    if (severity === 'breach') {
+      subject = `🚫 CHALLENGE BREACHED — ${challenge.firmName} $${challenge.accountSize.toLocaleString()} | LuxTradee`
+    } else if (severity === 'success') {
+      subject = `🎉 Profit Target Reached! — ${challenge.firmName} | LuxTradee`
+    } else if (severity === 'urgent') {
+      subject = `🚨 URGENT: Drawdown ${currentDDPercent.toFixed(1)}% — ${challenge.firmName} | LuxTradee`
+    } else {
+      subject = `⚠️ Drawdown Warning ${currentDDPercent.toFixed(1)}% — ${challenge.firmName} | LuxTradee`
+    }
+
+    // Send email
+    emailResult = await sendEmail({
+      to: challenge.userEmail,
+      subject,
+      html,
+    })
   }
 
-  // Send email
-  const emailResult = await sendEmail({
-    to: challenge.userEmail,
-    subject,
-    html,
-  })
-
-  // Send push notification
+  // Send push notification — via pushToUser (satu pintu): otomatis masuk
+  // feed in-app (Bell), baca subs service-role, dan buang endpoint mati.
   try {
-    const { data: pushSubs } = await admin
-      .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .eq('user_id', challenge.userId)
-
-    if (pushSubs && pushSubs.length > 0) {
-      await sendPushToUser(pushSubs as any, {
-        title: severity === 'breach'
-          ? 'Challenge Breached!'
-          : severity === 'success'
-          ? 'Profit Target Reached!'
-          : `Drawdown ${currentDDPercent.toFixed(1)}%`,
-        body: severity === 'breach'
-          ? `${challenge.firmName} challenge has been breached.`
-          : severity === 'success'
-          ? `${challenge.firmName} profit target achieved!`
-          : `${challenge.firmName}: DD at ${currentDDPercent.toFixed(1)}% of ${ddLimitPercent.toFixed(1)}% limit.`,
-        url: ctaUrl,
-        tag: `propfirm-${challenge.id}`,
-        type: 'trade',
-      })
-    }
+    await pushToUser(admin, challenge.userId, {
+      title: severity === 'breach'
+        ? 'Challenge Breached!'
+        : severity === 'success'
+        ? 'Profit Target Reached!'
+        : `Drawdown ${currentDDPercent.toFixed(1)}%`,
+      body: severity === 'breach'
+        ? `${challenge.firmName} challenge has been breached.`
+        : severity === 'success'
+        ? `${challenge.firmName} profit target achieved!`
+        : `${challenge.firmName}: DD at ${currentDDPercent.toFixed(1)}% of ${ddLimitPercent.toFixed(1)}% limit.`,
+      url: ctaUrl,
+      tag: `propfirm-${challenge.id}`,
+      type: 'trade',
+    })
   } catch (err) {
     console.warn('[prop-firm-guard] Push notification failed:', err)
   }

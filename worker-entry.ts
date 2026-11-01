@@ -29,7 +29,7 @@ const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard'],
 }
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
@@ -42,13 +42,18 @@ const CRON_ROUTES = {
 const CEO_TIMEOUT_MS = 120_000
 const DEFAULT_TIMEOUT_MS = 30_000
 const PRICE_ALERTS_TIMEOUT_MS = 90_000
+/* Prop-firm-guard: loop semua challenge aktif × query trades (DB-only,
+   tanpa fetch quote) — 60 dtk cukup utk user banyak. */
+const PROP_GUARD_TIMEOUT_MS = 60_000
 const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
 const timeoutFor = (route: string) =>
   ceoRoute(route)
     ? CEO_TIMEOUT_MS
     : route.startsWith('/api/cron/price-alerts')
       ? PRICE_ALERTS_TIMEOUT_MS
-      : DEFAULT_TIMEOUT_MS
+      : route.startsWith('/api/cron/prop-firm-guard')
+        ? PROP_GUARD_TIMEOUT_MS
+        : DEFAULT_TIMEOUT_MS
 
 export default {
   async fetch(request, env, ctx) {
