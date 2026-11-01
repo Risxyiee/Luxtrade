@@ -5,6 +5,15 @@ import { rateLimitByEmail, checkRateLimit } from '@/lib/rate-limit'
 
 const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
+/**
+ * SECURITY (audit #8): satu teks respons untuk SEMUA kasus (terdaftar, belum
+ * terkonfirmasi, tidak terdaftar, error) — attacker tidak bisa membedakan
+ * mana pun lewat body/status. Re-verifikasi produksi: Supabase kirim error
+ * `user_not_found` (kode mesin) yang TIDAK match pola 'not found' lama, jadi
+ * email tak terdaftar dulu dibedakan via 400. Sekarang ditutup total.
+ */
+const GENERIC_MSG = 'Jika email Anda terdaftar, link konfirmasi telah dikirim. Silakan cek inbox.'
+
 export async function POST(request: NextRequest) {
   try {
     const { email, fullName } = await request.json()
@@ -46,15 +55,9 @@ export async function POST(request: NextRequest) {
 
     if (otpError) {
       console.error('Generate link error:', otpError)
-      if (otpError.message?.includes('not found') || otpError.message?.includes('No user')) {
-        // SECURITY: respons generik — jangan bedakan "terdaftar" vs tidak
-        // (anti-enumerasi). Route ini tidak dipanggil UI manapun, jadi aman.
-        return NextResponse.json({
-          success: true,
-          message: 'Jika email Anda terdaftar, link konfirmasi telah dikirim. Silakan cek inbox.',
-        })
-      }
-      return NextResponse.json({ error: 'Gagal memproses permintaan' }, { status: 400 })
+      // SECURITY (audit #8): SEMUA kegagalan generateLink → 200 generik identik
+      // dengan sukses. Error asli hanya di-log server-side.
+      return NextResponse.json({ success: true, message: GENERIC_MSG })
     }
 
     // Step 2: Send email via Resend (template or inline fallback)
@@ -84,7 +87,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email konfirmasi telah dikirim. Silakan cek inbox Anda.',
+      // SECURITY (audit #8): teks PERSIS SAMA dengan jalur error — anti-enumerasi
+      message: GENERIC_MSG,
       ...(process.env.NODE_ENV === 'development' ? { debugUrl: confirmationUrl } : {}),
     })
   } catch (error) {
