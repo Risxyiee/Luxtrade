@@ -33,6 +33,30 @@ function cleanup() {
   }
 }
 
+/**
+ * Ambil IP client dari header tepercaya.
+ *
+ * SECURITY (audit #6): dulu IP diambil dari `x-forwarded-for` ENTRI PERTAMA —
+ * header itu bisa di-spoof client, jadi rate limit bisa direset dengan
+ * mengganti header. Sekarang:
+ *   1. `cf-connecting-ip` — diset Cloudflare edge, tidak bisa di-spoof (prod).
+ *   2. Entri TERAKHIR `x-forwarded-for` — ditambahkan proxy tepercaya
+ *      terdekat (Cloudflare), bukan entri pertama yang dikirim attacker.
+ *   3. `x-real-ip` / 'unknown' — fallback lokal/dev.
+ */
+export function getClientIp(request: Request): string {
+  const cf = request.headers.get('cf-connecting-ip')
+  if (cf) return cf.trim()
+
+  const xff = request.headers.get('x-forwarded-for')
+  if (xff) {
+    const parts = xff.split(',').map(s => s.trim()).filter(Boolean)
+    if (parts.length > 0) return parts[parts.length - 1]
+  }
+
+  return request.headers.get('x-real-ip')?.trim() || 'unknown'
+}
+
 export interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */
   maxRequests: number
@@ -115,21 +139,15 @@ export function checkRateLimit(
       // Cannot clone body or parse JSON — fallback to IP
     }
     // Fall through to IP-based
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-               request.headers.get('x-real-ip') ||
-               'unknown'
+    const ip = getClientIp(request)
     key = `rl:${identifier}:${ip}`
   } else if (keyBy === 'userId') {
     // For authenticated routes, caller should pass the userId directly
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-               request.headers.get('x-real-ip') ||
-               'unknown'
+    const ip = getClientIp(request)
     key = `rl:${identifier}:unknown-user:${ip}`
   } else {
     // Default: IP-based
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-               request.headers.get('x-real-ip') ||
-               'unknown'
+    const ip = getClientIp(request)
     key = `rl:${identifier}:${ip}`
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
+import { rateLimitByEmail, checkRateLimit } from '@/lib/rate-limit'
 
 const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
@@ -11,6 +12,23 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: 'Email wajib diisi' }, { status: 400 })
     }
+
+    // SECURITY (audit #8): dulu route ini TANPA rate limit → bisa dipakai
+    // email-bombing atas nama domain kita + enumerasi user via 404.
+    // Limit IP (dilindungi cf-connecting-ip) + limit per-email.
+    const rlIp = checkRateLimit(request, 'send-confirmation', {
+      maxRequests: 10,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak permintaan. Tunggu 15 menit.',
+    })
+    if (rlIp) return rlIp
+
+    const rlEmail = rateLimitByEmail('send-confirmation', email, {
+      maxRequests: 3,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak permintaan konfirmasi. Tunggu 15 menit.',
+    })
+    if (rlEmail) return rlEmail
 
     const authAdmin = getSupabaseAdminAuthFromClient()
     if (!authAdmin) {
@@ -29,12 +47,14 @@ export async function POST(request: NextRequest) {
     if (otpError) {
       console.error('Generate link error:', otpError)
       if (otpError.message?.includes('not found') || otpError.message?.includes('No user')) {
-        return NextResponse.json(
-          { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
-          { status: 404 }
-        )
+        // SECURITY: respons generik — jangan bedakan "terdaftar" vs tidak
+        // (anti-enumerasi). Route ini tidak dipanggil UI manapun, jadi aman.
+        return NextResponse.json({
+          success: true,
+          message: 'Jika email Anda terdaftar, link konfirmasi telah dikirim. Silakan cek inbox.',
+        })
       }
-      return NextResponse.json({ error: otpError.message }, { status: 400 })
+      return NextResponse.json({ error: 'Gagal memproses permintaan' }, { status: 400 })
     }
 
     // Step 2: Send email via Resend (template or inline fallback)

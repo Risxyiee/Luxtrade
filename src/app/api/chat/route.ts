@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,17 @@ const MAX_MESSAGES = 20
 
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY (audit #7): dulu route ini TANPA auth dan tanpa rate limit IP —
+    // limit lama hanya per `sessionId` yang dikirim client sendiri, jadi bisa
+    // dilewati dengan sessionId acak → panggilan Gemini tak terbatas atas
+    // nama API key kita. Sekarang: limit per-IP dulu, lalu limit per-session.
+    const limited = checkRateLimit(req, 'chat', {
+      maxRequests: 10,
+      windowMs: 60_000,
+      message: 'Terlalu banyak pesan. Tunggu sebentar ya.',
+    })
+    if (limited) return limited
+
     // CRITICAL: Use req.text() + JSON.parse() instead of req.json()
     // to avoid "Stream already consumed" error in Cloudflare Workers V8 Isolate
     // on the second+ request in the same session.
