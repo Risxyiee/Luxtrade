@@ -530,6 +530,29 @@ function LuxTradeDashboardContent() {
     }
   }, [])
 
+  // PERF: watchlist dimuat saat tab dibuka — buka awal dashboard tidak
+  // membuang request untuk data yang tidak tampak di tab default.
+  const watchlistLoadedRef = useRef(false)
+  const watchlistInflightRef = useRef(false)
+  const ensureWatchlistData = useCallback(async (force = false) => {
+    if (watchlistInflightRef.current) return
+    if (!force && watchlistLoadedRef.current) return
+    watchlistInflightRef.current = true
+    try {
+      const res = await fetch(`/api/watchlist?_t=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        setWatchlistItems(data.items || [])
+        watchlistLoadedRef.current = true
+      }
+    } catch { /* diam — tab menampilkan data lama/kosong */ }
+    finally { watchlistInflightRef.current = false }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'watchlist') ensureWatchlistData()
+  }, [activeTab, ensureWatchlistData])
+
   // Fetch all data — each API is independent; one failure should not block others
   // Set isRefresh=true when called after a mutation (add/edit/delete) to avoid full loading flash
   const fetchData = useCallback(async (isRefresh?: boolean) => {
@@ -547,12 +570,17 @@ function LuxTradeDashboardContent() {
       const tradesBust = isRefresh ? `?${accountIdParam ? accountIdParam + '&' : ''}_t=${Date.now()}` : (accountIdParam ? '?' + accountIdParam : '')
       const accountsBust = isRefresh ? '?_t=' + Date.now() : ''
       const journalBust = isRefresh ? '?_t=' + Date.now() : ''
-      const watchlistBust = isRefresh ? '?_t=' + Date.now() : ''
 
       const tradesPromise = fetch(`/api/trades${tradesBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
       const analyticsPromise = fetch(`/api/analytics${accountIdWithBust ? '?' + accountIdWithBust : (isRefresh ? '?_bust=1' : '')}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
       const journalPromise = fetch(`/api/journal${journalBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
-      const watchlistPromise = fetch(`/api/watchlist${watchlistBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
+      // PERF (laporan Bos: loading masuk dashboard berat): watchlist TIDAK
+      // dipakai tab default (DashboardTab) → jangan buang 1 request + 1
+      // roundtrip auth di buka pertama. Dimuat saat tab watchlist dibuka
+      // (ensureWatchlistData) atau saat refresh setelah mutasi (isRefresh).
+      const watchlistPromise = isRefresh
+        ? fetch(`/api/watchlist?_t=${Date.now()}`, { credentials: 'include', cache: 'no-store' }).catch(() => null)
+        : Promise.resolve(null)
       const accountsPromise = fetch(`/api/trading-accounts${accountsBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
 
       // Process each response as soon as it arrives — don't wait for all to complete
@@ -713,6 +741,7 @@ function LuxTradeDashboardContent() {
   const handleLoadSampleData = useCallback(async () => {
     const res = await fetch('/api/sample-data', { method: 'POST', credentials: 'include' })
     if (res.ok) {
+      watchlistLoadedRef.current = false // sample data bisa menambah watchlist
       fetchData()
     }
   }, [fetchData])

@@ -77,15 +77,24 @@ export default function NotificationCenter({
     }
   }, [])
 
-  // Ambil feed saat mount + polling 60 detik + refresh saat tab fokus
+  // Ambil feed saat mount + polling 60 detik (hanya saat tab TERLIHAT) +
+  // refresh saat tab fokus kembali. PERF: hemat request saat app di background.
   useEffect(() => {
     fetchFeed()
-    const interval = setInterval(fetchFeed, 60_000)
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      fetchFeed()
+    }, 60_000)
     const onFocus = () => fetchFeed()
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') fetchFeed()
+    }
     window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       clearInterval(interval)
       window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [fetchFeed])
 

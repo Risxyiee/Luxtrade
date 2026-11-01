@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
+  // PERF: tree-shaking agresif utk library besar — kurangi JS di chunk awal
+  // (dashboard entry) → time-to-first-fetch lebih cepat.
+  experimental: {
+    optimizePackageImports: ['framer-motion', 'lucide-react', 'recharts', 'date-fns'],
+  },
+
   // SECURITY (#4 hardening): jangan paparkan fingerprint "x-powered-by: Next.js"
   // di response header — memperkecil info recon bagi attacker.
   poweredByHeader: false,

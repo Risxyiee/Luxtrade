@@ -26,7 +26,7 @@ const SessionPerformanceChart = dynamic(() => import('./SessionPerformanceChart'
 import { ExportButtons } from '../components/ExportButtons'
 import PropFirmGuardSummary from '../components/PropFirmGuardSummary'
 import type { Trade, JournalEntry, Analytics } from '@/types'
-import { authFetch } from '@/lib/api-fetch'
+import { fetchPropFirmGuard } from '@/lib/prop-firm-client'
 
 // Lightweight equity curve - lazy loaded, zero recharts/framer-motion dependency
 const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
@@ -231,11 +231,10 @@ function DashboardTab({
   } | null>(null)
   useEffect(() => {
     let cancelled = false
-    async function fetchPropFirm() {
+    // PERF: pakai shared client (dedupe) — dulu fetch mentah tiap mount
+    async function fetchPropFirm(force = false) {
       try {
-        const res = await authFetch('/api/prop-firm-guard')
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await fetchPropFirmGuard({ force })
         const challenges = data.challenges || []
         if (!cancelled && challenges.length > 0) {
           const active = challenges.filter((c: any) => c.isActive && !c.isBreached)
@@ -259,7 +258,7 @@ function DashboardTab({
     }
     fetchPropFirm()
     // Listen for data changes from PropFirmGuardTab (cross-component reactivity)
-    const handleDataChanged = () => { fetchPropFirm() }
+    const handleDataChanged = () => { fetchPropFirm(true) }
     window.addEventListener('propfirm-data-changed', handleDataChanged)
     return () => {
       cancelled = true

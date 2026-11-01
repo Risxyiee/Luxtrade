@@ -12,7 +12,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard, Download, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
-import OnboardingModal from '@/components/landing/OnboardingModal'
+// PERF (laporan Bos: loading dashboard berat): OnboardingModal menarik
+// framer-motion ke chunk awal walau jarang tampil → lazy chunk, hanya
+// diunduh saat showOnboarding=true.
+const OnboardingModal = dynamic(() => import('@/components/landing/OnboardingModal').then(m => ({ default: m.default })), { ssr: false })
 import { formatCurrency } from '@/lib/utils-currency'
 import { Trade, TradeFormData, emptyFormData, JournalEntry } from '../utils/types'
 import { moodOptions, marketConditions } from '../utils/helpers'
@@ -21,7 +24,6 @@ import { moodOptions, marketConditions } from '../utils/helpers'
 const PNLShareCard = dynamic(() => import('@/components/PNLShareCard').then(m => ({ default: m.default })), { ssr: false })
 const PlanSelectionModal = dynamic(() => import('@/components/PlanSelectionModal').then(m => ({ default: m.default })), { ssr: false })
 const PaywallModal = dynamic(() => import('@/components/PaywallModal').then(m => ({ default: m.default })), { ssr: false })
-const OnboardingOverlay = dynamic(() => import('./OnboardingOverlay').then(m => ({ default: m.default })), { ssr: false })
 const TradeWizardForm = dynamic(() => import('./TradeWizardForm').then(m => ({ default: m.default })), { ssr: false })
 import AddAccountForm from './AddAccountForm'
 

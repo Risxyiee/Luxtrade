@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { fetchPropFirmGuard } from '@/lib/prop-firm-client'
 
 // ==================== TYPES ====================
 
@@ -210,9 +211,10 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
   }, [selectedAccountId, tradingAccounts, refreshKey])
 
   // Fetch prop firm challenges for drawdown limit overlay
+  // PERF: pakai shared client (dedupe ×3 komponen) — mount pertama boleh pakai
+  // cache; refreshKey > 0 (event refresh equity) → force ambil data baru.
   useEffect(() => {
-    fetch('/api/prop-firm-guard', { credentials: 'include', cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
+    fetchPropFirmGuard({ force: refreshKey > 0 })
       .then(d => {
         if (!d?.challenges) { setPropFirmOverlays([]); return }
         const overlays: PropFirmChallengeOverlay[] = d.challenges
