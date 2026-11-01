@@ -17,7 +17,7 @@ const steps = {
       desc: 'Upload screenshot MetaTrader (MT5) atau TradingView. Sistem langsung membaca pair, harga entry, exit, dan hasil P/L dalam hitungan detik.',
       rightSide: true,
       visual: 'upload',
-      img: '/images/guide/auto-journal-example-v2.jpeg',
+      img: '/images/guide/auto-journal-example-v2.webp',
     },
     {
       num: 'STEP 02',
@@ -64,7 +64,7 @@ const steps = {
       desc: 'Upload MetaTrader (MT5) or TradingView screenshots. The system instantly reads the pair, entry price, exit, and P/L result in seconds.',
       rightSide: true,
       visual: 'upload',
-      img: '/images/guide/auto-journal-example-v2.jpeg',
+      img: '/images/guide/auto-journal-example-v2.webp',
     },
     {
       num: 'STEP 02',

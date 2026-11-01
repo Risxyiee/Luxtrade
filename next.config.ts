@@ -93,6 +93,42 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      // CACHE LIFETIMES (Lighthouse: "Use efficient cache lifetimes") —
+      // asset statis public/ tidak ber-fingerprint nama → set TTL panjang
+      // + stale-while-revalidate. Ganti konten = naikkan versi nama file
+      // (pattern -v2 → -v3) sebagai cache-busting manual.
+      // /_next/static/* SUDAH immutable otomatis dari Next (1 tahun).
+      {
+        source: '/:path*.(png|jpg|jpeg|webp|svg|ico|avif)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        source: '/images/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        source: '/screenshots/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        source: '/luxtradee.apk',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
+        ],
+      },
+      // Manifest berubah saat update PWA — TTL 1 hari cukup
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, must-revalidate' },
+        ],
+      },
       {
         source: '/sw.js',
         headers: [
