@@ -3,6 +3,7 @@ import { createAdminClientAsync } from '@/lib/supabase/admin'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { endpointTail, platformOf } from '@/lib/push-tail'
 
 /**
  * POST /api/push/test — kirim notifikasi push TES ke diri sendiri (FASE 5A).
@@ -47,10 +48,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
-    // Semua perangkat milik user INI saja
+    // Semua perangkat milik user INI saja + metadata utk diagnosa per-device
     const { data: subscriptions, error: subErr } = await adminClient
       .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
+      .select('endpoint, p256dh, auth, user_agent, updated_at')
       .eq('user_id', userId)
 
     if (subErr) {
@@ -110,12 +111,24 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[push/test] user=${userId} sent=${result.sent}/${total} expired=${result.expired.length} failed=${failedCount} reason=${reason}`)
+
+    // BREAKDOWN PER PERANGKAT — UI tampilkan persis ke mana push dikirim,
+    // jadi Bos bisa lihat sendiri: "ternyata cuma desktop yang terdaftar".
+    // epTail dicocokkan dgn receipt dari sw.ts → status per device nyata.
+    const devices = subscriptions.map((s: { endpoint: string; user_agent?: string | null; updated_at?: string | null }) => ({
+      ep: endpointTail(s.endpoint),
+      platform: platformOf(s.endpoint),
+      ua: (s.user_agent || '').slice(0, 120),
+      updated: s.updated_at || null,
+    }))
+
     return NextResponse.json({
       sent: result.sent,
       expired: result.expired.length,
       failed: failedCount,
       total,
       reason,
+      devices,
       message: result.sent > 0
         ? 'Notifikasi tes terkirim — cek HP kamu!'
         : reason === 'send_failed'

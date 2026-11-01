@@ -64,6 +64,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to save subscription', detail: upsertErr.message }, { status: 500 })
     }
 
+    // FIX STALE-DUPLICATE (rotasi token iOS): Apple me-rotate endpoint push
+    // (reinstall PWA / app di-swipe-kill / update iOS) → endpoint baru =
+    // baris baru (upsert onConflict endpoint), endpoint LAMA tetap numpuk.
+    // Push ke endpoint lama ditelan Apple diam-diam → "sent>0" tapi HP kosong.
+    // Device yang sama teridentifikasi dari user_agent yang persis identik →
+    // semua endpoint lain milik UA itu dibuang. Aman utk desktop juga
+    // (rotasi Chrome jarang, tapi bila terjadi logikanya sama).
+    if (userAgent) {
+      const { data: sameDevice, error: listErr } = await adminClient
+        .from('push_subscriptions')
+        .select('endpoint')
+        .eq('user_id', userId)
+        .eq('user_agent', userAgent)
+        .neq('endpoint', endpoint)
+      if (!listErr && sameDevice && sameDevice.length > 0) {
+        const stale = sameDevice.map((r: { endpoint: string }) => r.endpoint)
+        await adminClient
+          .from('push_subscriptions')
+          .delete()
+          .in('endpoint', stale)
+        console.log(`[push/subscribe] Cleanup ${stale.length} stale endpoint(s) dari device yang sama`)
+      }
+    }
+
     return NextResponse.json({ success: true, id: subscription?.id })
   } catch (error: any) {
     console.error('[push/subscribe] Error:', error.message)

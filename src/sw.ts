@@ -355,23 +355,41 @@ sw.addEventListener('push', (event) => {
   // push beneran sampai & TAMPIL di device (Apple 201 ≠ tampil di HP).
   // Kegagalan tampil JUGA dilaporkan (ok:false + reason) biar tombol tes
   // bisa membedakan "gak sampai ke HP" vs "sampai tapi gagal tampil".
+  //
+  // FIX PER-DEVICE: laporan menyertakan `ep` (tail endpoint perangkat INI —
+  // logika identik src/lib/push-tail.ts endpointTail, di-inline supaya
+  // bundle SW tidak menarik dependensi server). Server simpan per-device,
+  // UI bisa bilang "desktop ✓ / HP ✗" — dulu per-USER: device pertama yang
+  // lapor (mis. desktop online) dianggap "Sampai di HP" → menyesatkan.
   // ⚠️ WAJIB hidup di src/sw.ts (sumber) — commit lama (77637f26) pernah
   // menambal public/sw.js build langsung → kode hilang pas build berikutnya
   // (produksi buta 1 hari tanpa sadar — insiden 2026-11-01).
+  const endpointTail = (ep: string): string =>
+    ep.replace(/[^a-zA-Z0-9_-]/g, '').slice(-16) || 'unknown'
+
   const reportReceipt = (ok: boolean, reason?: string) => {
     try {
-      return fetch('/api/push/received', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // credentials default 'same-origin' → cookie sesi ikut → endpoint
-        // bisa mengaitkan laporan dengan user pemilik device.
-        body: JSON.stringify({
-          tag: options.tag || 'default',
-          type: data.type || 'general',
-          ok,
-          ...(reason ? { reason: String(reason).slice(0, 160) } : {}),
-        }),
-      }).catch(() => {})
+      // Ambil endpoint perangkat INI dulu (async, cepat — cache internal SW)
+      return sw.registration.pushManager
+        .getSubscription()
+        .then((sub) => (sub ? endpointTail(sub.endpoint) : 'device'))
+        .catch(() => 'device')
+        .then((ep) =>
+          fetch('/api/push/received', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // credentials default 'same-origin' → cookie sesi ikut → endpoint
+            // bisa mengaitkan laporan dengan user pemilik device.
+            body: JSON.stringify({
+              tag: options.tag || 'default',
+              type: data.type || 'general',
+              ep,
+              ok,
+              ...(reason ? { reason: String(reason).slice(0, 160) } : {}),
+            }),
+          })
+        )
+        .catch(() => {})
     } catch {
       return Promise.resolve()
     }

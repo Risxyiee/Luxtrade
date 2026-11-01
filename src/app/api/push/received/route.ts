@@ -11,8 +11,12 @@ import { checkRateLimit } from '@/lib/rate-limit'
  * DEVICE ITU SENDIRI: sw.js memanggil endpoint ini tepat setelah
  * showNotification() sukses → simpan bukti di KV (TTL 120 detik).
  *
- * GET /api/push/received?tag=push-test — client (tombol tes) bertanya:
- * "sampai gak di HP?" → { received, at }.
+ * FIX PER-DEVICE: dulu bukti disimpan per-USER (pushrecv:<uid>:<tag>) —
+ * padahal /api/push/test kirim ke SEMUA perangkat user sekaligus. Device
+ * pertama yang lapor (mis. DESKTOP yang kebetulan online) menimpa bukti →
+ * UI bilang "Sampai di HP kamu!" padahal HP tidak pernah menerima.
+ * Sekarang bukti berbentuk MAP per endpoint: { [epTail]: {at, ok, reason} }
+ * → UI bisa bilang persis: "desktop ✓, iPhone ✗ belum lapor".
  *
  * Kenapa KV: serverless multi-isolate — bukti harus terbaca lintas isolate,
  * dan TTL otomatis membereskan sampahnya. Tanpa data sensitif.
@@ -20,9 +24,18 @@ import { checkRateLimit } from '@/lib/rate-limit'
 
 const RECEIPT_TTL = 120 // detik
 
-function sanitizeTag(tag: string | null | undefined): string {
-  const t = (tag || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60)
-  return t || 'default'
+interface DeviceReceipt {
+  at: number
+  type?: string
+  ok?: boolean
+  reason?: string
+}
+
+type ReceiptMap = Record<string, DeviceReceipt>
+
+function sanitizeKey(key: string | null | undefined, fallback: string, max = 60): string {
+  const t = (key || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, max)
+  return t || fallback
 }
 
 export async function POST(request: NextRequest) {
@@ -40,19 +53,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const tag = sanitizeTag(body?.tag)
-    const type = sanitizeTag(body?.type)
+    const tag = sanitizeKey(body?.tag, 'default')
+    const type = sanitizeKey(body?.type, 'general')
+    const ep = sanitizeKey(body?.ep, 'device', 40)
     /* ok:false = push SAMPAI di SW tapi showNotification GAGAL (reason=kenapa).
        Dulu hanya sukses yang dilaporkan → tombol tes gak bisa membedakan
        "gak sampai" vs "sampai tapi gagal tampil" (iOS Settings/Focus dsb). */
     const ok = body?.ok !== false
     const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 160) : undefined
 
-    await kvSet(
-      `pushrecv:${user.id}:${tag}`,
-      { at: Date.now(), type, ok, ...(reason ? { reason } : {}) },
-      { ttl: RECEIPT_TTL }
-    )
+    // MAP per device — merge, jangan timpa laporan device lain
+    const key = `pushrecv:${user.id}:${tag}`
+    const existing = (await kvGet<ReceiptMap>(key)) || {}
+    existing[ep] = { at: Date.now(), type, ok, ...(reason ? { reason } : {}) }
+    await kvSet(key, existing, { ttl: RECEIPT_TTL })
+
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     console.error('[push/received] POST error:', error?.message)
@@ -74,14 +89,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tag = sanitizeTag(new URL(request.url).searchParams.get('tag'))
-    const receipt = await kvGet<{ at: number; type?: string; ok?: boolean; reason?: string }>(`pushrecv:${user.id}:${tag}`)
+    const tag = sanitizeKey(new URL(request.url).searchParams.get('tag'), 'default')
+    const receipts = (await kvGet<ReceiptMap>(`pushrecv:${user.id}:${tag}`)) || {}
+    const eps = Object.keys(receipts)
+
     return NextResponse.json({
-      received: !!receipt,
-      at: receipt?.at ?? null,
-      ok: receipt ? receipt.ok !== false : undefined,
-      reason: receipt?.reason,
-      note: receipt ? undefined : 'Belum ada laporan dari device (TTL 120s)',
+      // Backward-compat: received = ada minimal 1 laporan masuk
+      received: eps.length > 0,
+      at: eps.length ? receipts[eps[0]].at : null,
+      ok: eps.length ? receipts[eps[0]].ok !== false : undefined,
+      reason: eps.length ? receipts[eps[0]].reason : undefined,
+      // BARU: laporan per perangkat → UI bedakan "desktop ✓ / HP ✗"
+      count: eps.length,
+      receipts,
+      note: eps.length ? undefined : 'Belum ada laporan dari device (TTL 120s)',
     })
   } catch (error: any) {
     console.error('[push/received] GET error:', error?.message)

@@ -3967,3 +3967,56 @@ notif system-style (kayak WA) TIDAK PERNAH muncul di iPhone.
 
 ### Gerbang
 - tsc + lint EXIT 0. Push → CF deploy otomatis.
+
+## 2026-11-XX — FASE 5.3 — Push Gak Masuk di HP: 3 Bug "Last Mile" Dibedah & Ditutup
+
+### Latar
+Bos: "notif belum masuk padahal udah ku aktifin semua di HP" — email & Discord
+masuk, push ala-WA tidak. Log Cloudflare BERSIH (tanpa error/warn), server bilang
+`reason=ok sent>0`. Screenshot iOS Settings → Notifications → LuxTradee: PWA
+sudah ter-install sebagai app + semua izin OS ON. Artinya: rantai server→FCM/APNs
+sehat; masalah di "last mile" — dan setelah dibedah, masalahnya DI SISTEM KITA.
+
+### 3 Akar Masalah (ditemukan bedah kode)
+1. **RECEIPT PER-USER, BUKAN PER-DEVICE (penyesat utama)**: `/api/push/test`
+   kirim ke SEMUA subscription user (desktop + HP). Laporan penerimaan
+   disimpan `pushrecv:<uid>:<tag>` per-USER → device pertama yang lapor
+   (hampir selalu DESKTOP yang online) dianggap "Sampai di HP kamu!" —
+   padahal HP gak pernah nerima. Semua diagnosa sebelumnya ketutup lapisan ini.
+2. **STALE DUPLICATE (penyebab HP gak nerima)**: Apple/iOS me-rotate token
+   push (reinstall PWA, swipe-kill, update iOS). Silent-resync upsert pakai
+   `onConflict:'endpoint'` → endpoint baru = BARIS BARU; endpoint lama tetap
+   numpuk (cuma terhapus kalau Apple balas 404/410 — bisa molor berminggu).
+   Token HP yang SEKARANG bisa jadi gak ada di DB sama sekali (resync terakhir
+   gagal senyap) → push dikirim ke token mati → Apple terima diam-diam →
+   HP kosong. `sent>0` datangnya dari device lain yang masih hidup.
+3. **UI gak nunjukin perangkat apa saja yang terdaftar** → mustahil tahu
+   token HP masuk DB atau tidak.
+
+### Fix
+1. **`/api/push/received`**: bukti jadi MAP per-endpoint
+   `{[epTail]: {at, ok, reason}}` (merge, bukan timpa). GET balikin `receipts`.
+2. **`src/sw.ts`**: laporan receipt menyertakan `ep` = tail 16 char endpoint
+   (logika identik lib/push-tail.ts, di-inline di SW). SW lama tanpa `ep`
+   jatuh ke key `device` → tetap dihitung (backward-compat).
+3. **`src/lib/push-tail.ts`** (baru): `endpointTail` + `platformOf` dipakai
+   bersama API (test/devices); SW inline copy — dipisah biar bundle SW gak
+   narik dependensi Next/server.
+4. **`/api/push/test`**: balikin `devices[]` {ep, platform, ua, updated}
+   (platform dari host endpoint: push.apple.com=ios, fcm=chrome).
+5. **`/api/push/subscribe`**: HEAL rotasi token — setelah upsert, hapus semua
+   endpoint LAIN milik user yang user_agent-nya persis sama (device sama,
+   endpoint beda = sisa token mati). Numpukan basi beres otomatis tiap device
+   subscribe ulang.
+6. **`GET /api/push/devices`** (baru): daftar perangkat milik user.
+7. **UI NotificationSetup**: (a) blok "Perangkat terdaftar" — chips
+   📱iPhone/iPad · 💻Chrome (server truth!); (b) hasil tes PER-DEVICE:
+   `wrongDevice` = "PC ✓ tapi HP ✗ → token HP basi, buka app dari Home
+   Screen, toggle mati-nyala, tes lagi"; `partial` = "Sampai N/M, tidak
+   lapor: …"; pesan noReport ditambah panduan "buka dari Home Screen bukan
+   Safari (biar SW terbaru aktif)".
+
+### Alur diagnosa Bos berikutnya (uji)
+- Daftar perangkat TANPA iPhone → toggle Push di HP (dari app PWA) → iPhone
+  muncul di daftar → tes → harus `okDevice` atau `partial` yg jujur.
+- `wrongDevice` → konfirmasi bos: token HP gak pernah sampai server.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail, Send, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Bell, BellOff, Loader2, AlertCircle, Smartphone, Mail, Send, CheckCircle2, AlertTriangle, Monitor, HelpCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
@@ -29,12 +29,20 @@ const strings = {
     testBtn: 'Kirim Notifikasi Tes',
     testingBtn: 'Mengirim...',
     testOk: 'Terkirim! Cek HP kamu 📲',
-    testOkDevice: '📥 Sampai di HP kamu! Kalau banner gak muncul → cek Settings → Notifications → LuxTradee, atau matikan Focus mode',
-    testNoReport: 'Sampai ke push service ✅ tapi HP belum konfirmasi terima (±30 dtk). Cek: Settings → Notifications → LuxTradee → Allow + Banners/Lock Screen, matikan Focus/Jangan Ganggu, cek Notification Center. Masih kosong? Matikan-nyalakan toggle Push lalu tes lagi (subscription bisa basi).',
+    testOkDevice: '📥 Sampai & tampil di perangkatmu!',
+    testWrongDevice: '⚠️ PC/laptop menerima, tapi HP TIDAK melapor. Token push HP-mu tidak ada / sudah basi di server. Buka app LuxTradee dari Home Screen (bukan Safari) → matikan lalu nyalakan toggle Push di HP → tes lagi.',
+    testPartial: 'Sampai di {ok}/{total} perangkat. Yang TIDAK melapor: {missing}. Buka app-nya dari Home Screen, toggle Push mati-nyala, tes lagi.',
+    testNoReport: 'Sampai ke push service ✅ tapi belum ada perangkat yang lapor (±30 dtk). Cek: buka app LuxTradee dari Home Screen (bukan Safari — biar service worker terbaru aktif), Settings → Notifications → LuxTradee → Allow + Banners, matikan Focus. Lalu toggle Push mati-nyala → tes lagi.',
     testSwFail: 'Sampai di HP tapi GAGAL ditampilkan',
     testEmpty: 'Belum kekirim — coba matikan & nyalakan lagi notifikasinya',
     testFail: 'Gagal terkirim — coba lagi',
     testServer: 'Server belum bisa kirim push — bukan salah HP-mu. Coba lagi nanti',
+    devicesTitle: 'Perangkat terdaftar',
+    devicesEmpty: 'Belum ada perangkat terdaftar di server — toggle Push di device yang mau kamu terima notif-nya.',
+    deviceIOS: 'iPhone/iPad',
+    deviceChrome: 'Chrome',
+    deviceFirefox: 'Firefox',
+    deviceOther: 'Perangkat lain',
   },
   en: {
     enableBtn: 'Enable Notifications',
@@ -55,16 +63,31 @@ const strings = {
     testBtn: 'Send Test Notification',
     testingBtn: 'Sending...',
     testOk: 'Sent! Check your phone 📲',
-    testOkDevice: '📥 Arrived on your phone! No banner? Check Settings → Notifications → LuxTradee, or turn Focus off',
-    testNoReport: 'Reached the push service ✅ but your phone hasn’t confirmed receipt (~30s). Check: Settings → Notifications → LuxTradee → Allow + Banners/Lock Screen, turn Focus off, check Notification Center. Still nothing? Toggle Push off & on, then test again (subscription may be stale).',
+    testOkDevice: '📥 Arrived & displayed on your device!',
+    testWrongDevice: '⚠️ PC/laptop received it, but your PHONE did NOT report. Your phone\'s push token is missing/stale on the server. Open the LuxTradee app from the Home Screen (not Safari) → toggle Push off & on on your phone → test again.',
+    testPartial: 'Arrived on {ok}/{total} devices. Did NOT report: {missing}. Open the app from Home Screen, toggle Push off & on, test again.',
+    testNoReport: 'Reached the push service ✅ but no device confirmed (~30s). Check: open LuxTradee from the Home Screen (not Safari — so the latest service worker activates), Settings → Notifications → LuxTradee → Allow + Banners, turn Focus off. Then toggle Push off & on → test again.',
     testSwFail: 'Reached your phone but FAILED to display',
     testEmpty: 'Not delivered — try toggling notifications off & on',
     testFail: 'Send failed — try again',
     testServer: 'Push server can’t send yet — not your phone’s fault. Try later',
+    devicesTitle: 'Registered devices',
+    devicesEmpty: 'No devices registered on the server — toggle Push on the device that should receive notifications.',
+    deviceIOS: 'iPhone/iPad',
+    deviceChrome: 'Chrome',
+    deviceFirefox: 'Firefox',
+    deviceOther: 'Other device',
   },
 } as const
 
 type LangKey = keyof typeof strings
+
+interface DeviceInfo {
+  ep: string
+  platform: string
+  ua: string
+  updated?: string | null
+}
 
 interface NotificationSetupProps {
   /** Render as compact toggle for settings/sidebar */
@@ -73,11 +96,26 @@ interface NotificationSetupProps {
   onShowIOSInstall?: () => void
 }
 
+/** Icon + label per platform device */
+function DeviceChip({ d, labels }: { d: DeviceInfo; labels: Record<string, string> }) {
+  const Icon = d.platform === 'ios' ? Smartphone : d.platform === 'other' ? HelpCircle : Monitor
+  const label = labels[d.platform] || labels.other
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-white/50">
+      <Icon className="w-3 h-3" />
+      {label}
+    </span>
+  )
+}
+
 /**
  * Smart notification setup component that:
  * - Detects iOS Safari and shows appropriate guidance
  * - Only requests push permission when in PWA/standalone mode (or non-iOS)
  * - Shows email fallback note on iOS
+ * - Shows REGISTERED DEVICES (server truth) — diagnostic for "notif gak
+ *   muncul di HP padahal toggle hijau" (biasanya token HP tidak/basi di DB)
+ * - Test feedback is PER-DEVICE: desktop ✓ / HP ✗ beda cerita dgn HP ✓
  * - Works as compact toggle or full setup card
  */
 export default function NotificationSetup({ compact = false, onShowIOSInstall }: NotificationSetupProps) {
@@ -92,13 +130,42 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [showIOSBanner, setShowIOSBanner] = useState(false)
-  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'okDevice' | 'noReport' | 'swFail' | 'empty' | 'fail' | 'server'>('idle')
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'okDevice' | 'wrongDevice' | 'partial' | 'noReport' | 'swFail' | 'empty' | 'fail' | 'server'>('idle')
   const [swFailReason, setSwFailReason] = useState('')
+  // Breakdown tes: perangkat yang dituju vs yang tidak lapor
+  const [sentDevices, setSentDevices] = useState<DeviceInfo[]>([])
+  const [missingDevices, setMissingDevices] = useState<DeviceInfo[]>([])
+  // Daftar perangkat terdaftar (server truth) — ditampilkan di UI
+  const [deviceList, setDeviceList] = useState<DeviceInfo[] | null>(null)
 
   useEffect(() => {
     setIsIOS(isIOSSafari())
     setIsStandalone(isStandaloneMode())
   }, [])
+
+  const platformLabels: Record<string, string> = {
+    ios: t.deviceIOS,
+    chrome: t.deviceChrome,
+    firefox: t.deviceFirefox,
+    other: t.deviceOther,
+  }
+
+  const refreshDevices = useCallback(async () => {
+    try {
+      const res = await fetch('/api/push/devices')
+      if (!res.ok) return
+      const json = await res.json()
+      setDeviceList(Array.isArray(json.devices) ? json.devices : [])
+    } catch {
+      // silent — daftar perangkat bersifat diagnostik
+    }
+  }, [])
+
+  // Ambil daftar perangkat saat subscribed (server truth)
+  useEffect(() => {
+    if (isSubscribed) refreshDevices()
+    else setDeviceList(null)
+  }, [isSubscribed, refreshDevices])
 
   /**
    * Core logic: When user clicks "Enable Notifications":
@@ -127,10 +194,13 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   /** FASE 5A: kirim push TES ke diri sendiri — bukti notif beneran sampai HP.
     * Drift (browser punya sub, server tidak) diperbaiki otomatis via resync
     * lalu kirim ulang. FIX F5: resync juga saat semua perangkat expired.
-    * Kalau server bilang send_failed → itu masalah infra push (bukan HP) →
-    * tampilkan pesan berbeda biar Bos gak salah curiga ke HP-nya. */
+    *
+    * FIX PER-DEVICE: server balas daftar perangkat yang dituju + sw tiap
+    * device lapor dengan ep-nya → UI bisa bedakan "desktop ✓ tapi HP ✗"
+    * (token HP basi — biang keladi keluhan Bos) dari "HP ✓ semua oke". */
   const handleSendTest = useCallback(async () => {
     setTestState('sending')
+    setMissingDevices([])
     try {
       const send = async () => {
         const res = await fetch('/api/push/test', { method: 'POST' })
@@ -161,6 +231,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
       }
       if (data.sent > 0) {
         setTestState('ok')
+        setSentDevices(Array.isArray(data.devices) ? data.devices : [])
         // FASE 5 debug: tunggu laporan penerimaan dari device (sw lapor
         // setelah showNotification sukses). Apple 201 ≠ tampil di HP.
         // 15×2s = 30 dtk — Apple bisa menyajikan push lambat (device idle,
@@ -173,14 +244,32 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             if (rc.ok) {
               const rj = await rc.json()
               if (rj.received) {
-                if (rj.ok === false) {
+                const receipts: Record<string, { ok?: boolean; reason?: string }> = rj.receipts || {}
+                const expected: DeviceInfo[] = Array.isArray(data.devices) ? data.devices : []
+                // Device "unknown" = SW lama (tanpa ep) — tetap dihitung lapor
+                const matched = expected.filter((d) => receipts[d.ep])
+                const missing = expected.filter((d) => !receipts[d.ep])
+                const failEntry = matched.find((d) => receipts[d.ep]?.ok === false)
+
+                if (failEntry) {
                   // Push SAMPAI di service worker tapi gagal ditampilkan —
-                  // ini masalah di device (iOS Settings/WebView), bukan server
-                  setSwFailReason(String(rj.reason || '').slice(0, 120))
+                  // masalah di device (iOS Settings/WebView), bukan server
+                  setSwFailReason(String(receipts[failEntry.ep]?.reason || '').slice(0, 120))
                   setTestState('swFail')
-                } else {
-                  setTestState('okDevice')
+                  break
                 }
+                if (missing.length === 0 || (matched.length === 0 && receipts['device'])) {
+                  // Semua perangkat lapor — atau SW lama lapor tanpa ep
+                  setTestState('okDevice')
+                  break
+                }
+                // Sebagian device diam. THE MONEY DIAGNOSIS:
+                // desktop lapor tapi iPhone tidak → token HP basi/tak terdaftar
+                setMissingDevices(missing)
+                const phoneSilent = missing.some((d) => d.platform === 'ios')
+                const nonPhoneReported = matched.some((d) => d.platform !== 'ios')
+                setTestState(phoneSilent && nonPhoneReported ? 'wrongDevice' : 'partial')
+                refreshDevices()
                 break
               }
             }
@@ -190,6 +279,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
         // subscription basi / iOS Settings / Focus / SW lama. Panduan lengkap
         // di pesan testNoReport — JANGAN biarkan status menggantung di "Terkirim!"
         setTestState((s) => (s === 'ok' ? 'noReport' : s))
+        refreshDevices()
       } else if (data.reason === 'send_failed') {
         // Server push-nya yang bermasalah (VAPID/library/runtime) —
         // mati-nyalakan notif gak akan nolong → pesan jujur
@@ -200,10 +290,65 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
     } catch {
       setTestState('fail')
     }
-  }, [resync, userId, isPro])
+  }, [resync, userId, isPro, refreshDevices])
 
   // Whether push can actually work on this device
   const pushCanWork = isSupported && (!isIOS || isStandalone)
+
+  // ─── Device list block (dipakai di compact & full) ─────────────────────────
+  const deviceListBlock = deviceList !== null && (
+    <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1.5">{t.devicesTitle}</p>
+      {deviceList.length === 0 ? (
+        <p className="text-[10px] text-amber-400/80">{t.devicesEmpty}</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {deviceList.map((d) => (
+            <DeviceChip key={d.ep} d={d} labels={platformLabels} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  // ─── Test feedback block (dipakai di compact & full) ────────────────────────
+  const testFeedback = (
+    <>
+      {testState === 'ok' && (
+        <span className="flex items-center gap-1 text-[10px] text-emerald-400"><CheckCircle2 className="w-3 h-3" />{t.testOk}</span>
+      )}
+      {testState === 'okDevice' && (
+        <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Smartphone className="w-3 h-3" />{t.testOkDevice}</span>
+      )}
+      {testState === 'wrongDevice' && (
+        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[240px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.testWrongDevice}</span>
+      )}
+      {testState === 'partial' && (
+        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[240px]">
+          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+          {t.testPartial
+            .replace('{ok}', String(sentDevices.length - missingDevices.length))
+            .replace('{total}', String(sentDevices.length))
+            .replace('{missing}', missingDevices.map((d) => platformLabels[d.platform] || d.platform).join(', '))}
+        </span>
+      )}
+      {testState === 'noReport' && (
+        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[240px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.testNoReport}</span>
+      )}
+      {testState === 'swFail' && (
+        <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><Smartphone className="w-3 h-3 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</span>
+      )}
+      {testState === 'empty' && (
+        <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testEmpty}</span>
+      )}
+      {testState === 'fail' && (
+        <span className="flex items-center gap-1 text-[10px] text-red-400"><AlertCircle className="w-3 h-3" />{t.testFail}</span>
+      )}
+      {testState === 'server' && (
+        <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testServer}</span>
+      )}
+    </>
+  )
 
   // ─── Compact toggle (for sidebar settings) ──────────────────────────────────
   if (compact) {
@@ -266,6 +411,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
           </div>
         )}
 
+        {/* Daftar perangkat terdaftar (server truth) — diagnostik token HP */}
+        {deviceListBlock}
+
         {/* FASE 5A: tes notifikasi (hanya saat sudah berlangganan) */}
         {isSubscribed && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
@@ -281,27 +429,7 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
               )}
               {testState === 'sending' ? t.testingBtn : t.testBtn}
             </button>
-            {testState === 'ok' && (
-              <span className="flex items-center gap-1 text-[10px] text-emerald-400"><CheckCircle2 className="w-3 h-3" />{t.testOk}</span>
-            )}
-            {testState === 'okDevice' && (
-              <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Smartphone className="w-3 h-3" />{t.testOkDevice}</span>
-            )}
-            {testState === 'noReport' && (
-              <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.testNoReport}</span>
-            )}
-            {testState === 'swFail' && (
-              <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><Smartphone className="w-3 h-3 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</span>
-            )}
-            {testState === 'empty' && (
-              <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testEmpty}</span>
-            )}
-            {testState === 'fail' && (
-              <span className="flex items-center gap-1 text-[10px] text-red-400"><AlertCircle className="w-3 h-3" />{t.testFail}</span>
-            )}
-            {testState === 'server' && (
-              <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testServer}</span>
-            )}
+            {testFeedback}
           </div>
         )}
 
@@ -385,6 +513,9 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
               </div>
             )}
 
+            {/* Daftar perangkat terdaftar (server truth) */}
+            <div className="mb-3">{deviceListBlock}</div>
+
             {/* Action buttons */}
             {!isSubscribed && pushCanWork && permission !== 'denied' && (
               <button
@@ -431,26 +562,42 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             )}
 
             {/* FASE 5A: feedback tes notifikasi */}
-            {isSubscribed && testState === 'ok' && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />{t.testOk}</p>
-            )}
-            {isSubscribed && testState === 'okDevice' && (
-              <p className="mt-2 flex items-start gap-1.5 text-xs text-emerald-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testOkDevice}</p>
-            )}
-            {isSubscribed && testState === 'noReport' && (
-              <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testNoReport}</p>
-            )}
-            {isSubscribed && testState === 'swFail' && (
-              <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</p>
-            )}
-            {isSubscribed && testState === 'empty' && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testEmpty}</p>
-            )}
-            {isSubscribed && testState === 'fail' && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-red-400"><AlertCircle className="w-3.5 h-3.5" />{t.testFail}</p>
-            )}
-            {isSubscribed && testState === 'server' && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testServer}</p>
+            {isSubscribed && (
+              <div className="mt-2">
+                {testState === 'ok' && (
+                  <p className="flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />{t.testOk}</p>
+                )}
+                {testState === 'okDevice' && (
+                  <p className="flex items-center gap-1.5 text-xs text-emerald-400"><Smartphone className="w-3.5 h-3.5" />{t.testOkDevice}</p>
+                )}
+                {testState === 'wrongDevice' && (
+                  <p className="flex items-start gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testWrongDevice}</p>
+                )}
+                {testState === 'partial' && (
+                  <p className="flex items-start gap-1.5 text-xs text-amber-400">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    {t.testPartial
+                      .replace('{ok}', String(sentDevices.length - missingDevices.length))
+                      .replace('{total}', String(sentDevices.length))
+                      .replace('{missing}', missingDevices.map((d) => platformLabels[d.platform] || d.platform).join(', '))}
+                  </p>
+                )}
+                {testState === 'noReport' && (
+                  <p className="flex items-start gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testNoReport}</p>
+                )}
+                {testState === 'swFail' && (
+                  <p className="flex items-start gap-1.5 text-xs text-amber-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</p>
+                )}
+                {testState === 'empty' && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testEmpty}</p>
+                )}
+                {testState === 'fail' && (
+                  <p className="flex items-center gap-1.5 text-xs text-red-400"><AlertCircle className="w-3.5 h-3.5" />{t.testFail}</p>
+                )}
+                {testState === 'server' && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testServer}</p>
+                )}
+              </div>
             )}
           </div>
         </div>
