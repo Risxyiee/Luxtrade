@@ -30,6 +30,8 @@ const strings = {
     testingBtn: 'Mengirim...',
     testOk: 'Terkirim! Cek HP kamu 📲',
     testOkDevice: '📥 Sampai di HP kamu! Kalau banner gak muncul → cek Settings → Notifications → LuxTradee, atau matikan Focus mode',
+    testNoReport: 'Sampai ke push service ✅ tapi HP belum konfirmasi terima (±30 dtk). Cek: Settings → Notifications → LuxTradee → Allow + Banners/Lock Screen, matikan Focus/Jangan Ganggu, cek Notification Center. Masih kosong? Matikan-nyalakan toggle Push lalu tes lagi (subscription bisa basi).',
+    testSwFail: 'Sampai di HP tapi GAGAL ditampilkan',
     testEmpty: 'Belum kekirim — coba matikan & nyalakan lagi notifikasinya',
     testFail: 'Gagal terkirim — coba lagi',
     testServer: 'Server belum bisa kirim push — bukan salah HP-mu. Coba lagi nanti',
@@ -54,6 +56,8 @@ const strings = {
     testingBtn: 'Sending...',
     testOk: 'Sent! Check your phone 📲',
     testOkDevice: '📥 Arrived on your phone! No banner? Check Settings → Notifications → LuxTradee, or turn Focus off',
+    testNoReport: 'Reached the push service ✅ but your phone hasn’t confirmed receipt (~30s). Check: Settings → Notifications → LuxTradee → Allow + Banners/Lock Screen, turn Focus off, check Notification Center. Still nothing? Toggle Push off & on, then test again (subscription may be stale).',
+    testSwFail: 'Reached your phone but FAILED to display',
     testEmpty: 'Not delivered — try toggling notifications off & on',
     testFail: 'Send failed — try again',
     testServer: 'Push server can’t send yet — not your phone’s fault. Try later',
@@ -88,7 +92,8 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [showIOSBanner, setShowIOSBanner] = useState(false)
-  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'okDevice' | 'empty' | 'fail' | 'server'>('idle')
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'ok' | 'okDevice' | 'noReport' | 'swFail' | 'empty' | 'fail' | 'server'>('idle')
+  const [swFailReason, setSwFailReason] = useState('')
 
   useEffect(() => {
     setIsIOS(isIOSSafari())
@@ -156,24 +161,35 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
       }
       if (data.sent > 0) {
         setTestState('ok')
-        // FASE 5 debug: tunggu laporan penerimaan dari device (sw.js lapor
+        // FASE 5 debug: tunggu laporan penerimaan dari device (sw lapor
         // setelah showNotification sukses). Apple 201 ≠ tampil di HP.
-        // 7×1.6s ≈ 11 dtk — dulu cuma 4×1.6s, Apple sering menyajikan push
-        // beberapa detik → status keburu berhenti di "Terkirim!" padahal
-        // notifnya beneran sampai (laptop Bos, laporan log 2026).
-        for (let i = 0; i < 7; i++) {
-          await new Promise((r) => setTimeout(r, 1600))
+        // 15×2s = 30 dtk — Apple bisa menyajikan push lambat (device idle,
+        // Low Power Mode) + SW baru butuh waktu aktif → dulu 11 dtk sering
+        // keburu berhenti di "Terkirim!" padahal notif menyusul.
+        for (let i = 0; i < 15; i++) {
+          await new Promise((r) => setTimeout(r, 2000))
           try {
             const rc = await fetch('/api/push/received?tag=push-test')
             if (rc.ok) {
               const rj = await rc.json()
               if (rj.received) {
-                setTestState('okDevice')
+                if (rj.ok === false) {
+                  // Push SAMPAI di service worker tapi gagal ditampilkan —
+                  // ini masalah di device (iOS Settings/WebView), bukan server
+                  setSwFailReason(String(rj.reason || '').slice(0, 120))
+                  setTestState('swFail')
+                } else {
+                  setTestState('okDevice')
+                }
                 break
               }
             }
           } catch {}
         }
+        // 30 dtk berlalu tanpa laporan device → server OK, HP belum konfirmasi:
+        // subscription basi / iOS Settings / Focus / SW lama. Panduan lengkap
+        // di pesan testNoReport — JANGAN biarkan status menggantung di "Terkirim!"
+        setTestState((s) => (s === 'ok' ? 'noReport' : s))
       } else if (data.reason === 'send_failed') {
         // Server push-nya yang bermasalah (VAPID/library/runtime) —
         // mati-nyalakan notif gak akan nolong → pesan jujur
@@ -270,6 +286,12 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             )}
             {testState === 'okDevice' && (
               <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Smartphone className="w-3 h-3" />{t.testOkDevice}</span>
+            )}
+            {testState === 'noReport' && (
+              <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{t.testNoReport}</span>
+            )}
+            {testState === 'swFail' && (
+              <span className="flex items-start gap-1 text-[10px] text-amber-400 max-w-[220px]"><Smartphone className="w-3 h-3 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</span>
             )}
             {testState === 'empty' && (
               <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />{t.testEmpty}</span>
@@ -414,6 +436,12 @@ export default function NotificationSetup({ compact = false, onShowIOSInstall }:
             )}
             {isSubscribed && testState === 'okDevice' && (
               <p className="mt-2 flex items-start gap-1.5 text-xs text-emerald-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testOkDevice}</p>
+            )}
+            {isSubscribed && testState === 'noReport' && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testNoReport}</p>
+            )}
+            {isSubscribed && testState === 'swFail' && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-400"><Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />{t.testSwFail}{swFailReason ? ` — ${swFailReason}` : ''}</p>
             )}
             {isSubscribed && testState === 'empty' && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" />{t.testEmpty}</p>

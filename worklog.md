@@ -3926,3 +3926,44 @@ email berhenti diam-diam, lampiran QA/talk/NBA hilang tanpa jejak.
 
 ### Gerbang
 - tsc + lint EXIT 0. Push → CF deploy otomatis.
+
+## 2026-11-01 — FASE 5.3 — "Terkirim tapi notif gak muncul di HP" — sensor dibenahi
+
+### Laporan Bos
+Push tes: server "Terkirim! 📱" (Apple 201), email & Discord normal, tapi
+notif system-style (kayak WA) TIDAK PERNAH muncul di iPhone.
+
+### Akar masalah yang ditemukan
+1. **Sensor penerimaan device HIDUP DI FILE SALAH.** Commit 77637f26
+   menambal `public/sw.js` (artefak build minify) LANGSUNG — bukan
+   `src/sw.ts` (sumber). Deploy berikutnya (cfd53def, a4eb7d42) memicu
+   build ulang di CF → serwist regenerasi sw.js dari sumber → **sensor
+   HILANG dari produksi tanpa sadar** → poll 30 dtk selalu nihil → status
+   menggantung di "Terkirim!" padahal device gak pernah lapor.
+   Pelajaran: artefak build DILARANG ditambal manual.
+2. Sensor lama cuma lapor SUKSES → gak bisa bedakan "gak sampai ke HP"
+   vs "sampai tapi gagal tampil" (kasus iOS Settings/Focus).
+
+### Fix
+1. **Sensor di-port ke `src/sw.ts`** (sumber kebenaran): lapor SUKSES
+   (ok:true) SETELAH showNotification, dan lapor GAGAL (ok:false + reason)
+   kalau showNotification utama + fallback minimal dua-duanya meledak.
+   Fetch same-origin bawa cookie sesi → endpoint bisa kaitkan ke user.
+2. **`/api/push/received`** simpan & balikin `ok` + `reason`.
+3. **UI tombol tes** (NotificationSetup): polling diperpanjang 11s → 30s
+   (15×2s, Apple bisa sajikan lambat saat device idle/Low Power);
+   state baru: `noReport` (server OK tapi HP gak konfirmasi → panduan iOS:
+   Settings → Notifications → LuxTradee → Allow + Banners, Focus off,
+   cek Notification Center, matikan-nyalakan toggle push buat re-subscribe)
+   dan `swFail` (sampai tapi gagal tampil + reason teknis tampil).
+4. **Push tes `urgency: high`** (header Urgency web push, kedua sender
+   Node & CF-native) → APNs menyajikan segera, gak ditunda OS.
+
+### Alur diagnosa setelah fix (uji Bos berikutnya)
+- `okDevice` → push sampai & tampil → selesai.
+- `swFail` + reason → perbaiki showNotification (lihat reason).
+- `noReport` → subscription basi (re-subscribe) / iOS Settings / Focus /
+  SW lama → panduan sudah tampil di UI.
+
+### Gerbang
+- tsc + lint EXIT 0. Push → CF deploy otomatis.

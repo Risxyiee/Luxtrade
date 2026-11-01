@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
       url: '/dashboard',
       tag: 'push-test',
       type: 'general',
+      // Push tes harus SAMPAI SEKARANG — jangan biarkan APNs menunda
+      // karena device idle (dulu jadi salah satu dugaan "notif gak masuk")
+      urgency: 'high',
     }
 
     const result = await sendPushToUser(subscriptions, payload)

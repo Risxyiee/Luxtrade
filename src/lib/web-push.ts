@@ -183,6 +183,9 @@ export interface PushPayload {
   url?: string
   tag?: string
   type?: 'trade' | 'price-alert' | 'news' | 'general'
+  /* Urgensi APNs: 'high' = sajikan SEGERA (push tes & alarm), 'normal' =
+     boleh ditunda device idle (default). Header HTTP 'Urgency' web push. */
+  urgency?: 'high' | 'normal'
 }
 
 /**
@@ -267,7 +270,7 @@ export async function sendPushNotification(
         JSON.stringify(payload),
         {
           TTL: 86400, // 24 hours
-          urgency: 'normal',
+          urgency: payload.urgency || 'normal',
         }
       )
       result = { ok: true, status: 'sent', statusCode: 201 }
@@ -304,7 +307,8 @@ export async function sendPushNotification(
   const cf = await sendPushNotificationCF(
     subscription,
     JSON.stringify(payload),
-    { publicKey, privateKey, subject }
+    { publicKey, privateKey, subject },
+    payload.urgency === 'high' ? 'high' : 'normal'
   )
   if (cf.ok) {
     console.log('[web-push] sent via CF-native sender')

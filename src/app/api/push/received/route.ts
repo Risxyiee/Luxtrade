@@ -42,8 +42,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const tag = sanitizeTag(body?.tag)
     const type = sanitizeTag(body?.type)
+    /* ok:false = push SAMPAI di SW tapi showNotification GAGAL (reason=kenapa).
+       Dulu hanya sukses yang dilaporkan → tombol tes gak bisa membedakan
+       "gak sampai" vs "sampai tapi gagal tampil" (iOS Settings/Focus dsb). */
+    const ok = body?.ok !== false
+    const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 160) : undefined
 
-    await kvSet(`pushrecv:${user.id}:${tag}`, { at: Date.now(), type }, { ttl: RECEIPT_TTL })
+    await kvSet(
+      `pushrecv:${user.id}:${tag}`,
+      { at: Date.now(), type, ok, ...(reason ? { reason } : {}) },
+      { ttl: RECEIPT_TTL }
+    )
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     console.error('[push/received] POST error:', error?.message)
@@ -66,10 +75,12 @@ export async function GET(request: NextRequest) {
     }
 
     const tag = sanitizeTag(new URL(request.url).searchParams.get('tag'))
-    const receipt = await kvGet<{ at: number; type?: string }>(`pushrecv:${user.id}:${tag}`)
+    const receipt = await kvGet<{ at: number; type?: string; ok?: boolean; reason?: string }>(`pushrecv:${user.id}:${tag}`)
     return NextResponse.json({
       received: !!receipt,
       at: receipt?.at ?? null,
+      ok: receipt ? receipt.ok !== false : undefined,
+      reason: receipt?.reason,
       note: receipt ? undefined : 'Belum ada laporan dari device (TTL 120s)',
     })
   } catch (error: any) {

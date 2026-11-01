@@ -210,7 +210,8 @@ export function getCfSenderUsed(): boolean {
 export async function sendPushNotificationCF(
   subscription: CfPushSubscription,
   payloadJson: string,
-  vapid: CfVapidKeys
+  vapid: CfVapidKeys,
+  urgency: 'high' | 'normal' = 'normal'
 ): Promise<CfPushSendResult> {
   try {
     const jwt = await createVapidJwt(subscription.endpoint, vapid)
@@ -226,7 +227,9 @@ export async function sendPushNotificationCF(
         'Content-Encoding': 'aes128gcm',
         'Content-Type': 'application/octet-stream',
         TTL: '86400',
-        Urgency: 'normal',
+        // 'high' = sajikan segera walau device idle (push tes/alarm);
+        // 'normal' (default) = boleh ditunda OS buat hemat baterai
+        Urgency: urgency,
         Authorization: `vapid t=${jwt}, k=${vapid.publicKey}`,
       },
       body: body as unknown as BodyInit,

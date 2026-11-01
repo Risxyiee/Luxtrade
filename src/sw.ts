@@ -350,23 +350,55 @@ sw.addEventListener('push', (event) => {
     ]
   }
 
-  // ── Show notification with error handling ──────────────────────────────
-  event.waitUntil(
-    sw.registration.showNotification(title, options).catch((err) => {
-      console.error('[sw] showNotification failed:', err)
+  // ── Show notification + SENSOR PENERIMAAN (FASE 5) ─────────────────────
+  // Lapor balik ke server TEPAT SETELAH showNotification sukses → bukti
+  // push beneran sampai & TAMPIL di device (Apple 201 ≠ tampil di HP).
+  // Kegagalan tampil JUGA dilaporkan (ok:false + reason) biar tombol tes
+  // bisa membedakan "gak sampai ke HP" vs "sampai tapi gagal tampil".
+  // ⚠️ WAJIB hidup di src/sw.ts (sumber) — commit lama (77637f26) pernah
+  // menambal public/sw.js build langsung → kode hilang pas build berikutnya
+  // (produksi buta 1 hari tanpa sadar — insiden 2026-11-01).
+  const reportReceipt = (ok: boolean, reason?: string) => {
+    try {
+      return fetch('/api/push/received', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // credentials default 'same-origin' → cookie sesi ikut → endpoint
+        // bisa mengaitkan laporan dengan user pemilik device.
+        body: JSON.stringify({
+          tag: options.tag || 'default',
+          type: data.type || 'general',
+          ok,
+          ...(reason ? { reason: String(reason).slice(0, 160) } : {}),
+        }),
+      }).catch(() => {})
+    } catch {
+      return Promise.resolve()
+    }
+  }
 
-      // Fallback: try with minimal options (some browsers reject complex options)
-      return sw.registration.showNotification(title, {
-        body,
-        icon: '/icon-512x512.png',
-        badge: '/icon-192x192.png',
-        tag: options.tag,
-        data: options.data,
-      }).catch((fallbackErr) => {
-        console.error('[sw] Even minimal showNotification failed:', fallbackErr)
-        // Nothing more we can do — notification will not show
+  event.waitUntil(
+    sw.registration.showNotification(title, options)
+      .then(() => reportReceipt(true))
+      .catch((err) => {
+        console.error('[sw] showNotification failed:', err)
+
+        // Fallback: try with minimal options (some browsers reject complex options)
+        return sw.registration.showNotification(title, {
+          body,
+          icon: '/icon-512x512.png',
+          badge: '/icon-192x192.png',
+          tag: options.tag,
+          data: options.data,
+        })
+          .then(() => reportReceipt(true, 'fallback-minimal'))
+          .catch((fallbackErr) => {
+            console.error('[sw] Even minimal showNotification failed:', fallbackErr)
+            // Nothing more we can do — notification will not show.
+            // Lapor kegagalan + alasannya → tombol tes bisa kasih diagnosa.
+            return reportReceipt(false, fallbackErr?.message || String(fallbackErr))
+          })
       })
-    })
   )
 })
 
