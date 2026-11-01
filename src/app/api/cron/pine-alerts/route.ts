@@ -52,7 +52,7 @@ async function handle(request: NextRequest) {
   const validSecrets = [
     String(process.env.PINE_ALERT_CRON_SECRET || '').trim(),
     String(process.env.CRON_SECRET || '').trim(),
-    String(process.env.VAPID_PRIVATE_KEY || '').trim(), // worker-entry fallback ketiga
+    // SECURITY (audit #17): VAPID_PRIVATE_KEY dihapus dari daftar secret cron
   ].filter(Boolean)
   if (!validSecrets.length) {
     return NextResponse.json({ error: 'PINE_ALERT_CRON_SECRET/CRON_SECRET belum diset — endpoint cron dinonaktifkan' }, { status: 403 })

@@ -79,7 +79,17 @@ async function kvIncrRaw(key: string): Promise<void> {
    HMAC-SHA256 → base64 → cocokkan dengan entri "v1,..." di svix-signature   */
 async function verifySvix(req: NextRequest, rawBody: string): Promise<{ ok: boolean; reason?: string }> {
   const secretRaw = process.env.RESEND_WEBHOOK_SECRET || ''
-  if (!secretRaw) return { ok: true, reason: 'RESEND_WEBHOOK_SECRET tidak diset — verifikasi dilewati' }
+  if (!secretRaw) {
+    // SECURITY (audit #11): dulu FAIL-OPEN — secret kosong = verifikasi
+    // dilewati, siapapun bisa POST event palsu (open-rate/bounce bohong).
+    // Sekarang fail-closed: produksi menolak sampai RESEND_WEBHOOK_SECRET
+    // diset (resend.com → Webhooks → Signing Secret). Dev lokal tetap lolos.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[webhooks/resend] RESEND_WEBHOOK_SECRET belum diset — event DITOLAK (fail-closed)')
+      return { ok: false, reason: 'webhook belum dikonfigurasi' }
+    }
+    return { ok: true, reason: 'dev: secret belum diset — verifikasi dilewati' }
+  }
 
   const id = req.headers.get('svix-id') || ''
   const ts = req.headers.get('svix-timestamp') || ''

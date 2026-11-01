@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('🔴 [DEBUG ACCOUNTS] Error:', error)
-    return NextResponse.json({ error: error.message, stack: error.stack }, { status: 500 })
+    // SECURITY (audit #14): jangan bocorkan error.message/stack ke client
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,15 +1,34 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 /**
  * POST /api/promo/downgrade-expired
  * Downgrades users whose promo subscription has expired back to FREE.
  * Called by cron job or admin action.
+ *
+ * SECURITY (audit #10): dulu TANPA auth — siapapun bisa POST untuk memicu
+ * mutasi massal status langganan. Sekarang wajib Bearer/x-cron-secret
+ * CRON_SECRET (pola sama dengan push/send). Fail-closed di produksi.
  */
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
+async function isCron(req: NextRequest): Promise<boolean> {
+  let secret = ''
+  try { secret = (await getEnvVar('CRON_SECRET', { quiet: true })) || '' } catch { /* abaikan */ }
+  secret = secret || process.env.CRON_SECRET || ''
+  if (!secret) return process.env.NODE_ENV === 'development'
+  const provided = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+    || req.headers.get('x-cron-secret') || ''
+  return !!provided && provided === secret
+}
+
+export async function POST(req: NextRequest) {
   try {
+    if (!(await isCron(req))) {
+      return NextResponse.json({ error: 'Unauthorized — khusus cron (CRON_SECRET)' }, { status: 401 })
+    }
+
     const admin = getSupabaseAdmin()
     if (!admin) {
       return NextResponse.json({ message: 'DB unavailable', downgraded: 0 })

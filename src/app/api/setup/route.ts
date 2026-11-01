@@ -87,10 +87,18 @@ BEGIN
   END LOOP;
 END $$;
 
--- 6. RLS Policies for profiles
-CREATE POLICY "Allow anon insert for signup" ON public.profiles FOR INSERT WITH CHECK (true);
-CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+-- 6. RLS Policies for profiles — HARDENED (audit #13)
+--    * Tidak ada INSERT utk anon: profile dibuat trigger handle_new_user
+--      (SECURITY DEFINER), bukan oleh client.
+--    * SELECT ditutup utk anon — email user tidak boleh dibaca publik.
+--    * UPDATE hanya owner & hanya kolom aman — is_pro/subscription_status/
+--      affiliate_balance/commission_paid hanya boleh diubah server
+--      (service_role, tidak terpengaruh grants authenticated).
+REVOKE ALL ON public.profiles FROM anon;
+GRANT SELECT ON public.profiles TO authenticated;
+GRANT UPDATE (full_name, avatar_url, device_id, updated_at) ON public.profiles TO authenticated;
+CREATE POLICY "Profiles readable only by owner" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile (kolom aman saja)" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- 7. RLS Policies for referral_tracking
 CREATE POLICY "Allow anon insert for referral" ON public.referral_tracking FOR INSERT WITH CHECK (true);

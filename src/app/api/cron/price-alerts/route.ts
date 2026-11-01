@@ -17,7 +17,7 @@ import { pushToUser } from '@/lib/push-notify'
  *   crossedUp    → prevClose < target ≤ lastClose
  *   crossedDown  → prevClose > target ≥ lastClose
  *
- * Auth: Bearer PINE_ALERT_CRON_SECRET / CRON_SECRET / VAPID_PRIVATE_KEY
+ * Auth: Bearer PINE_ALERT_CRON_SECRET / CRON_SECRET
  * (sama dengan pine-alerts — satu sumber secret untuk semua cron).
  * Fail-closed tanpa secret di produksi.
  */
@@ -56,7 +56,7 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
   const validSecrets = [
     String(process.env.PINE_ALERT_CRON_SECRET || '').trim(),
     String(process.env.CRON_SECRET || '').trim(),
-    String(process.env.VAPID_PRIVATE_KEY || '').trim(),
+    // SECURITY (audit #17): VAPID_PRIVATE_KEY dihapus dari daftar secret cron
   ].filter(Boolean)
   if (!validSecrets.length) {
     return process.env.NODE_ENV === 'development'

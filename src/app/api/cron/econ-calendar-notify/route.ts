@@ -14,7 +14,7 @@ import { pushToUsers } from '@/lib/push-notify'
  *   4. Send push notifications via /api/push/send-batch
  *
  * Run: every 5 minutes via Cloudflare Workers cron trigger
- * Auth: Bearer CRON_SECRET or VAPID_PRIVATE_KEY
+ * Auth: Bearer CRON_SECRET
  */
 
 export const dynamic = 'force-dynamic'
@@ -24,12 +24,12 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
   const auth = request.headers.get('authorization')
   // getEnvVar reads CF bindings/secrets reliably on Workers
   const cronSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  const vapidKey = (await getEnvVar('VAPID_PRIVATE_KEY')) || process.env.VAPID_PRIVATE_KEY
+  // SECURITY (audit #17): VAPID_PRIVATE_KEY tidak lagi jadi bearer cadangan
+  // (satu kunci satu fungsi — VAPID khusus tanda tangan web push).
   if (cronSecret && auth === `Bearer ${cronSecret}`) return true
-  if (vapidKey && auth === `Bearer ${vapidKey}`) return true
   // P0 hardening: FAIL-CLOSED — tanpa secret terkonfigurasi, DITOLAK di produksi
   // (dulu: allow "supaya scheduled handler jalan" → endpoint terbuka buat umum).
-  if (!cronSecret && !vapidKey) return process.env.NODE_ENV === 'development'
+  if (!cronSecret) return process.env.NODE_ENV === 'development'
   if (process.env.NODE_ENV === 'development') return true
   return false
 }

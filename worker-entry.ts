@@ -88,12 +88,11 @@ export default {
     }
 
     const siteUrl = (env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id').replace(/\/+$/, '')
-    // Send whichever auth secret exists — econ-calendar-notify accepts either
-    // CRON_SECRET or VAPID_PRIVATE_KEY as Bearer; pine-alerts menerima
-    // CRON_SECRET / PINE_ALERT_CRON_SECRET / VAPID (route-nya cocokkan ke
-    // semua). If neither is bound, no header is sent and routes allow the
-    // request (no-secrets-configured path).
-    const cronSecret = env.CRON_SECRET || env.VAPID_PRIVATE_KEY || env.PINE_ALERT_CRON_SECRET || process.env.CRON_SECRET || ''
+    // SECURITY (audit #17): VAPID_PRIVATE_KEY TIDAK lagi dipakai sebagai
+    // auth cron — satu kunci satu fungsi (VAPID = tanda tangan web push).
+    // Cron auth: CRON_SECRET / PINE_ALERT_CRON_SECRET saja. If neither is
+    // bound, no header is sent and routes reject (fail-closed).
+    const cronSecret = env.CRON_SECRET || env.PINE_ALERT_CRON_SECRET || process.env.CRON_SECRET || ''
 
     console.log(`[cron] Triggered: ${event.cron} → ${routes.join(', ')}`)
 

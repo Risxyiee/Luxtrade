@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // Edge-compatible: uses Prisma DB instead of filesystem
 // Original implementation used fs/path to write to a local JSON file,
@@ -11,6 +12,15 @@ function isValidEmail(email: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY (audit #19): rate limit per-IP — dulu terbuka untuk spam
+    // insert baris newsletter (banjir DB) tanpa batas.
+    const limited = checkRateLimit(request, 'newsletter', {
+      maxRequests: 5,
+      windowMs: 10 * 60 * 1000,
+      message: 'Terlalu banyak permintaan. Coba lagi nanti.',
+    })
+    if (limited) return limited
+
     const body = await request.json()
     const { email } = body
 

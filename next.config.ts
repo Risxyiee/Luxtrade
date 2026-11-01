@@ -26,13 +26,9 @@ const nextConfig: NextConfig = {
   // di response header — memperkecil info recon bagi attacker.
   poweredByHeader: false,
 
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // SECURITY (audit #18): eslint & typescript TIDAK lagi diabaikan saat build
+  // — `tsc --noEmit` & `eslint .` terbukti exit 0, jadi gate ini kini AKTIF
+  // (dulu error tipe/lint senyap lolos produksi).
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
@@ -74,10 +70,15 @@ const nextConfig: NextConfig = {
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self), payment=()' },
       {
-        key: 'Content-Security-Policy-Report-Only',
+        // SECURITY (audit #16): CSP kini ENFORCE (dulu Report-Only yang tidak
+        // memblokir apa pun). Domain Midtrans di-whitelist eksplisit untuk
+        // snap.js + iframe pembayaran. 'unsafe-inline' dipertahankan untuk
+        // bootstrap Next.js (nonce = project terpisah); pelanggaran tetap
+        // terkirim ke /api/security/csp-report (log CF Observability).
+        key: 'Content-Security-Policy',
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline'",
+          "script-src 'self' 'unsafe-inline' https://app.midtrans.com https://app.sandbox.midtrans.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "media-src 'self' https: blob:",
@@ -88,7 +89,7 @@ const nextConfig: NextConfig = {
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",
-          "frame-src 'none'",
+          "frame-src https://app.midtrans.com https://app.sandbox.midtrans.com",
           "frame-ancestors 'none'",
           'report-uri /api/security/csp-report',
         ].join('; '),

@@ -47,9 +47,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(debugInfo)
   } catch (error: any) {
-    return NextResponse.json({
-      error: error.message,
-      stack: error.stack
-    }, { status: 500 })
+    // SECURITY (audit #14): stack & pesan internal tidak dikirim ke client
+    console.error('[admin/debug] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

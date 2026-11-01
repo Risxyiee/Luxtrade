@@ -76,7 +76,17 @@ function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', req
 function AuthPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectPath = searchParams.get('redirect') || '/dashboard'
+
+  // SECURITY (audit #12): anti open-redirect — hanya path relatif dalam situs.
+  // `//evil.com`, `/\evil.com`, dan URL absolut (https://...) digantikan
+  // fallback, jadi ?redirect= tak bisa lagi melempar user ke domain luar.
+  const safeRedirect = (raw: string | null): string => {
+    const fallback = '/dashboard'
+    if (!raw) return fallback
+    if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\') || raw.includes('://')) return fallback
+    return raw
+  }
+  const redirectPath = safeRedirect(searchParams.get('redirect'))
 
   // View toggle
   const [view, setView] = useState<'login' | 'register'>('login')

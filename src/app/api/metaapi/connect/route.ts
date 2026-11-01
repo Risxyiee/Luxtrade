@@ -212,8 +212,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
+        // SECURITY (audit #14): pesan error internal tidak dikirim ke client
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )
