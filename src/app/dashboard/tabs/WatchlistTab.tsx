@@ -111,6 +111,30 @@ export default function WatchlistTab({
     setTargetInput(item.target_price != null ? String(item.target_price) : '')
   }
 
+  // Bell client-side (alert instan 15 dtk) ikut menyala saat target disimpan
+  // — target = janji alert, jadi alarm lokal + push cron sama-sama aktif.
+  const setBellEnabled = (id: string, on: boolean) => {
+    setAlertItems(prev => {
+      if (on === prev.has(id)) return prev
+      const next = new Set(prev)
+      if (on) next.add(id)
+      else next.delete(id)
+      try { localStorage.setItem('luxtradee-watchlist-alerts', JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  // Re-arm alert lokal — target baru/berubah = kesempatan alert baru
+  const clearTriggered = (id: string) => {
+    setTriggeredAlerts(prev => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      try { localStorage.setItem('luxtradee-watchlist-triggered', JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+
   const saveTarget = async () => {
     if (!targetItem || !onUpdateTarget) return
     const raw = targetInput.trim()
@@ -123,6 +147,8 @@ export default function WatchlistTab({
     const ok = await onUpdateTarget(targetItem.id, n)
     setTargetSaving(false)
     if (ok) {
+      setBellEnabled(targetItem.id, true)
+      clearTriggered(targetItem.id)
       toast.success(
         language === 'id'
           ? `🎯 Target ${n} tersimpan — push otomatis saat ${targetItem.symbol} menyentuhnya`
@@ -139,6 +165,9 @@ export default function WatchlistTab({
     const ok = await onUpdateTarget(targetItem.id, null)
     setTargetSaving(false)
     if (ok) {
+      // Target hilang → alarm lokal ikut dimatikan + re-arm
+      setBellEnabled(targetItem.id, false)
+      clearTriggered(targetItem.id)
       toast.success(language === 'id' ? 'Target dihapus' : 'Target removed')
       setTargetItem(null)
     }
@@ -147,6 +176,12 @@ export default function WatchlistTab({
   // Format price for display
   const formatPrice = (symbol: string, price: number) => {
     return price >= 100 ? price.toFixed(2) : price.toFixed(symbol.includes('JPY') ? 3 : 5)
+  }
+
+  // Presisi input target mengikuti format harga simbol (2/3/5 desimal)
+  const roundForSymbol = (symbol: string, v: number) => {
+    const d = v >= 100 ? 2 : symbol.includes('JPY') ? 3 : 5
+    return Number(v.toFixed(d))
   }
 
   // Manual refresh handler
@@ -412,27 +447,52 @@ export default function WatchlistTab({
                       </div>
                     )}
                     {item.target_price != null && (
-                      <button
-                        onClick={() => openTargetDialog(item)}
-                        className="mb-2 text-left w-full group/target"
-                        title={language === 'id' ? 'Klik untuk ubah target' : 'Click to edit target'}
-                      >
-                        <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>
-                        {triggeredAlerts.has(item.id) ? (
-                          <span className="text-sm font-bold text-emerald-400 inline-flex items-center gap-1">
-                            {item.target_price}
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-[10px] font-medium">{language === 'id' ? 'Tercapai!' : 'Reached!'}</span>
-                          </span>
-                        ) : (
-                          <span className="text-sm font-bold text-emerald-400 inline-flex items-center gap-1">
-                            {item.target_price}
-                            <span className="text-[10px] font-medium text-emerald-400/60 opacity-0 group-hover/target:opacity-100 transition-opacity">
-                              ✏️
+                      <div className="mb-2">
+                        <button
+                          onClick={() => openTargetDialog(item)}
+                          className="text-left w-full group/target"
+                          title={language === 'id' ? 'Klik untuk ubah target' : 'Click to edit target'}
+                        >
+                          <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>
+                          {triggeredAlerts.has(item.id) ? (
+                            <span className="text-sm font-bold text-emerald-400 inline-flex items-center gap-1">
+                              {item.target_price}
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-[10px] font-medium">{language === 'id' ? 'Tercapai!' : 'Reached!'}</span>
                             </span>
-                          </span>
-                        )}
-                      </button>
+                          ) : (
+                            <span className="text-sm font-bold text-emerald-400 inline-flex items-center gap-1">
+                              {item.target_price}
+                              <span className="text-[10px] font-medium text-emerald-400/60 opacity-0 group-hover/target:opacity-100 transition-opacity">
+                                ✏️
+                              </span>
+                            </span>
+                          )}
+                        </button>
+                        {/* Jarak ke target — makin penuh bar, makin dekat harga ke target */}
+                        {(() => {
+                          const cur = currentPrices[item.symbol]
+                          if (cur == null || !cur) return null
+                          const dist = ((item.target_price - cur) / cur) * 100
+                          const abs = Math.abs(dist)
+                          const near = abs < 0.5
+                          const fill = Math.max(6, 100 - Math.min(94, abs * 20))
+                          return (
+                            <div className="mt-1.5">
+                              <span className={`text-[10px] font-medium ${near ? 'text-emerald-400' : 'text-lux-text-muted dark:text-gray-500'}`}>
+                                {near ? '🎯 ' : dist > 0 ? '▲ ' : '▼ '}
+                                {abs.toFixed(2)}% {language === 'id' ? 'ke target' : 'to target'}
+                              </span>
+                              <div className="h-1 mt-1 rounded-full bg-white/10 dark:bg-white/5 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${near ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400'}`}
+                                  style={{ width: `${fill}%` }}
+                                />
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </div>
                     )}
                     {item.notes && (
                       <p className="text-xs text-lux-text-secondary dark:text-gray-400 line-clamp-2">{item.notes}</p>
@@ -531,6 +591,23 @@ export default function WatchlistTab({
                             ? '▼ Target di bawah harga — alert saat TURUN ke target'
                             : '▼ Target below price — alert when price FALLS to it')}
                       </p>
+                    )}
+                    {cur != null && !!cur && (
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        <span className="text-[10px] text-lux-text-muted dark:text-gray-500 self-center mr-0.5">
+                          {language === 'id' ? 'Cepat:' : 'Quick:'}
+                        </span>
+                        {[-1, -0.5, 0.5, 1].map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setTargetInput(String(roundForSymbol(targetItem.symbol, cur * (1 + p / 100))))}
+                            className="px-2 py-1 rounded-md text-[10px] font-medium border border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-400 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors"
+                          >
+                            {p > 0 ? `+${p}%` : `${p}%`}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
