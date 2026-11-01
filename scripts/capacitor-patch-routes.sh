@@ -75,6 +75,23 @@ if new_content == content:
         pattern_sync = r'(export function \w+\([^)]*\)\s*\{)'
         new_content = re.sub(pattern_sync, r'\1\n' + bailout, content)
 
+# Pastikan NextResponse ter-import sebagai VALUE (bukan type-only).
+# Beberapa route hanya `import type { NextRequest }` → bailout yang
+# memanggil NextResponse.json() melempar ReferenceError saat prerender
+# (error: 'NextResponse is not defined') dan mem-bunuh `next build` export.
+has_value_import = re.search(
+    r'import\s+\{[^}]*\bNextResponse\b[^}]*\}\s+from\s+[\x27\x22]next/server[\x27\x22]',
+    new_content,
+)
+if not has_value_import:
+    imports = list(re.finditer(r'^import[^\n]*$', new_content, re.M))
+    stmt = \"import { NextResponse } from 'next/server';\"
+    if imports:
+        last = imports[-1]
+        new_content = new_content[:last.end()] + '\n' + stmt + new_content[last.end():]
+    else:
+        new_content = stmt + '\n' + new_content
+
 with open(path, 'w') as fh:
     fh.write(new_content)
 "
