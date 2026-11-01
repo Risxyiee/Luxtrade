@@ -151,7 +151,9 @@ const INVESTING_COMMODITIES_RSS = 'https://www.investing.com/rss/news_11.rss'; /
 const INVESTING_FOREX_RSS = 'https://www.investing.com/rss/news_301.rss';   // Forex-specific news (200 OK)
 const CNBC_BUSINESS_RSS = 'https://www.cnbc.com/id/10001147/device/rss/rss.html'; // Business news (200 OK)
 const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';      // Markets (200 OK, follows redirect)
-const MARKETWATCH_RSS = 'https://feeds.content.dowjonesonline.com/RSSMarketsMain'; // MarketWatch/DJ markets (more reliable than feedburner)
+// REMOVED 2026-11-01: MarketWatch (feeds.content.dowjonesonline.com/RSSMarketsMain)
+// → HTTP 530 terus (Dow Jones memblokir IP Cloudflare) — cuma jadi noise error log.
+// Sumber lain sudah cukup: 2 API + 5 RSS + web-search fallback.
 
 // UNRELIABLE (dead or blocked — kept as last resort):
 // ForexFactory RSS URL is a profile page, not RSS. Calendar XML is Cloudflare-blocked.
@@ -159,6 +161,7 @@ const MARKETWATCH_RSS = 'https://feeds.content.dowjonesonline.com/RSSMarketsMain
 // Forexlive returns 403.
 // Reuters feeds.reuters.com is dead (connection refused).
 // FxStreet RSS returns 403.
+// MarketWatch returns 530 (Dow Jones blocks Cloudflare IPs).
 
 interface FullNewsItem {
   title: string;
@@ -624,9 +627,10 @@ async function fetchWebSearchNews(): Promise<FullNewsItem[]> {
  * 5. Bloomberg Markets RSS (free, reliable)
  * 6. CNBC Business RSS (free, reliable)
  * 7. Investing.com Forex RSS (free, reliable)
- * 8. MarketWatch RSS (free, reliable)
- * 9. z-ai-web-dev-sdk web-search (real-time search)
- * 10. Throw if all fail
+ * 8. z-ai-web-dev-sdk web-search (real-time search)
+ * 9. Throw if all fail
+ *
+ * (MarketWatch RSS DIHAPUS 2026-11-01 — 530 upstream, Dow Jones blokir CF)
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
   const collectedItems: FullNewsItem[] = [];
@@ -685,7 +689,6 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     { url: BLOOMBERG_RSS, name: 'Bloomberg' },
     { url: CNBC_BUSINESS_RSS, name: 'CNBC' },
     { url: INVESTING_FOREX_RSS, name: 'Investing.com-Forex' },
-    { url: MARKETWATCH_RSS, name: 'MarketWatch' },
   ];
 
   for (const src of rssSources) {
