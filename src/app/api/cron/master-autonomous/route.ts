@@ -1137,7 +1137,15 @@ function buildBriefingFallback(results: AgentResult[], nbaHint: string): { ringk
   }
 }
 
-async function agentAlexander(admin: SupabaseClient, results: AgentResult[], runMeta: { runId: string; durationMs: number }): Promise<AgentResult> {
+async function agentAlexander(
+  admin: SupabaseClient,
+  results: AgentResult[],
+  runMeta: { runId: string; durationMs: number },
+  /** Mode gelombang: Alexander jalan di invokasi terpisah — kuota LLM wave sebelumnya diteruskan lewat sini */
+  llmSummary?: { calls: number; perAgent: Record<string, number> },
+): Promise<AgentResult> {
+  const totalLlmCalls = llmSummary?.calls ?? quotaTracker.llmCalls
+  const perAgentLlm = llmSummary?.perAgent ?? quotaTracker.perAgent
   const raka = results.find(r => r.agent === 'Raka')
   const p1Alarm = !!(raka?.data && (raka.data as { alarm?: boolean }).alarm)
 
@@ -1155,7 +1163,7 @@ async function agentAlexander(admin: SupabaseClient, results: AgentResult[], run
   let briefing = buildBriefingFallback(results, nbaHint)
   let aiModel = 'fallback-deterministik'
   const res = await callAgent('Alexander', ALEX_SYSTEM,
-    `LAPORAN KARYAWAN (run ${runMeta.runId}, ${Math.round(runMeta.durationMs / 1000)}s, ${quotaTracker.llmCalls} panggilan LLM):\n${clip(reportJson, 6500)}\n\n${ANTI_HALUSINASI}`,
+    `LAPORAN KARYAWAN (run ${runMeta.runId}, ${Math.round(runMeta.durationMs / 1000)}s, ${totalLlmCalls} panggilan LLM):\n${clip(reportJson, 6500)}\n\n${ANTI_HALUSINASI}`,
     { maxTokens: 650, temperature: 0.5 })
   if (res) {
     const parsed = extractJson<{ ringkasan?: string; next_best_action?: { judul?: string; alasan?: string; langkah?: string }; mood?: string }>(res.text)
@@ -1180,7 +1188,7 @@ async function agentAlexander(admin: SupabaseClient, results: AgentResult[], run
 
   // ── Kirim ke Discord (non-kritis — gagal tidak menjatuhkan run) ──
   const lines = results.map(r => `${statusIcon(r)} ${ICONS[r.agent] || '•'} **${r.agent}**: ${clip(r.summary, 140)}`)
-  const quotaLine = `🧮 LLM run ini: ${quotaTracker.llmCalls} panggilan (${Object.entries(quotaTracker.perAgent).map(([k, v]) => `${k} ${v}`).join(', ') || '0'})`
+  const quotaLine = `🧮 LLM run ini: ${totalLlmCalls} panggilan (${Object.entries(perAgentLlm).map(([k, v]) => `${k} ${v}`).join(', ') || '0'})`
   const header = `👔 **MORNING BRIEFING — Luxtradee AI Workforce**\n📅 ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })} · ${briefing.mood}\n\n${briefing.ringkasan}\n\n`
   const footer = `\n\n🎯 **NEXT BEST ACTION: ${briefing.next_best_action.judul}**\n→ ${briefing.next_best_action.langkah || briefing.next_best_action.alasan}\n\n${quotaLine}`
   const content = clip(header + lines.join('\n') + footer, 1900)
@@ -1267,10 +1275,50 @@ async function handleRequest(request: NextRequest) {
     return errResult(jobs[i].name, s.reason) // lapis kedua — seharusnya tak pernah kejadian
   })
 
+  // ── MODE GELUMBANG (wave): simpan hasil wave ini ke agent_kv ──
+  // CF Workers gratis = 50 subrequest/invokasi — run penuh 8 agen bisa
+  // melampaui batas itu (run 2026-11-02: Farhan & Discord kena "Too many
+  // subrequests"). Workflow kini memanggil endpoint ini 3× terpisah
+  // (Raka+data → Farhan+Sinta → Alexander); tiap invokasi dapat budget
+  // subrequest baru. Blob per hari WIB dipakai Alexander (wave terakhir)
+  // untuk fan-in lintas invokasi. Run penuh tanpa ?agents= tetap jalan &
+  // ikut menulis blob (berguna untuk rerun Alexander manual).
+  if (!dry && results.length > 0) {
+    const dayKey = `master:results:${wibDateStr()}`
+    let blob: { runId?: string; durationMs?: number; llmCalls?: number; perAgent?: Record<string, number>; agents?: Record<string, AgentResult> } = {}
+    try { blob = JSON.parse((await kvGet(admin, dayKey)) || '{}') } catch { blob = {} }
+    blob.runId = runId
+    blob.durationMs = (blob.durationMs || 0) + (Date.now() - startedAt)
+    blob.llmCalls = (blob.llmCalls || 0) + quotaTracker.llmCalls
+    blob.perAgent = { ...(blob.perAgent || {}) }
+    for (const [k, v] of Object.entries(quotaTracker.perAgent)) blob.perAgent[k] = (blob.perAgent[k] || 0) + v
+    blob.agents = { ...(blob.agents || {}) }
+    for (const r of results) blob.agents![r.agent] = r
+    await kvSet(admin, dayKey, JSON.stringify(blob))
+  }
+
   // ── CEO fanned-in: agregasi SEMUA hasil → briefing → Discord ──
   let ceo: AgentResult | null = null
-  if (!dry && want('alexander') && results.length > 0) {
-    ceo = await agentAlexander(admin, results, { runId, durationMs: Date.now() - startedAt }).catch(e => errResult('Alexander', e))
+  if (!dry && want('alexander')) {
+    let ceoResults = results
+    let ceoMeta = { runId, durationMs: Date.now() - startedAt }
+    let ceoLlm = { calls: quotaTracker.llmCalls, perAgent: quotaTracker.perAgent }
+    if (results.length === 0) {
+      // Wave terakhir: Alexander jalan sendiri — muat hasil wave pekerja dari KV
+      let blob: { runId?: string; durationMs?: number; llmCalls?: number; perAgent?: Record<string, number>; agents?: Record<string, AgentResult> } = {}
+      try { blob = JSON.parse((await kvGet(admin, `master:results:${wibDateStr()}`)) || '{}') } catch { blob = {} }
+      const persisted = Object.values(blob.agents || {})
+      if (persisted.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'Alexander solo: belum ada hasil pekerja tersimpan hari ini — jalankan wave pekerja dulu, mis. ?agents=raka,maya,bagas,putri,dewi',
+        }, { status: 409 })
+      }
+      ceoResults = persisted
+      ceoMeta = { runId: blob.runId || runId, durationMs: blob.durationMs || 0 }
+      ceoLlm = { calls: blob.llmCalls || 0, perAgent: blob.perAgent || {} }
+    }
+    ceo = await agentAlexander(admin, ceoResults, ceoMeta, ceoLlm).catch(e => errResult('Alexander', e))
   }
 
   const durationMs = Date.now() - startedAt
