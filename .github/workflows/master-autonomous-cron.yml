@@ -49,6 +49,10 @@ jobs:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          # HARDENING: secret PROD_URL lama berisi trailing slash
+          # ("https://luxtradee.web.id/") → URL jadi //api/... → Cloudflare
+          # balas 308 dengan body kosong → RESP kosong → silent fail.
+          PROD_URL="${PROD_URL%/}"
           if [ -z "$PROD_URL" ]; then
             echo "❌ Secret PROD_URL belum diset di GitHub Actions"
             exit 1
@@ -58,14 +62,18 @@ jobs:
             exit 1
           fi
           echo "🚀 Menjalankan 8 agen otonom di $PROD_URL ..."
-          RESP=$(curl -sS --max-time 900 -X POST \
+          code=$(curl -sS -L -o /tmp/master-resp.json -w '%{http_code}' \
+            --max-time 900 -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            "$PROD_URL/api/cron/master-autonomous")
-          echo "$RESP" | head -c 6000
+            -H "User-Agent: luxtradee-master-autonomous-cron" \
+            "$PROD_URL/api/cron/master-autonomous") || code=000
+          echo "HTTP $code"
+          head -c 6000 /tmp/master-resp.json 2>/dev/null || true
+          echo ""
           # Gagal keras kalau responsnya bukan sukses — biar terlihat merah di Actions
-          echo "$RESP" | grep -q '"success": *true' || {
-            echo "❌ Master cron melaporkan kegagalan (atau guard interval 429 — cek pesan di atas)"
+          grep -q '"success": *true' /tmp/master-resp.json 2>/dev/null || {
+            echo "❌ Master cron melaporkan kegagalan (HTTP $code) — cek body di atas"
             exit 1
           }
           echo "✅ Workforce selesai — briefing terkirim ke Discord"

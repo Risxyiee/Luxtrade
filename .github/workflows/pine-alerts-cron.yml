@@ -34,14 +34,21 @@ jobs:
     steps:
       - name: Panggil /api/cron/pine-alerts
         run: |
-          code=$(curl -sS -o /tmp/pine-alerts.json -w '%{http_code}' -X POST \
+          # HARDENING: secret PROD_URL lama berisi trailing slash → URL
+          # //api/... → Cloudflare 308 → endpoint TIDAK tereksekusi tapi
+          # workflow dulu tetap "hijau" (silent fail). Sekarang: strip slash,
+          # follow redirect (-L), dan 308/4xx/5xx = GAGAL keras.
+          PROD_URL="${{ secrets.PROD_URL }}"
+          PROD_URL="${PROD_URL%/}"
+          code=$(curl -sS -L -o /tmp/pine-alerts.json -w '%{http_code}' -X POST \
             -H "x-cron-secret: ${{ secrets.PINE_ALERT_CRON_SECRET }}" \
             -H "User-Agent: luxtradee-pine-alerts-cron" \
             --max-time 280 \
-            "${{ secrets.PROD_URL }}/api/cron/pine-alerts") || code=000
+            "${PROD_URL}/api/cron/pine-alerts") || code=000
           echo "HTTP $code"
-          cat /tmp/pine-alerts.json || true
+          head -c 2000 /tmp/pine-alerts.json 2>/dev/null || true
           echo ""
-          if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
-            echo "::warning::Runner gagal (HTTP $code) — otomatis dicoba lagi di jadwal 5 menit berikutnya"
-          fi
+          case "$code" in
+            2*) echo "✅ Pine alerts tereksekusi (HTTP $code)" ;;
+            *) echo "::error::Pine alerts GAGAL (HTTP $code) — endpoint tidak tereksekusi, dicek ulang 5 menit berikutnya"; exit 1 ;;
+          esac
