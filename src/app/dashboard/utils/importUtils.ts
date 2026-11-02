@@ -1,44 +1,33 @@
 import { Trade } from './types'
+import { parseTradesFromCsv } from '@/lib/trade-csv-parser'
 
 // ==================== CSV IMPORT UTILS ====================
 
+// Parser dipindah ke src/lib/trade-csv-parser.ts (shared client+server) —
+// sekarang mendukung file DENGAN header maupun TANPA header, delimiter
+// TAB / koma / titik-koma terdeteksi otomatis. Format export jurnal
+// sinyal (ticket, waktu, symbol, lot, harga, SL/TP, alesan, profit,
+// durasi) tanpa header pun terbaca.
 export function parseCSV(text: string): Trade[] {
-  const lines = text.trim().split('\n')
-  if (lines.length < 2) return []
-
-  const headers = lines[0].toLowerCase().split(',').map(h => h.trim())
-  const trades: Trade[] = []
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim())
-    if (values.length < 4) continue
-
-    const symbolIdx = headers.findIndex(h => h.includes('symbol') || h.includes('pair'))
-    const typeIdx = headers.findIndex(h => h.includes('type') || h.includes('side') || h.includes('direction'))
-    const openPriceIdx = headers.findIndex(h => h.includes('open') || h.includes('entry') || h.includes('entry_price'))
-    const closePriceIdx = headers.findIndex(h => h.includes('close') || h.includes('exit') || h.includes('exit_price'))
-    const plIdx = headers.findIndex(h => h.includes('pl') || h.includes('profit') || h.includes('pnl'))
-    const lotIdx = headers.findIndex(h => h.includes('lot') || h.includes('size') || h.includes('volume'))
-    const sessionIdx = headers.findIndex(h => h.includes('session'))
-    const openTimeIdx = headers.findIndex(h => h.includes('open_time') || h.includes('entry_time'))
-    const closeTimeIdx = headers.findIndex(h => h.includes('close_time') || h.includes('exit_time'))
-
-    const trade: Trade = {
-      id: `csv-${i}`,
-      symbol: symbolIdx >= 0 ? values[symbolIdx].toUpperCase() : 'UNKNOWN',
-      type: typeIdx >= 0 ? (values[typeIdx].toUpperCase().includes('SELL') ? 'SELL' : 'BUY') : 'BUY',
-      open_price: openPriceIdx >= 0 ? parseFloat(values[openPriceIdx]) || 0 : 0,
-      close_price: closePriceIdx >= 0 ? parseFloat(values[closePriceIdx]) || 0 : 0,
-      lot_size: lotIdx >= 0 ? parseFloat(values[lotIdx]) || 0.1 : 0.1,
-      profit_loss: plIdx >= 0 ? parseFloat(values[plIdx]) || 0 : 0,
-      open_time: openTimeIdx >= 0 ? values[openTimeIdx] || new Date().toISOString() : new Date().toISOString(),
-      close_time: closeTimeIdx >= 0 ? values[closeTimeIdx] || new Date().toISOString() : new Date().toISOString(),
-      session: sessionIdx >= 0 ? values[sessionIdx] || null : null,
-    }
-    trades.push(trade)
-  }
-
-  return trades
+  const parsed = parseTradesFromCsv(text)
+  return parsed.map((t, i) => ({
+    id: `csv-${i}`,
+    symbol: t.symbol,
+    type: t.type,
+    open_price: t.open_price,
+    close_price: t.close_price,
+    lot_size: t.lot_size,
+    profit_loss: t.profit_loss,
+    open_time: t.open_time,
+    close_time: t.close_time,
+    session: t.session,
+    notes: t.notes ?? null,
+    stop_loss: t.stop_loss ?? null,
+    take_profit: t.take_profit ?? null,
+    ticket_number: t.ticket_number ?? null,
+    trade_duration: t.trade_duration ?? null,
+    risk_reward_ratio: t.risk_reward_ratio ?? null,
+  }))
 }
 
 // Helper: Convert file to base64

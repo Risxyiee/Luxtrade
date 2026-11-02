@@ -857,7 +857,7 @@ export default function TradeWizardForm({
                     ) : (
                       <>
                         <FileText className="w-3 h-3" />
-                        <span>{L ? 'Statement MT5 (HTML/CSV/PDF)' : 'MT5 Statement (HTML/CSV/PDF)'}</span>
+                        <span>{L ? 'File Trade: CSV/TSV jurnal & statement MT5 (HTML/PDF)' : 'Trade File: journal CSV/TSV & MT5 statement (HTML/PDF)'}</span>
                       </>
                     )}
                   </div>

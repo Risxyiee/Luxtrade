@@ -28,9 +28,12 @@ export async function POST(request: NextRequest) {
       open_time: string;
       close_time: string;
       session: string | null;
+      notes?: string | null;
       stop_loss?: number | null;
       take_profit?: number | null;
       ticket_number?: string | null;
+      trade_duration?: number | null;
+      risk_reward_ratio?: number | null;
     }) => ({
       user_id: authResult.user!.id,
       symbol: trade.symbol.toUpperCase(),
@@ -41,10 +44,15 @@ export async function POST(request: NextRequest) {
       profit_loss: parseFloat(String(trade.profit_loss)) || 0,
       open_time: trade.open_time || new Date().toISOString(),
       close_time: trade.close_time || new Date().toISOString(),
+      notes: trade.notes || null,
       stop_loss: trade.stop_loss ? parseFloat(String(trade.stop_loss)) : null,
       take_profit: trade.take_profit ? parseFloat(String(trade.take_profit)) : null,
       ticket_number: trade.ticket_number || null,
       session: trade.session || null,
+      trade_duration: trade.trade_duration != null && Number.isFinite(Number(trade.trade_duration))
+        ? Math.round(Number(trade.trade_duration)) : null,
+      risk_reward_ratio: trade.risk_reward_ratio != null && Number.isFinite(Number(trade.risk_reward_ratio))
+        ? Number(trade.risk_reward_ratio) : null,
     }))
     
     // Insert trades in batches of 100

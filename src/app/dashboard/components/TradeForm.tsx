@@ -262,7 +262,7 @@ function TradeForm({
           </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-2">
-          Upload a screenshot for AI extraction OR MT5 file for direct import. You can also fill the form manually below.
+          Upload a screenshot for AI extraction OR a trade file (CSV/TSV journal export, MT5 statement HTML/PDF — header optional, delimiter auto-detected). You can also fill the form manually below.
         </p>
       </div>
 
