@@ -266,6 +266,71 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
     loadProgress()
   }, [])
 
+  // ============================================================================
+  // AUTO-DETECT (laporan Bos: "onboarding kurang interactive") — step yang
+  // user BENERAN sudah kerjain otomatis tercentang, tanpa diklik manual:
+  //   • punya akun trading        → 'add-account'
+  //   • punya trade di jurnal     → 'add-trade'
+  //   • pernah import file        → 'import-trades'
+  //   • nulis jurnal              → 'write-journal'
+  //   • isi watchlist             → 'set-watchlist'
+  //   • pernah buka tab terkait   → 'view-dashboard' / 'check-analytics' /
+  //                                 'try-ai' / 'risk-calc' / 'psychology'
+  // Cek jalan tiap tab Onboarding kebuka (user balik dari fitur → update).
+  // ============================================================================
+  const autoToastShownRef = useRef(false)
+  useEffect(() => {
+    if (!loaded) return
+
+    const applyAuto = (ids: string[]) => {
+      const fresh = ids.filter(id => !completedRef.current.has(id))
+      if (fresh.length === 0) return
+      const next = new Set(completedRef.current)
+      fresh.forEach(id => next.add(id))
+      completedRef.current = next
+      setCompletedSteps(next)
+      void persistSteps(next)
+      if (!autoToastShownRef.current) {
+        autoToastShownRef.current = true
+        toast.success(isId ? 'Beberapa step otomatis selesai karena kamu udah kerjain! 🎉' : 'Some steps auto-completed — you already did them! 🎉')
+      }
+      // Semua selesai lewat auto-detect → tandai onboarding done di DB
+      if (next.size >= steps.length) {
+        fetch('/api/onboarding', { method: 'POST', credentials: 'include' }).catch(() => {})
+      }
+    }
+
+    // 1) Data nyata dari server (akun / trade / jurnal / watchlist)
+    fetch('/api/onboarding/status', { credentials: 'include' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(s => {
+        if (!s) return
+        const auto: string[] = []
+        if ((s.accounts ?? 0) > 0) auto.push('add-account')
+        if ((s.trades ?? 0) > 0) auto.push('add-trade')
+        if ((s.journal ?? 0) > 0) auto.push('write-journal')
+        if ((s.watchlist ?? 0) > 0) auto.push('set-watchlist')
+        applyAuto(auto)
+      })
+      .catch(() => {})
+
+    // 2) Tab yang pernah dibuka (explorasi = progress juga)
+    try {
+      const visited: string[] = JSON.parse(localStorage.getItem('luxtrade-visited-tabs') || '[]')
+      const visitedMap: Record<string, string> = {
+        dashboard: 'view-dashboard',
+        analytics: 'check-analytics',
+        ai: 'try-ai',
+        risk: 'risk-calc',
+        psychology: 'psychology',
+      }
+      const auto = Object.entries(visitedMap)
+        .filter(([tab]) => visited.includes(tab))
+        .map(([, id]) => id)
+      applyAuto(auto)
+    } catch {}
+  }, [loaded, isId, persistSteps])
+
   // Save progress to both localStorage and API.
   // Laporan Bos: "progresnya ga jalan" — selain UX klik, persist ke DB dulu
   // selalu gagal karena kolom profiles.onboarding_steps belum ada (42703).

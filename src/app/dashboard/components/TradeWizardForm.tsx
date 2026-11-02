@@ -565,18 +565,54 @@ export default function TradeWizardForm({
       const data = await res.json()
 
       if (res.ok && data.success && data.trades?.length > 0) {
-        // Auto-fill form with the first imported trade
-        const trade = data.trades[0]
+        const importedTrades = data.trades as any[]
+
+        // Laporan Bos: "import berhasil tapi ga masuk transaksinya".
+        // Dulu: cuma auto-fill 1 trade pertama ke form, sisanya DIBUANG —
+        // user harus klik Simpan manual biar masuk jurnal. Sekarang:
+        // > 1 trade → SEMUA langsung disimpan via /api/trades/bulk +
+        // modal ditutup + daftar di-refresh. 1 trade → tetap isi form
+        // biar user bisa lengkapi (alesan, emosi, dll) sebelum Simpan.
+        if (importedTrades.length > 1) {
+          const saveRes = await fetch('/api/trades/bulk', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              trades: importedTrades,
+              account_id: formData.account_id || null,
+            }),
+          })
+          const save = await saveRes.json().catch(() => ({} as any))
+
+          if (saveRes.ok && save.success) {
+            toast.success(save.message || `✅ ${save.inserted} transaksi masuk ke jurnal!`)
+            if (save.limitReached) {
+              toast.warning('Batas Free 10 transaksi/bulan tercapai — sisanya gak masuk. Upgrade PRO untuk unlimited.')
+            }
+            // Tutup modal + refresh daftar transaksi
+            onAutoJournalSuccess?.()
+          } else {
+            toast.error(save.error || save.message || 'Gagal menyimpan hasil import')
+          }
+          return
+        }
+
+        // Auto-fill form with the single imported trade
+        const trade = importedTrades[0]
         if (trade.symbol) onFormChange('symbol', trade.symbol)
         if (trade.type) onTypeChange(trade.type)
         if (trade.lot_size) onFormChange('lot_size', trade.lot_size.toString())
         if (trade.open_price) onFormChange('open_price', trade.open_price.toString())
         if (trade.close_price) onFormChange('close_price', trade.close_price.toString())
         if (trade.profit_loss) onFormChange('profit_loss', trade.profit_loss.toString())
+        if (trade.stop_loss) onFormChange('stop_loss', trade.stop_loss.toString())
+        if (trade.take_profit) onFormChange('take_profit', trade.take_profit.toString())
         if (trade.open_time) onFormChange('open_time', trade.open_time)
         if (trade.close_time) onFormChange('close_time', trade.close_time)
+        if (trade.notes && trade.notes !== 'Imported from CSV file') onFormChange('notes', trade.notes)
 
-        toast.success((data.count || data.trades.length) + ' trade(s) imported!')
+        toast.success('1 trade terbaca dari file — cek & klik Simpan untuk masuk ke jurnal.')
       } else if (res.ok && data.success) {
         toast.error(data.error || 'No trades found in file.')
       } else {

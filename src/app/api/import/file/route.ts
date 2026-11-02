@@ -15,6 +15,9 @@ interface ParsedTrade {
   close_time: string
   session: string | null
   notes: string
+  stop_loss?: number | null
+  take_profit?: number | null
+  ticket_number?: string | null
 }
 
 // ==================== TRADING SYMBOLS ====================
@@ -42,6 +45,25 @@ function parseMT5Date(dateStr: string): string | null {
   if (match) {
     const [, year, month, day, hour, minute, second = '00'] = match
     return `${year}-${month}-${day}T${hour}:${minute}:${second.padStart(2, '0')}Z`
+  }
+
+  // Format DD/MM/YYYY (umum di export Excel Indonesia) — deteksi: komponen
+  // pertama > 31 → pasti tahun. Kalau <= 31 dan komponen kedua > 12 → DD/MM.
+  const dmy = dateStr.match(/(\d{1,4})[\-/](\d{1,2})[\-/](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/)
+  if (dmy) {
+    let [, a, b, c, hour = '00', minute = '00', second = '00'] = dmy
+    let year: string, month: string, day: string
+    if (a.length === 4) {
+      year = a; month = b.padStart(2, '0'); day = c.padStart(2, '0')
+    } else {
+      const aa = parseInt(a), bb = parseInt(b)
+      // DD/MM/YYYY kalau komponen pertama > 12, kalau enggak assume MM/DD → DD/MM (Indonesia)
+      day = String(aa).padStart(2, '0')
+      month = String(bb).padStart(2, '0')
+      if (bb > 12 && aa <= 12) { day = String(aa).padStart(2, '0'); month = String(bb).padStart(2, '0') }
+      year = c.length === 2 ? `20${c}` : c
+    }
+    return `${year}-${month}-${day}T${hour.padStart(2, '0')}:${minute}:${second.padStart(2, '0')}Z`
   }
   
   return null
@@ -331,26 +353,65 @@ function parseCSV(content: string): ParsedTrade[] {
   // Parse header — delimiter dideteksi otomatis (koma / tab / titik-koma)
   const delimiter = detectCSVDelimiter(lines[0])
   const headers = lines[0].toLowerCase().split(delimiter).map(h => h.trim().replace(/"/g, ''))
-  
-  // Find column indices
-  const findIndex = (...keywords: string[]) => {
-    for (let i = 0; i < headers.length; i++) {
-      for (const kw of keywords) {
+
+  // Pencarian kolom 2 tingkat: EXACT dulu (anti salah kolom), baru includes.
+  // BUG lama (laporan Bos: CSV ada SL/TP/alesan tapi gak kebawa + harga nyasar):
+  // findIndex('open') menangkap kolom 'open time' → open_price berisi 2024.03
+  // (tahun!). SL/TP/notes/ticket sama sekali gak dipetakan.
+  const findExact = (...names: string[]): number => {
+    for (const n of names) {
+      const i = headers.indexOf(n)
+      if (i >= 0) return i
+    }
+    return -1
+  }
+  const findIncludes = (...keywords: string[]): number => {
+    for (const kw of keywords) {
+      for (let i = 0; i < headers.length; i++) {
         if (headers[i].includes(kw)) return i
       }
     }
     return -1
   }
-  
-  const symbolIdx = findIndex('symbol', 'pair', 'instrument')
-  const typeIdx = findIndex('type', 'side', 'direction', 'action')
-  const lotIdx = findIndex('lot', 'volume', 'size', 'qty')
-  const openPriceIdx = findIndex('open', 'entry_price', 'entry')
-  const closePriceIdx = findIndex('close', 'exit_price', 'exit')
-  const profitIdx = findIndex('profit', 'pnl', 'p/l', 'pl')
-  const timeIdx = findIndex('time', 'date', 'open_time')
-  
-  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Open: ${openPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}`)
+  const findCol = (exact: string[], incl: string[]): number => {
+    const e = findExact(...exact)
+    return e >= 0 ? e : findIncludes(...incl)
+  }
+
+  const symbolIdx = findCol(['symbol', 'pair', 'instrument', 'simbol'], ['symbol', 'pair', 'instrument', 'simbol'])
+  const typeIdx = findCol(['type', 'side', 'direction', 'action', 'posisi'], ['type', 'side', 'direction', 'action', 'posisi'])
+  const lotIdx = findCol(['volume', 'lots', 'lot size', 'lot_size', 'size', 'qty'], ['volume', 'lots', 'lot', 'size', 'qty'])
+  const openPriceIdx = findCol(['open price', 'open_price', 'entry price', 'entry_price', 'harga entry', 'harga masuk', 'harga buka', 'harga', 'entry', 'open'], ['entry price', 'entry_price', 'open price', 'open_price', 'harga entry', 'harga masuk', 'harga buka'])
+  const closePriceIdx = findCol(['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'close', 'exit'], ['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup'])
+  const profitIdx = findCol(['profit', 'p/l', 'pnl', 'pl', 'net profit', 'profit/loss', 'laba'], ['profit', 'pnl', 'p/l', 'laba'])
+  const openTimeIdx = findCol(['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'time', 'date', 'tanggal'], ['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka'])
+  const closeTimeIdx = findCol(['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'], ['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'])
+  // fallback umum untuk open time kalau kolom spesifik gak ketemu
+  const genericTimeIdx = openTimeIdx >= 0 ? openTimeIdx : findIncludes('time', 'date', 'tanggal', 'waktu')
+  const slIdx = findCol(['sl', 's/l', 'stop loss', 'stop_loss', 'stoploss', 'stop'], ['stop loss', 'stop_loss', 'stoploss', 's/l'])
+  const tpIdx = findCol(['tp', 't/p', 'take profit', 'take_profit', 'takeprofit'], ['take profit', 'take_profit', 'takeprofit', 't/p'])
+  const notesIdx = findCol(['notes', 'note', 'reason', 'alesan entry', 'alesan', 'alasan', 'comment', 'comments', 'keterangan', 'strategy', 'setup', 'catatan'], ['alesan', 'alasan', 'reason', 'comment', 'keterangan', 'notes', 'catatan'])
+  const ticketIdx = findCol(['ticket', 'ticket_number', 'order', 'position id', 'deal', 'no. order'], ['ticket', 'order', 'position'])
+
+  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Open: ${openPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}, OpenTime: ${genericTimeIdx}, CloseTime: ${closeTimeIdx}, SL: ${slIdx}, TP: ${tpIdx}, Notes: ${notesIdx}, Ticket: ${ticketIdx}`)
+
+  // Parse angka yang toleran format Eropa (1.234,56) & US (1,234.56)
+  const parseNum = (raw: string | undefined): number | null => {
+    if (!raw) return null
+    const cleaned = raw.replace(/[^0-9.,+\-]/g, '').trim()
+    if (!cleaned) return null
+    let normalized = cleaned
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      // Keduanya ada: pembatas terakhir = desimal
+      normalized = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
+        ? cleaned.replace(/\./g, '').replace(',', '.')
+        : cleaned.replace(/,/g, '')
+    } else if (cleaned.includes(',')) {
+      normalized = cleaned.replace(',', '.')
+    }
+    const n = parseFloat(normalized)
+    return isNaN(n) ? null : n
+  }
   
   // Parse rows
   for (let i = 1; i < lines.length; i++) {
@@ -361,19 +422,31 @@ function parseCSV(content: string): ParsedTrade[] {
     if (!symbol || !TRADING_SYMBOLS.some(s => symbol.includes(s))) continue
     
     const typeStr = typeIdx >= 0 ? values[typeIdx]?.toLowerCase() : ''
-    const type: 'BUY' | 'SELL' = typeStr?.includes('sell') ? 'SELL' : 'BUY'
+    const type: 'BUY' | 'SELL' = typeStr?.includes('sell') || typeStr?.includes('short') || typeStr?.includes('jual') ? 'SELL' : 'BUY'
     
-    const lotSize = lotIdx >= 0 ? parseFloat(values[lotIdx]) || 0.1 : 0.1
-    const openPrice = openPriceIdx >= 0 ? parseFloat(values[openPriceIdx]) || 0 : 0
-    const closePrice = closePriceIdx >= 0 ? parseFloat(values[closePriceIdx]) || openPrice : openPrice
-    const profitLoss = profitIdx >= 0 ? parseFloat(values[profitIdx]) || 0 : 0
+    const lotSize = lotIdx >= 0 ? (parseNum(values[lotIdx]) ?? 0.1) : 0.1
+    const openPrice = openPriceIdx >= 0 ? (parseNum(values[openPriceIdx]) ?? 0) : 0
+    const closePrice = closePriceIdx >= 0 ? (parseNum(values[closePriceIdx]) ?? openPrice) : openPrice
+    const profitLoss = profitIdx >= 0 ? (parseNum(values[profitIdx]) ?? 0) : 0
+    const stopLoss = slIdx >= 0 ? parseNum(values[slIdx]) : null
+    const takeProfit = tpIdx >= 0 ? parseNum(values[tpIdx]) : null
+    const ticketNumber = ticketIdx >= 0 && values[ticketIdx] ? String(values[ticketIdx]).replace(/[^0-9a-zA-Z#]/g, '') : null
     
     let openTime = new Date().toISOString()
-    if (timeIdx >= 0 && values[timeIdx]) {
-      const parsed = parseMT5Date(values[timeIdx])
+    if (genericTimeIdx >= 0 && values[genericTimeIdx]) {
+      const parsed = parseMT5Date(values[genericTimeIdx])
       if (parsed) openTime = parsed
     }
+    let closeTime = openTime
+    if (closeTimeIdx >= 0 && values[closeTimeIdx]) {
+      const parsed = parseMT5Date(values[closeTimeIdx])
+      if (parsed) closeTime = parsed
+    }
     
+    // Alesan / catatan dari kolom notes (fallback: label default)
+    const notesRaw = notesIdx >= 0 ? values[notesIdx]?.trim() : ''
+    const notes = notesRaw && notesRaw.length > 0 ? notesRaw : 'Imported from CSV file'
+
     trades.push({
       symbol,
       type,
@@ -382,9 +455,12 @@ function parseCSV(content: string): ParsedTrade[] {
       lot_size: lotSize,
       profit_loss: profitLoss,
       open_time: openTime,
-      close_time: openTime,
+      close_time: closeTime,
       session: getSessionFromHour(openTime),
-      notes: 'Imported from CSV file'
+      notes,
+      stop_loss: stopLoss,
+      take_profit: takeProfit,
+      ticket_number: ticketNumber || null,
     })
   }
   

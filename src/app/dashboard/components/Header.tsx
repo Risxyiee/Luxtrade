@@ -2,10 +2,11 @@
 
 import { memo, useState, useMemo, useEffect, useRef, type ComponentProps } from 'react'
 import {
-  Menu, RefreshCw, LogOut, Keyboard, Settings, Sparkles,
+  Menu, RefreshCw, LogOut, Keyboard, Settings, Sparkles, RotateCw,
   ChevronDown, Wallet, Plus, Check
 } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 import { ThemeToggle } from './ThemeToggle'
 import {
@@ -78,7 +79,33 @@ const Header = memo(function Header({
   const [notifPreferences, setNotifPreferences] = useState<Partial<TradeAlertPreferences> | undefined>()
   const [aiQuotaInfo, setAiQuotaInfo] = useState<{ total: number; used: number; remaining: number; isPro: boolean } | null>(null)
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const [updatingApp, setUpdatingApp] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Tombol refresh/update PWA (laporan Bos): bersihkan semua cache + minta
+  // service worker cek versi baru + reload. Bikin PWA yang ter-install di HP
+  // gak nyangkut versi lama (SW lama sering nge-cache bundle lama berhari-hari).
+  const handleAppUpdate = async () => {
+    if (updatingApp) return
+    setUpdatingApp(true)
+    const id = language === 'id'
+    toast.loading(id ? 'Memperbarui aplikasi…' : 'Updating app…', { id: 'app-update', duration: 5000 })
+    try {
+      if (typeof caches !== 'undefined') {
+        const keys = await caches.keys()
+        await Promise.all(keys.map(k => caches.delete(k)))
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map(r => r.update().catch(() => {})))
+        // beri jeda singkat biar SW baru sempat take-over sebelum reload
+        await new Promise(r => setTimeout(r, 500))
+      }
+    } catch {
+      // best effort — reload tetap jalan
+    }
+    window.location.reload()
+  }
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -142,6 +169,19 @@ const Header = memo(function Header({
           aria-label={language === 'id' ? 'Muat ulang data' : 'Refresh data'}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+
+        {/* Tombol refresh/update PWA (laporan Bos): bersihkan cache + ambil
+            versi terbaru service worker + reload. Buat PWA yang di-install
+            HP biar gak nyangkut versi lama berhari-hari. */}
+        <button
+          onClick={handleAppUpdate}
+          disabled={updatingApp}
+          className="p-1.5 text-lux-text-muted dark:text-gray-500 hover:text-emerald-400 dark:hover:text-emerald-300 transition-colors rounded-lg hover:bg-emerald-500/10 disabled:opacity-50"
+          aria-label={language === 'id' ? 'Perbarui aplikasi' : 'Update app'}
+          title={language === 'id' ? 'Perbarui aplikasi ke versi terbaru' : 'Update app to latest version'}
+        >
+          <RotateCw className={`w-4 h-4 ${updatingApp ? 'animate-spin' : ''}`} />
         </button>
       </div>
 

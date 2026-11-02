@@ -786,6 +786,21 @@ function LuxTradeDashboardContent() {
     }
   }, [])
 
+  // Track tab yang pernah dibuka — buat auto-checklist Onboarding (step
+  // "Jelajahi Fitur" nyala sendiri begitu user benar-benar buka tabnya,
+  // laporan Bos: "onboarding kurang interactive").
+  useEffect(() => {
+    if (!activeTab) return
+    try {
+      const raw = localStorage.getItem('luxtrade-visited-tabs')
+      const visited: string[] = raw ? JSON.parse(raw) : []
+      if (!visited.includes(activeTab)) {
+        visited.push(activeTab)
+        localStorage.setItem('luxtrade-visited-tabs', JSON.stringify(visited.slice(-30)))
+      }
+    } catch {}
+  }, [activeTab])
+
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
     const handleShortcutAction = (action: ShortcutAction) => {
