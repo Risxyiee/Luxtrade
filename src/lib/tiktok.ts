@@ -23,6 +23,16 @@
  *     disimpan polos di agent_kv (tabel itu bisa dibaca anon key) → disimpan
  *     TERENKRIPSI AES-GCM dengan kunci turunan CRON_SECRET. Kalau enkripsi
  *     tidak tersedia, token lama tetap dipakai + caller diberi tahu.
+ *
+ * KEPATUHAN POLICY OAUTH BARU TIKTOK (efektif 1 Des 2026):
+ *   - Access token 2 jam / refresh token 180 hari, refresh token BEROTASI
+ *     (yang lama langsung mati begitu refresh sukses).
+ *   → access token di-CACHE terenkripsi sampai mendekati kedaluwarsa, jadi
+ *     refresh (dan rotasi) cuma terjadi ~1× per hari, bukan tiap panggilan.
+ *   → refresh_token hasil rotasi WAJIB langsung disimpan (kvSetEncrypted).
+ *   → kalau refresh dengan token KV gagal, dicoba 1× lagi dengan
+ *     TIKTOK_REFRESH_TOKEN statis di env (jalan pudar aman).
+ *   → re-auth manual (≤180 hari sekali) lewat /api/tiktok/connect → callback.
  */
 
 import { getEnvVar } from '@/lib/cloudflare-bindings'
@@ -50,7 +60,46 @@ async function tiktokEnv(name: string): Promise<string> {
 /* ═══════════════ KV terenkripsi (refresh token hasil rotasi) ═══════════════ */
 
 const KV_KEY = 'tiktok:refresh_token'
+const KV_ACCESS_KEY = 'tiktok:access_cache'
 const KV_SALT = 'luxtradee-tiktok-v1'
+
+/** Cache access token terenkripsi — hindari refresh (rotasi) tiap panggilan. */
+interface TiktokAccessCache {
+  accessToken: string
+  expiresAt: number // epoch ms
+}
+
+async function kvGetAccessCache(): Promise<TiktokAccessCache | null> {
+  try {
+    const raw = await kvGetEncrypted(KV_ACCESS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as TiktokAccessCache
+    if (!parsed?.accessToken || typeof parsed.expiresAt !== 'number') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+async function kvSetAccessCache(accessToken: string, expiresInSec: number): Promise<boolean> {
+  try {
+    // Simpan dengan margin 5 menit — jangan sampai token nyaris mati terpakai
+    const ttlMs = Math.max(60, (Number(expiresInSec) || 7200) - 300) * 1000
+    const payload: TiktokAccessCache = { accessToken, expiresAt: Date.now() + ttlMs }
+    return await kvSetEncrypted(KV_ACCESS_KEY, JSON.stringify(payload))
+  } catch {
+    return false
+  }
+}
+
+export async function invalidateTiktokAccessCache(): Promise<void> {
+  try {
+    const admin = await getCronAdmin()
+    if (admin) await admin.from('agent_kv').delete().eq('key', KV_ACCESS_KEY)
+  } catch {
+    // diam — cache gagal dihapus pun retry 401 tetap aman
+  }
+}
 
 async function aesKey(): Promise<CryptoKey | null> {
   try {
@@ -70,36 +119,41 @@ function toB64(buf: ArrayBuffer | Uint8Array): string {
   return btoa(s)
 }
 
-function fromB64(s: string): Uint8Array {
-  return Uint8Array.from(atob(s), c => c.charCodeAt(0))
+/** Decode base64 → Uint8Array dengan buffer ArrayBuffer persis (aman untuk WebCrypto). */
+function fromB64(s: string): Uint8Array<ArrayBuffer> {
+  const bin = atob(s)
+  const buf = new ArrayBuffer(bin.length)
+  const arr = new Uint8Array(buf)
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+  return arr
 }
 
-async function kvSetEncrypted(value: string): Promise<boolean> {
+async function kvSetEncrypted(key: string, value: string): Promise<boolean> {
   try {
-    const key = await aesKey()
-    if (!key) return false
+    const aes = await aesKey()
+    if (!aes) return false
     const iv = crypto.getRandomValues(new Uint8Array(12))
-    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value))
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aes, new TextEncoder().encode(value))
     const admin = await getCronAdmin()
     if (!admin) return false
-    await admin.from('agent_kv').upsert({ key: KV_KEY, value: `${toB64(iv)}:${toB64(ct)}` }, { onConflict: 'key' })
+    await admin.from('agent_kv').upsert({ key, value: `${toB64(iv)}:${toB64(ct)}` }, { onConflict: 'key' })
     return true
   } catch {
     return false
   }
 }
 
-async function kvGetEncrypted(): Promise<string | null> {
+async function kvGetEncrypted(key: string): Promise<string | null> {
   try {
-    const key = await aesKey()
-    if (!key) return null
+    const aes = await aesKey()
+    if (!aes) return null
     const admin = await getCronAdmin()
     if (!admin) return null
-    const { data } = await admin.from('agent_kv').select('value').eq('key', KV_KEY).maybeSingle()
+    const { data } = await admin.from('agent_kv').select('value').eq('key', key).maybeSingle()
     const raw = (data as { value?: string } | null)?.value
     if (!raw || !raw.includes(':')) return null
     const [ivB64, ctB64] = raw.split(':')
-    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(ivB64) }, key, fromB64(ctB64))
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(ivB64) }, aes, fromB64(ctB64))
     return new TextDecoder().decode(pt)
   } catch {
     return null
@@ -113,7 +167,45 @@ export interface TiktokTokenInfo {
   expiresIn?: number
   /** true = TikTok mengeluarkan refresh_token baru & sudah disimpan terenkripsi */
   rotated: boolean
-  source: 'refresh_token' | 'static_access_token'
+  source: 'cache' | 'refresh_token' | 'static_access_token'
+}
+
+/**
+ * Refresh 1× ke TikTok. Return hasil mentah (ok = HTTP ok + access_token ada).
+ * Dipakai ulang untuk percobaan fallback refresh token statis.
+ */
+async function refreshTiktokToken(
+  clientKey: string,
+  clientSecret: string,
+  refreshToken: string,
+): Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; error?: string }> {
+  try {
+    const body = new URLSearchParams({
+      client_key: clientKey,
+      client_secret: clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    })
+    const res = await fetch(`${TIKTOK_API}/v2/oauth/token/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
+      body,
+      signal: AbortSignal.timeout(30_000),
+    })
+    const json = (await res.json().catch(() => null)) as {
+      access_token?: string
+      refresh_token?: string
+      expires_in?: number
+      error?: string
+      error_description?: string
+    } | null
+    if (res.ok && json?.access_token) {
+      return { ok: true, accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in }
+    }
+    return { ok: false, error: json?.error_description || json?.error || `HTTP ${res.status}` }
+  } catch (e: unknown) {
+    return { ok: false, error: clip(e instanceof Error ? e.message : e, 160) }
+  }
 }
 
 export interface TiktokTokenResult {
@@ -125,59 +217,88 @@ export interface TiktokTokenResult {
 }
 
 /**
- * Ambil access token TikTok yang fresh:
- *  1) refresh via TIKTOK_CLIENT_KEY/SECRET + refresh token (KV terenkripsi → env)
- *  2) fallback: TIKTOK_ACCESS_TOKEN statis (bisa kedaluwarsa ±24 jam)
- * Return null-friendly result — caller wajib tampilkan hint kalau gagal.
+ * Ambil access token TikTok yang fresh (patuh policy rotasi Des 2026):
+ *  1) cache terenkripsi kalau masih berlaku (> 5 menit) — TIDAK refresh
+ *  2) refresh via TIKTOK_CLIENT_KEY/SECRET + refresh token (KV terenkripsi → env)
+ *     → refresh_token hasil rotasi langsung disimpan; cache access diperbarui
+ *  3) kalau refresh dengan token KV gagal → 1× coba lagi dengan
+ *     TIKTOK_REFRESH_TOKEN statis dari env (kalau berbeda)
+ *  4) fallback terakhir: TIKTOK_ACCESS_TOKEN statis (bisa kedaluwarsa)
  */
 export async function getTiktokAccessToken(): Promise<TiktokTokenResult> {
   const clientKey = await tiktokEnv('TIKTOK_CLIENT_KEY')
   const clientSecret = await tiktokEnv('TIKTOK_CLIENT_SECRET')
-  const refreshToken = (await kvGetEncrypted()) || (await tiktokEnv('TIKTOK_REFRESH_TOKEN'))
 
-  if (clientKey && clientSecret && refreshToken) {
-    try {
-      const body = new URLSearchParams({
-        client_key: clientKey,
-        client_secret: clientSecret,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      })
-      const res = await fetch(`${TIKTOK_API}/v2/oauth/token/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
-        body,
-        signal: AbortSignal.timeout(30_000),
-      })
-      const json = (await res.json().catch(() => null)) as {
-        access_token?: string
-        refresh_token?: string
-        expires_in?: number
-        error?: string
-        error_description?: string
-      } | null
-      if (res.ok && json?.access_token) {
+  // ── 1. Cache access token masih segar? Jangan refresh — rotasi itu mahal ──
+  const cached = await kvGetAccessCache()
+  if (cached && cached.expiresAt - Date.now() > 300_000) {
+    return {
+      ok: true,
+      token: {
+        accessToken: cached.accessToken,
+        expiresIn: Math.floor((cached.expiresAt - Date.now()) / 1000),
+        rotated: false,
+        source: 'cache',
+      },
+    }
+  }
+
+  const kvRefresh = await kvGetEncrypted(KV_KEY)
+  const envRefresh = await tiktokEnv('TIKTOK_REFRESH_TOKEN')
+
+  if (clientKey && clientSecret) {
+    // ── 2. Refresh dengan refresh token terbaru (KV) ──
+    if (kvRefresh) {
+      const r = await refreshTiktokToken(clientKey, clientSecret, kvRefresh)
+      if (r.ok && r.accessToken) {
         let rotated = false
         let warning: string | undefined
-        if (json.refresh_token && json.refresh_token !== refreshToken) {
-          rotated = await kvSetEncrypted(json.refresh_token)
+        if (r.refreshToken && r.refreshToken !== kvRefresh) {
+          rotated = await kvSetEncrypted(KV_KEY, r.refreshToken)
           if (!rotated) {
             warning =
               'TikTok merotasi refresh_token tapi penyimpanan terenkripsi tidak tersedia — ' +
               'pasang ulang TIKTOK_REFRESH_TOKEN terbaru di Cloudflare agar refresh berikutnya tidak gagal.'
           }
         }
+        await kvSetAccessCache(r.accessToken, r.expiresIn || 7200)
         return {
           ok: true,
-          token: { accessToken: json.access_token, expiresIn: json.expires_in, rotated, source: 'refresh_token' },
+          token: { accessToken: r.accessToken, expiresIn: r.expiresIn, rotated, source: 'refresh_token' },
           warning,
         }
       }
-      const errTxt = json?.error_description || json?.error || `HTTP ${res.status}`
-      console.error(`[tiktok] refresh gagal: ${clip(errTxt, 200)}`)
-      // jatuh ke token statis kalau ada — jangan langsung gagal
-    } catch (e: unknown) {
-      console.error(`[tiktok] refresh error: ${clip(e instanceof Error ? e.message : e, 160)}`)
+      console.error(`[tiktok] refresh (KV) gagal: ${clip(r.error, 200)}`)
+
+      // ── 3. Fallback 1×: refresh token statis di env (kalau masih beda) ──
+      if (envRefresh && envRefresh !== kvRefresh) {
+        console.error('[tiktok] coba fallback refresh token statis env...')
+        const r2 = await refreshTiktokToken(clientKey, clientSecret, envRefresh)
+        if (r2.ok && r2.accessToken) {
+          const rotated = await kvSetEncrypted(KV_KEY, r2.refreshToken || envRefresh)
+          await kvSetAccessCache(r2.accessToken, r2.expiresIn || 7200)
+          return {
+            ok: true,
+            token: { accessToken: r2.accessToken, expiresIn: r2.expiresIn, rotated, source: 'refresh_token' },
+            warning: rotated
+              ? undefined
+              : 'Refresh token baru berhasil dipakai tapi tidak bisa disimpan terenkripsi — pasang ulang manual.',
+          }
+        }
+        console.error(`[tiktok] fallback env juga gagal: ${clip(r2.error, 200)}`)
+      }
+    } else if (envRefresh) {
+      // KV kosong (belum pernah sukses) — langsung pakai token statis env
+      const r = await refreshTiktokToken(clientKey, clientSecret, envRefresh)
+      if (r.ok && r.accessToken) {
+        if (r.refreshToken) await kvSetEncrypted(KV_KEY, r.refreshToken)
+        await kvSetAccessCache(r.accessToken, r.expiresIn || 7200)
+        return {
+          ok: true,
+          token: { accessToken: r.accessToken, expiresIn: r.expiresIn, rotated: Boolean(r.refreshToken), source: 'refresh_token' },
+        }
+      }
+      console.error(`[tiktok] refresh (env) gagal: ${clip(r.error, 200)}`)
     }
   }
 
@@ -185,10 +306,10 @@ export async function getTiktokAccessToken(): Promise<TiktokTokenResult> {
   if (staticToken) {
     return {
       ok: true,
-      token: { accessToken: staticToken, source: 'static_access_token' },
-      warning: refreshToken
-        ? undefined
-        : 'Memakai TIKTOK_ACCESS_TOKEN statis — access token TikTok kedaluwarsa ±24 jam; set TIKTOK_REFRESH_TOKEN + CLIENT_KEY/SECRET agar refresh otomatis.',
+      token: { accessToken: staticToken, rotated: false, source: 'static_access_token' },
+      warning:
+        'Memakai TIKTOK_ACCESS_TOKEN statis — access token TikTok cepat kedaluwarsa (24 jam, Des 2026 jadi 2 jam). ' +
+        'Set TIKTOK_REFRESH_TOKEN + CLIENT_KEY/SECRET agar refresh otomatis, atau re-auth di /api/tiktok/connect.',
     }
   }
 
@@ -352,3 +473,85 @@ export const TIKTOK_PRIVACY = {
   PUBLIC: 'PUBLIC_TO_EVERYONE',
   MUTUAL: 'MUTUAL_FOLLOW_FRIENDS',
 } as const
+
+/* ═══════════════ OAuth connect/callback (re-auth ≤180 hari) ═══════════════ */
+
+/**
+ * Tukar authorization code → token (GET /api/tiktok/callback).
+ * grant_type=authorization_code — response berisi access_token + refresh_token baru.
+ */
+export async function exchangeTiktokAuthCode(
+  code: string,
+  redirectUri: string,
+): Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; error?: string }> {
+  const clientKey = await tiktokEnv('TIKTOK_CLIENT_KEY')
+  const clientSecret = await tiktokEnv('TIKTOK_CLIENT_SECRET')
+  if (!clientKey || !clientSecret) {
+    return { ok: false, error: 'TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET belum dipasang di Cloudflare' }
+  }
+  try {
+    const body = new URLSearchParams({
+      client_key: clientKey,
+      client_secret: clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    })
+    const res = await fetch(`${TIKTOK_API}/v2/oauth/token/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
+      body,
+      signal: AbortSignal.timeout(30_000),
+    })
+    const json = (await res.json().catch(() => null)) as {
+      access_token?: string
+      refresh_token?: string
+      expires_in?: number
+      error?: string
+      error_description?: string
+    } | null
+    if (res.ok && json?.access_token) {
+      return { ok: true, accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in }
+    }
+    return { ok: false, error: json?.error_description || json?.error || `HTTP ${res.status}` }
+  } catch (e: unknown) {
+    return { ok: false, error: clip(e instanceof Error ? e.message : e, 200) }
+  }
+}
+
+/** Simpan refresh token (hasil callback OAuth) ke KV terenkripsi + reset cache access. */
+export async function saveTiktokOAuthTokens(accessToken: string, refreshToken: string, expiresIn?: number): Promise<boolean> {
+  const savedRt = await kvSetEncrypted(KV_KEY, refreshToken)
+  if (accessToken) await kvSetAccessCache(accessToken, expiresIn || 7200)
+  return savedRt
+}
+
+/** State CSRF stateless: `expiry.hmac` — HMAC-SHA256(kunci CRON_SECRET). */
+export async function createTiktokOAuthState(): Promise<string> {
+  const secret = (await tiktokEnv('CRON_SECRET')) || 'dev-only-secret'
+  const expiry = String(Date.now() + 10 * 60 * 1000)
+  const sig = await hmacB64Url(`${expiry}.tiktok-connect`, secret)
+  return `${expiry}.${sig}`
+}
+
+export async function verifyTiktokOAuthState(state: string | null): Promise<boolean> {
+  if (!state || !state.includes('.')) return false
+  const [expiry, sig] = state.split('.')
+  if (!expiry || !sig) return false
+  if (Number(expiry) < Date.now()) return false
+  const secret = (await tiktokEnv('CRON_SECRET')) || 'dev-only-secret'
+  const expect = await hmacB64Url(`${expiry}.tiktok-connect`, secret)
+  return sig === expect
+}
+
+async function hmacB64Url(payload: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+  return toB64(mac).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}

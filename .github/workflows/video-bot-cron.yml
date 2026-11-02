@@ -19,6 +19,13 @@ name: TikTok Video Bot
 #     TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN
 #   GitHub (Settings → Secrets → Actions) — sudah ada dari cron lain:
 #     PROD_URL, CRON_SECRET
+#
+# POLICY TOKEN BARU TIKTOK (per 1 Des 2026): access token 2 jam, refresh
+# token 180 hari & BEROTASI tiap refresh. Worker menyimpan refresh token
+# terbaru terenkripsi otomatis (agent_kv). Kalau suatu saat posting gagal
+# karena token kedaluwarsa: buka
+#   https://luxtradee.web.id/api/tiktok/connect?key=<CRON_SECRET>
+# login TikTok 1× — selesai (tanpa sentuh secret lagi).
 # ═══════════════════════════════════════════════════════════════════
 
 on:
