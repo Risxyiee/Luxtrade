@@ -4,16 +4,17 @@
  * ============================================================
  * Tombol "Aktifkan Alert" di UI memanggil ini SETELAH upsert
  * langganan — supaya user langsung tahu hasilnya:
- *   - 🚀 sinyal ditemukan & terkirim ke Telegram, ATAU
+ *   - 🚀 sinyal ditemukan & notifikasi terkirim ke layar HP, ATAU
  *   - ✅ berjalan normal, belum ada sinyal di bar terakhir, ATAU
- *   - ⚠️ Telegram belum terhubung.
+ *   - ⚠️ notifikasi belum diaktifkan di browser/PWA.
  *
  * Body { scriptId, symbol, timeframe }
  *   → jalankan grup utk USER INI saja (tanpa menyentuh langganan
- *     lain). Kirim + log HANYA bila chat_id Telegram tersambung —
- *     kalau belum, cukup evaluasi & laporkan pemicu.
+ *     lain). Kirim + log selalu jalan — pesan TES eksplisit 🧪
+ *     dikirim via web push bila tidak ada sinyal di bar terakhir.
  *
  * Gate Pro sama dengan /api/pine/alerts (fitur otomatisasi).
+ * (Jalur Telegram dihapus — riwayat git.)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -21,7 +22,7 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
-import { sendTelegramToUserVerbose } from '@/lib/pine-protected'
+import { pushToUser } from '@/lib/push-notify'
 import { ensureDefaultScript, DEFAULT_PINE_SOURCE } from '@/lib/pine-default-script'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME } from '@/lib/pine-default-meta'
 import { rateLimitByUser } from '@/lib/rate-limit'
@@ -37,14 +38,14 @@ export async function POST(request: NextRequest) {
     if (!auth?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = auth.user.id
 
-    // Rate limit: tes alert mengirim pesan Telegram beneran — 5x/5 menit
+    // Rate limit: tes alert mengirim push beneran — 5x/5 menit
     const limited = rateLimitByUser('pine-alert-test', userId, { maxRequests: 5, windowMs: 5 * 60_000 })
     if (limited) return limited
 
     const isPro = await readIsPro(userId)
     if (!isPro) {
       return NextResponse.json({
-        error: 'Test alert otomatis khusus member Pro. Upgrade untuk mengaktifkan alert Entry/SL/TP 24 jam ke Telegram.',
+        error: 'Test alert otomatis khusus member Pro. Upgrade untuk mengaktifkan alert Entry/SL/TP 24 jam langsung ke layar HP (push notification).',
         upgrade: true,
       }, { status: 403 })
     }
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     /* 2) BODY — scriptId boleh UUID skrip ATAU slug default
        "impulsive-breakout-xauusd" (fix: chip default dengan id slug
        sebelumnya ditolak 400 → tes alert Pine tidak pernah sampai
-       Telegram bila daftar skrip dari DB gagal). */
+       ke notifikasi bila daftar skrip dari DB gagal). */
     const body = await request.json().catch(() => null) as
       { scriptId?: string; symbol?: string; timeframe?: string; interval?: string } | null
     const scriptIdRaw = String(body?.scriptId || '').trim()
@@ -97,39 +98,22 @@ export async function POST(request: NextRequest) {
       script = data as RunnerScript
     }
 
-    /* 4) TELEGRAM USER — bila belum terhubung, evaluasi tetap jalan
-       (hasil pemicu dilaporkan ke UI, tanpa kirim/log).
-       FIX "tes tele pine ga berfungsi" (Bos): dulu test HANYA pakai
-       profiles.telegram_chat_id — profile kosong = DIAM TOTAL walau
-       tes ke /api/send-alert normal (itu punya fallback env).
-       Sekarang: pesan TES boleh pakai chat default server (env
-       TELEGRAM_CHAT_ID — sama seperti send-alert); ALERT OTOMATIS
-       tetap WAJIB telegram pribadi terhubung. */
-    const { data: prof } = await supabase
-      .from('profiles').select('telegram_chat_id').eq('id', userId).maybeSingle()
-    const profileChat = String((prof as any)?.telegram_chat_id || '').trim()
-    const envChat = String(process.env.TELEGRAM_CHAT_ID || '').trim()
-    const chatId = profileChat || envChat
-    const telegramBound = !!profileChat
-    const testViaDefault = !profileChat && !!envChat
-
-    /* 5) RUN — send/writeLog hanya bila Telegram terhubung */
+    /* 4) RUN — send/writeLog selalu jalan (push layar HP) */
     const out = await runAlertGroup(
       script as RunnerScript, symbol, interval,
-      [{ userId, chatId: chatId || '0' }],
-      { send: telegramBound, writeLog: telegramBound },
+      [{ userId }],
+      { send: true, writeLog: true },
     )
 
     /* 5b) JUJUR — kegagalan pipeline TIDAK dibungkus "berjalan normal".
        Dulu: run gagal (candle kosong / engine error) tetap 200 ok → UI
        menampilkan "✅ Berjalan normal — belum ada sinyal" padahal
-       TIDAK ADA pengecekan yang jalan (keluhan Bos: tes tele tidak
+       TIDAK ADA pengecekan yang jalan (keluhan Bos: tes tidak
        muncul apa-apa). Sekarang: error = HTTP 502 + alasan jelas. */
     if (!out.ok) {
       return NextResponse.json({
         ok: false,
         error: out.error || 'Evaluasi alert gagal',
-        telegramBound,
         candleSource: out.candleSource,
         evaluatedAt: new Date().toISOString(),
       }, { status: 502 })
@@ -138,40 +122,43 @@ export async function POST(request: NextRequest) {
     /* 6) JAMINAN TES (fix: "tes alert pine ga ada notif") —
        Evaluasi bar terakhir hampir selalu TANPA sinyal (entry hanya
        sesekali), jadi tombol Tes dulu sering diam total. Sekarang:
-       bila TIDAK ADA pesan yang terkirim dari langkah 5, kirim pesan
-       TES eksplisit 🧪 — pipeline Pine→Telegram terbukti langsung.
-       Pesan tes TIDAK masuk dedupe/log (bukan sinyal — cron 5 menit
-       tidak akan terganggu).
-       JUJUR (fix kedua): dulu kirim tes GAGAL = respons tetap "berjalan
-       normal" — Bos tidak tahu pipeline-nya mati. Sekarang alasan
-       penolakan Telegram (Unauthorized / chat not found / dst.)
-       diteruskan apa adanya sebagai HTTP 502. */
+       bila TIDAK ADA pesan yang terkirim dari langkah 4, kirim notif
+       TES eksplisit 🧪 via WEB PUSH — pipeline Pine→HP terbukti
+       langsung. Pesan tes TIDAK masuk dedupe/log (bukan sinyal —
+       cron 5 menit tidak akan terganggu).
+       JUJUR: push gagal/belum diaktifkan dilaporkan apa adanya. */
     let testMessage = false
-    if ((telegramBound || testViaDefault) && out.ok && out.sent === 0) {
+    if (out.ok && out.sent === 0) {
       const nTrig = out.triggers.length
       const note = nTrig > 0
         ? `ada ${nTrig} sinyal di bar ini tapi sudah pernah dikirim (dedupe anti-spam per-bar)`
         : 'belum ada sinyal di bar terakhir — alert tetap berjalan otomatis 24 jam (GHA tiap 5 menit + cron CF tiap 15 menit)'
-      const html = [
-        `🧪 <b>TES ALERT LUXTRADEE — BERHASIL</b>`,
-        ``,
-        `📐 Script: <b>${script.name}</b>`,
-        `💱 Pair: <b>${symbol}</b> (${interval})`,
-        `📡 Sumber candle: ${out.candleSource || 'server'}`,
-        `ℹ️ ${note}.`,
-        ``,
-        `<i>Pesan ini adalah tes pipeline — bukan sinyal trading.</i>`,
-      ].join('\n')
-      const tg = await sendTelegramToUserVerbose(chatId, html)
-      if (tg.ok) { out.sent = 1; testMessage = true }
-      else {
+      const push = await pushToUser(supabase, userId, {
+        title: '🧪 Tes Alert LuxTradee — Berhasil',
+        body: `📐 ${script.name} · ${symbol} (${interval}) · ${out.candleSource || 'server'}. ${note}.`,
+        tag: 'pine-test-alert',
+        type: 'trade',
+        url: '/dashboard',
+        urgency: 'high',
+      }, { dedupe: false })
+      if (push.sent > 0) { out.sent = 1; testMessage = true }
+      else if (push.skipped === 'no-subs') {
         return NextResponse.json({
           ok: false,
-          error: `Telegram menolak pesan tes: ${tg.description || 'alasan tidak diketahui'}${testViaDefault ? ' (dikirim ke chat default server — Telegram pribadi belum terhubung)' : ''}`,
-          telegramBound,
-          testViaDefault,
+          error: 'Notifikasi belum diaktifkan di browser/PWA ini — izinkan notifikasi (ikon 🔔 di address bar / prompt PWA) lalu tes lagi. Alert kamu tetap terdaftar & aktif.',
           triggers: [],
           sent: 0,
+          pushSkipped: 'no-subs',
+          candleSource: out.candleSource,
+          evaluatedAt: new Date().toISOString(),
+        }, { status: 502 })
+      } else {
+        return NextResponse.json({
+          ok: false,
+          error: `Notifikasi tes gagal terkirim: ${push.error || 'alasan tidak diketahui'} — alert kamu tetap terdaftar & aktif.`,
+          triggers: [],
+          sent: 0,
+          pushError: push.error || null,
           candleSource: out.candleSource,
           evaluatedAt: new Date().toISOString(),
         }, { status: 502 })
@@ -184,8 +171,6 @@ export async function POST(request: NextRequest) {
       triggers: out.triggers.map((t) => ({ signal: t.signal, price: t.price, time: t.time, message: t.message })),
       sent: out.sent,
       testMessage,
-      testViaDefault,
-      telegramBound,
       perUser: out.perUser,
       candleSource: out.candleSource,
       evaluatedAt: new Date().toISOString(),

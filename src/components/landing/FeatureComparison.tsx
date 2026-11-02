@@ -53,8 +53,8 @@ const features: FeatureRow[] = [
     pro: { type: 'unlimited', label: 'Unlimited' },
   },
   {
-    name: { id: 'Alert Telegram', en: 'Telegram Alerts' },
-    free: { type: 'text', value: '2/hari' },
+    name: { id: 'Alert Otomatis (Push HP)', en: 'Auto Alerts (Phone Push)' },
+    free: { type: 'cross' },
     pro: { type: 'unlimited', label: 'Unlimited' },
   },
   {

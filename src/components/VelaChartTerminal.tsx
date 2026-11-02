@@ -18,9 +18,10 @@
  *                            FREE 2×/bulan (/api/pine/save)
  * - Indikator DEFAULT      : Luxtradee Candle Impulsif (v5, master
  *                            Bos) — aktif otomatis, semua user bisa
- *                            lihat; alert Telegram khusus Pro (🔔)
- * - Alert Telegram         : panel kirim alert dengan kuota
- *                            FREE 2×/hari (/api/send-alert)
+ *                            lihat; alert push HP khusus Pro (🔔)
+ * - Alert otomatis         : 🔔 di chip skrip eksklusif — sinyal
+ *                            Entry/SL/TP jadi PUSH NOTIFIKASI di layar
+ *                            HP (/api/pine/alerts + web push)
  *
  * CATATAN SSR: komponen ini WAJIB dimuat via next/dynamic dengan
  * { ssr: false } (dilakukan di ChartTab) — Vela menyentuh
@@ -31,7 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ScrollText, Bell, X, Send, GraduationCap, TriangleAlert, Trash2 } from 'lucide-react'
+import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2 } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import {
@@ -130,7 +131,7 @@ function emitProtectedStats(key: string, stats: ProtectedStats) {
 
 /* Cache plot+trades per (scriptKey, symbol, tf) — 45 detik. Refetch ringan
    ini sekaligus jadi loop LISTENER alert: tiap refresh, server
-   mengevaluasi ulang sinyal Entry/SL/TP → Telegram user Pro. */
+   mengevaluasi ulang sinyal Entry/SL/TP → push layar HP user Pro. */
 const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[] }>()
 
 function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = []) {
@@ -448,28 +449,23 @@ function tfToAlert(tf: string): string {
 }
 /** Hasil test alert → kalimat manusiawi untuk dialog.
     FIX: dulu run gagal (candle kosong / engine error) TETAP tampil
-    "✅ Berjalan normal" — Bos tes tele tidak ada notif tanpa tahu
+    "✅ Berjalan normal" — Bos tes tidak ada notif tanpa tahu
     penyebabnya. Sekarang: error pipeline + alasan kirim ditampilkan
-    apa adanya (jujur), baru pesan sukses. */
+    apa adanya (jujur), baru pesan sukses. Notifikasi dikirim lewat
+    WEB PUSH (layar HP) — jalur Telegram dihapus (riwayat git). */
 function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
   if (tj?.ok === false || tj?.error) {
     return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi otomatis.` }
   }
-  if (tj?.testViaDefault) {
-    return { kind: 'warn', text: '🧪 Pesan tes BERHASIL terkirim — tapi ke chat Telegram DEFAULT server. Telegram pribadimu belum terhubung: buka Settings → Telegram agar alert otomatis masuk ke chat kamu sendiri.' }
-  }
-  if (tj?.telegramBound !== true) {
-    return { kind: 'warn', text: '✅ Alert aktif, tapi Telegram belum terhubung — buka Settings → Telegram agar sinyal bisa terkirim.' }
-  }
   const n = Array.isArray(tj?.triggers) ? tj.triggers.length : 0
-  if (tj?.sent > 0 && n > 0 && !tj?.testMessage) return { kind: 'ok', text: '🚀 Sinyal ditemukan & terkirim ke Telegram! Alert tetap aktif 24 jam.' }
-  if (tj?.sent > 0 && tj?.testMessage) return { kind: 'ok', text: '🧪 Tes pipeline BERHASIL — cek Telegram kamu (pesan tes sudah masuk). Alert aktif 24 jam, dicek otomatis tiap 5 menit.' }
-  if (tj?.sent > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke Telegram. Alert aktif 24 jam.` }
+  if (tj?.sent > 0 && n > 0 && !tj?.testMessage) return { kind: 'ok', text: '🚀 Sinyal ditemukan & notifikasi terkirim ke layar HP! Alert tetap aktif 24 jam.' }
+  if (tj?.sent > 0 && tj?.testMessage) return { kind: 'ok', text: '🧪 Tes pipeline BERHASIL — cek notifikasi di layar HP kamu. Alert aktif 24 jam, dicek otomatis tiap 5 menit.' }
+  if (tj?.sent > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke layar HP. Alert aktif 24 jam.` }
   /* sent === 0 tapi pipeline OK — tampilkan ALASAN nyata dari runner */
   const reason = Array.isArray(tj?.perUser) && tj.perUser.length && tj.perUser[0]?.reason
     ? String(tj.perUser[0].reason)
     : ''
-  if (/telegram/i.test(reason)) return { kind: 'warn', text: `⚠️ Pengecekan jalan, tapi pengiriman Telegram gagal (${reason}). Cek bot & chat_id di Settings → Telegram.` }
+  if (/notifikasi|push/i.test(reason)) return { kind: 'warn', text: `⚠️ Pengecekan jalan, tapi notifikasi gagal terkirim (${reason}). Izinkan notifikasi di browser/PWA lalu tes lagi.` }
   return { kind: 'ok', text: '✅ Berjalan normal — belum ada sinyal di bar terakhir. Alert dicek server otomatis tiap 5 menit, 24 jam.' }
 }
 
@@ -565,13 +561,6 @@ export default function VelaChartTerminal({
   const [pineScripts, setPineScripts] = useState<PineScriptRow[]>([])
   const [pineQuota, setPineQuota] = useState<QuotaBadge | null>(null)
 
-  /* ---------- Alert Telegram state ---------- */
-  const [alertOpen, setAlertOpen] = useState(false)
-  const [alertMsg, setAlertMsg] = useState('')
-  const [alertBusy, setAlertBusy] = useState(false)
-  const [alertResult, setAlertResult] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [alertQuota, setAlertQuota] = useState<QuotaBadge | null>(null)
-
   /* ---------- Upgrade paywall dialog ---------- */
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
 
@@ -590,7 +579,6 @@ export default function VelaChartTerminal({
   /* ---------- Alert otomatis Pine (🔔 klik aktif 24 jam) ---------- */
   const [alertDlg, setAlertDialog] = useState<ProtectedScriptMeta | null>(null)
   const [alertSubs, setAlertSubs] = useState<AlertSubRow[]>([])
-  const [alertTgBound, setAlertTgBound] = useState<boolean | null>(null)
   const [alertSymbol, setAlertSymbol] = useState('XAUUSD')
   const [alertInterval, setAlertInterval] = useState('1h')
   const [alertSaving, setAlertSaving] = useState(false)
@@ -661,14 +649,13 @@ export default function VelaChartTerminal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* ---------- Alert otomatis Pine: muat langganan + status Telegram ---------- */
+  /* ---------- Alert otomatis Pine: muat langganan ---------- */
   const loadAlertSubs = useCallback(async () => {
     try {
       const r = await fetch('/api/pine/alerts', { cache: 'no-store' })
       if (!r.ok) return
       const j: any = await r.json()
       setAlertSubs(Array.isArray(j?.subscriptions) ? j.subscriptions : [])
-      setAlertTgBound(j?.telegramBound === true)
       if (typeof j?.isPro === 'boolean') setProtectedIsPro(j.isPro)
     } catch { /* belum login — dot bell cukup kosong */ }
   }, [])
@@ -676,14 +663,12 @@ export default function VelaChartTerminal({
   /* ---------- Kuota badge (mount) ---------- */
   const refreshQuotas = useCallback(async () => {
     try {
-      const [p, a, pr] = await Promise.all([
+      const [p, pr] = await Promise.all([
         fetch('/api/pine/save', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch('/api/send-alert', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         fetch('/api/compile-pine', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ])
       if (p?.quota) setPineQuota(p.quota)
       if (p?.scripts) setPineScripts(p.scripts)
-      if (a && !a.error) setAlertQuota(a)
       if (pr) {
         setProtectedIsPro(pr.isPro === true)
         if (Array.isArray(pr.scripts)) setProtectedScripts(pr.scripts)
@@ -1116,38 +1101,14 @@ export default function VelaChartTerminal({
     } finally { setPineBusy(false) }
   }, [pineName, pineSource, runOnChart])
 
-  /* ---------- Alert Telegram (kuota 2×/hari untuk free) ---------- */
-  const alertSend = useCallback(async () => {
-    if (!alertMsg.trim()) return
-    setAlertBusy(true); setAlertResult(null)
-    try {
-      const res = await fetch('/api/send-alert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: alertMsg.trim() }),
-      })
-      const r: any = await res.json()
-      if (res.status === 429) { // kuota alert free habis
-        setUpgradeMsg(String(r?.error || 'Kuota alert habis.'))
-        return
-      }
-      if (!res.ok) { setAlertResult({ kind: 'err', text: String(r?.error || `HTTP ${res.status}`) }); return }
-      setAlertResult({ kind: 'ok', text: r?.isPro ? '✅ Terkirim ke Telegram (Pro — tanpa batas).' : `✅ Terkirim ke Telegram! Sisa kuota hari ini: ${r?.remaining ?? 0}.` })
-      setAlertMsg('')
-      if (typeof r?.used === 'number') setAlertQuota((q) => q ? { ...q, used: r.used, remaining: r.remaining } : q)
-    } catch (x: any) {
-      setAlertResult({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
-    } finally { setAlertBusy(false) }
-  }, [alertMsg])
-
   const quotaLabel = (q: QuotaBadge | null, unit: string) =>
     !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
 
   /* ---------- Preset chip: tambah/lepas indikator Luxtradee ----------
      Free: 1 indikator (EMA 20/50). Pro: semua terbuka. Kuota nyata
-     (alert & Pine edit) tetap dijaga server-side di API.
+     (Pine edit) tetap dijaga server-side di API.
      Klik chip AKTIF → indikator dilepas dari chart (state ikut). */
-  const isProUser = alertQuota?.isPro === true
+  const isProUser = protectedIsPro || pineQuota?.isPro === true
   const runPreset = useCallback(async (i: number) => {
     if (presetBusy !== null) return
     /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart --- */
@@ -1231,7 +1192,7 @@ export default function VelaChartTerminal({
       }
       chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
       setActiveProtected((m) => ({ ...m, [s.id]: true }))
-      setProtectedMsg('🛡️ ' + s.name + ' tampil di chart. Klik 🔔 di sebelah nama skrip untuk alert otomatis 24 jam ke Telegram.')
+      setProtectedMsg('🛡️ ' + s.name + ' tampil di chart. Klik 🔔 di sebelah nama skrip untuk alert otomatis 24 jam ke layar HP.')
     } catch (x: any) {
       setProtectedMsg('⚠️ ' + String(x?.message || x).slice(0, 120))
     } finally { setProtectedBusy(null) }
@@ -1251,16 +1212,8 @@ export default function VelaChartTerminal({
               📐 {quotaLabel(pineQuota, 'edit')}
             </span>
           )}
-          {alertQuota && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/60">
-              🔔 {quotaLabel(alertQuota, 'alert')}
-            </span>
-          )}
-          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => { setPineOpen((v) => !v); setAlertOpen(false) }}>
+          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setPineOpen((v) => !v)}>
             <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
-          </Button>
-          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => { setAlertOpen((v) => !v); setPineOpen(false) }}>
-            <Bell className="w-3.5 h-3.5 mr-1" /> Alert TG
           </Button>
         </div>
       </div>
@@ -1313,7 +1266,7 @@ export default function VelaChartTerminal({
             if (!protectedIsPro && !isDefaultScript) {
               return (
                 <button key={s.id}
-                  onClick={() => setUpgradeMsg(`🛡️ ${s.name} adalah indikator EKSKLUSIF member Pro. Source code dijamin aman (tidak pernah dikirim ke browser) — kamu hanya melihat garis & sinyal Entry/SL/TP-nya di chart, plus alert otomatis ke Telegram. Upgrade ke Pro (Rp49rb/bulan) untuk mengaktifkannya!`)}
+                  onClick={() => setUpgradeMsg(`🛡️ ${s.name} adalah indikator EKSKLUSIF member Pro. Source code dijamin aman (tidak pernah dikirim ke browser) — kamu hanya melihat garis & sinyal Entry/SL/TP-nya di chart, plus alert otomatis ke layar HP. Upgrade ke Pro (Rp49rb/bulan) untuk mengaktifkannya!`)}
                   className="text-[11px] px-2.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-white/35 hover:text-white/60 hover:border-white/20 transition-colors inline-flex items-center gap-1 min-h-[32px]"
                   aria-label={`${s.name} — khusus Pro, klik untuk info upgrade`}>
                   🔒 {s.name} <span className="text-[9px] font-bold text-purple-300/80">PRO</span>
@@ -1333,14 +1286,14 @@ export default function VelaChartTerminal({
                 <button onClick={() => {
                   /* Free → paywall: notifikasi sinyal khusus Pro */
                   if (!protectedIsPro) {
-                    setUpgradeMsg(`🔔 Alert otomatis sinyal ${s.name} ke Telegram adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
+                    setUpgradeMsg(`🔔 Alert otomatis sinyal ${s.name} ke layar HP (push notification) adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
                     return
                   }
                   openAlertDialog(s)
                 }}
                   className="relative px-2 inline-flex items-center text-purple-100/80 hover:bg-purple-400/15 hover:text-white transition-colors"
                   aria-label={`Alert otomatis 24 jam untuk ${s.name} — klik untuk mengaktifkan`}
-                  title="Alert otomatis 24 jam — sinyal Entry/SL/TP ke Telegram">
+                  title="Alert otomatis 24 jam — sinyal Entry/SL/TP ke layar HP">
                   <Bell className="w-3 h-3" />
                   {hasSub && <span className="absolute top-1 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true" />}
                 </button>
@@ -1474,36 +1427,6 @@ export default function VelaChartTerminal({
             </div>
           </div>
         )}
-
-        {/* ---------- Drawer: Alert Telegram ---------- */}
-        {alertOpen && (
-          <div className="absolute right-2 top-2 w-[min(92vw,340px)] z-30 rounded-xl border border-white/10 bg-[#0a0f16]/95 backdrop-blur shadow-2xl">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-              <div className="text-xs font-semibold text-sky-300">🔔 Alert → Telegram Bot</div>
-              <button className="text-white/40 hover:text-white" onClick={() => setAlertOpen(false)} aria-label="Tutup alert"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="px-3 py-2 space-y-2">
-              <textarea
-                value={alertMsg} onChange={(e) => setAlertMsg(e.target.value)}
-                placeholder="Contoh: XAUUSD tembus 2350 — cek setup long!"
-                className="w-full h-20 text-[11.5px] bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-sky-400/40 resize-none"
-              />
-              {alertResult && (
-                <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertResult.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
-                  {alertResult.text}
-                </div>
-              )}
-              <Button size="sm" className="w-full bg-sky-500 hover:bg-sky-400 text-black font-semibold" disabled={alertBusy || !alertMsg.trim()} onClick={alertSend}>
-                {alertBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-3.5 h-3.5 mr-1" /> Kirim Alert</>}
-              </Button>
-              {alertQuota && !alertQuota.isPro && (
-                <div className="text-[10px] text-white/40 leading-relaxed">
-                  Paket gratis: 2 alert/hari · terpakai {alertQuota.used}. Pro = tanpa batas.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ---------- Dialog paywall upgrade ---------- */}
@@ -1534,16 +1457,9 @@ export default function VelaChartTerminal({
               <Bell className="w-4 h-4" /> Alert Otomatis — {alertDlg?.name}
             </DialogTitle>
             <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
-              Sinyal Entry/SL/TP skrip ini dicek server tiap 5 menit & dikirim ke Telegram — tanpa buka chart.
+              Sinyal Entry/SL/TP skrip ini dicek server tiap 5 menit & muncul sebagai notifikasi di layar HP kamu — tanpa buka chart.
             </DialogDescription>
           </DialogHeader>
-
-          {alertTgBound === false && (
-            <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200 flex items-center justify-between gap-2">
-              <span>Telegram belum terhubung — alert tidak bisa terkirim.</span>
-              <a href="/dashboard/settings/telegram" className="underline font-semibold whitespace-nowrap">Hubungkan</a>
-            </div>
-          )}
 
           <div className="space-y-2">
             <div className="flex gap-2">

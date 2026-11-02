@@ -266,19 +266,43 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
     loadProgress()
   }, [])
 
+  // Save progress to both localStorage and API.
+  // Laporan Bos: "progresnya ga jalan" — selain UX klik, persist ke DB dulu
+  // selalu gagal karena kolom profiles.onboarding_steps belum ada (42703).
+  // Sekarang: localStorage tetap instan, POST jalan best-effort, dan kalau
+  // server bilang gagal persist → toast SEKALI (jangan spam tiap klik).
+  // FIX (typecheck): persistSteps dipakai di deps effect auto-detect di
+  // bawah → deklarasi WAJIB di atasnya (dulu TDZ "used before declaration").
+  const persistWarnedRef = useRef(false)
+  const persistSteps = useCallback(async (steps: Set<string>) => {
+    try {
+      localStorage.setItem('luxtrade-onboarding-progress', JSON.stringify([...steps]))
+    } catch {}
+
+    try {
+      setSyncing(true)
+      const res = await fetch('/api/onboarding/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ steps: [...steps] }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.persisted === false && !persistWarnedRef.current) {
+        persistWarnedRef.current = true
+        console.warn('[OnboardingTab] Progress tersimpan lokal saja — jalankan SQL migrasi onboarding_steps agar persist ke server')
+      }
+    } catch (err) {
+      console.warn('[OnboardingTab] Failed to sync progress to server:', err)
+    } finally {
+      setSyncing(false)
+    }
+  }, [])
+
+  const autoToastShownRef = useRef(false)
   // ============================================================================
   // AUTO-DETECT (laporan Bos: "onboarding kurang interactive") — step yang
   // user BENERAN sudah kerjain otomatis tercentang, tanpa diklik manual:
-  //   • punya akun trading        → 'add-account'
-  //   • punya trade di jurnal     → 'add-trade'
-  //   • pernah import file        → 'import-trades'
-  //   • nulis jurnal              → 'write-journal'
-  //   • isi watchlist             → 'set-watchlist'
-  //   • pernah buka tab terkait   → 'view-dashboard' / 'check-analytics' /
-  //                                 'try-ai' / 'risk-calc' / 'psychology'
-  // Cek jalan tiap tab Onboarding kebuka (user balik dari fitur → update).
-  // ============================================================================
-  const autoToastShownRef = useRef(false)
   useEffect(() => {
     if (!loaded) return
 
@@ -330,37 +354,6 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
       applyAuto(auto)
     } catch {}
   }, [loaded, isId, persistSteps])
-
-  // Save progress to both localStorage and API.
-  // Laporan Bos: "progresnya ga jalan" — selain UX klik, persist ke DB dulu
-  // selalu gagal karena kolom profiles.onboarding_steps belum ada (42703).
-  // Sekarang: localStorage tetap instan, POST jalan best-effort, dan kalau
-  // server bilang gagal persist → toast SEKALI (jangan spam tiap klik).
-  const persistWarnedRef = useRef(false)
-  const persistSteps = useCallback(async (steps: Set<string>) => {
-    try {
-      localStorage.setItem('luxtrade-onboarding-progress', JSON.stringify([...steps]))
-    } catch {}
-
-    try {
-      setSyncing(true)
-      const res = await fetch('/api/onboarding/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ steps: [...steps] }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data?.persisted === false && !persistWarnedRef.current) {
-        persistWarnedRef.current = true
-        console.warn('[OnboardingTab] Progress tersimpan lokal saja — jalankan SQL migrasi onboarding_steps agar persist ke server')
-      }
-    } catch (err) {
-      console.warn('[OnboardingTab] Failed to sync progress to server:', err)
-    } finally {
-      setSyncing(false)
-    }
-  }, [])
 
   // Toggle step — side effects (toast/celebration/persist) DI LUAR updater
   // (dulu side-effect di dalam setState updater = anti-pattern React 18).

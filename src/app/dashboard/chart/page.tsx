@@ -11,7 +11,7 @@
  * Alih-alih menghapus lagi (rawan di-restore revert berikutnya),
  * isinya DIGANTI memakai terminal resmi yang sama dengan tab Chart
  * di dashboard: VelaChartTerminal (Vela™ + Pine Script + pineku
- * default "Impulsive Breakout XAUUSD v5" auto-load + alert Telegram).
+ * default "Impulsive Breakout XAUUSD v5" auto-load + alert push HP).
  *
  * Semua logika ada di komponen ChartTab — file ini hanya jembatan.
  */

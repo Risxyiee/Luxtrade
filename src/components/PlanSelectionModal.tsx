@@ -46,7 +46,7 @@ const plans: Plan[] = [
       '10x Tanya AI (Chat)',
       'Grafik Performa & Statistik Standar',
       'Chart Live Vela™ + 1 Indikator',
-      'Alert Telegram 2×/Hari · Pine Script® 2×/Bulan',
+      'Pine Script® 2×/Bulan',
       'Prop Firm Guard & Watchlist'
     ]
   },
@@ -65,7 +65,7 @@ const plans: Plan[] = [
       'AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
       'Analitik Mendalam & Equity Curve',
       'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
-      'Alert Telegram & Pine Script® Tanpa Batas',
+      'Alert Otomatis & Pine Script® Tanpa Batas',
       'Heatmap, Analitik & Target Trading',
       'AI Insights, Trading Score, Weekly Report & Psikologi',
       'Ekspor Data ke CSV / PDF + Dukungan Prioritas'
@@ -88,7 +88,7 @@ const plans: Plan[] = [
       'AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
       'Analitik Mendalam & Equity Curve',
       'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
-      'Alert Telegram & Pine Script® Tanpa Batas',
+      'Alert Otomatis & Pine Script® Tanpa Batas',
       'Heatmap, Analitik & Target Trading',
       'AI Insights, Trading Score, Weekly Report & Psikologi',
       'Ekspor Data ke CSV / PDF + Dukungan Prioritas',

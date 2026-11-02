@@ -5,7 +5,7 @@
  * UI klik: ikon 🔔 di chip indikator "Eksklusif" → pilih simbol +
  * timeframe → Aktifkan. TANPA SQL/JSON manual.
  *
- * GET     → { isPro, telegramBound, subscriptions: [...] }
+ * GET     → { isPro, subscriptions: [...] }
  * POST    { scriptId, symbol, timeframe, enabled } → upsert langganan
  *           (toggle on/off = update baris yang sama)
  * DELETE  ?id=... → hapus langganan sendiri
@@ -34,7 +34,7 @@ function admin() {
 }
 
 /* ============================================================
-   GET — daftar langganan user + status Telegram + status Pro
+   GET — daftar langganan user + status Pro
    ============================================================ */
 export async function GET(request: NextRequest) {
   try {
@@ -45,14 +45,13 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseAdmin()
     if (!supabase) return NextResponse.json({ error: 'Server belum terhubung Supabase (service role)' }, { status: 500 })
 
-    const [subsRes, profRes, isPro] = await Promise.all([
+    const [subsRes, isPro] = await Promise.all([
       supabase
         .from('pine_alert_subscriptions')
         .select('id, script_id, symbol, timeframe, enabled, created_at, protected_scripts(name)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50),
-      supabase.from('profiles').select('telegram_chat_id').eq('id', userId).maybeSingle(),
       readIsPro(userId),
     ])
 
@@ -75,7 +74,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       isPro,
-      telegramBound: !!String((profRes.data as any)?.telegram_chat_id || '').trim(),
       subscriptions,
     })
   } catch (x: any) {
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
     const isPro = await readIsPro(userId)
     if (!isPro) {
       return NextResponse.json({
-        error: 'Alert otomatis 24 jam (Entry/SL/TP langsung ke Telegram tanpa buka chart) khusus member Pro. Upgrade untuk mengaktifkannya!',
+        error: 'Alert otomatis 24 jam (Entry/SL/TP muncul sebagai notifikasi di layar HP tanpa buka chart) khusus member Pro. Upgrade untuk mengaktifkannya!',
         upgrade: true,
       }, { status: 403 })
     }

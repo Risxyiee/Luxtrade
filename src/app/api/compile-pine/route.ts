@@ -8,14 +8,14 @@
  *     menerima hasil plot {time, value} untuk digambar di chart.
  *   - Hanya user Pro (profiles.is_pro = true, cek kedaluwarsa)
  *     yang boleh menjalankannya. Free → 403 upgrade.
- *   - Sinyal Entry/SL/TP otomatis ke Telegram user (chat_id dari
- *     profiles.telegram_chat_id), dedupe per-bar via pine_alert_log.
+ *   - Sinyal Entry/SL/TP otomatis sebagai PUSH NOTIFIKASI di layar
+ *     HP user (web push), dedupe per-bar via pine_alert_log.
  *
  * GET  → daftar skrip terproteksi (id/slug/nama/deskripsi SAJA)
  *         + status isPro (badge UI).
  * POST → { scriptId | slug, symbol, interval } → { plots, meta }
  *
- * Env: TELEGRAM_BOT_TOKEN (alert) — Supabase service role (sudah ada)
+ * Env: — (keyless; Supabase service role sudah ada)
  * SQL wajib: docs/PROTECTED_SCRIPTS.sql (Supabase SQL Editor)
  */
 
@@ -25,11 +25,12 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { rateLimitByUser } from '@/lib/rate-limit'
 import { readIsPro } from '@/lib/user-quota'
 import {
-  runPineHeadless, runDefaultStrategyPine, evaluateAlertRules, sendTelegramToUser, formatSignalMessage,
+  runPineHeadless, runDefaultStrategyPine, evaluateAlertRules,
   fetchServerCandles,
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
 import { ensureDefaultScript, DEFAULT_PINE_SOURCE, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-script'
+import { pushToUser, signalEmoji } from '@/lib/push-notify'
 import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
     /* 2) GATE AKSES:
        - Skrip DEFAULT (Impulsive Breakout XAUUSD v4): SEMUA user
          boleh MENJALANKAN untuk MELIHAT (permintaan Bos — free
-         hanya bisa liat). Notifikasi Telegram tetap khusus Pro.
+         hanya bisa liat). Notifikasi push HP tetap khusus Pro.
        - Skrip terproteksi lain: Pro saja. */
     const isPro = await readIsPro(userId)
 
@@ -293,7 +294,7 @@ export async function POST(request: NextRequest) {
 }
 
 /* ============================================================
-   Alert dispatch: engine alerts (alert()) + alert_rules → Telegram
+   Alert dispatch: engine alerts (alert()) + alert_rules → push HP
    ============================================================ */
 async function detectAndDispatch(opts: {
   userId: string
@@ -363,19 +364,17 @@ async function detectAndDispatch(opts: {
     }
     if (!isNew) continue
 
-    /* Ambil chat_id user Pro (service role) */
-    const { data: prof } = await supabase!
-      .from('profiles').select('telegram_chat_id').eq('id', userId).maybeSingle()
-    const chatId = String((prof as any)?.telegram_chat_id || '').trim()
-    if (!chatId) continue // belum hubungkan Telegram → sinyal dilewati (bukan error)
-
-    const html = formatSignalMessage({
-      scriptName: script.name, symbol, interval,
-      signal: t.signal, price: t.price, barTimeSec: t.time,
-      extra: t.message && t.message !== t.signal ? `💬 ${t.message}` : undefined,
-    })
-    const okTg = await sendTelegramToUser(chatId, html)
-    if (okTg) sent++
+    /* Push layar HP (service role) — jalur Telegram dihapus (riwayat git) */
+    if (!supabase) continue
+    const push = await pushToUser(supabase, userId, {
+      title: `${signalEmoji(t.signal)} ${t.signal.toUpperCase()} — ${symbol} ${interval}`,
+      body: `${script.name}${t.price ? ` · Harga ~${t.price}` : ''}`,
+      tag: `pine-${script.id}-${symbol}-${t.signal}`,
+      type: 'trade',
+      url: '/dashboard',
+      urgency: 'high',
+    }, { dedupe: false })
+    if (push.sent > 0) sent++
   }
   return sent
 }

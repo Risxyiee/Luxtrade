@@ -7,8 +7,8 @@
  * Chart lama (lightweight-charts CandlestickChart + selector
  * manual) digantikan VelaChartTerminal: workspace penuh dengan
  * symbol search, timeframe bar, 70+ indikator bawaan, drawing
- * tools, Pine Script® editor (kuota free 2×/bulan) dan panel
- * Alert Telegram (kuota free 2×/hari).
+ * tools, Pine Script® editor (kuota free 2×/bulan) dan alert
+ * otomatis push layar HP (🔔 di chip skrip eksklusif).
  *
  * Data XAUUSD/forex tetap dari /api/forex (Yahoo keyless — via
  * LuxtradeeForexProvider); crypto dari BinanceProvider native Vela.
@@ -30,7 +30,7 @@ const VelaChartTerminal = dynamic(() => import('@/components/VelaChartTerminal')
 })
 
 /* TabContent lama masih mem-passing `isPro` — diterima tapi tak dipakai:
-   kuota kini dicek SERVER-SIDE per-aksi (/api/pine/save & /api/send-alert). */
+   kuota kini dicek SERVER-SIDE per-aksi (/api/pine/save & /api/compile-pine). */
 export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   return (
     <div className="space-y-4">
@@ -47,7 +47,7 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
         </div>
       </div>
 
-      {/* Vela terminal (chart + Pine editor + Alert Telegram) */}
+      {/* Vela terminal (chart + Pine editor + alert push HP) */}
       <VelaChartTerminal defaultSymbol="XAUUSD" defaultTimeframe="60" />
     </div>
   )

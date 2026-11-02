@@ -12,7 +12,7 @@
  *      lalu HANYA mengembalikan hasil plot {time, value} + sinyal.
  *   4. Alert Entry/SL/TP terdeteksi server (event `alert()` engine
  *      + alert_rules declaratif), di-dedupe per-bar, lalu diteruskan
- *      ke Telegram user Pro (profiles.telegram_chat_id).
+ *      sebagai push notifikasi layar HP user Pro.
  *
  * File ini WAJIB hanya diimpor dari server (API route).
  */
@@ -236,7 +236,7 @@ export async function runPineHeadless(
            TIDAK memicu onAlert utk strategy.entry/exit, tapi setiap
            trade tersedia di context. Dipetakan jadi engineAlerts
            (ENTRY_LONG/ENTRY_SHORT/STOP_LOSS/TAKE_PROFIT) sehingga
-           skrip strategy() Bos ikut memicu alert Telegram. */
+           skrip strategy() Bos ikut memicu alert push HP. */
         const snap = await session?.getContext?.(['plots', 'meta', 'trades'])
         const plotsRaw: Record<string, any> = snap?.plots || {}
         const keys = Object.keys(plotsRaw)
@@ -465,67 +465,9 @@ export function evaluateAlertRules(
 }
 
 /* ============================================================
-   3) TELEGRAM — kirim sinyal ke user Pro (chat_id dari profiles)
+   3) KIRIM SINYAL — sekarang via push layar HP (push-notify.ts).
+      Jalur Telegram dihapus — riwayat git menyimpan versi lama.
    ============================================================ */
-
-export async function sendTelegramToUser(chatId: string, html: string): Promise<boolean> {
-  return (await sendTelegramToUserVerbose(chatId, html)).ok
-}
-
-/** Versi VERBOSE — alasan penolakan Telegram TIDAK dibuang (fix
-    "tes tele pine ga berfungsi tanpa jejak": Unauthorized = token
-    salah, "chat not found" = chat_id salah — semua kini terlihat). */
-export async function sendTelegramToUserVerbose(chatId: string, html: string): Promise<{ ok: boolean; description?: string }> {
-  const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim()
-  if (!token || !chatId) {
-    return { ok: false, description: !token ? 'TELEGRAM_BOT_TOKEN belum diset di server' : 'chat_id kosong' }
-  }
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: html.slice(0, 4000), parse_mode: 'HTML', disable_web_page_preview: true }),
-      cache: 'no-store',
-    })
-    const body: any = await res.json().catch(() => null)
-    if (res.ok && body?.ok === true) return { ok: true }
-    return { ok: false, description: String(body?.description || `HTTP ${res.status}`).slice(0, 140) }
-  } catch (x: any) {
-    return { ok: false, description: String(x?.message || x).slice(0, 140) }
-  }
-}
-
-export function formatSignalMessage(opts: {
-  scriptName: string
-  symbol: string
-  interval: string
-  signal: string
-  price: number
-  barTimeSec: number
-  extra?: string
-}): string {
-  const d = new Date(opts.barTimeSec * 1000)
-  const wib = new Intl.DateTimeFormat('id-ID', {
-    timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short',
-  }).format(d)
-  const icon =
-    /ENTRY_?LONG|BUY|LONG/i.test(opts.signal) ? '🟢' :
-    /ENTRY_?SHORT|SELL|SHORT/i.test(opts.signal) ? '🔴' :
-    /TP|TAKE/i.test(opts.signal) ? '🎯' :
-    /SL|STOP/i.test(opts.signal) ? '🛑' : '🔔'
-  return [
-    `${icon} <b>LUXTRADEE PRO SIGNAL</b>`,
-    ``,
-    `📐 Script: <b>${opts.scriptName}</b>`,
-    `💱 Pair: <b>${opts.symbol}</b> (${opts.interval})`,
-    `⚡ Sinyal: <b>${opts.signal.replace(/_/g, ' ')}</b>`,
-    `💲 Harga: <b>${opts.price}</b>`,
-    `⏰ Bar: ${wib} WIB`,
-    opts.extra ? `\n${opts.extra}` : '',
-    ``,
-    `<i>Alert otomatis indikator terproteksi Luxtradee — jangan dibagikan.</i>`,
-  ].join('\n')
-}
 
 /* Re-export agar route tidak impor dua lib */
 export { fetchServerCandles, intervalSeconds }

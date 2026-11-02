@@ -12,10 +12,11 @@
  *      supaya cron internal CF jalan tanpa setup tambahan — kosong
  *      dua-duanya = endpoint mati total, aman default).
  *   2. Baca semua langganan enabled dari pine_alert_subscriptions.
- *   3. Saring: user Pro aktif + Telegram terhubung + skrip aktif.
+ *   3. Saring: user Pro aktif + skrip aktif.
  *   4. Grup per (script, symbol, timeframe) → 1× fetch candle +
  *      1× headless run untuk SEMUA user dalam grup (hemat kuota).
- *   5. Sinyal dikirim Telegram + dedupe per-bar via pine_alert_log.
+ *   5. Sinyal dikirim sebagai push layar HP + dedupe per-bar via
+ *      pine_alert_log.
  *
  * Anti-nyasar: in-memory lock — run sebelumnya masih jalan → skip.
  * Batas 30 grup/run (aman CPU Cloudflare Workers).
@@ -92,14 +93,14 @@ async function handle(request: NextRequest) {
     const userIds = [...new Set(subs.map((s: any) => s.user_id))]
     const scriptIds = [...new Set(subs.map((s: any) => s.script_id))]
 
-    /* 3) SKRIP AKTIF + PROFIL (pro & telegram) — sekali query per run */
+    /* 3) SKRIP AKTIF + PROFIL (pro) — sekali query per run */
     const [scriptsRes, profRes] = await Promise.all([
       supabase.from('protected_scripts')
         .select('id, slug, name, source, alert_rules')
         .eq('is_active', true)
         .in('id', scriptIds),
       supabase.from('profiles')
-        .select('id, telegram_chat_id, is_pro, subscription_until, pro_expiry')
+        .select('id, is_pro, subscription_until, pro_expiry')
         .in('id', userIds),
     ])
 
@@ -108,8 +109,7 @@ async function handle(request: NextRequest) {
 
     const users = new Map<string, RunnerUser>()
     for (const p of profRes.data || []) {
-      const chatId = String((p as any).telegram_chat_id || '').trim()
-      if (chatId && isProRow(p as any)) users.set(p.id, { userId: p.id, chatId })
+      if (isProRow(p as any)) users.set(p.id, { userId: p.id })
     }
 
     /* 4) GRUP per (script, symbol, timeframe) */
@@ -118,7 +118,7 @@ async function handle(request: NextRequest) {
       const script = scripts.get(s.script_id)
       if (!script) continue // skrip dinonaktifkan/dihapus → lewati
       const u = users.get(s.user_id)
-      if (!u) continue // bukan Pro / Telegram belum terhubung → lewati
+      if (!u) continue // bukan Pro → lewati
       const sym = sanitizeSymbol(String(s.symbol || ''))
       if (sym.length < 3) continue
       const tf = String(s.timeframe || '1h')

@@ -119,35 +119,6 @@ export async function readIsPro(userId: string): Promise<boolean> {
 }
 
 /* ============================================================
-   ALERT TELEGRAM — free 2×/hari
-   ============================================================ */
-
-/**
- * Cek + konsumsi 1 kuota alert. Panggil SEBELUM mengirim bila ingin
- * gagal-cepat, ATAU pakai pola `checkAlertQuota` + `commitAlertQuota`
- * (konsumsi HANYA saat Telegram sukses — jangan buang kuota user
- * karena error jaringan kita).
- */
-export async function checkAlertQuota(userId: string): Promise<QuotaRow & { isPro: boolean }> {
-  const [row, isPro] = await Promise.all([getQuotaRow(userId), readIsPro(userId)])
-  return { ...row, isPro }
-}
-
-export async function commitAlertQuota(userId: string): Promise<void> {
-  const supabase = admin()
-  const row = await getQuotaRow(userId)
-  const { error } = await supabase
-    .from('user_quotas')
-    .update({ alerts_today_count: row.alerts_today_count + 1, alerts_reset_date: wibDay(), updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
-  if (error) throw new Error(`user_quotas update gagal: ${error.message}`)
-}
-
-export function alertQuotaExceededMessage(): string {
-  return 'Kuota alert gratis habis (maksimal 2x sehari). Upgrade ke Pro untuk alert tanpa batas!'
-}
-
-/* ============================================================
    PINE SCRIPT — free 2×/bulan
    ============================================================ */
 

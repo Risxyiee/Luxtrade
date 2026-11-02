@@ -55,7 +55,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Analitik mendalam dengan grafik dan statistik lengkap" },
         { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
         { icon: Zap, title: "Chart Vela™ Semua Preset Indikator", desc: "EMA 20/50 + RSI 14 + VWAP, Pine Script® tanpa batas" },
-        { icon: Star, title: "Alert Telegram Tanpa Batas", desc: "Gratis 2×/hari — Pro kirim alert kapan saja" },
+        { icon: Star, title: "Alert Otomatis Tanpa Batas", desc: "Sinyal Entry/SL/TP otomatis ke layar HP — Pro tanpa batas" },
         { icon: Shield, title: "Semua Tools Pro", desc: "Heatmap, Analitik, AI Insights, Trading Score, Laporan Mingguan" }
       ],
       price: {
@@ -85,7 +85,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Deep analytics with complete charts and statistics" },
         { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload MT5/TradingView screenshot, AI auto-extracts data" },
         { icon: Zap, title: "Vela™ Chart — All Preset Indicators", desc: "EMA 20/50 + RSI 14 + VWAP, unlimited Pine Script®" },
-        { icon: Star, title: "Unlimited Telegram Alerts", desc: "Free is 2×/day — Pro sends alerts anytime" },
+        { icon: Star, title: "Unlimited Auto Alerts", desc: "Signal push to your phone — Pro sends alerts anytime" },
         { icon: Shield, title: "All Pro Tools", desc: "Heatmap, Analytics, AI Insights, Trading Score, Weekly Report" }
       ],
       price: {
