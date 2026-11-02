@@ -1,8 +1,16 @@
 name: Master Autonomous Workforce
 
 # ============================================================
-# 🏢 MASTER CRON — Fully Autonomous AI Workforce (8 agen, MODE GELUMBANG)
+# 🏢 MASTER CRON — Fully Autonomous AI Workforce (8 karyawan)
 # ------------------------------------------------------------
+# DUA SHIFT KERJA dalam SATU workforce (bukan bot terpisah):
+#   0 1  * * *  → 08.00 WIB  Shift pagi: 3 gelombang karyawan
+#               (Raka+Maya+Bagas+Putri+Dewi → Farhan+Sinta → Alexander)
+#   0 13 * * *  → 20.00 WIB  Shift sore: SINTA (CMO) produksi &
+#               posting video TikTok (prime time FYP Indonesia) —
+#               job "sinta-video" di bawah. Ini TUGAS KARYAWAN
+#               (desk kerja Sinta), bukan bot berdiri sendiri.
+#
 # CF Workers gratis = MAKS 50 SUBREQUEST per invokasi. Run penuh 8 agen
 # (13 probe Raka + rantai LLM + DB + Discord) bisa melampaui batas itu →
 # "Too many subrequests" (terjadi 2026-11-02: Farhan & Discord gagal).
@@ -15,33 +23,51 @@ name: Master Autonomous Workforce
 #   Wave 3: Alexander → Morning Briefing → Discord
 #
 # Catatan limit: CF Workers Free = maks 5 cron triggers dan semua
-# sudah terpakai — makanya master cron ini dipicu dari GitHub Actions.
+# sudah terpakai — makanya workforce ini dipicu dari GitHub Actions.
 #
-# SETUP SEKALI (wajib, oleh Bos):
+# SETUP SEKALI (wajib, oleh Bos — zero-knowledge, aku tidak pernah lihat isinya):
 #   GitHub repo → Settings → Secrets and variables → Actions:
 #     PROD_URL        = https://luxtradee.web.id
 #     CRON_SECRET     = string acak (SAMakan dengan env CRON_SECRET
 #                       di Cloudflare Workers — SATU nama saja)
+#     TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN
+#                     → diset di Cloudflare (wrangler secret put), BUKAN di
+#                       GitHub — runner hanya minta access token jangka
+#                       pendek dari /api/tiktok/token.
 #   Cloudflare Dashboard → Workers → luxtradee → Settings →
 #     Variables & Secrets → CRON_SECRET = string yang sama
 #
-# Uji manual: jalankan workflow ini manual (workflow_dispatch) atau:
+# Uji manual: jalankan workflow ini manual (workflow_dispatch):
+#   - video_only=false (default) → shift pagi (3 gelombang)
+#   - video_only=true            → cuma produksi video Sinta
+#   atau:
 #   curl -X POST -H "Authorization: Bearer $SECRET" \
 #     "https://luxtradee.web.id/api/cron/master-autonomous?agents=raka,maya,bagas,putri,dewi"
 # ============================================================
 
 on:
   schedule:
-    # 0 1 * * * UTC = 08.00 WIB (jam kerja kantor) — harian
+    # 0 1 * * * UTC = 08.00 WIB (jam kerja kantor) — shift pagi
     - cron: '0 1 * * *'
-  workflow_dispatch: {}
+    # 0 13 * * * UTC = 20.00 WIB (prime time TikTok Indonesia) — shift sore Sinta
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      video_only:
+        description: 'Cuma produksi video TikTok Sinta (uji coba tanpa shift pagi)'
+        type: boolean
+        default: false
 
 concurrency:
   group: master-autonomous
   cancel-in-progress: false
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # SHIFT PAGI 08.00 WIB — 3 gelombang karyawan (Raka s/d Alexander)
+  # ─────────────────────────────────────────────────────────────
   run-workforce:
+    if: github.event.schedule != '0 13 * * *' && inputs.video_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -157,3 +183,172 @@ jobs:
           kick "?agents=alexander&force=true" "Gelombang 3: Alexander fan-in"
           echo ""
           echo "✅ Workforce selesai — briefing terkirim ke Discord"
+
+  # ─────────────────────────────────────────────────────────────
+  # SHIFT SORE 20.00 WIB — TUGAS RESMI SINTA (CMO · Marketing & Konten)
+  # Produksi & posting video TikTok harian. Bukan bot: ini desk kerja
+  # Sinta di workforce — skrip dari studio-nya (/api/cron/video-bot),
+  # render Remotion 9:16 + voiceover Indonesia, posting via Content
+  # Posting API (access token dispenser dari worker — runner TIDAK
+  # pegang secret TikTok).
+  #
+  # SANDBOX: privacy SELF_ONLY → postingan privat di akun sandbox.
+  # Produksi (setelah audit lolos): ganti env PRIVACY jadi PUBLIC_TO_EVERYONE.
+  #
+  # POLICY TOKEN BARU TIKTOK (per 1 Des 2026): access token 2 jam, refresh
+  # token 180 hari & BEROTASI tiap refresh. Worker menyimpan refresh token
+  # terbaru terenkripsi otomatis (agent_kv). Kalau suatu saat posting gagal
+  # karena token kedaluwarsa: buka
+  #   https://luxtradee.web.id/api/tiktok/connect?key=<CRON_SECRET>
+  # login TikTok 1× — selesai (tanpa sentuh secret lagi).
+  # ─────────────────────────────────────────────────────────────
+  sinta-video:
+    if: github.event.schedule == '0 13 * * *' || inputs.video_only == true
+    name: "🎬 Sinta (CMO) — produksi & posting video TikTok"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PRIVACY: SELF_ONLY # sandbox wajib SELF_ONLY; produksi: PUBLIC_TO_EVERYONE
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧠 Meja Sinta — ambil skrip video dari studio-nya (worker)
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          [ -n "$PROD_URL" ] || { echo "❌ Secret PROD_URL belum diset"; exit 1; }
+          [ -n "$CRON_SECRET" ] || { echo "❌ Secret CRON_SECRET belum diset"; exit 1; }
+          code=$(curl -sS -L -o /tmp/spec.json -w '%{http_code}' --max-time 120 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" -d '{}' \
+            "$PROD_URL/api/cron/video-bot") || code=000
+          echo "HTTP $code"
+          if ! jq -e '.success == true' /tmp/spec.json >/dev/null 2>&1; then
+            echo "❌ Skrip video gagal dibuat:"; cat /tmp/spec.json; exit 1
+          fi
+          echo "Sumber skrip: $(jq -r '.source' /tmp/spec.json)"
+          echo "Caption: $(jq -r '.spec.caption' /tmp/spec.json | head -c 160)"
+
+      - name: 🧰 Pasang edge-tts (voiceover Indonesia gratis)
+        run: python3 -m pip install --quiet edge-tts
+
+      - name: 🧰 Pasang ffmpeg (ukur durasi voiceover — runner baru tidak bawa)
+        run: |
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffprobe -version | head -1
+
+      - name: 📦 Pasang dependensi Remotion
+        run: |
+          cd remotion-video
+          npm install --no-audit --no-fund
+          npx remotion browser ensure
+
+      - name: 🎬 Sinta merender videonya (Remotion 9:16 + voiceover)
+        run: |
+          cd remotion-video
+          # 1) Voiceover per scene dari skrip + ukur durasinya → props.json
+          python3 - <<'PYEOF'
+          import json, os, subprocess, urllib.parse
+
+          spec = json.load(open("/tmp/spec.json"))
+          scenes_in = spec["spec"]["scenes"] if "spec" in spec else spec["scenes"]
+          scenes_in = scenes_in[:5]
+          os.makedirs("public/vo", exist_ok=True)
+
+          scenes = []
+          for i, sc in enumerate(scenes_in):
+              vo_path = f"public/vo/vo{i}.mp3"
+              txt = sc["vo"]
+              for attempt in range(3):
+                  r = subprocess.run(
+                      ["python3", "-m", "edge_tts", "--voice", "id-ID-ArdiNeural",
+                       "--rate=+8%", "--text", txt, "--write-media", vo_path],
+                      capture_output=True)
+                  if r.returncode == 0 and os.path.getsize(vo_path) > 2000:
+                      break
+              if not os.path.exists(vo_path) or os.path.getsize(vo_path) < 2000:
+                  # fallback: hening 2 detik
+                  subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                                  "-i", "anullsrc=r=24000:cl=mono", "-t", "2", vo_path], check=True)
+              dur = float(subprocess.check_output(
+                  ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                   "-of", "csv=p=0", vo_path]).decode().strip())
+              scenes.append({
+                  "title": sc["title"],
+                  "sub": sc["sub"],
+                  "voFile": f"vo/vo{i}.mp3",
+                  "durationSec": round(dur, 2),
+              })
+              print(f"scene {i+1}: {dur:.2f}s — {sc['title']}")
+
+          props = {"scenes": scenes, "handle": "@luxtradee", "domain": "luxtradee.web.id"}
+          json.dump(props, open("props.json", "w"), ensure_ascii=False, indent=1)
+          print("props.json OK —", sum(s["durationSec"] + 0.9 for s in scenes).__round__(1), "detik")
+          PYEOF
+          # 2) Render motion graphics 1080x1920
+          npx remotion render LuxtradePromo /tmp/luxtrade-video.mp4 --props=props.json
+          test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
+
+      - name: 📤 Sinta posting ke TikTok (Content Posting API)
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+
+          # 1) Access token fresh dari worker (worker yang pegang & refresh secret)
+          TOK=$(curl -sS -L --max-time 60 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PROD_URL/api/tiktok/token")
+          ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
+          if [ -z "$ACCESS" ]; then
+            echo "❌ Token TikTok tidak dapat:"; echo "$TOK" | jq . 2>/dev/null || echo "$TOK"; exit 1
+          fi
+          echo "✅ Token siap (source: $(echo "$TOK" | jq -r '.source'), rotated: $(echo "$TOK" | jq -r '.refresh_rotated'))"
+
+          # 2) Init upload (FILE_UPLOAD — 1 chunk, video ±17s < 64MB)
+          SIZE=$(stat -c%s /tmp/luxtrade-video.mp4)
+          TITLE=$(jq -Rn --arg t "$(jq -r '.spec.caption' /tmp/spec.json | head -c 1500)" '$t')
+          INIT=$(curl -sS --max-time 60 -X POST \
+            -H "Authorization: Bearer $ACCESS" \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            -d "{\"post_info\":{\"title\":$TITLE,\"privacy_level\":\"$PRIVACY\"},\"source_info\":{\"source\":\"FILE_UPLOAD\",\"video_size\":$SIZE,\"chunk_size\":$SIZE,\"total_chunk_count\":1}}" \
+            "https://open.tiktokapis.com/v2/post/publish/video/init/")
+          echo "$INIT" | jq . 2>/dev/null || echo "$INIT"
+          UPLOAD_URL=$(echo "$INIT" | jq -r '.data.upload_url // empty')
+          PUBLISH_ID=$(echo "$INIT" | jq -r '.data.publish_id // empty')
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "❌ Init upload gagal — cek scope video.upload/video.publish & token"; exit 1
+          fi
+          echo "publish_id: $PUBLISH_ID"
+
+          # 3) Upload video (Content-Range wajib)
+          code=$(curl -sS -o /tmp/upload-resp.txt -w '%{http_code}' -X PUT \
+            -H "Content-Type: video/mp4" \
+            -H "Content-Range: bytes 0-$((SIZE-1))/$SIZE" \
+            --data-binary @/tmp/luxtrade-video.mp4 "$UPLOAD_URL") || code=000
+          echo "Upload HTTP $code"
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            cat /tmp/upload-resp.txt; exit 1
+          fi
+
+          # 4) Pantau status publikasi (maks ~75s)
+          for i in 1 2 3 4 5; do
+            sleep 15
+            ST=$(curl -sS --max-time 30 -X POST \
+              -H "Authorization: Bearer $ACCESS" \
+              -H "Content-Type: application/json; charset=UTF-8" \
+              -d "{\"publish_id\":\"$PUBLISH_ID\"}" \
+              "https://open.tiktokapis.com/v2/post/publish/status/fetch/")
+            echo "status #$i: $(echo "$ST" | jq -c '.data' 2>/dev/null || echo "$ST")"
+            echo "$ST" | grep -q 'PUBLISH_COMPLETE' && break
+          done
+
+          echo "🎬 Sinta selesai — video terkirim ke TikTok (publish_id: $PUBLISH_ID)"
+          echo "   Privacy: $PRIVACY — cek akun TikTok sandbox kamu (profil/draft)."

@@ -3,15 +3,17 @@ import { extractJson, callLLM } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 /**
- * 🧠 POST /api/cron/video-bot — "otak kreatif" bot TikTok Luxtradee.
+ * 🧠 POST /api/cron/video-bot — STUDIO VIDEO SINTA (CMO · Marketing & Konten).
  *
- * Menghasilkan SPESIFIKASI video (skrip 5 scene: prompt gambar EN untuk
- * Pollinations, teks layar ID, voiceover ID, caption + hashtag) via LLM
- * (Groq→Gemini, gratis). Fallback: spec default yang sudah teruji render.
- *
- * Render (gambar+TTS+ffmpeg) & posting ke TikTok dilakukan di GitHub Actions
- * (workflow video-bot-cron.yml + scripts/build-tiktok-video.sh) — runner punya
- * CPU untuk ffmpeg, worker tidak.
+ * Ini BUKAN bot — ini meja kerja resmi karyawan Sinta di workforce
+ * (Master Autonomous Workforce). Tugas sorenya (shift 20.00 WIB, job
+ * "sinta-video" di master-autonomous-cron.yml):
+ *   1. Endpoint ini = otak kreatifnya: menyusun SPESIFIKASI video
+ *      (skrip 5 scene: teks layar ID, voiceover ID, caption + hashtag)
+ *      via LLM. Fallback: spec default yang sudah teruji render.
+ *   2. Runner merender video 9:16 via Remotion + voiceover edge-tts.
+ *   3. Posting ke TikTok via Content Posting API (token dispenser
+ *      /api/tiktok/token — secret tetap di worker).
  *
  * Auth: Bearer CRON_SECRET (fail-closed — pola master-autonomous).
  */
@@ -75,8 +77,9 @@ const DEFAULT_SPEC: VideoSpec = {
   ],
 }
 
-const SYSTEM_PROMPT = `Kamu penulis skrip video TikTok untuk Luxtradee (jurnal trading AI XAUUSD untuk trader retail Indonesia, PRO Rp49.000/bulan).
-Buat skrip video vertikal 9:16 durasi ±17 detik, 5 scene × ±3,8 detik.
+const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten TikTok edukasi & psikologi trading XAUUSD untuk trader Indonesia (jurnal trading AI, PRO Rp49.000/bulan).
+Bikin skrip video vertikal yang bikin jempol BERHENTI scroll: hook provokatif, isi nyindir kebiasaan buruk trader, tutup dengan CTA.
+Durasi ±17 detik, 5 scene × ±3,8 detik.
 
 ATURAN KERAS:
 - Scene 1 = HOOK 3 detik: pertanyaan/pain point yang bikin jempol berhenti.
@@ -159,7 +162,7 @@ async function handle(request: NextRequest) {
     success: true,
     source,
     spec: { ...spec, caption: captionFull },
-    note: 'Render di runner: bash scripts/build-tiktok-video.sh <spec.json> <out.mp4>. Posting: /api/tiktok/token → init FILE_UPLOAD.',
+    note: 'Render di runner oleh job "sinta-video" (master-autonomous-cron.yml): Remotion 9:16 + edge-tts. Posting: /api/tiktok/token → init FILE_UPLOAD.',
   })
 }
 

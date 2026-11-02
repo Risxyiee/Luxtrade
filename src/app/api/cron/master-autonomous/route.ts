@@ -18,7 +18,10 @@ import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@
  *               "posts" milik /blog — target eksekusi resmi di sistem)
  *   📣 SINTA    (CMO)          — analisis angle TikTok (belajar dari
  *               tiktok_posts views tertinggi) → 3 draf skrip provokatif
- *               (Actor-Critic) → draf nunggu ACC Bos
+ *               (Actor-Critic) → draf nunggu ACC Bos. Shift SORE dia
+ *               (20.00 WIB, job "sinta-video"): produksi & posting
+ *               VIDEO TikTok harian otomatis (studio /api/cron/video-bot
+ *               → render Remotion → Content Posting API).
  *   🖥️ RAKA     (CTO)          — security sweep black-box: ping route
  *               kritis (jurnal trades, AI vision, CS chat, debug, cron) →
  *               P1 = alarm darurat → Alexander kirim @here ke Discord
@@ -605,7 +608,7 @@ Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi tradin
         title: `3 Draf Skrip TikTok — ${wibDateStr()}`,
         analysis: clip(parsed?.analysis || '', 600),
         drafts,
-        note: 'Draf siap pakai — posting manual ke TikTok (integrasi posting TikTok otomatis belum tersedia).',
+        note: 'Video harian OTOMATIS diproduksi & diposting Sinta jam 20.00 WIB (prime time). Draf ini buat Bos pilih angle favorit — mau pakai skrip ini untuk video berikutnya? bilang saja ke kantor.',
       },
       status: 'pending',
     })

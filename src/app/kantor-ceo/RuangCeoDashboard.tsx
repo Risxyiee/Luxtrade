@@ -82,7 +82,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'CMO', emoji: '📣', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed',
-    shift: 'Draf TikTok di briefing 08:00 atau kapan pun tombol "Buat Draf Baru" ditekan',
+    shift: 'Shift pagi: draf TikTok di briefing 08:00 atau kapan pun tombol "Buat Draf Baru" ditekan · Shift sore: produksi & posting video 20:00 WIB (prime time FYP)',
     baca: 'tiktok_posts (top 5 konten Bos urut views) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
     tugas: [
       'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
@@ -90,13 +90,14 @@ const TEAM_DETAIL = [
       'Draf wajib menjawab alasan churn dari rapat Maya (bukan sekadar ikut angle rotasi)',
       'Rantai model: GLM-4.7-Flash → GLM-4-Flash → Gemini → templat statis (draf tidak pernah kosong)',
       'Ikut rapat harian sama Maya: ubah akar masalah churn jadi skrip konten anti-churn',
+      '🎬 SHIFT SORE (20:00 WIB): produksi video TikTok utuh — skrip dari studio-nya → render Remotion 9:16 + voiceover Indonesia → posting otomatis via API resmi TikTok (job "sinta-video")',
     ],
-    lapor: '3 draf di panel Ruang CMO (pilih → salin) + draf utama & sumber analisis di briefing 08:00 · skrip rapat di Ruang CSO',
+    lapor: '3 draf di panel Ruang CMO (pilih → salin) + draf utama & sumber analisis di briefing 08:00 · video harian lansung masuk TikTok 20:00 WIB · skrip rapat di Ruang CSO',
     batas: [
       'Tidak tahu performa SETELAH posting — views/likes berubah hanya kalau Bos update manual di Ruang CMO',
-      'Tidak bisa posting ke TikTok otomatis (butuh API resmi TikTok)',
+      'Mode sandbox TikTok → postingan video masih SELF_ONLY (privat) sampai app lolos audit produksi TikTok',
     ],
-    ide: 'Refresh views otomatis via oEmbed mingguan · bank hook yang terbukti FYP · draf video lengkap dengan ide visual per scene',
+    ide: 'Refresh views otomatis via oEmbed mingguan · bank hook yang terbukti FYP · pakai draf pilihan Bos sebagai skrip video besok',
   },
   {
     id: 'CFO', emoji: '💰', name: 'Putri', jabatan: 'CFO · Chief Financial Officer', divisi: 'Anggaran API & Biaya', color: '#b45309',
@@ -324,7 +325,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
     { id: 'rapat', emoji: '👔', name: 'Alexander', role: 'CEO · Ruang Rapat', live: data?.nba?.text ? '🎯 NBA hari ini siap' : data?.mem?.length ? `🧠 ${data.mem.length} catatan memori kantor` : 'Briefing 08:00 WIB otomatis', has: !!(data?.nba || data?.mem) },
     { id: 'CTO', emoji: '🖥️', name: 'Raka', role: 'CTO · IT & QA', live: cto ? `Web ${cto.siteOk ? '✅' : '❌'} · Bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` : 'Watchdog tiap 15 menit', has: !!cto },
     { id: 'CSO', emoji: '👥', name: 'Maya', role: 'CSO · Customer Success', live: cso ? `Total ${cso.total ?? '—'} · Aktif ${cso.active ?? '—'} · ⚠️ churn ${cso.churnRisk ?? 0}` : 'Email pasif + riset churn', has: !!cso },
-    { id: 'CMO', emoji: '📣', name: 'Sinta', role: 'CMO · Konten TikTok', live: cmo?.drafts?.length > 1 ? '3 draf hari ini siap ✅ — Bos tinggal pilih' : cmo?.draft ? 'Draf hari ini siap ✅' : 'Belum ada draf hari ini', has: !!cmo },
+    { id: 'CMO', emoji: '📣', name: 'Sinta', role: 'CMO · Marketing & Video TikTok', live: cmo?.drafts?.length > 1 ? '3 draf hari ini siap ✅ — Bos tinggal pilih' : cmo?.draft ? 'Draf hari ini siap ✅' : 'Belum ada draf hari ini', has: !!cmo },
     { id: 'CFO', emoji: '💰', name: 'Putri', role: 'CFO · Kuota & Pendapatan', live: cfo ? `${cfo.usedToday ?? '—'}/${cfo.limit} hari ini · est. MRR Rp${fmtIdr(cfo.estMRR || 0)}` : 'Gerbang anti-429 + laporan MRR', has: !!cfo },
     { id: 'COO', emoji: '💼', name: 'Bagas', role: 'COO · Jualan', live: coo ? (coo.pending > 0 ? `${coo.pending} draf nunggu ACC ⏳` : 'Antrean jualan bersih ✅') : 'Hot lead → email PRO', has: !!coo },
     { id: 'DA', emoji: '📊', name: 'Dewi', role: 'Data Analyst', live: da?.insight ? trunc(String(da.insight), 64) : 'Insight tiap Senin 10:00', has: !!da },
@@ -478,6 +479,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 <div className="text-white/60 text-[10.5px] mt-1 leading-relaxed">
                   🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — QA + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO + 🎯 NBA + akuntabilitas prioritas kemarin<br />
                   📊 <b>Dewi & Farhan lapor HARIAN</b> 08:00 WIB — analisis trades + eksperimen growth, pesan Discord terpisah<br />
+                  🎬 <b>Shift sore Sinta (CMO)</b> 20:00 WIB tiap hari — produksi & posting video TikTok otomatis (prime time FYP)<br />
                   🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br />
                   📈 <b>Laporan mingguan Senin 10:00 WIB</b> — rekap 7 hari versi CEO — pesan Discord terpisah<br />
                   ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br />

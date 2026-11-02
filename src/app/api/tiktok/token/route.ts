@@ -3,9 +3,11 @@ import { getTiktokAccessToken } from '@/lib/tiktok'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 
 /**
- * 🎫 POST /api/tiktok/token — dispenser access token TikTok untuk pekerja
- * (GitHub Actions video-bot). Worker yang pegang secret TikTok; runner hanya
- * butuh CRON_SECRET yang sudah ada. Secret TikTok TIDAK PERNAH keluar.
+ * 🎫 POST /api/tiktok/token — dispenser access token TikTok untuk tugas
+ * karyawan Sinta (CMO) di Master Autonomous Workforce: job "sinta-video"
+ * merender & memposting video TikTok harian dari runner GitHub Actions.
+ * Worker yang pegang secret TikTok; runner hanya butuh CRON_SECRET yang
+ * sudah ada. Secret TikTok TIDAK PERNAH keluar.
  *
  * Auth: Bearer CRON_SECRET (fail-closed — pola master-autonomous).
  */

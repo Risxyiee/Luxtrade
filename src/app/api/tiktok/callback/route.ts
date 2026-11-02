@@ -10,7 +10,8 @@ import { exchangeTiktokAuthCode, saveTiktokOAuthTokens, verifyTiktokOAuthState }
  *   - refresh_token  → disimpan TERENKRIPSI (AES-GCM) di Supabase agent_kv
  *   - access_token   → disimpan sebagai cache terenkripsi juga
  *
- * Setelah ini bot (GitHub Actions video-bot) otomatis pakai token baru —
+ * Setelah ini shift sore Sinta (job "sinta-video" di Master Autonomous
+ * Workforce) otomatis pakai token baru —
  * TIDAK perlu pasang ulang secret apa pun. Ini juga jalur re-auth resmi
  * ketika refresh token kedaluwarsa (policy TikTok: 180 hari per 1 Des 2026).
  */
