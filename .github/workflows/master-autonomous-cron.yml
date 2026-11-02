@@ -69,8 +69,17 @@ jobs:
             -H "User-Agent: luxtradee-master-autonomous-cron" \
             "$PROD_URL/api/cron/master-autonomous") || code=000
           echo "HTTP $code"
-          head -c 6000 /tmp/master-resp.json 2>/dev/null || true
+          head -c 24000 /tmp/master-resp.json 2>/dev/null || true
           echo ""
+          # Ringkasan diagnosa — tidak kena potong truncation body
+          if command -v jq >/dev/null 2>&1; then
+            echo "── HINTS (env yang kurang) ──"
+            jq -r '(.hints // [])[] | "- \(.)"' /tmp/master-resp.json 2>/dev/null || true
+            echo "── AGEN GAGAL ──"
+            jq -r '(.agents // {}) | to_entries[] | select(.value.status == "error") | "- \(.key): \(.value.error // "tanpa pesan")"' /tmp/master-resp.json 2>/dev/null || true
+            echo "── RAKA P1 (celah keamanan) ──"
+            jq -r '(.agents.Raka.data.p1 // [])[] | "- \(.method) \(.path): \(.note)"' /tmp/master-resp.json 2>/dev/null || true
+          fi
           # Gagal keras kalau responsnya bukan sukses — biar terlihat merah di Actions
           grep -q '"success": *true' /tmp/master-resp.json 2>/dev/null || {
             echo "❌ Master cron melaporkan kegagalan (HTTP $code) — cek body di atas"

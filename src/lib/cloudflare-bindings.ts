@@ -95,6 +95,7 @@ export interface CloudflareBindings {
   luxtradee?: CFFlagship        // Cloudflare Flagship — feature flags
   VECTORIZE_INDEX?: CFVectorizeIndex
   RATE_LIMITER?: any
+  SELF?: CFFetcher              // Self service binding — panggil worker ini sendiri tanpa edge/DNS
 }
 
 // ─── Get Environment ─────────────────────────────────────────────────────────
@@ -125,6 +126,31 @@ export async function getCloudflareEnv(): Promise<CloudflareBindings> {
     // @opennextjs/cloudflare not available (local dev without wrangler)
     return {} as CloudflareBindings;
   }
+}
+
+/**
+ * Self service binding — fetch ke worker INI sendiri tanpa lewat edge/DNS.
+ *
+ * Kenapa perlu: fetch ke custom domain sendiri (luxtradee.web.id) dari DALAM
+ * worker terbukti balas HTTP 522 (Cloudflare edge gagal loop-back ke origin).
+ * Service binding memanggil handler fetch worker yang sama secara langsung —
+ * respons sama persis dengan route asli (401/404/200, dll) tanpa 522.
+ *
+ * Mengembalikan null kalau binding belum tersedia (belum di-deploy dengan
+ * wrangler.jsonc terbaru / jalan di lokal tanpa CF context) — pemanggil
+ * WAJIB fallback ke fetch publik.
+ */
+export async function getSelfFetch(): Promise<((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null> {
+  try {
+    const env = await getCloudflareEnv();
+    const self = (env as unknown as Record<string, { fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> } | undefined>)?.SELF;
+    if (self && typeof self.fetch === 'function') {
+      return self.fetch.bind(self);
+    }
+  } catch {
+    // binding belum ada / tidak di CF context — fallback ke fetch publik
+  }
+  return null;
 }
 
 /** Known placeholder patterns that should NOT be treated as real API keys */

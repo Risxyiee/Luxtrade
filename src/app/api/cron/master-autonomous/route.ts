@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
 import { extractJson } from '@/lib/ai-llm'
-import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { getEnvVar, getSelfFetch } from '@/lib/cloudflare-bindings'
 import { sendDiscordNotification } from '@/lib/discord'
 import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@/lib/bagas-cooldown'
 
@@ -640,13 +640,20 @@ const RAKA_PROBES: ProbeDef[] = [
 
 async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): Promise<AgentResult> {
   const base = baseUrl.replace(/\/+$/, '')
+  // Self service binding (kalau sudah di-deploy): fetch ke worker ini sendiri
+  // TANPA lewat edge/DNS — fetch publik ke custom domain sendiri dari dalam
+  // worker terbukti balas 522 palsu. Fallback ke fetch publik kalau binding
+  // belum ada (deploy lama / lokal).
+  const selfFetch = await getSelfFetch()
+  const doFetch = (selfFetch ?? fetch) as typeof fetch
+  const viaSelf = selfFetch ? 'service-binding' : 'public'
 
   const probeOne = async (p: ProbeDef): Promise<ProbeFinding> => {
     const baseF: ProbeFinding = { path: p.path, method: p.method, label: p.label, status: null, verdict: 'info', note: '' }
     let status: number | null = null
     let netErr = ''
     try {
-      const res = await fetch(`${base}${p.path}`, {
+      const res = await doFetch(`${base}${p.path}`, {
         method: p.method,
         headers: { 'Content-Type': 'application/json' },
         body: p.method === 'POST' ? '{}' : undefined,
@@ -660,23 +667,26 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
       netErr = clip(e instanceof Error ? e.message : String(e), 80)
     }
 
+    // Catatan khusus 52x — Cloudflare edge tidak tembus ke origin (infra, bukan error aplikasi)
+    const cfEdge = (s: number) => (s >= 521 && s <= 527) ? ' — Cloudflare edge tidak tembus ke origin (infra)' : ''
+
     if (status === null) {
       return { ...baseF, verdict: p.cls === 'public' ? 'P1' : 'info', note: netErr || 'tidak terjangkau' }
     }
     if (p.cls === 'public') {
-      if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status} — endpoint publik error` }
+      if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — endpoint publik error` }
       if (status < 400) return { ...baseF, status, verdict: 'ok', note: `HTTP ${status}` }
-      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status} — endpoint publik tidak sehat` }
+      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — endpoint publik tidak sehat` }
     }
     if (p.cls === 'cron') {
       if (status === 401 || status === 403) return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — terlindungi secret` }
-      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status} — route cron TIDAK ber-auth (set CRON_SECRET!)` }
+      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — route cron TIDAK ber-auth (set CRON_SECRET!)` }
     }
     // protected & sensitive: 2xx TANPA auth = celah terbuka
     if (status >= 200 && status < 300) {
       return { ...baseF, status, verdict: 'P1', note: `HTTP 2xx TANPA auth — ${p.cls === 'sensitive' ? 'route sensitif TERBUKA' : 'route user TERBUKA'}!` }
     }
-    if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status} — server error` }
+    if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — server error` }
     // 400/401/403/404/405/429 = tertutup / validasi jalan
     return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — tertutup` }
   }
@@ -692,6 +702,7 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
 
   const data = {
     baseUrl: base,
+    probeVia: viaSelf,
     totalProbes: findings.length,
     okCount: findings.filter(x => x.verdict === 'ok').length,
     p1,

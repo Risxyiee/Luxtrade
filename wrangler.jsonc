@@ -39,6 +39,15 @@
         "ai": { "binding": "ai_luxtrade" },
         "browser": { "binding": "ai_run" },
 
+        // ─── Self Service Binding ──────────────────────────────────────────────
+        // Worker memanggil dirinya sendiri (probe keamanan Raka, health-check
+        // internal) TANPA lewat edge/DNS publik. Alasan: fetch ke custom domain
+        // sendiri dari DALAM worker terbukti 522 (edge gagal tembus origin).
+        // Akses kode: getSelfFetch() di src/lib/cloudflare-bindings.ts
+        "services": [
+                { "binding": "SELF", "service": "luxtradee" }
+        ],
+
         // ─── Cloudflare Flagship (feature flags native Workers) ────────────────
         // Evaluasi flag yang didefinisikan di CF dashboard (Flagship → app
         // f60370a9…) langsung dari kode Worker, tanpa API call eksternal.
