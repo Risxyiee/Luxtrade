@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
-import { extractJson } from '@/lib/ai-llm'
+import { extractJson, callLLM } from '@/lib/ai-llm'
 import { getEnvVar, getSelfFetch } from '@/lib/cloudflare-bindings'
 import { sendDiscordNotification } from '@/lib/discord'
 import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@/lib/bagas-cooldown'
@@ -140,9 +140,8 @@ async function callAgent(
 ): Promise<AgentLLMResult | null> {
   const key = (await envVal('OPENROUTER_API_KEY')).trim()
   if (!key) {
-    console.warn(`[master:${agentTag}] OPENROUTER_API_KEY kosong — LLM dilewati, pakai fallback`)
-    return null
-  }
+    console.warn(`[master:${agentTag}] OPENROUTER_API_KEY kosong — fallback ke Groq/Gemini (ai-llm)`)
+  } else {
   const primary = (await envVal(`OR_MODEL_${agentTag.toUpperCase()}`)).trim() || opts.model || DEFAULT_OR_MODEL
   const chain = [...new Set([primary, ...OR_LIVE_CHAIN])]
 
@@ -184,6 +183,19 @@ async function callAgent(
       quotaTracker.llmFailures++
     }
   }
+  }
+
+  // ── Fallback: Groq (free ±14.400 req/hari) → Gemini (free 1.500/hari) ──
+  // Helper ai-llm sudah ter-bundle di worker & Workers-safe (fetch murni).
+  // Catatan: temperature fallback tetap bawaan helper (opts.temperature diabaikan).
+  const fb = await callLLM(systemPrompt, userPrompt, opts.maxTokens ?? 800)
+  if (fb) {
+    quotaTracker.llmCalls++
+    quotaTracker.perAgent[agentTag] = (quotaTracker.perAgent[agentTag] || 0) + 1
+    console.log(`[master:${agentTag}] LLM sukses via fallback ${fb.provider}/${fb.model}`)
+    return { text: fb.text, model: `${fb.provider}/${fb.model}` }
+  }
+  console.warn(`[master:${agentTag}] Semua provider LLM gagal (OpenRouter kosong/semua model gagal, GROQ_API_KEY & GEMINI_API_KEY tidak diset/gagal)`)
   return null
 }
 
@@ -1276,7 +1288,16 @@ async function handleRequest(request: NextRequest) {
   if (ceo) agents.Alexander = ceo
 
   const hints: string[] = []
-  if (!(await envVal('OPENROUTER_API_KEY'))) hints.push('OPENROUTER_API_KEY belum diset — semua agen konten hanya jalan template/skip')
+  {
+    const hasOR = !!(await envVal('OPENROUTER_API_KEY'))
+    const hasGroq = !!(await getEnvVar('GROQ_API_KEY', { quiet: true }))
+    const hasGemini = !!(await getEnvVar('GEMINI_API_KEY', { quiet: true }))
+    if (!hasOR && !hasGroq && !hasGemini) {
+      hints.push('Tidak ada API key LLM sama sekali (OPENROUTER/GROQ/GEMINI) — agen konten hanya jalan template/skip. Solusi gratis: console.groq.com (±14.400 req/hari) atau aistudio.google.com (1.500/hari)')
+    } else if (!hasOR) {
+      hints.push('OPENROUTER_API_KEY belum diset — agen konten jalan via fallback Groq/Gemini')
+    }
+  }
   if (!(await envVal('DISCORD_BOT')) && !(await envVal('DISCORD_BOT_TOKEN')) && !(await envVal('DISCORD_WEBHOOK_URL'))) {
     hints.push('DISCORD_BOT (token bot + DISCORD_CHANNEL_ID) atau DISCORD_WEBHOOK_URL belum diset — briefing Alexander tidak terkirim')
   } else if ((await envVal('DISCORD_BOT')) && !(await envVal('DISCORD_CHANNEL_ID'))) {
