@@ -122,3 +122,7 @@ landing-check.png
 /prod-*.png
 /test-*.png
 /tmp-*.png
+
+# Remotion video engine
+remotion-video/out/
+remotion-video/.remotion/

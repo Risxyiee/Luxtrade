@@ -1,0 +1,36 @@
+{
+ "scenes": [
+  {
+   "title": "MASIH NEBAK-NEBAK?",
+   "sub": "banyak trader kalah karena tebak-tebakan",
+   "voFile": "vo/vo0.mp3",
+   "durationSec": 3.43
+  },
+  {
+   "title": "LUXTRADE",
+   "sub": "sinyal AI langsung ke HP kamu",
+   "voFile": "vo/vo1.mp3",
+   "durationSec": 5.76
+  },
+  {
+   "title": "8 AGEN AI",
+   "sub": "pantau pasar 24 jam nonstop",
+   "voFile": "vo/vo2.mp3",
+   "durationSec": 4.15
+  },
+  {
+   "title": "TINGGAL EKSEKUSI",
+   "sub": "alert masuk, kamu tinggal eksekusi",
+   "voFile": "vo/vo3.mp3",
+   "durationSec": 4.7
+  },
+  {
+   "title": "LUXTRADE",
+   "sub": "mulai trading lebih tenang hari ini",
+   "voFile": "vo/vo4.mp3",
+   "durationSec": 5.76
+  }
+ ],
+ "handle": "@luxtradee",
+ "domain": "luxtradee.web.id"
+}

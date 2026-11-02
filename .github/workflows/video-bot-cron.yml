@@ -5,8 +5,9 @@ name: TikTok Video Bot
 # ───────────────────────────────────────────────────────────────────
 # Alur sekali jalan di runner (CPU-nya gratis):
 #   1. Ambil SKRIP dari AI (worker /api/cron/video-bot — otak kreatif)
-#   2. Render video 9:16: gambar AI (Pollinations) + voiceover Indonesia
-#      (edge-tts) + ffmpeg → MP4 1080x1920 (scripts/build-tiktok-video.sh)
+#   2. Render video 9:16 via REMOTION (motion graphics premium: radar AI,
+#      chart SVG animasi, phone mockup, tanpa gambar AI) + voiceover
+#      Indonesia (edge-tts) → MP4 1080x1920
 #   3. Ambil access token fresh dari worker (/api/tiktok/token — worker
 #      pegang secret TikTok & refresh otomatis; runner TIDAK pegang secret)
 #   4. Posting ke TikTok via Content Posting API (FILE_UPLOAD 1 chunk)
@@ -71,10 +72,57 @@ jobs:
       - name: 🧰 Pasang edge-tts (voiceover Indonesia gratis)
         run: python3 -m pip install --quiet edge-tts
 
-      - name: 🎬 Render video (gambar AI + TTS + ffmpeg)
+      - name: 📦 Pasang dependensi Remotion
         run: |
-          chmod +x scripts/build-tiktok-video.sh
-          bash scripts/build-tiktok-video.sh /tmp/spec.json /tmp/luxtrade-video.mp4 /tmp/videowork
+          cd remotion-video
+          npm install --no-audit --no-fund
+          npx remotion browser ensure
+
+      - name: 🎬 Render video (Remotion motion graphics + voiceover)
+        run: |
+          cd remotion-video
+          # 1) Voiceover per scene dari spec + ukur durasinya → props.json
+          python3 - <<'PYEOF'
+          import json, os, subprocess, urllib.parse
+
+          spec = json.load(open("/tmp/spec.json"))
+          scenes_in = spec["spec"]["scenes"] if "spec" in spec else spec["scenes"]
+          scenes_in = scenes_in[:5]
+          os.makedirs("public/vo", exist_ok=True)
+
+          scenes = []
+          for i, sc in enumerate(scenes_in):
+              vo_path = f"public/vo/vo{i}.mp3"
+              txt = sc["vo"]
+              for attempt in range(3):
+                  r = subprocess.run(
+                      ["python3", "-m", "edge_tts", "--voice", "id-ID-ArdiNeural",
+                       "--rate=+8%", "--text", txt, "--write-media", vo_path],
+                      capture_output=True)
+                  if r.returncode == 0 and os.path.getsize(vo_path) > 2000:
+                      break
+              if not os.path.exists(vo_path) or os.path.getsize(vo_path) < 2000:
+                  # fallback: hening 2 detik
+                  subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                                  "-i", "anullsrc=r=24000:cl=mono", "-t", "2", vo_path], check=True)
+              dur = float(subprocess.check_output(
+                  ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                   "-of", "csv=p=0", vo_path]).decode().strip())
+              scenes.append({
+                  "title": sc["title"],
+                  "sub": sc["sub"],
+                  "voFile": f"vo/vo{i}.mp3",
+                  "durationSec": round(dur, 2),
+              })
+              print(f"scene {i+1}: {dur:.2f}s — {sc['title']}")
+
+          props = {"scenes": scenes, "handle": "@luxtradee", "domain": "luxtradee.web.id"}
+          json.dump(props, open("props.json", "w"), ensure_ascii=False, indent=1)
+          print("props.json OK —", sum(s["durationSec"] + 0.9 for s in scenes).__round__(1), "detik")
+          PYEOF
+          # 2) Render motion graphics 1080x1920
+          npx remotion render LuxtradePromo /tmp/luxtrade-video.mp4 --props=props.json
+          test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
 
       - name: 📤 Posting ke TikTok (Content Posting API)
         env:
