@@ -186,11 +186,19 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────
   # SHIFT SORE 20.00 WIB — TUGAS RESMI SINTA (CMO · Marketing & Konten)
-  # Produksi & posting video TikTok harian. Bukan bot: ini desk kerja
-  # Sinta di workforce — skrip dari studio-nya (/api/cron/video-bot),
-  # render Remotion 9:16 + voiceover Indonesia, posting via Content
+  # Produksi video TikTok harian. Bukan bot: ini desk kerja Sinta di
+  # workforce — skrip dari studio-nya (/api/cron/video-bot), render
+  # Remotion 9:16 + voiceover Indonesia, lalu posting via Content
   # Posting API (access token dispenser dari worker — runner TIDAK
   # pegang secret TikTok).
+  #
+  # ⚠️ APP TIKTOK BELUM DI-APPROVE / TIKTOK_* BELUM DISET? TIDAK APA-APA:
+  #    - Video TETAP dirender tiap hari → disimpan sebagai ARTIFACT
+  #      "video-tiktok-sinta" (video + caption.txt) → Bos download &
+  #      posting manual dari HP.
+  #    - Job tetap HIJAU (token gagal = posting dilewati, bukan error).
+  #    - Begitu app approved & secret TIKTOK_* dipasang di Cloudflare,
+  #      posting otomatis nyala SENDIRI (tanpa ubah workflow ini).
   #
   # SANDBOX: privacy SELF_ONLY → postingan privat di akun sandbox.
   # Produksi (setelah audit lolos): ganti env PRIVACY jadi PUBLIC_TO_EVERYONE.
@@ -294,8 +302,48 @@ jobs:
           # 2) Render motion graphics 1080x1920
           npx remotion render LuxtradePromo /tmp/luxtrade-video.mp4 --props=props.json
           test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
+          # 3) Caption ikut di artifacts biar tinggal copy-paste saat posting manual
+          jq -r '.spec.caption // .caption // ""' /tmp/spec.json > /tmp/caption.txt
+          echo "✅ Video + caption siap"
+
+      # Video SELALU dibawa pulang sebagai artifact — dipakai Bos buat
+      # posting manual selama app TikTok belum approved (atau sekadar arsip).
+      - name: 📦 Simpan video + caption sebagai artifact (untuk posting manual)
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-tiktok-sinta
+          path: |
+            /tmp/luxtrade-video.mp4
+            /tmp/caption.txt
+          retention-days: 14
+          if-no-files-found: error
+
+      # Token dicek TANPA bikin job gagal — app belum approved / secret
+      # belum diset = posting dilewati dengan pesan jelas (job tetap hijau).
+      - name: 🎫 Cek access token TikTok (boleh kosong — posting manual)
+        id: token
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          TOK=$(curl -sS -L --max-time 60 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PROD_URL/api/tiktok/token" || echo '{"success":false,"error":"fetch gagal"}')
+          echo "$TOK" | jq . 2>/dev/null || echo "$TOK"
+          if echo "$TOK" | jq -e '.success == true and (.access_token | length > 0)' >/dev/null 2>&1; then
+            echo "✅ Token TikTok siap — mode posting OTOMATIS"
+            echo "can_post=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠️ Token TikTok tidak tersedia ($(echo "$TOK" | jq -r '.error // "?"' 2>/dev/null))."
+            echo "   Kemungkinan: app TikTok belum di-approve / secret TIKTOK_* belum dipasang di Cloudflare."
+            echo "   ➡️  Video TETAP diproduksi — download artifact 'video-tiktok-sinta' di atas,"
+            echo "       lalu posting manual dari HP (caption sudah disediakan)."
+            echo "can_post=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: 📤 Sinta posting ke TikTok (Content Posting API)
+        if: steps.token.outputs.can_post == 'true'
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}

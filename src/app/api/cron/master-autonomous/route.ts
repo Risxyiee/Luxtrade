@@ -16,12 +16,15 @@ import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@
  *   🚀 FARHAN   (Growth Hacker) — riset keyword → artikel SEO 600+ kata
  *               (Actor-Critic) → AUTO-TERBIT di tabel blog_posts (tabel
  *               "posts" milik /blog — target eksekusi resmi di sistem)
- *   📣 SINTA    (CMO)          — analisis angle TikTok (belajar dari
- *               tiktok_posts views tertinggi) → 3 draf skrip provokatif
- *               (Actor-Critic) → draf nunggu ACC Bos. Shift SORE dia
- *               (20.00 WIB, job "sinta-video"): produksi & posting
- *               VIDEO TikTok harian otomatis (studio /api/cron/video-bot
- *               → render Remotion → Content Posting API).
+ *   📣 SINTA    (CMO)          — RISET TikTok: LAPORAN ANALISIS pasar
+ *               niche trading (pola hook works, topik FYP, jadwal
+ *               posting, insight lintas divisi) → dibagikan ke briefing
+ *               Alexander, prompt Farhan & Bagas, panel Memori Kantor.
+ *               + 3 draf skrip provokatif (Actor-Critic, selaras riset)
+ *               → nunggu ACC Bos. Shift SORE dia (20.00 WIB, job
+ *               "sinta-video"): produksi & posting VIDEO TikTok harian
+ *               otomatis (studio /api/cron/video-bot → render Remotion
+ *               → Content Posting API).
  *   🖥️ RAKA     (CTO)          — security sweep black-box: ping route
  *               kritis (jurnal trades, AI vision, CS chat, debug, cron) →
  *               P1 = alarm darurat → Alexander kirim @here ke Discord
@@ -345,6 +348,78 @@ function lessonsBlock(lessons: string[]): string {
   return `BELAJAR DARI KEMARIN (memori kantor — WAJIB dihindari/diperbaiki):\n${lessons.map(l => `- ${l}`).join('\n')}`
 }
 
+/* ── RISET TIKTOK lintas divisi ──────────────────────────────────────────
+ * Sinta (CMO) tidak cuma bikin konten: tiap pagi dia menyusun LAPORAN
+ * RISET TikTok (analisis pasar niche trading) yang DIPAKAI KANTOR:
+ *   - Alexander  → dimasukkan ke Morning Briefing
+ *   - Farhan     → bahan riset keyword artikel SEO
+ *   - Bagas      → bahan angle email konversi PRO
+ *   - Bos        → panel 🧠 Memori Kantor di /kantor-ceo
+ * Laporan disimpan di office_memory (type 'report', agent 'Sinta'). */
+
+interface SintaRiset {
+  ringkasan?: string
+  pola_yang_works?: string[]
+  rekomendasi_topik?: string[]
+  waktu_posting?: string
+  insight_lintas_divisi?: Array<{ untuk?: string; insight?: string }>
+  risiko?: string
+}
+
+/** Baca LAPORAN RISET TikTok terakhir dari Sinta (office_memory 'report'). */
+async function officeRecallRisetSinta(admin: SupabaseClient, limit = 1): Promise<SintaRiset[]> {
+  try {
+    const { data, error } = await admin
+      .from('office_memory')
+      .select('content')
+      .eq('agent_name', 'Sinta')
+      .eq('memory_type', 'report')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error || !data) return []
+    return (data as Array<{ content: { riset?: SintaRiset } }>)
+      .map(r => r.content?.riset)
+      .filter((r): r is SintaRiset => !!r && typeof r === 'object')
+  } catch {
+    return []
+  }
+}
+
+/** Blok teks riset Sinta untuk prompt agen lain ('' kalau belum ada).
+ *  Catatan: Sinta menyusun riset hari ini di wave 2 yang PARALEL dengan
+ *  Farhan (dan lebih telat dari Bagas di wave 1) → yang terbaca di sini
+ *  riset run SEBELUMNYA (kemarin) — cukup, analisis pasar tidak
+ *  kedaluwarsa dalam sehari. */
+async function risetSintaBlock(admin: SupabaseClient): Promise<string> {
+  const [latest] = await officeRecallRisetSinta(admin, 1)
+  if (!latest) return ''
+  const lines: string[] = []
+  if (latest.ringkasan) lines.push(`Ringkasan pasar: ${latest.ringkasan}`)
+  if (latest.rekomendasi_topik?.length) lines.push(`Topik berpeluang: ${latest.rekomendasi_topik.join('; ')}`)
+  for (const i of latest.insight_lintas_divisi || []) {
+    if (i?.insight) lines.push(`Untuk ${i.untuk || 'semua divisi'}: ${i.insight}`)
+  }
+  if (latest.risiko) lines.push(`Risiko: ${latest.risiko}`)
+  return lines.length
+    ? `\nRISET TIKTOK SINTA (CMO) TERAKHIR — pertimbangkan sebagai bahan:\n${lines.map(l => `- ${l}`).join('\n')}\n`
+    : ''
+}
+
+/** Publikasikan riset Sinta ke panel 🧠 Memori Kantor /kantor-ceo.
+ *  Tulis ke agent_kv `mem:list` — format PERSIS memAdd di /api/ceo-agent
+ *  supaya entri tampil di dashboard & ikut terinjeksi ke prompt briefing. */
+async function shareRisetToOfficeMemory(admin: SupabaseClient, riset: SintaRiset): Promise<void> {
+  try {
+    let list: Array<{ at: string; who: string; text: string }> = []
+    try { list = JSON.parse((await kvGet(admin, 'mem:list')) || '[]') } catch { /* korup → reset */ }
+    const insight = riset.insight_lintas_divisi?.find(i => i?.insight)?.insight
+    const body = clip([riset.ringkasan, insight].filter(Boolean).join(' · '), 165)
+    if (!body) return
+    list.unshift({ at: new Date().toISOString(), who: 'CMO Sinta', text: `LAPORAN RISET TikTok — ${body}` })
+    await kvSet(admin, 'mem:list', JSON.stringify(list.slice(0, 24)))
+  } catch { /* memori opsional — jangan ganggu tugas utama */ }
+}
+
 /* ═══════════════════════ KV KECIL (agent_kv — migration 012) ═══════════════ */
 
 async function kvGet(admin: SupabaseClient, key: string): Promise<string | null> {
@@ -430,13 +505,14 @@ async function agentFarhan(admin: SupabaseClient, dry: boolean): Promise<AgentRe
       { recentTitles: existingTitles.slice(0, 5) })
   }
 
-  // ── Fase 1: riset keyword tren harian ──
+  // ── Fase 1: riset keyword tren harian (+ bahan riset TikTok Sinta) ──
   const avoidList = existingTitles.slice(0, 15).map(t => clip(t, 90)).join(' | ') || '(kosong)'
+  const risetSintaFarhan = await risetSintaBlock(admin)
   const kwRes = await callAgent('Farhan',
     'Kamu riset keyword SEO harian untuk niche trading emas/XAUUSD & prop firm (audiens Indonesia). Cari topik yang SEDANG dicari orang, bukan topik usang.',
     `Tanggal run: ${wibDateStr()}.
 JUDUL YANG SUDAH TERBIT (JANGAN diulang topiknya): ${avoidList}
-${lessonsBlock(lessons)}
+${lessonsBlock(lessons)}${risetSintaFarhan}
 
 Usulkan 5 keyword/article-angle berpotensi mendatangkan trafik Google hari ini (strategi XAUUSD, psikologi trading, prop firm challenge, risk management, news emas). Pilih yang BELUM dibahas di daftar atas.
 
@@ -528,7 +604,15 @@ TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang m
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * 📣 AGEN 2 — SINTA (CMO · Social & Content Factory)
+ * 📣 AGEN 2 — SINTA (CMO · Riset Pasar TikTok + Content Factory)
+ * DUA tugas pagi:
+ *   1. LAPORAN RISET TIKTOK — analisis pasar niche trading (bukan cuma
+ *      bahan konten): pola yang works, topik berpeluang, jadwal posting,
+ *      insight lintas divisi (Farhan/Bagas/Maya/Bos). Dibagikan ke:
+ *      briefing Alexander, prompt Farhan & Bagas, panel Memori Kantor.
+ *   2. 3 DRAF SKRIP TikTok (Actor-Critic) — WAJIB selaras hasil riset
+ *      → nunggu ACC Bos. (Shift SORE dia: produksi + posting video
+ *      otomatis 20.00 WIB — job "sinta-video".)
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 const SINTA_SYSTEM = `Kamu SINTA, CMO Luxtradee — spesialis konten TikTok edukasi & psikologi trading XAUUSD untuk trader Indonesia.
@@ -549,14 +633,52 @@ const SINTA_RUBRIC = `- 3 hook TIDAK BOLEH mirip satu sama lain; kalimat pertama
 - Script 30-45 detik dengan alur: hook → masalah → refleksi/edukasi → CTA.
 - Caption mengulang hook + hashtag relevan.`
 
+const SINTA_RISET_SYSTEM = `Kamu SINTA, CMO Luxtradee. Tugas ini RISET & ANALISIS — bukan bikin konten.
+Susun LAPORAN RISET TikTok niche trading Indonesia (XAUUSD) untuk SELURUH KANTOR:
+- Alexander memakainya di Morning Briefing
+- Farhan (artikel SEO) & Bagas (email jualan) membaca insight-nya besok
+- Bos membacanya di panel Memori Kantor untuk strategi marketing minggu ini
+
+ANALISIS WAJIB:
+- Pola hook/format yang terbukti menarik — DASARKAN pada DATA RIIL kalau disediakan; kalau tidak ada data, katakan eksplisit "asumsi/intuisi" (JANGAN karang angka)
+- Topik/angle berpeluang FYP minggu ini + rekomendasi jadwal posting
+- Insight lintas divisi (untuk: Farhan | Bagas | Maya | Bos)
+- Risiko: hal yang harus dihindari (klaim profit, kata sensitif, dll)
+
+FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
+{"ringkasan": "2-3 kalimat kondisi niche TikTok trading", "pola_yang_works": ["..."], "rekomendasi_topik": ["..."], "waktu_posting": "jadwal + alasan", "insight_lintas_divisi": [{"untuk": "Farhan", "insight": "..."}], "risiko": "..."}`
+
+function sanitizeRiset(r: SintaRiset | null): SintaRiset | null {
+  if (!r || typeof r !== 'object') return null
+  const arr = (a: unknown, n: number, max: number): string[] =>
+    Array.isArray(a)
+      ? a.slice(0, n).map(x => clip(typeof x === 'string' ? x : JSON.stringify(x), max)).filter(Boolean)
+      : []
+  const riset: SintaRiset = {
+    ringkasan: r.ringkasan ? clip(r.ringkasan, 400) : undefined,
+    pola_yang_works: arr(r.pola_yang_works, 5, 160),
+    rekomendasi_topik: arr(r.rekomendasi_topik, 5, 160),
+    waktu_posting: r.waktu_posting ? clip(r.waktu_posting, 200) : undefined,
+    insight_lintas_divisi: Array.isArray(r.insight_lintas_divisi)
+      ? (r.insight_lintas_divisi as Array<{ untuk?: unknown; insight?: unknown }>)
+          .slice(0, 5)
+          .map(i => ({ untuk: clip(i?.untuk, 30), insight: clip(i?.insight, 220) }))
+          .filter(i => i.insight)
+      : [],
+    risiko: r.risiko ? clip(r.risiko, 200) : undefined,
+  }
+  if (!riset.ringkasan && !riset.pola_yang_works?.length && !riset.rekomendasi_topik?.length) return null
+  return riset
+}
+
 async function agentSinta(admin: SupabaseClient, dry: boolean): Promise<AgentResult> {
   // Data riil: 5 konten TikTok dengan views tertinggi (pola yang TERBUKTI FYP)
-  const topRefs: Array<{ caption: string; views: number }> = []
+  const topRefs: Array<{ caption: string; views: number; likes: number; comments: number }> = []
   try {
-    const { data, error } = await admin.from('tiktok_posts').select('caption, views').order('views', { ascending: false }).limit(5)
+    const { data, error } = await admin.from('tiktok_posts').select('caption, views, likes, comments').order('views', { ascending: false }).limit(5)
     if (!error && data) {
-      for (const r of (data as Array<{ caption: string | null; views: number }>)) {
-        topRefs.push({ caption: clip(r.caption || '(tanpa caption)', 120), views: r.views || 0 })
+      for (const r of (data as Array<{ caption: string | null; views: number; likes: number; comments: number }>)) {
+        topRefs.push({ caption: clip(r.caption || '(tanpa caption)', 120), views: r.views || 0, likes: r.likes || 0, comments: r.comments || 0 })
       }
     }
   } catch { /* tabel opsional — Sinta tetap jalan */ }
@@ -567,13 +689,50 @@ async function agentSinta(admin: SupabaseClient, dry: boolean): Promise<AgentRes
 
   const lessons = await officeRecallLessons(admin, 'Sinta')
   const refBlock = topRefs.length
-    ? `DATA RIIL — 5 KONTEN TIKTOK VIEWS TERTINGGI (pelajari polanya, tiru yang works):\n${topRefs.map((r, i) => `${i + 1}. [${r.views.toLocaleString('id-ID')} views] ${r.caption}`).join('\n')}`
-    : '(belum ada referensi TikTok tersimpan — andalkan intuisi pasar)'
+    ? `DATA RIIL — 5 KONTEN TIKTOK VIEWS TERTINGGI (pelajari polanya, tiru yang works):\n${topRefs.map((r, i) => `${i + 1}. [${r.views.toLocaleString('id-ID')} views · ${r.likes.toLocaleString('id-ID')} likes · ${r.comments.toLocaleString('id-ID')} komentar] ${r.caption}`).join('\n')}`
+    : '(belum ada referensi TikTok tersimpan — andalkan intuisi pasar, TANDAI sebagai asumsi)'
+
+  /* ══ TUGAS 1 — LAPORAN RISET TIKTOK (analisis utk SELURUH kantor) ══
+     Bukan cuma bahan konten: Alexander pakai di briefing, Farhan & Bagas
+     baca di prompt mereka besok, Bos baca di panel Memori Kantor.
+     Biaya: 1 panggilan LLM (Putri pantau kuota). Gagal → draf tetap jalan. */
+  let riset: SintaRiset | null = null
+  let risetModel = ''
+  try {
+    const res = await callAgent('Sinta',
+      SINTA_RISET_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+      `${refBlock}
+
+Tanggal run: ${wibDateStr()}.
+Susun LAPORAN RISET TikTok hari ini untuk seluruh kantor.`,
+      { maxTokens: 900, temperature: 0.6 })
+    if (res?.text) {
+      riset = sanitizeRiset(extractJson<SintaRiset>(res.text))
+      if (riset) risetModel = res.model
+    }
+  } catch { /* riset opsional — draf tetap jalan */ }
+
+  if (riset) {
+    await officeRemember(admin, 'Sinta', 'report', {
+      lesson: `LAPORAN RISET TikTok ${wibDateStr()}: ${clip(riset.ringkasan || riset.rekomendasi_topik?.join('; ') || '', 220)}`,
+      riset,
+      model: risetModel,
+    })
+    await shareRisetToOfficeMemory(admin, riset) // tampil di panel Memori Kantor /kantor-ceo
+  }
+
+  /* ══ TUGAS 2 — 3 DRAF SKRIP (WAJIB selaras hasil riset sendiri) ══ */
+  const risetForDrafts = riset
+    ? `\nHASIL RISET KAMU HARI INI (WAJIB dipakai — topik/hook selaras dengan riset):\n${[
+        riset.ringkasan ? `Ringkasan: ${riset.ringkasan}` : '',
+        riset.pola_yang_works?.length ? `Pola works: ${riset.pola_yang_works.join('; ')}` : '',
+        riset.rekomendasi_topik?.length ? `Topik berpeluang: ${riset.rekomendasi_topik.join('; ')}` : '',
+      ].filter(Boolean).join('\n')}\n`
+    : ''
 
   const ac = await actorCritic('Sinta', {
     system: SINTA_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-    user: `${refBlock}
-
+    user: `${refBlock}${risetForDrafts}
 Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi trading XAUUSD.`,
     rubric: SINTA_RUBRIC,
     maxTokens: 1600,
@@ -581,7 +740,13 @@ Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi tradin
     passScore: 7,
     maxRevisions: 1,
   })
-  if (!ac) return errResult('Sinta', 'LLM tidak tersedia — draf TikTok tidak dibuat')
+  if (!ac) {
+    if (riset) {
+      return okResult('Sinta', `LAPORAN RISET TikTok tersimpan & dibagikan ke kantor — tapi LLM tewas saat bikin draf skrip (draf dilewati hari ini)`,
+        { riset })
+    }
+    return errResult('Sinta', 'LLM tidak tersedia — riset & draf TikTok tidak dibuat')
+  }
 
   const parsed = extractJson<{ analysis?: string; drafts?: Array<{ hook?: string; script?: string; caption?: string; cta?: string }> }>(ac.text)
   const drafts = (parsed?.drafts || []).filter(d => d?.hook && d?.script).slice(0, 3)
@@ -621,11 +786,11 @@ Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi tradin
   }
 
   if (!saved) {
-    return skipResult('Sinta', `3 draf dibuat (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi GAGAL disimpan: ${saveNote}`,
-      { drafts, criticScore: ac.score })
+    return skipResult('Sinta', `3 draf dibuat${riset ? ' + laporan riset tersimpan' : ''} (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi GAGAL disimpan: ${saveNote}`,
+      { drafts, criticScore: ac.score, riset: riset || undefined })
   }
-  return okResult('Sinta', `3 draf skrip TikTok tersimpan & nunggu ACC Bos (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}, ${ac.revisions} revisi)`,
-    { angles: drafts.map(d => clip(d.hook, 80)), criticScore: ac.score, revisions: ac.revisions })
+  return okResult('Sinta', `3 draf skrip TikTok nunggu ACC Bos + LAPORAN RISET TikTok dibagikan ke kantor (briefing/Farhan/Bagas/Memori Kantor${riset ? `, model ${risetModel}` : ' — riset gagal, draf jalan tanpa riset'}) · critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}`,
+    { angles: drafts.map(d => clip(d.hook, 80)), criticScore: ac.score, revisions: ac.revisions, riset: riset || undefined })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -910,11 +1075,12 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
   if (!targets.length) return okResult('Bagas', 'tidak ada hot lead baru (semua dalam cooldown / belum ada free user aktif)', snapshot)
 
   const lessons = await officeRecallLessons(admin, 'Bagas')
+  const risetSintaBagas = await risetSintaBlock(admin)
   const ac = await actorCritic('Bagas', {
     system: BAGAS_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
     user: `DATA RIIL hot leads (1 email personal per lead via Resend — sebut aktivitas lead paling aktif): ${targets.map(t => `${t.name} (${t.trades7d} trades/7hr)`).join(', ')}.
 
-Tulis 1 email konversi PRO.`,
+Tulis 1 email konversi PRO.${risetSintaBagas}`,
     rubric: BAGAS_RUBRIC,
     maxTokens: 750,
     temperature: 0.8,
