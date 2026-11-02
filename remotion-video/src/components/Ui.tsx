@@ -10,14 +10,16 @@ import {
 import type { SpringConfig } from "remotion";
 
 /* ---------------- design tokens ---------------- */
-
+/* PALET = sama persis dengan LANDING PAGE luxtradee.web.id:
+   biru (#3B82F6) → cyan (#22D3EE), emerald utk candle naik.
+   (dulu gold #F5C842 — diubah agar video 1 brand dgn website) */
 export const C = {
   bg: "#05050A",
   panel: "#0B0B14",
-  gold: "#F5C842",
-  goldDeep: "#B8860B",
-  goldGlow: "rgba(245,200,66,0.35)",
-  green: "#34D399",
+  accent: "#22D3EE", // cyan-400 — warna aksen utama di landing
+  accentDeep: "#3B82F6", // blue-500 — sisi gelap gradien CTA landing
+  accentGlow: "rgba(34,211,238,0.35)",
+  green: "#34D399", // emerald-400 — dipakai juga di landing
   red: "#F87171",
   white: "#FFFFFF",
   muted: "#9CA3AF",
@@ -32,7 +34,7 @@ export const SPRING_POP: SpringConfig = { damping: 13, stiffness: 170, mass: 1, 
 
 export const CARD: React.CSSProperties = {
   background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(245,200,66,0.22)",
+  border: "1px solid rgba(34,211,238,0.22)",
   borderRadius: 28,
 };
 
@@ -137,7 +139,7 @@ export const TitleBlock: React.FC<{
           lineHeight: 1.08,
           letterSpacing: 2,
           color: C.white,
-          textShadow: "0 0 46px rgba(245,200,66,0.35)",
+          textShadow: "0 0 46px rgba(34,211,238,0.35)",
           opacity: clamp01(t),
           transform: `translateY(${(1 - t) * 46}px)`,
         }}
@@ -179,7 +181,7 @@ export const BrandChip: React.FC = () => {
         padding: "14px 24px 14px 16px",
         borderRadius: 999,
         background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(245,200,66,0.25)",
+        border: "1px solid rgba(34,211,238,0.25)",
         backdropFilter: "blur(10px)",
         boxShadow: "0 10px 40px rgba(0,0,0,0.35)",
         opacity: clamp01(s),
@@ -191,8 +193,8 @@ export const BrandChip: React.FC = () => {
         <rect x={3.5} y={9} width={7} height={10} rx={2.5} fill={C.green} />
         <line x1={18} y1={5} x2={18} y2={23} stroke={C.red} strokeWidth={2} strokeLinecap="round" opacity={0.7} />
         <rect x={14.5} y={11} width={7} height={7} rx={2.5} fill={C.red} />
-        <line x1={29} y1={2} x2={29} y2={26} stroke={C.gold} strokeWidth={2} strokeLinecap="round" opacity={0.85} />
-        <rect x={25.5} y={7} width={7} height={13} rx={2.5} fill={C.gold} />
+        <line x1={29} y1={2} x2={29} y2={26} stroke={C.accent} strokeWidth={2} strokeLinecap="round" opacity={0.85} />
+        <rect x={25.5} y={7} width={7} height={13} rx={2.5} fill={C.accent} />
       </svg>
       <span
         style={{
@@ -209,7 +211,7 @@ export const BrandChip: React.FC = () => {
   );
 };
 
-/** Top full-width progress bar (gold fill over faint track). */
+/** Top full-width progress bar (gradien biru→cyan landing, di atas track samar). */
 export const ProgressBar: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -230,8 +232,8 @@ export const ProgressBar: React.FC = () => {
         style={{
           height: "100%",
           width: `${progress * 100}%`,
-          background: `linear-gradient(90deg, ${C.goldDeep}, ${C.gold})`,
-          boxShadow: "0 0 14px rgba(245,200,66,0.55)",
+          background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
+          boxShadow: "0 0 14px rgba(34,211,238,0.55)",
         }}
       />
     </div>
@@ -267,8 +269,8 @@ export const SceneDots: React.FC<{ activeIndex: number; total: number }> = ({
               width: active ? 36 : 10,
               height: 10,
               borderRadius: 999,
-              background: active ? C.gold : "rgba(255,255,255,0.18)",
-              boxShadow: active ? "0 0 16px rgba(245,200,66,0.5)" : "none",
+              background: active ? C.accent : "rgba(255,255,255,0.18)",
+              boxShadow: active ? "0 0 16px rgba(34,211,238,0.5)" : "none",
             }}
           />
         );

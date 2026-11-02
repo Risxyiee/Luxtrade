@@ -58,9 +58,9 @@ export const Scene3Agents: React.FC<SceneComponentProps> = ({
           width: RADAR,
           height: RADAR,
           borderRadius: "50%",
-          border: "1.5px solid rgba(245,200,66,0.28)",
+          border: "1.5px solid rgba(34,211,238,0.28)",
           boxShadow:
-            "0 0 120px rgba(245,200,66,0.10), inset 0 0 80px rgba(245,200,66,0.06)",
+            "0 0 120px rgba(34,211,238,0.10), inset 0 0 80px rgba(34,211,238,0.06)",
           opacity: clamp01(radarIn),
           transform: `scale(${0.85 + 0.15 * radarIn})`,
         }}
@@ -81,7 +81,7 @@ export const Scene3Agents: React.FC<SceneComponentProps> = ({
             inset: 0,
             borderRadius: "50%",
             background:
-              "conic-gradient(from 0deg, rgba(245,200,66,0.30) 0deg, rgba(245,200,66,0.06) 50deg, rgba(245,200,66,0) 80deg, rgba(245,200,66,0) 360deg)",
+              "conic-gradient(from 0deg, rgba(34,211,238,0.30) 0deg, rgba(34,211,238,0.06) 50deg, rgba(34,211,238,0) 80deg, rgba(34,211,238,0) 360deg)",
             transform: `rotate(${frame * 2}deg)`,
           }}
         />
@@ -96,9 +96,9 @@ export const Scene3Agents: React.FC<SceneComponentProps> = ({
             marginLeft: -9,
             marginTop: -9,
             borderRadius: "50%",
-            background: C.gold,
+            background: C.accent,
             boxShadow:
-              "0 0 26px rgba(245,200,66,0.9), 0 0 70px rgba(245,200,66,0.4)",
+              "0 0 26px rgba(34,211,238,0.9), 0 0 70px rgba(34,211,238,0.4)",
             transform: `scale(${1 + 0.22 * Math.sin(frame / 9)})`,
           }}
         />
@@ -122,7 +122,7 @@ export const Scene3Agents: React.FC<SceneComponentProps> = ({
               padding: "14px 28px",
               borderRadius: 999,
               background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(245,200,66,0.22)",
+              border: "1px solid rgba(34,211,238,0.22)",
               backdropFilter: "blur(6px)",
               fontFamily: FONT,
               fontWeight: 500,
@@ -153,8 +153,8 @@ export const Scene3Agents: React.FC<SceneComponentProps> = ({
             fontFamily: FONT,
             fontWeight: 800,
             fontSize: 64,
-            color: C.gold,
-            textShadow: "0 0 40px rgba(245,200,66,0.35)",
+            color: C.accent,
+            textShadow: "0 0 40px rgba(34,211,238,0.35)",
           }}
         >
           {count}

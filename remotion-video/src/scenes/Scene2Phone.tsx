@@ -130,10 +130,10 @@ export const Scene2Phone: React.FC<SceneComponentProps> = ({
           width: 340,
           height: 640,
           borderRadius: 56,
-          border: "3px solid rgba(245,200,66,0.35)",
+          border: "3px solid rgba(34,211,238,0.35)",
           background: C.panel,
           boxShadow:
-            "0 0 120px rgba(245,200,66,0.18), 0 40px 90px rgba(0,0,0,0.6)",
+            "0 0 120px rgba(34,211,238,0.18), 0 40px 90px rgba(0,0,0,0.6)",
           overflow: "hidden",
           opacity: clamp01(phoneIn),
           transform: `translateY(${(1 - phoneIn) * 640 + floatY}px) rotate(${tilt}deg)`,
@@ -182,7 +182,7 @@ export const Scene2Phone: React.FC<SceneComponentProps> = ({
                 const s = pop(frame, fps, 26 + i * 4, SPRING_POP);
                 const color =
                   i === MINI_CANDLES.length - 1
-                    ? C.gold
+                    ? C.accent
                     : cd.c >= cd.o
                       ? C.green
                       : C.red;
@@ -224,7 +224,7 @@ export const Scene2Phone: React.FC<SceneComponentProps> = ({
 
           {/* push notifications */}
           <NotificationCard
-            dotColor={C.gold}
+            dotColor={C.accent}
             title="Sinyal BUY · XAUUSD"
             sub="Akurasi model 87%"
             delay={48}

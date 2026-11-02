@@ -16,11 +16,12 @@ import type { SceneComponentProps } from "../components/Ui";
 const BURST_X = 540;
 const BURST_Y = 780;
 
+/* confetti 3 warna landing: cyan muda / biru / cyan */
 const CONFETTI = Array.from({ length: 12 }).map((_, i) => ({
   angle: (i / 12) * Math.PI * 2 + 0.42,
   dist: 130 + random(i * 13) * 250,
   size: 6 + random(i * 13 + 3) * 6,
-  color: i % 3 === 0 ? "#FFF3C4" : C.gold,
+  color: i % 3 === 0 ? "#A5F3FC" : i % 3 === 1 ? "#3B82F6" : C.accent,
   spin: (random(i * 13 + 5) - 0.5) * 240,
 }));
 
@@ -52,7 +53,7 @@ export const Scene5Cta: React.FC<SceneComponentProps> = ({
 
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      {/* one-shot gold confetti burst */}
+      {/* one-shot confetti burst warna landing (biru/cyan) */}
       <div style={{ position: "absolute", left: 0, top: 0 }}>
         {CONFETTI.map((p, i) => {
           const x = BURST_X + Math.cos(p.angle) * p.dist * burstP;
@@ -101,9 +102,9 @@ export const Scene5Cta: React.FC<SceneComponentProps> = ({
               width: 120,
               height: 120,
               borderRadius: 34,
-              background: `linear-gradient(135deg, ${C.gold}, ${C.goldDeep})`,
+              background: `linear-gradient(135deg, ${C.accentDeep}, ${C.accent})`,
               boxShadow:
-                "0 16px 60px rgba(245,200,66,0.30), 0 0 120px rgba(245,200,66,0.18)",
+                "0 16px 60px rgba(59,130,246,0.30), 0 0 120px rgba(34,211,238,0.18)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -129,14 +130,14 @@ export const Scene5Cta: React.FC<SceneComponentProps> = ({
             letterSpacing: 4,
             lineHeight: 1,
             backgroundImage:
-              "linear-gradient(100deg, #F5C842 15%, #FFF3C4 45%, #F5C842 75%)",
+              "linear-gradient(100deg, #3B82F6 15%, #67E8F9 45%, #22D3EE 75%)",
             backgroundSize: "200% 100%",
             backgroundPosition: `${50 + Math.sin(frame / 30) * 45}% 50%`,
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
             color: "transparent",
             WebkitTextFillColor: "transparent",
-            filter: "drop-shadow(0 0 36px rgba(245,200,66,0.28))",
+            filter: "drop-shadow(0 0 36px rgba(34,211,238,0.28))",
             opacity: clamp01(titleP),
             transform: `translateY(${(1 - titleP) * 56}px)`,
           }}
@@ -170,15 +171,16 @@ export const Scene5Cta: React.FC<SceneComponentProps> = ({
         >
           <div
             style={{
-              background: C.gold,
-              color: C.bg,
+              /* sama persis dgn tombol CTA landing: from-blue-500 to-cyan-400 */
+              background: "linear-gradient(90deg, #3B82F6, #22D3EE)",
+              color: "#FFFFFF",
               fontFamily: FONT,
               fontWeight: 800,
               fontSize: 34,
               borderRadius: 999,
               padding: "24px 56px",
               boxShadow:
-                "0 0 70px rgba(245,200,66,0.35), 0 18px 50px rgba(0,0,0,0.45)",
+                "0 0 70px rgba(34,211,238,0.35), 0 18px 50px rgba(0,0,0,0.45)",
             }}
           >
             {domain}

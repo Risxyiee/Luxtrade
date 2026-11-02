@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill, random, useCurrentFrame, useVideoConfig } from "remotion";
 import { C, clamp01 } from "./Ui";
 
-/* Deterministic floating gold particles (computed once, module level). */
+/* Deterministic floating particles warna landing (cyan/biru, computed once). */
 const PARTICLES = Array.from({ length: 18 }).map((_, i) => ({
   x0: random(i * 7),
   y0: random(i * 7 + 1),
@@ -45,13 +45,13 @@ export const Backdrop: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: C.bg, overflow: "hidden" }}>
-      {/* huge drifting gold glow blobs */}
+      {/* huge drifting glow blobs — trio sama dgn glow logo hero landing */}
       <div
         style={blob(
           width * 0.7 - 620,
           height * 0.22 - 620,
           1240,
-          "radial-gradient(circle, rgba(245,200,66,0.10) 0%, rgba(245,200,66,0) 65%)",
+          "radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(59,130,246,0) 65%)", // biru — blue-500
           `translate3d(${Math.sin(frame / 180) * 180}px, ${Math.cos(frame / 230) * 130}px, 0)`,
           0.85 + 0.15 * Math.sin(frame / 140),
         )}
@@ -61,7 +61,7 @@ export const Backdrop: React.FC = () => {
           width * 0.14 - 520,
           height * 0.76 - 520,
           1040,
-          "radial-gradient(circle, rgba(184,134,11,0.09) 0%, rgba(184,134,11,0) 65%)",
+          "radial-gradient(circle, rgba(6,182,212,0.09) 0%, rgba(6,182,212,0) 65%)", // cyan — cyan-500
           `translate3d(${Math.cos(frame / 240) * 170}px, ${Math.sin(frame / 200) * 120}px, 0)`,
           0.9 + 0.1 * Math.cos(frame / 165),
         )}
@@ -71,7 +71,7 @@ export const Backdrop: React.FC = () => {
           width * 0.5 - 750,
           height * 0.52 - 750,
           1500,
-          "radial-gradient(circle, rgba(245,200,66,0.07) 0%, rgba(245,200,66,0) 62%)",
+          "radial-gradient(circle, rgba(16,185,129,0.05) 0%, rgba(16,185,129,0) 62%)", // emerald — emerald-500
           `translate3d(${Math.sin(frame / 150) * 60}px, ${Math.cos(frame / 170) * 50}px, 0)`,
           0.95,
         )}
@@ -91,7 +91,7 @@ export const Backdrop: React.FC = () => {
         }}
       />
 
-      {/* floating gold particles (slow upward drift) */}
+      {/* floating particles (slow upward drift) — cyan muda & cyan */}
       {PARTICLES.map((p, i) => {
         const travelled = (p.speed * frame) / fps;
         const rawY = p.y0 * height - travelled;
@@ -108,11 +108,11 @@ export const Backdrop: React.FC = () => {
               width: p.size,
               height: p.size,
               borderRadius: "50%",
-              background: i % 4 === 0 ? "#FFF3C4" : C.gold,
+              background: i % 4 === 0 ? "#A5F3FC" : i % 4 === 1 ? "#67E8F9" : C.accent,
               opacity: p.opacity * clamp01(edgeFade),
               transform: `translate3d(${x}px, ${y}px, 0)`,
               boxShadow:
-                i % 5 === 0 ? "0 0 10px rgba(245,200,66,0.6)" : "none",
+                i % 5 === 0 ? "0 0 10px rgba(34,211,238,0.6)" : "none",
             }}
           />
         );

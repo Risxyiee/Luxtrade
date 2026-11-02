@@ -99,16 +99,16 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
     <section className="relative py-16 md:py-24 px-4 overflow-hidden" aria-label="Demo fitur Pine Script dan alert otomatis">
       {/* Glow latar lembut */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[420px] rounded-full bg-purple-500/[0.07] blur-3xl" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[420px] rounded-full bg-blue-600/[0.08] blur-3xl" />
       </div>
 
       <div className="relative max-w-5xl mx-auto text-center">
-        <span className="inline-block text-[11px] font-bold tracking-widest px-3 py-1 rounded-full border border-purple-400/30 bg-purple-400/10 text-purple-200 mb-5">
+        <span className="inline-block text-[11px] font-bold tracking-widest px-3 py-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 mb-5">
           {t.badge}
         </span>
         <h2 className="text-3xl md:text-5xl font-extrabold leading-tight tracking-tight">
           {t.title}{' '}
-          <span className="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">
             {t.titleAccent}
           </span>
         </h2>
@@ -121,7 +121,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
           {/* key={cycle} → remount tiap siklus, animasi restart bersih */}
           <div
             key={cycle}
-            className={`relative rounded-2xl border border-white/10 bg-[#070a12] shadow-[0_30px_80px_-20px_rgba(124,58,237,0.25)] overflow-hidden text-left ${inView ? '' : 'lxs-paused'}`}
+            className={`relative rounded-2xl border border-white/10 bg-[#070a12] shadow-[0_30px_80px_-20px_rgba(34,211,238,0.22)] overflow-hidden text-left ${inView ? '' : 'lxs-paused'}`}
           >
             {/* Bar jendela terminal */}
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02]">
@@ -152,7 +152,9 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                   <line className="lxs-level" x1="0" x2="600" y1="118" y2="118" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeDasharray="7 6" />
                   <text x="10" y="110" fill="rgba(255,255,255,0.4)" fontSize="11">Resistance 2.400</text>
 
-                  {/* candles: 14 baris, naik-turun, terakhir "hidup" */}
+                  {/* candles: 14 baris, naik-turun, terakhir "hidup".
+                      KOORDINAT SVG: y KECIL = harga LEBIH TINGGI.
+                      Bullish = close di atas open = c.c < c.o (angka y) → HIJAU */}
                   {CANDLES.map((c, i) => (
                     <g key={i} className={`lxs-candle ${i === CANDLES.length - 1 ? 'lxs-candle-live' : ''}`} style={{ animationDelay: `${0.2 + i * 0.1}s` }}>
                       <rect
@@ -160,9 +162,9 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                         y={c.o < c.c ? c.c : c.o}
                         height={Math.max(6, Math.abs(c.c - c.o))}
                         rx="2"
-                        fill={c.c >= c.o ? '#34d399' : '#f87171'}
+                        fill={c.c < c.o ? '#34d399' : '#f87171'}
                       />
-                      <line x1={c.x + 7} x2={c.x + 7} y1={c.wickTop} y2={c.wickBot} stroke={c.c >= c.o ? '#34d399' : '#f87171'} strokeWidth="1.6" />
+                      <line x1={c.x + 7} x2={c.x + 7} y1={c.wickTop} y2={c.wickBot} stroke={c.c < c.o ? '#34d399' : '#f87171'} strokeWidth="1.6" />
                     </g>
                   ))}
 
@@ -171,7 +173,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                     className="lxs-indicator"
                     d={INDICATOR_PATH}
                     fill="none"
-                    stroke="#a78bfa"
+                    stroke="#22d3ee"
                     strokeWidth="3"
                     strokeLinecap="round"
                     style={{ strokeDasharray: INDICATOR_LEN, strokeDashoffset: INDICATOR_LEN }}
@@ -200,7 +202,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                 <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
                   <span className="text-[10.5px] uppercase tracking-widest text-white/35">Pine Editor®</span>
                   {/* tombol compile "ditekan" pada siklus */}
-                  <span className="lxs-compile text-[10.5px] font-semibold px-2.5 py-1 rounded-md bg-gradient-to-r from-purple-500 to-fuchsia-400 text-black">
+                  <span className="lxs-compile text-[10.5px] font-semibold px-2.5 py-1 rounded-md bg-gradient-to-r from-blue-500 to-cyan-400 text-white">
                     ▶ {t.compile}
                   </span>
                 </div>
@@ -229,7 +231,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
               href="/auth/signup"
-              className="lxs-cta inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-400 text-black font-bold text-sm hover:opacity-90 transition-opacity min-h-[48px]"
+              className="lxs-cta inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-bold text-sm hover:opacity-90 transition-opacity min-h-[48px]"
             >
               {t.cta} <span aria-hidden="true">→</span>
             </a>

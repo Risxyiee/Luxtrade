@@ -8,6 +8,7 @@ import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
 import HeroSection from '@/components/landing/HeroSection'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
+import LazySection from '@/components/landing/LazySection'
 
 // PERF: modal HANYA tampil saat diklik (legal/checkout) — jangan ikut bundle
 // awal landing. framer-motion + isi legal ±ratusan KB JS tak perlu di-parse
@@ -134,8 +135,14 @@ export default function LuxTradeLanding() {
           <SocialProofBar language={language} />
           {/* TrustStats removed — fake data */}
           <PartnerBanner language={language} />
-          <AIVisionSimulator language={language} />
-          <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
+          {/* PERF: 2 widget berat (ssr:false) kini baru fetch chunk saat user
+              scroll mendekati — hydration awal jauh lebih ringan */}
+          <LazySection minHeight={560} rootMargin={250} anchorId="simulator" aria-label="Simulator AI Vision">
+            <AIVisionSimulator language={language} />
+          </LazySection>
+          <LazySection minHeight={640} rootMargin={250} aria-label="Tutorial interaktif">
+            <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
+          </LazySection>
           <CaraKerjaSection language={language} />
           {/* Video animasi fitur Pine Script® + Alert (Konsep 1 — disetujui Bos) */}
           <PineAlertShowcase language={language} />

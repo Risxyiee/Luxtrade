@@ -40,7 +40,7 @@ const xCenter = (i: number): number =>
   PAD_X + ((CHART_W - PAD_X * 2) / CANDLES.length) * (i + 0.5);
 
 const candleColor = (cd: CandleDef, i: number): string => {
-  if (i === CANDLES.length - 1) return C.gold;
+  if (i === CANDLES.length - 1) return C.accent;
   return cd.c >= cd.o ? C.green : C.red;
 };
 
@@ -102,7 +102,7 @@ export const Scene1Hook: React.FC<SceneComponentProps> = ({
                   transform: `scaleY(${s})`,
                   opacity: clamp01(s * 1.3),
                   filter: isLast
-                    ? "drop-shadow(0 0 18px rgba(245,200,66,0.55))"
+                    ? "drop-shadow(0 0 18px rgba(34,211,238,0.55))"
                     : undefined,
                 }}
               >
@@ -130,7 +130,7 @@ export const Scene1Hook: React.FC<SceneComponentProps> = ({
           <polyline
             points={trendPoints}
             fill="none"
-            stroke={C.gold}
+            stroke={C.accent}
             strokeWidth={4.5}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -138,7 +138,7 @@ export const Scene1Hook: React.FC<SceneComponentProps> = ({
             strokeDasharray={1}
             strokeDashoffset={trendDraw}
             opacity={0.95}
-            style={{ filter: "drop-shadow(0 0 12px rgba(245,200,66,0.5))" }}
+            style={{ filter: "drop-shadow(0 0 12px rgba(34,211,238,0.5))" }}
           />
         </svg>
       </div>
@@ -184,7 +184,7 @@ export const Scene1Hook: React.FC<SceneComponentProps> = ({
             letterSpacing: 2,
             color: C.white,
             textShadow:
-              "0 0 60px rgba(245,200,66,0.32), 0 6px 30px rgba(0,0,0,0.65)",
+              "0 0 60px rgba(34,211,238,0.32), 0 6px 30px rgba(0,0,0,0.65)",
           }}
         >
           {words.map((word, i) => {

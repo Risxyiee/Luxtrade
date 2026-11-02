@@ -72,6 +72,11 @@ const nextConfig: NextConfig = {
   //    dilaporkan ke /api/security/csp-report (log → CF Observability).
   //    Datanya dipakai untuk menyusun CSP ENFORCE tanpa merusak fitur.
   async headers() {
+    // DEV-ONLY 'unsafe-eval': React/Next dev runtime (Fast Refresh) memakai
+    // eval di main-app.js — tanpa ini CSP enforce memblokirnya → hydration
+    // gagal → animasi framer-motion macet di state awal (teks hero opacity 0).
+    // Production TETAP ketat tanpa eval (build produksi Next tidak pakai eval).
+    const isDevCsp = process.env.NODE_ENV === 'development';
     const securityHeaders = [
       { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
       { key: 'X-Frame-Options', value: 'DENY' },
@@ -90,7 +95,9 @@ const nextConfig: NextConfig = {
           // static.cloudflareinsights.com = beacon Cloudflare Web Analytics yang
           // diinjeksi otomatis CF pada domain ter-proxy (log csp-report Bos:
           // script-src-elem blocked). Tanpa ini, analytics keblock diam-diam.
-          "script-src 'self' 'unsafe-inline' https://app.midtrans.com https://app.sandbox.midtrans.com https://static.cloudflareinsights.com",
+          "script-src 'self' 'unsafe-inline' " +
+            (isDevCsp ? "'unsafe-eval' " : "") +
+            "https://app.midtrans.com https://app.sandbox.midtrans.com https://static.cloudflareinsights.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "media-src 'self' https: blob:",

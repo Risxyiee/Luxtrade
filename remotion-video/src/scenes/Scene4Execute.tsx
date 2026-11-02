@@ -56,10 +56,10 @@ export const Scene4Execute: React.FC<SceneComponentProps> = ({
           width: 840,
           borderRadius: 32,
           background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(245,200,66,0.22)",
+          border: "1px solid rgba(34,211,238,0.22)",
           padding: "48px 56px",
           boxShadow:
-            "0 0 100px rgba(245,200,66,0.10), 0 40px 90px rgba(0,0,0,0.5)",
+            "0 0 100px rgba(34,211,238,0.10), 0 40px 90px rgba(0,0,0,0.5)",
           opacity: clamp01(cardS * 1.5),
           transform: `scale(${0.7 + 0.3 * cardS}) rotate(${(1 - cardS) * -5}deg)`,
         }}
@@ -78,8 +78,8 @@ export const Scene4Execute: React.FC<SceneComponentProps> = ({
               width: 12,
               height: 12,
               borderRadius: "50%",
-              background: C.gold,
-              boxShadow: "0 0 14px rgba(245,200,66,0.8)",
+              background: C.accent,
+              boxShadow: "0 0 14px rgba(34,211,238,0.8)",
             }}
           />
           <span
@@ -88,7 +88,7 @@ export const Scene4Execute: React.FC<SceneComponentProps> = ({
               fontWeight: 800,
               fontSize: 22,
               letterSpacing: 5,
-              color: C.gold,
+              color: C.accent,
             }}
           >
             ALERT · XAUUSD
@@ -105,7 +105,7 @@ export const Scene4Execute: React.FC<SceneComponentProps> = ({
             fontSize: 56,
             letterSpacing: 1,
             color: C.white,
-            textShadow: "0 0 40px rgba(245,200,66,0.25)",
+            textShadow: "0 0 40px rgba(34,211,238,0.25)",
           }}
         >
           BUY 2.335,10
@@ -179,14 +179,14 @@ export const Scene4Execute: React.FC<SceneComponentProps> = ({
                 cy={60}
                 r={48}
                 fill="none"
-                stroke={C.gold}
+                stroke={C.accent}
                 strokeWidth={10}
                 strokeLinecap="round"
                 pathLength={1}
                 strokeDasharray={1}
                 strokeDashoffset={ringDraw}
                 transform="rotate(-90 60 60)"
-                style={{ filter: "drop-shadow(0 0 10px rgba(245,200,66,0.5))" }}
+                style={{ filter: "drop-shadow(0 0 10px rgba(34,211,238,0.5))" }}
               />
             </svg>
             <div
@@ -199,7 +199,7 @@ export const Scene4Execute: React.FC<SceneComponentProps> = ({
                 fontFamily: FONT,
                 fontWeight: 800,
                 fontSize: 26,
-                color: C.gold,
+                color: C.accent,
                 opacity: clamp01(pop(frame, fps, 56)),
               }}
             >
