@@ -1,0 +1,128 @@
+name: TikTok Video Bot
+
+# ═══════════════════════════════════════════════════════════════════
+# 🎬 BOT VIDEO TIKTOK OTONOM — "bikin vid sendiri"
+# ───────────────────────────────────────────────────────────────────
+# Alur sekali jalan di runner (CPU-nya gratis):
+#   1. Ambil SKRIP dari AI (worker /api/cron/video-bot — otak kreatif)
+#   2. Render video 9:16: gambar AI (Pollinations) + voiceover Indonesia
+#      (edge-tts) + ffmpeg → MP4 1080x1920 (scripts/build-tiktok-video.sh)
+#   3. Ambil access token fresh dari worker (/api/tiktok/token — worker
+#      pegang secret TikTok & refresh otomatis; runner TIDAK pegang secret)
+#   4. Posting ke TikTok via Content Posting API (FILE_UPLOAD 1 chunk)
+#
+# SANDBOX: privacy SELF_ONLY → postingan privat di akun sandbox.
+# Produksi (setelah audit lolos): ganti PRIVACY jadi PUBLIC_TO_EVERYONE.
+#
+# SETUP SEKALI (oleh Bos — zero-knowledge, aku tidak pernah lihat isinya):
+#   Cloudflare (wrangler secret put atau dashboard → luxtradee → Variables):
+#     TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN
+#   GitHub (Settings → Secrets → Actions) — sudah ada dari cron lain:
+#     PROD_URL, CRON_SECRET
+# ═══════════════════════════════════════════════════════════════════
+
+on:
+  schedule:
+    # 13:00 UTC = 20:00 WIB — prime time TikTok Indonesia
+    - cron: '0 13 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: tiktok-video-bot
+  cancel-in-progress: false
+
+env:
+  PRIVACY: SELF_ONLY # sandbox wajib SELF_ONLY; produksi: PUBLIC_TO_EVERYONE
+
+jobs:
+  make-and-post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧠 Ambil skrip video dari AI (worker)
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          [ -n "$PROD_URL" ] || { echo "❌ Secret PROD_URL belum diset"; exit 1; }
+          [ -n "$CRON_SECRET" ] || { echo "❌ Secret CRON_SECRET belum diset"; exit 1; }
+          code=$(curl -sS -L -o /tmp/spec.json -w '%{http_code}' --max-time 120 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" -d '{}' \
+            "$PROD_URL/api/cron/video-bot") || code=000
+          echo "HTTP $code"
+          if ! jq -e '.success == true' /tmp/spec.json >/dev/null 2>&1; then
+            echo "❌ Skrip video gagal dibuat:"; cat /tmp/spec.json; exit 1
+          fi
+          echo "Sumber skrip: $(jq -r '.source' /tmp/spec.json)"
+          echo "Caption: $(jq -r '.spec.caption' /tmp/spec.json | head -c 160)"
+
+      - name: 🧰 Pasang edge-tts (voiceover Indonesia gratis)
+        run: python3 -m pip install --quiet edge-tts
+
+      - name: 🎬 Render video (gambar AI + TTS + ffmpeg)
+        run: |
+          chmod +x scripts/build-tiktok-video.sh
+          bash scripts/build-tiktok-video.sh /tmp/spec.json /tmp/luxtrade-video.mp4 /tmp/videowork
+
+      - name: 📤 Posting ke TikTok (Content Posting API)
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+
+          # 1) Token fresh dari worker (worker yang refresh — runner gak pegang secret)
+          TOK=$(curl -sS -L --max-time 60 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PROD_URL/api/tiktok/token")
+          ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
+          if [ -z "$ACCESS" ]; then
+            echo "❌ Token TikTok tidak dapat:"; echo "$TOK" | jq . 2>/dev/null || echo "$TOK"; exit 1
+          fi
+          echo "✅ Token siap (source: $(echo "$TOK" | jq -r '.source'), rotated: $(echo "$TOK" | jq -r '.refresh_rotated'))"
+
+          # 2) Init upload (FILE_UPLOAD — 1 chunk, video ±17s < 64MB)
+          SIZE=$(stat -c%s /tmp/luxtrade-video.mp4)
+          TITLE=$(jq -Rn --arg t "$(jq -r '.spec.caption' /tmp/spec.json | head -c 1500)" '$t')
+          INIT=$(curl -sS --max-time 60 -X POST \
+            -H "Authorization: Bearer $ACCESS" \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            -d "{\"post_info\":{\"title\":$TITLE,\"privacy_level\":\"$PRIVACY\"},\"source_info\":{\"source\":\"FILE_UPLOAD\",\"video_size\":$SIZE,\"chunk_size\":$SIZE,\"total_chunk_count\":1}}" \
+            "https://open.tiktokapis.com/v2/post/publish/video/init/")
+          echo "$INIT" | jq . 2>/dev/null || echo "$INIT"
+          UPLOAD_URL=$(echo "$INIT" | jq -r '.data.upload_url // empty')
+          PUBLISH_ID=$(echo "$INIT" | jq -r '.data.publish_id // empty')
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "❌ Init upload gagal — cek scope video.upload/video.publish & token"; exit 1
+          fi
+          echo "publish_id: $PUBLISH_ID"
+
+          # 3) Upload video (Content-Range wajib)
+          code=$(curl -sS -o /tmp/upload-resp.txt -w '%{http_code}' -X PUT \
+            -H "Content-Type: video/mp4" \
+            -H "Content-Range: bytes 0-$((SIZE-1))/$SIZE" \
+            --data-binary @/tmp/luxtrade-video.mp4 "$UPLOAD_URL") || code=000
+          echo "Upload HTTP $code"
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            cat /tmp/upload-resp.txt; exit 1
+          fi
+
+          # 4) Pantau status publikasi (maks ~75s)
+          for i in 1 2 3 4 5; do
+            sleep 15
+            ST=$(curl -sS --max-time 30 -X POST \
+              -H "Authorization: Bearer $ACCESS" \
+              -H "Content-Type: application/json; charset=UTF-8" \
+              -d "{\"publish_id\":\"$PUBLISH_ID\"}" \
+              "https://open.tiktokapis.com/v2/post/publish/status/fetch/")
+            echo "status #$i: $(echo "$ST" | jq -c '.data' 2>/dev/null || echo "$ST")"
+            echo "$ST" | grep -q 'PUBLISH_COMPLETE' && break
+          done
+
+          echo "🎬 Video terkirim ke TikTok (publish_id: $PUBLISH_ID)"
+          echo "   Privacy: $PRIVACY — cek akun TikTok sandbox kamu (profil/draft)."
