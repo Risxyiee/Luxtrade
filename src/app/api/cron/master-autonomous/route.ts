@@ -126,7 +126,6 @@ interface CallAgentOpts {
   /** Override model primary (env OR_MODEL_<TAG> tetap menang). */
   model?: string
 }
-
 /**
  * Helper LLM WAJIB semua agen: fetch OpenRouter murni (tanpa SDK — aman di
  * CF Workers) + failover rantai model hidup + pencatatan kuota per agen.
@@ -242,6 +241,8 @@ async function actorCritic(
     temperature?: number
     passScore?: number
     maxRevisions?: number
+    /** Timeout per panggilan LLM (ms) — default 90s untuk draf panjang free-tier. */
+    timeoutMs?: number
   },
 ): Promise<ActorCriticResult | null> {
   const passScore = params.passScore ?? 7
@@ -250,6 +251,7 @@ async function actorCritic(
 
   const first = await callAgent(agentTag, params.system, params.user, {
     maxTokens: params.maxTokens, temperature: params.temperature,
+    timeoutMs: params.timeoutMs ?? 90_000,
   })
   if (!first) return null
   let draft = first
@@ -266,6 +268,7 @@ async function actorCritic(
       `Tulis ULANG draf yang jauh lebih baik sesuai catatan. Sertakan SEMUA requirement format dari instruksi awal.`
     const revised = await callAgent(agentTag, params.system, reviseUser, {
       maxTokens: params.maxTokens, temperature: params.temperature,
+      timeoutMs: params.timeoutMs ?? 90_000,
     })
     if (!revised) break // kuota habis — pakai draf terakhir yang ada
     draft = revised
@@ -459,7 +462,7 @@ TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang m
     maxRevisions: 1,
   })
   if (!ac) {
-    return errResult('Farhan', 'LLM tidak tersedia (OPENROUTER_API_KEY kosong / semua model gagal) — artikel tidak dibuat')
+    return errResult('Farhan', 'LLM tidak tersedia (semua model OpenRouter gagal — free-tier sering 429/timeout di panggilan panjang; isi saldo ≥$10 → limit 1000/hari) — artikel tidak dibuat')
   }
 
   const parsedArt = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(ac.text)
