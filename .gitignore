@@ -126,3 +126,46 @@ landing-check.png
 # Remotion video engine
 remotion-video/out/
 remotion-video/.remotion/
+
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  🚫 BLOCKLIST PERMANEN — file lama yang SUDAH DIHAPUS 3 KALI      ║
+# ║  JANGAN pernah commit / recreate file-file ini lagi.              ║
+# ║  Dijaga otomatis oleh scripts/guard-junk.mjs (jalan tiap dev).    ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# Vercel — project sudah deploy ke Cloudflare Workers (wrangler), BUKAN Vercel
+/vercel.json
+/vercel-postbuild.sh
+/.vercelignore
+/.vercel/
+
+# Report/debug .md hasil sesi coding — root hanya boleh README.md
+/*.md
+!/README.md
+
+# Screenshot debug di root (seharusnya di .screenshots/, tidak di-commit)
+/*.png
+
+# Script "fix" & debug sekali-pakai
+/fix_ai.js
+/fix_ai_route.py
+/fix-*.py
+/create-dummy-user.ts
+/test-db.ts
+/test-hf-vision.ts
+/dev.out
+
+# Jest — project tidak pakai jest
+/jest.config.js
+/jest.setup.js
+/run-tests.sh
+
+# Lockfile npm — project pakai bun (bun.lock)
+/package-lock.json
+/yarn.lock
+/pnpm-lock.yaml
+
+# Dump data AI agent di root
+/doku-*.json
+/*-docs.json
+/*-search.json
