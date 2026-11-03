@@ -16,8 +16,9 @@
  *      FIX "ada sinyal tapi diem aja": dulu HANYA bar terakhir, sinyal
  *      yang terjadi 1 bar saja sebelum cron tick tidak pernah terkirim)
  *   4. Dedupe per-bar via pine_alert_log (unique index) + mem map
- *   5. PUSH layar HP + CHAT TELEGRAM (push-notify.ts) — user Pro yang
- *      menghubungkan Telegram menerima sinyal masuk chat lagi.
+ *   5. PUSH layar HP gaya WhatsApp (push-notify.ts) — sinyal muncul
+ *      otomatis di tray notifikasi HP walau app tertutup.
+ *      (Jalur chat Telegram DIHAPUS — bot token revoked.)
  *
  * File ini WAJIB hanya diimpor dari server (API route).
  */
@@ -246,12 +247,11 @@ export async function runAlertGroup(
           url: '/dashboard',
           urgency: 'high',
         }, { dedupe: false })
-        /* Sukses = push layar HP TERKIRIM ATAU masuk chat Telegram
-           (user bisa punya salah satu / keduanya). */
-        if (push.sent > 0 || push.telegramSent) {
+        /* Sukses = push layar HP gaya WA terkirim ke minimal 1 device. */
+        if (push.sent > 0) {
           outcome.sent++; sentThis = true; reason = ''
         } else if (push.skipped === 'no-subs') {
-          reason = 'notifikasi belum diaktifkan (push browser/Telegram)'
+          reason = 'notifikasi belum diaktifkan (izinkan notifikasi di dashboard)'
         } else {
           reason = push.error || (push.skipped === 'dedupe' ? 'dedupe' : 'push gagal')
         }

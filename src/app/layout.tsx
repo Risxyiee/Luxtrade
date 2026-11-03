@@ -74,6 +74,9 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning className="dark">
       <head>
+        {/* Verifikasi domain Facebook Business (Meta) — WAJIB statis di <head>,
+            TIDAK boleh dimuat dinamis via JavaScript atau verifikasi gagal. */}
+        <meta name="facebook-domain-verification" content="7rjxb26o8g4p0z37ojtd50ynvfxnfv" />
         <meta name="theme-color" content="#050507" />
         <meta name="mobile-web-app-capable" content="yes" />
         {/* WebView Performance Optimization for Android TWA/PWA */}

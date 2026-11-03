@@ -18,10 +18,6 @@ export async function sendToAdmin(message: string) {
   return sendDiscordNotification(message)
 }
 
-// Backward-compatible alias (renamed from sendTelegramNotification)
-export const sendAdminNotificationAlias = sendAdminNotification
-export const sendTelegramNotification = sendAdminNotification // @deprecated use sendAdminNotification
-
 export async function notifyReferralSignup(referrerName: string, refereeEmail: string, referralCode: string) {
   const msg = `🎉 <b>REFERRAL BARU!</b>\n\n👤 Referrer: ${referrerName}\n📧 Downline: ${refereeEmail}\n🏷️ Kode: <code>${referralCode}</code>\n\n⏰ ${new Date().toLocaleString('id-ID')}`
   return sendAdminNotification(msg)

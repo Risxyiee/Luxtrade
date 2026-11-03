@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { callLLM, extractJson, getLLMProviderName } from '@/lib/ai-llm'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 
 /**
  * GET /api/cron/ai-cs-agent
@@ -13,7 +13,7 @@ import { sendTelegramNotification } from '@/lib/telegram'
  *   1. Cari max 5 user yang belum pernah trading (0 trades) & belum dikontak hari ini
  *   2. LLM meracik email follow-up personal (gaya kasual anak trader SMC/ICT)
  *   3. Simpan draf ke `ai_pending_tasks` status 'pending' (TIDAK langsung kirim)
- *   4. Notif Telegram ke owner: "ada N draf menunggu approval"
+ *   4. Notif admin ke owner (Discord): "ada N draf menunggu approval"
  *
  * Eksekusi final (kirim email via Resend) HANYA terjadi setelah admin
  * approve di /admin/ai-staff — human-in-the-loop.
@@ -258,11 +258,11 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Gagal insert draft: ' + insertErr.message }, { status: 500 })
   }
 
-  // 6. Notif Telegram ke owner — draf menunggu approval
+  // 6. Notif admin ke owner (Discord) — draf menunggu approval
   const draftList = drafts
     .map(d => `• ${d.candidate.fullName || d.candidate.email} → "${d.draft.subject}"`)
     .join('\n')
-  await sendTelegramNotification(
+  await sendAdminNotification(
     `🤖 <b>AI CS Agent</b>\n\n✍️ ${drafts.length} draf email follow-up siap (status: PENDING)\nProvider LLM: <b>${provider}</b>\n\n${draftList}\n\n👉 Review & approve di: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/admin/ai-staff`
   )
 

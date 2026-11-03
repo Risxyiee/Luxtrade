@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
 import { callLLM, extractJson, getLLMProviderName, type LLMResult } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 import {
   BAGAS_COOLDOWN_DAYS,
   bagasCooldownSince,
@@ -31,7 +31,7 @@ import {
  *   3. LLM racik email penawaran PRO personal per lead
  *   4. Simpan draf ke `ai_pending_tasks` agent_type='COO' status
  *      'pending' (TIDAK langsung kirim)
- *   5. Notif Telegram: "N hot leads menunggu ACC"
+ *   5. Notif admin: "N hot leads menunggu ACC"
  *
  * Eksekusi final (kirim email via Resend) HANYA setelah Bos ACC
  * di Ruang COO (/kantor-ceo) — human-in-the-loop.
@@ -528,7 +528,7 @@ async function handleRequest(request: NextRequest) {
     console.error('[ai-coo-agent] Follow-up pass gagal (non-fatal):', err?.message)
   }
 
-  // 6. Notif Telegram ke Bos — draf jualan + follow-up nunggu ACC
+  // 6. Notif admin ke Bos (Discord) — draf jualan + follow-up nunggu ACC
   const draftList = drafts
     .map(d => `• ${d.lead.fullName || d.lead.email} (${d.lead.trades7d} trades/7hr) → "${d.draft.subject}"`)
     .join('\n')
@@ -536,7 +536,7 @@ async function handleRequest(request: NextRequest) {
   const fuList = followups
     .map(f => `• 🔄 FOLLOW-UP ${f.name || f.email} (buka email) → "${f.subject}"`)
     .join('\n')
-  await sendTelegramNotification(
+  await sendAdminNotification(
     `🤖 <b>AI COO — Divisi Jualan</b>\n\n💰 ${drafts.length} hot lead ditarget, draf penawaran PRO siap (status: PENDING)\nProvider LLM: <b>${provs}</b>\n\n${draftList}${fuList ? `\n\n📬 ${followups.length} FOLLOW-UP lead yang buka email tapi belum PRO:\n${fuList}` : ''}\n\n👉 Review & ACC di Ruang COO: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/kantor-ceo`
   )
 

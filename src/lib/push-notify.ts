@@ -14,10 +14,9 @@
  *   - Supabase service-role (getSupabaseAdmin) — Prisma mati diam-diam
  *     di CF Workers (temuan audit push PropFirm).
  *   - sendPushToUser (src/lib/web-push.ts) — jalur Node + CF-native.
- *   - TELEGRAM: user yang menghubungkan Telegram (profiles
- *     .telegram_chat_id — halaman Pengaturan → Telegram) TURUT menerima
- *     SEMUA notifikasi ini di chat (FIX: "di chat ga ada sinyal entry")
- *     — best-effort, kegagalan tidak pernah mengganggu push utama.
+ *   - NOTIFIKASI GAYA WHATSAPP: push layar HP muncul otomatis di
+ *     notification tray walau app tertutup — satu-satunya jalur chat
+ *     alert (integrasi Telegram lama SUDAH DIHAPUS; bot token revoked).
  *   - Bersih-bersih OTOMATIS: endpoint balik 410/404 → hapus dari DB.
  *   - Dedupe in-memory 90s per (user+tag) — tameng tik cron ganda;
  *     dedupe lintas-bar tetap di DB (pine_alert_log, watchlist_price_alerts).
@@ -38,8 +37,6 @@ export interface PushNotifyResult {
   removedExpired: number
   skipped?: 'dedupe' | 'no-subs'
   error?: string
-  /** Pesan Telegram terkirim ke chat user (best-effort) */
-  telegramSent?: boolean
 }
 
 const DEFAULT_ICON = '/icon-192x192.png'
@@ -75,56 +72,6 @@ export async function getPushSubs(
     return ((data ?? []) as { endpoint: string; p256dh: string; auth: string }[])
   } catch {
     return []
-  }
-}
-
-/* ── Chat Telegram user (cache TTL 10 menit) ──────────────────────────────
-   profiles.telegram_chat_id diisi lewat binding bot (Pengaturan →
-   Telegram → /start). Best-effort: token/kolom tidak ada = tanpa Telegram. */
-const tgCache = new Map<string, { chatId: string; at: number }>()
-const TG_TTL_MS = 10 * 60_000
-
-export async function getTelegramChatId(
-  admin: SupabaseClient,
-  userId: string
-): Promise<string> {
-  try {
-    const hit = tgCache.get(userId)
-    if (hit && Date.now() - hit.at < TG_TTL_MS) return hit.chatId
-    const { data, error } = await admin
-      .from('profiles')
-      .select('telegram_chat_id')
-      .eq('id', userId)
-      .maybeSingle()
-    const chatId = error ? '' : String((data as any)?.telegram_chat_id || '').trim()
-    tgCache.set(userId, { chatId, at: Date.now() })
-    if (tgCache.size > 5000) {
-      for (const [k, v] of tgCache) if (Date.now() - v.at > TG_TTL_MS) tgCache.delete(k)
-    }
-    return chatId
-  } catch {
-    return ''
-  }
-}
-
-/** Kirim pesan teks ke chat Telegram. Return true bila terkirim. */
-async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
-  try {
-    const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim()
-    if (!token || !chatId) return false
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        disable_web_page_preview: true,
-      }),
-      signal: AbortSignal.timeout(8000),
-    })
-    return res.ok
-  } catch {
-    return false
   }
 }
 
@@ -177,8 +124,7 @@ export async function pushToUser(
     await logNotification(admin, userId, payload)
 
     const subs = await getPushSubs(admin, userId)
-    const chatId = await getTelegramChatId(admin, userId)
-    if (!subs.length && !chatId) {
+    if (!subs.length) {
       return { sent: 0, hadSubs: false, removedExpired: 0, skipped: 'no-subs' }
     }
 
@@ -196,18 +142,10 @@ export async function pushToUser(
       removedExpired = dels.filter((d) => d.status === 'fulfilled').length
     }
 
-    /* ── CHAT TELEGRAM — sinyal & notifikasi masuk chat lagi ──
-       Best-effort paralel tidak perlu (urutan bebas, satu pesan). */
-    let telegramSent = false
-    if (chatId) {
-      telegramSent = await sendTelegramMessage(chatId, `${payload.title}\n${payload.body || ''}`.trim())
-    }
-
     return {
       sent: res.sent,
       hadSubs: true,
       removedExpired,
-      telegramSent,
       error: res.failed.length ? res.errors[0] : undefined,
     }
   } catch (e) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { getCronAdmin, isMissingTableError } from '@/lib/cron-supabase'
 import { sendEmail, getPromotionalEmailHtml } from '@/lib/email'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Email terkirim, tapi gagal update status task: ' + updErr.message, emailSent: true, statusUpdateFailed: true })
       }
 
-      await sendTelegramNotification(
+      await sendAdminNotification(
         `✅ <b>AI ${isCoo ? 'COO — Jualan' : 'CS Agent'}</b>\n\n📧 Email ${isCoo ? 'penawaran PRO' : 'follow-up'} DIKIRIM ke <code>${to}</code>\nSubjek: "${subject}"\nDisetujui oleh: ${user?.email || 'admin'}`
       )
 

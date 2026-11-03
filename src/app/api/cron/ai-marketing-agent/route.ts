@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, isMissingTableError } from '@/lib/cron-supabase'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { callLLM, extractJson, getLLMProviderName } from '@/lib/ai-llm'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 
 /**
  * GET /api/cron/ai-marketing-agent
@@ -17,7 +17,7 @@ import { sendTelegramNotification } from '@/lib/telegram'
  *      Format per ide: { hook, script, caption, cta }
  *   4. Simpan draf ke `ai_pending_tasks` status 'pending' (1 baris per run,
  *      idempotent — tidak dobel jika cron jalan 2x di hari yang sama)
- *   5. Notif Telegram ke owner
+ *   5. Notif admin ke owner (Discord)
  *
  * Auth: Bearer CRON_SECRET (skip jika secret belum diset — konsisten
  * dengan route cron lain). Params: ?dry=true untuk preview tanpa menulis DB.
@@ -240,9 +240,9 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Gagal insert draft: ' + insertErr.message }, { status: 500 })
   }
 
-  // 4. Notif Telegram ke owner
+  // 4. Notif admin ke owner (Discord)
   const ideaList = content.ideas.map((i, idx) => `${idx + 1}. ${i.hook}`).join('\n')
-  await sendTelegramNotification(
+  await sendAdminNotification(
     `🤖 <b>AI Marketing Agent</b>\n\n🎬 ${content.ideas.length} ide konten TikTok siap (status: PENDING)\nProvider LLM: <b>${content.provider}</b>\n\n💡 Ide:\n${ideaList}\n\n👉 Review & approve di: ${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'}/admin/ai-staff`
   )
 
