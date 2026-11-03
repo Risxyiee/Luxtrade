@@ -17,11 +17,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * ============================================================
  * GET  (admin)  → 50 antrean terakhir + status token (usia/sisa hari)
  * POST (admin ATAU Bearer CRON_SECRET utk otomasi):
- *        body { imageUrl, caption?, scheduledFor?(ISO), publishNow? }
+ *        body { mediaType?: 'IMAGE'|'REELS', imageUrl?, videoUrl?,
+ *               caption?, scheduledFor?(ISO), publishNow? }
  *        ?dry=true → validasi saja tanpa menyimpan
- *      → validasi input (https jpg/png ≤8MB, caption ≤2200 char)
+ *      → validasi input (IMAGE: https jpg/png ≤8MB · REELS: https mp4,
+ *        caption ≤2200 char)
  *      → simpan baris 'pending' (dipublish cron ig-auto-post)
- *      → publishNow=true → posting langsung di request ini.
+ *      → publishNow=true → posting langsung di request ini (Reels:
+ *        poll sampai 6 menit).
  *
  * Auth: requireAdmin (session + ADMIN_EMAILS/profiles.role) ATAU
  *       header Authorization: Bearer <CRON_SECRET> untuk pipeline otomatis.
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
   const [{ data: rows, error }, cfg] = await Promise.all([
     admin
       .from('instagram_posts')
-      .select('id, image_url, caption, status, ig_post_id, permalink, error, attempts, scheduled_for, published_at, created_at')
+      .select('id, media_type, image_url, video_url, caption, status, ig_post_id, permalink, error, attempts, scheduled_for, published_at, created_at')
       .order('created_at', { ascending: false })
       .limit(50),
     getIgConfig(admin),
@@ -81,19 +84,26 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Database not available' }, { status: 503 })
 
   const body = await request.json().catch(() => null) as {
+    mediaType?: string
     imageUrl?: string
+    videoUrl?: string
     caption?: string
     scheduledFor?: string
     publishNow?: boolean
   } | null
+  const mediaType = body?.mediaType === 'REELS' ? 'REELS' : 'IMAGE'
   const imageUrl = String(body?.imageUrl || '').trim()
+  const videoUrl = String(body?.videoUrl || '').trim()
   const caption = String(body?.caption || '').trim()
   const dry = new URL(request.url).searchParams.get('dry') === 'true'
 
-  if (!imageUrl) {
+  if (mediaType === 'REELS' && !videoUrl) {
+    return NextResponse.json({ error: 'videoUrl wajib diisi untuk REELS' }, { status: 400 })
+  }
+  if (mediaType === 'IMAGE' && !imageUrl) {
     return NextResponse.json({ error: 'imageUrl wajib diisi' }, { status: 400 })
   }
-  const invalid = validateIgPostInput({ imageUrl, caption })
+  const invalid = validateIgPostInput({ mediaType, imageUrl, videoUrl, caption })
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 })
 
   let scheduledFor = new Date().toISOString()
@@ -112,15 +122,18 @@ export async function POST(request: NextRequest) {
   const { data: inserted, error: insErr } = await admin
     .from('instagram_posts')
     .insert({
-      image_url: imageUrl,
+      media_type: mediaType,
+      image_url: mediaType === 'IMAGE' ? imageUrl : null,
+      video_url: mediaType === 'REELS' ? videoUrl : null,
       caption,
       status: 'pending',
+      source: 'manual',
       scheduled_for: scheduledFor,
     })
-    .select('id, image_url, caption, status, scheduled_for, created_at')
+    .select('id, media_type, image_url, video_url, caption, status, scheduled_for, created_at')
     .single()
   if (insErr || !inserted) {
-    return NextResponse.json({ error: `Gagal simpan antrean (jalankan migrasi 037?): ${insErr?.message || '?'}` }, { status: 500 })
+    return NextResponse.json({ error: `Gagal simpan antrean (jalankan migrasi 037 + 038?): ${insErr?.message || '?'}` }, { status: 500 })
   }
 
   /* publishNow → coba posting sekarang juga (tanpa nunggu cron) */
@@ -129,7 +142,12 @@ export async function POST(request: NextRequest) {
     if (!tok.cfg) {
       return NextResponse.json({ ok: true, post: inserted, publishNow: false, reason: 'FACEBOOK_PAGE_ID / FACEBOOK_PAGE_TOKEN belum diset' })
     }
-    const r = await postToInstagram(tok.cfg, { imageUrl, caption: caption || undefined })
+    const r = await postToInstagram(tok.cfg, {
+      mediaType,
+      imageUrl: mediaType === 'IMAGE' ? imageUrl : undefined,
+      videoUrl: mediaType === 'REELS' ? videoUrl : undefined,
+      caption: caption || undefined,
+    })
     if (r.ok) {
       await admin
         .from('instagram_posts')

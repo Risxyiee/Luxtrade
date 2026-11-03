@@ -3,9 +3,10 @@
  * =====================================================================
  * Alur posting (persis spesifikasi):
  *   1) POST https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/media
- *        ?image_url=<URL publik jpg/png>&caption=<teks>
+ *        ?image_url=<URL publik jpg/png>&caption=<teks>          (foto)
+ *        ?media_type=REELS&video_url=<URL publik mp4>&caption=   (Reels)
  *      → { id: <creation_id> }  (container)
- *   2) Tunggu container status FINISHED (IG memproses beberapa detik)
+ *   2) Tunggu container status FINISHED (image: detik · Reels: 1–5 menit)
  *   3) POST https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/media_publish
  *        ?creation_id=<creation_id>
  *      → { id: <ig_post_id> }  → ambil permalink utk riwayat
@@ -40,6 +41,11 @@ const TOKEN_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000
 export const IG_CAPTION_MAX = 2200
 /** Cap keamanan posting per 24 jam (batas API IG ±25 post/hari utk konten dibuat API). */
 export const IG_DAILY_CAP = 25
+/** Tipe media yang didukung: foto single (IMAGE) atau video Reels (REELS). */
+export type IgMediaType = 'IMAGE' | 'REELS'
+/** Video Reels butuh proses server IG lebih lama (1–5 menit) → poll lebih panjang. */
+const REELS_POLL_MAX_WAIT_MS = 6 * 60 * 1000
+const REELS_POLL_INTERVAL_MS = 15_000
 
 /* ============================================================
    Tipe
@@ -63,6 +69,8 @@ export interface IgPostResult {
   error?: string
   /** Tahap gagal: 'config' | 'create' | 'status' | 'publish' | 'permalink' */
   stage?: string
+  /** 'IMAGE' atau 'REELS' — untuk log antrean */
+  mediaType?: IgMediaType
 }
 
 export interface TokenRefreshResult {
@@ -232,15 +240,35 @@ async function graphCall(
 
 /* ============================================================
    1) Buat container — POST /{page-id}/media
+   ============================================================
+   IMAGE → param image_url (jpg/png publik).
+   REELS → param media_type=REELS + video_url (mp4 publik, H.264/AAC,
+           3–90 detik ideal) + share_to_feed=true (muncul juga di feed).
    ============================================================ */
 
 export async function createMediaContainer(
   cfg: IgConfig,
-  opts: { imageUrl: string; caption?: string }
+  opts: {
+    mediaType?: IgMediaType
+    imageUrl?: string
+    videoUrl?: string
+    caption?: string
+    shareToFeed?: boolean
+  }
 ): Promise<{ ok: boolean; containerId?: string; error?: string }> {
-  const params: Record<string, string> = { image_url: opts.imageUrl }
+  const isReels = (opts.mediaType || 'IMAGE') === 'REELS'
+  const params: Record<string, string> = {}
+  if (isReels) {
+    if (!opts.videoUrl) return { ok: false, error: 'REELS butuh video_url' }
+    params.media_type = 'REELS'
+    params.video_url = opts.videoUrl
+    params.share_to_feed = opts.shareToFeed === false ? 'false' : 'true'
+  } else {
+    if (!opts.imageUrl) return { ok: false, error: 'IMAGE butuh image_url' }
+    params.image_url = opts.imageUrl
+  }
   if (opts.caption) params.caption = opts.caption
-  const r = await graphCall('POST', `${cfg.pageId}/media`, params, cfg.pageToken, 30_000)
+  const r = await graphCall('POST', `${cfg.pageId}/media`, params, cfg.pageToken, 60_000)
   if (!r.ok) return { ok: false, error: r.error }
   const id = String(r.data?.id || '')
   if (!id) return { ok: false, error: 'Graph API tidak balik container id' }
@@ -294,27 +322,33 @@ export async function getPostPermalink(cfg: IgConfig, postId: string): Promise<s
 
 export async function postToInstagram(
   cfg: IgConfig,
-  opts: { imageUrl: string; caption?: string },
+  opts: { mediaType?: IgMediaType; imageUrl?: string; videoUrl?: string; caption?: string },
   poll?: { maxWaitMs?: number; intervalMs?: number }
 ): Promise<IgPostResult> {
-  const maxWaitMs = poll?.maxWaitMs ?? 45_000
-  const intervalMs = poll?.intervalMs ?? 3_000
+  const isReels = (opts.mediaType || 'IMAGE') === 'REELS'
+  const maxWaitMs = poll?.maxWaitMs ?? (isReels ? REELS_POLL_MAX_WAIT_MS : 45_000)
+  const intervalMs = poll?.intervalMs ?? (isReels ? REELS_POLL_INTERVAL_MS : 3_000)
 
   /* 1) Container */
-  const created = await createMediaContainer(cfg, opts)
+  const created = await createMediaContainer(cfg, {
+    mediaType: isReels ? 'REELS' : 'IMAGE',
+    imageUrl: opts.imageUrl,
+    videoUrl: opts.videoUrl,
+    caption: opts.caption,
+  })
   if (!created.ok || !created.containerId) {
-    return { ok: false, stage: 'create', error: created.error }
+    return { ok: false, stage: 'create', error: created.error, mediaType: isReels ? 'REELS' : 'IMAGE' }
   }
   const containerId = created.containerId
 
-  /* 2) Poll status (IG memproses gambar beberapa detik) */
+  /* 2) Poll status (image: beberapa detik · Reels: 1–5 menit) */
   const deadline = Date.now() + maxWaitMs
   let lastMsg: string | undefined
   while (Date.now() < deadline) {
     const st = await getContainerStatus(cfg, containerId)
     lastMsg = st.message
     if (st.statusCode === 'ERROR') {
-      return { ok: false, stage: 'status', containerId, error: st.message || 'IG menolak media (ERROR)' }
+      return { ok: false, stage: 'status', containerId, mediaType: isReels ? 'REELS' : 'IMAGE', error: st.message || 'IG menolak media (ERROR)' }
     }
     if (st.statusCode === 'FINISHED') break
     await new Promise((r) => setTimeout(r, intervalMs))
@@ -323,18 +357,18 @@ export async function postToInstagram(
   // IG belum selesai, media_publish balik error jelas (jangan diam).
   const fin = await getContainerStatus(cfg, containerId)
   if (fin.statusCode === 'ERROR') {
-    return { ok: false, stage: 'status', containerId, error: fin.message || 'IG menolak media (ERROR)' }
+    return { ok: false, stage: 'status', containerId, mediaType: isReels ? 'REELS' : 'IMAGE', error: fin.message || 'IG menolak media (ERROR)' }
   }
 
   /* 3) Publish */
   const pub = await publishContainer(cfg, containerId)
   if (!pub.ok || !pub.postId) {
-    return { ok: false, stage: 'publish', containerId, error: pub.error }
+    return { ok: false, stage: 'publish', containerId, mediaType: isReels ? 'REELS' : 'IMAGE', error: pub.error }
   }
 
   /* 4) Permalink (best-effort) */
   const permalink = await getPostPermalink(cfg, pub.postId)
-  return { ok: true, containerId, postId: pub.postId, permalink }
+  return { ok: true, containerId, postId: pub.postId, permalink, mediaType: isReels ? 'REELS' : 'IMAGE' }
 }
 
 /* ============================================================
@@ -437,16 +471,36 @@ export async function ensureFreshToken(
    Util validasi input antrean
    ============================================================ */
 
-export function validateIgPostInput(opts: { imageUrl: string; caption?: string }): string | null {
+/**
+ * Validasi input antrean — mendukung IMAGE (imageUrl) dan REELS (videoUrl).
+ * Syarat IG API: https publik; image .jpg/.png ≤8MB; video .mp4 (H.264/AAC).
+ */
+export function validateIgPostInput(opts: {
+  mediaType?: IgMediaType
+  imageUrl?: string
+  videoUrl?: string
+  caption?: string
+}): string | null {
+  const isReels = (opts.mediaType || 'IMAGE') === 'REELS'
+  const rawUrl = isReels ? (opts.videoUrl || '') : (opts.imageUrl || '')
+  if (!rawUrl) {
+    return isReels ? 'video_url wajib diisi untuk REELS' : 'image_url wajib diisi untuk IMAGE'
+  }
   let url: URL
   try {
-    url = new URL(opts.imageUrl)
+    url = new URL(rawUrl)
   } catch {
-    return 'image_url bukan URL yang valid'
+    return `${isReels ? 'video_url' : 'image_url'} bukan URL yang valid`
   }
-  if (url.protocol !== 'https:') return 'image_url wajib https:// (syarat Instagram API)'
+  if (url.protocol !== 'https:') {
+    return `${isReels ? 'video_url' : 'image_url'} wajib https:// (syarat Instagram API)`
+  }
   const path = url.pathname.toLowerCase()
-  if (!/\.(jpe?g|png)$/.test(path)) {
+  if (isReels) {
+    if (!/\.mp4$/.test(path)) {
+      return 'video_url harus menunjuk file .mp4 (syarat Instagram Reels API)'
+    }
+  } else if (!/\.(jpe?g|png)$/.test(path)) {
     return 'image_url harus menunjuk file .jpg/.jpeg/.png (syarat Instagram API)'
   }
   const cap = opts.caption || ''

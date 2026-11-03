@@ -29,6 +29,9 @@ on:
     - cron: '0 2 * * *'
     # 12:00 UTC = 19:00 WIB — post sore (prime time IG Indonesia)
     - cron: '0 12 * * *'
+    # 13:30 UTC = 20:30 WIB — jaring pengaman: Reels Sinta (render 19:10)
+    #       yang belum terpublish (timeout/pending) dicoba lagi
+    - cron: '30 13 * * *'
     # 00:00 UTC = 07:00 WIB — pengecekan & refresh token harian
     - cron: '0 0 * * *'
   workflow_dispatch:

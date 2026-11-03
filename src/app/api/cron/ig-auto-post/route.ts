@@ -13,35 +13,43 @@ import {
  * ============================================================
  * GET/POST /api/cron/ig-auto-post — Auto-post Instagram
  * ============================================================
- * Antrean tabel `instagram_posts` (migrasi 037):
+ * Antrean tabel `instagram_posts` (migrasi 037 + 038):
  *   pending → publishing → published (ig_post_id, permalink)
  *                        ↘ failed (error, attempts ≥ 3)
+ *   media_type: 'IMAGE' (image_url) | 'REELS' (video_url .mp4 —
+ *   hasil render Remotion Sinta, diupload ke host publik)
  *
  * Langkah per tick:
  *   1. ensureFreshToken — token > 55 hari → refresh otomatis
  *      (fb_exchange_token, simpan ig_token_state); gagal refresh
  *      TIDAK menggagalkan posting (token lama mungkin masih hidup).
  *   2. Cap keamanan: maks 25 post published / 24 jam (limit IG API).
- *   3. Reclaim baris 'publishing' menggantung > 15 menit → pending.
+ *   3. Reclaim baris 'publishing' menggantung > 30 menit (Reels
+ *      butuh proses server IG 1–5 menit) → pending.
  *   4. Klaim maks N baris 'pending' (scheduled_for ≤ now, N default 2,
- *      maks 5 via ?max=) → postToInstagram (media → poll → media_publish).
+ *      maks 5 via ?max=) → postToInstagram (media → poll → media_publish;
+ *      Reels poll sampai 6 menit).
  *   5. Sukses → published + permalink. Gagal → attempts<3 balik pending,
  *      else failed permanen. Ringkasan gagal → Discord admin.
  *
  * Auth: Bearer/x-cron-secret = CRON_SECRET (fail-closed di produksi).
- * Cron: GitHub Actions instagram-cron.yml — 09:00 & 19:00 WIB.
+ * Cron: GitHub Actions instagram-cron.yml — 09:00 & 19:00 & 20:30 WIB
+ *      (20:30 = jaring pengaman Reels yang diproses dari 19:10).
  * Param: ?max=3 | ?dry=true (tampilkan antrean tanpa posting)
  */
 export const dynamic = 'force-dynamic'
 
 const MAX_PER_RUN = 5
 const DEFAULT_PER_RUN = 2
-const STALE_PUBLISHING_MS = 15 * 60 * 1000
+/** Reels butuh 1–5 menit proses IG → hang lebih lama sebelum di-reclaim. */
+const STALE_PUBLISHING_MS = 30 * 60 * 1000
 const MAX_ATTEMPTS = 3
 
 interface QueueRow {
   id: string
-  image_url: string
+  media_type?: string | null
+  image_url: string | null
+  video_url: string | null
   caption: string | null
   attempts: number
 }
@@ -97,11 +105,11 @@ async function handle(request: NextRequest) {
       return NextResponse.json({ ok: true, skipped: `cap harian tercapai (${IG_DAILY_CAP} post/24 jam)`, posted: 0 })
     }
 
-    /* ── 3) Reclaim 'publishing' menggantung (> 15 menit) ── */
+    /* ── 3) Reclaim 'publishing' menggantung (> 30 menit, Reels lama) ── */
     const staleBefore = new Date(Date.now() - STALE_PUBLISHING_MS).toISOString()
     await admin
       .from('instagram_posts')
-      .update({ status: 'pending', error: 'reclaimed: publishing menggantung >15 menit' })
+      .update({ status: 'pending', error: 'reclaimed: publishing menggantung >30 menit' })
       .eq('status', 'publishing')
       .lt('updated_at', staleBefore)
 
@@ -109,7 +117,7 @@ async function handle(request: NextRequest) {
     if (dry) {
       const { data } = await admin
         .from('instagram_posts')
-        .select('id, image_url, caption, status, attempts, scheduled_for, created_at')
+        .select('id, media_type, image_url, video_url, caption, status, attempts, scheduled_for, created_at')
         .in('status', ['pending', 'publishing'])
         .order('created_at', { ascending: true })
         .limit(20)
@@ -119,7 +127,7 @@ async function handle(request: NextRequest) {
     /* ── 4) Klaim antrean pending ── */
     const { data: due, error: qErr } = await admin
       .from('instagram_posts')
-      .select('id, image_url, caption, attempts')
+      .select('id, media_type, image_url, video_url, caption, attempts')
       .eq('status', 'pending')
       .lte('scheduled_for', new Date().toISOString())
       .order('created_at', { ascending: true })
@@ -133,7 +141,7 @@ async function handle(request: NextRequest) {
     }
 
     /* ── 5) Posting satu per satu ── */
-    const results: Array<{ id: string; ok: boolean; postId?: string; permalink?: string; error?: string }> = []
+    const results: Array<{ id: string; ok: boolean; postId?: string; permalink?: string; mediaType?: string; error?: string }> = []
     let failures = 0
 
     for (const row of rows) {
@@ -147,7 +155,9 @@ async function handle(request: NextRequest) {
       if (!claimed.data?.length) continue // baris diambil isolate lain
 
       const r = await postToInstagram(cfg, {
-        imageUrl: row.image_url,
+        mediaType: row.media_type === 'REELS' ? 'REELS' : 'IMAGE',
+        imageUrl: row.image_url || undefined,
+        videoUrl: row.video_url || undefined,
         caption: row.caption || undefined,
       })
 
@@ -162,7 +172,7 @@ async function handle(request: NextRequest) {
             error: null,
           })
           .eq('id', row.id)
-        results.push({ id: row.id, ok: true, postId: r.postId, permalink: r.permalink })
+        results.push({ id: row.id, ok: true, postId: r.postId, permalink: r.permalink, mediaType: r.mediaType })
       } else {
         const giveUp = (row.attempts || 0) + 1 >= MAX_ATTEMPTS
         await admin

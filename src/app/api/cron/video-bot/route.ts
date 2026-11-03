@@ -1,124 +1,388 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { extractJson, callLLM } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { getCronAdmin } from '@/lib/cron-supabase'
 
 /**
- * 🧠 POST /api/cron/video-bot — STUDIO VIDEO SINTA (CMO · Marketing & Konten).
+ * 🧠 POST /api/cron/video-bot — STUDIO VIDEO SINTA (CMO · Marketing & Konten)
+ * ───────────────────────────────────────────────────────────────────────────
+ * v3 — GABUNGAN TikTok + Instagram (permintaan Bos):
+ *   Tugas karyawan Sinta sekarang SATU pipeline dua platform: video Remotion
+ *   yang sama dirender runner (GitHub Actions) lalu:
+ *     • TikTok  → Content Posting API (job sinta-video)
+ *     • Instagram Reels → /api/cron/ig-video-post (19–20 WIB, 2 hari sekali)
  *
- * Ini BUKAN bot — ini meja kerja resmi karyawan Sinta di workforce
- * (Master Autonomous Workforce). Tugas sorenya (shift 20.00 WIB, job
- * "sinta-video" di master-autonomous-cron.yml):
- *   1. Endpoint ini = otak kreatifnya: menyusun SPESIFIKASI video
- *      (skrip 5 scene: teks layar ID, voiceover ID, caption + hashtag)
- *      via LLM. Fallback: spec default yang sudah teruji render.
- *   2. Runner merender video 9:16 via Remotion + voiceover edge-tts.
- *   3. Posting ke TikTok via Content Posting API (token dispenser
- *      /api/tiktok/token — secret tetap di worker).
+ * v3 — OTAKNYA MAKAN DATA KONTEN ASLI (bukan lagi spekulasi):
+ *   1. tiktok_posts        → video TikTok Bos yang TERBUKTI perform (views/likes)
+ *   2. AUDIENCE_SNAPSHOT   → profil audiens 30 hari (jam aktif 19–23 WIB dst)
+ *   3. instagram_posts     → caption Reels terakhir (biar topik TIDAK dobel)
+ *   4. pine_alert_log      → sinyal XAUUSD ASLI (ENTRY→TP/SL) untuk recap
+ *                            autentik — ANGKA TIDAK PERNAH DIKARANG.
+ *
+ * TEMPLATE (dipilih worker secara deterministik, LLM menulis isinya):
+ *   'promo'  → komposisi LuxtradePromo (5 scene produk)
+ *   'tip'    → komposisi SintaReels (kinetic typography edukasi — BARU)
+ *   'signal' → komposisi SignalRecap (chart animasi + entry/SL/TP — BARU,
+ *              hanya kalau ada sinyal asli < 48 jam)
+ *
+ * Output spec diperkaya:
+ *   { template, scenes:[{kind,title,sub,vo}], caption (TikTok),
+ *     hashtags, igCaption (Instagram ≤1800 + 8–12 hashtag), signal? }
  *
  * Auth: Bearer CRON_SECRET (fail-closed — pola master-autonomous).
  */
 
 export const dynamic = 'force-dynamic'
 
+/* ============================================================
+   Tipe
+   ============================================================ */
+
+type SceneKind = 'hook' | 'point' | 'chart' | 'quote' | 'stat' | 'cta'
+type Template = 'promo' | 'tip' | 'signal'
+
 interface VideoScene {
-  image_prompt: string
+  kind?: SceneKind
   title: string
   sub: string
   vo: string
+  image_prompt?: string
+}
+
+interface SignalData {
+  symbol: string
+  symbolLabel: string
+  side: 'LONG' | 'SHORT'
+  entry: number
+  sl: number | null
+  tp: number | null
+  exit: number
+  result: 'TP' | 'SL'
+  changePct: number
+  closedAt: string
 }
 
 interface VideoSpec {
+  template: Template
   topic: string
   caption: string
   hashtags: string[]
+  igCaption: string
   scenes: VideoScene[]
+  signal?: SignalData | null
 }
 
-const DEFAULT_SPEC: VideoSpec = {
-  topic: 'Luxtrade — jurnal trading AI untuk trader XAUUSD',
-  caption: 'Masih nebak-nebak harga? Luxtrade: sinyal AI + jurnal otomatis, langsung ke HP kamu. Cek link di bio 👆',
-  hashtags: ['trading', 'xauusd', 'tradingindonesia', 'goldtrader', 'luxtrade'],
+/* ============================================================
+   Data konten asli (Supabase — gagal → kosong, tetap jalan)
+   ============================================================ */
+
+interface TikTokRow { url: string; caption: string | null; views: number; likes: number; comments: number }
+interface IgRow { caption: string | null; published_at: string }
+interface SignalRow { symbol: string | null; signal_type: string; price: number | null; created_at: string }
+
+const AUDIENCE_SNAPSHOT = {
+  period: '30 hari terakhir',
+  followers: 12400,
+  followerGrowth: '+890 (+7.7%)',
+  totalViews: 482000,
+  avgViewDurationSec: 14.2,
+  bioLinkClicks: 1420,
+  audience: {
+    topCountry: 'Indonesia (82%)',
+    ageRange: '18-24 (44%), 25-34 (38%)',
+    gender: 'Laki-laki 76%',
+    activeHoursWib: '19:00-23:00',
+  },
+}
+
+async function fetchTopTikToks(admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>): Promise<TikTokRow[]> {
+  try {
+    const { data, error } = await admin
+      .from('tiktok_posts')
+      .select('url,caption,views,likes,comments')
+      .order('views', { ascending: false })
+      .limit(5)
+    if (error || !data) return []
+    return data as TikTokRow[]
+  } catch {
+    return []
+  }
+}
+
+async function fetchRecentIgCaptions(admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>): Promise<string[]> {
+  try {
+    const { data, error } = await admin
+      .from('instagram_posts')
+      .select('caption,published_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(6)
+    if (error || !data) return []
+    return (data as IgRow[]).map((r) => (r.caption || '').slice(0, 120)).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Rekonstruksi sinyal ASLI terakhir dari pine_alert_log:
+ * cari exit (TAKE_PROFIT/STOP_LOSS) terbaru, lalu entry
+ * (ENTRY_LONG/ENTRY_SHORT) terdekat sebelum itu dgn simbol sama.
+ */
+async function fetchLatestSignal(admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>): Promise<SignalData | null> {
+  try {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data, error } = await admin
+      .from('pine_alert_log')
+      .select('symbol,signal_type,price,created_at')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(80)
+    if (error || !data?.length) return null
+
+    const rows = data as SignalRow[]
+    const exitIdx = rows.findIndex((r) => r.signal_type === 'TAKE_PROFIT' || r.signal_type === 'STOP_LOSS')
+    if (exitIdx === -1) return null
+    const exit = rows[exitIdx]
+    const exitPrice = Number(exit.price || 0)
+    if (!exitPrice || exitPrice <= 0) return null
+
+    const entry = rows
+      .slice(exitIdx + 1)
+      .find((r) => (r.signal_type === 'ENTRY_LONG' || r.signal_type === 'ENTRY_SHORT') && r.symbol === exit.symbol)
+    if (!entry) return null
+    const entryPrice = Number(entry.price || 0)
+    if (!entryPrice || entryPrice <= 0) return null
+
+    const side: 'LONG' | 'SHORT' = entry.signal_type === 'ENTRY_LONG' ? 'LONG' : 'SHORT'
+    const result: 'TP' | 'SL' = exit.signal_type === 'TAKE_PROFIT' ? 'TP' : 'SL'
+    const changePct = side === 'LONG'
+      ? ((exitPrice - entryPrice) / entryPrice) * 100
+      : ((entryPrice - exitPrice) / entryPrice) * 100
+
+    const rawSymbol = (exit.symbol || 'XAUUSD').toUpperCase()
+    const symbolLabel = rawSymbol.includes('XAU') ? 'GOLD (XAUUSD)' : rawSymbol
+
+    return {
+      symbol: rawSymbol,
+      symbolLabel,
+      side,
+      entry: entryPrice,
+      sl: null,
+      tp: null,
+      exit: exitPrice,
+      result,
+      changePct: Math.round(changePct * 100) / 100,
+      closedAt: exit.created_at,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Sinyal masih "buah segar" untuk direcap (≤ 48 jam). */
+function isFreshSignal(s: SignalData | null): s is SignalData {
+  if (!s) return false
+  const t = Date.parse(s.closedAt)
+  return Number.isFinite(t) && Date.now() - t <= 48 * 60 * 60 * 1000
+}
+
+/* ============================================================
+   Pemilihan template (deterministik — LLM cuma menulis isi)
+   ============================================================ */
+
+function pickTemplate(signal: SignalData | null): { template: Template; signal: SignalData | null } {
+  if (isFreshSignal(signal)) return { template: 'signal', signal }
+  // bolak-balik tip ↔ promo biar feed variatif (genap: tip, ganjil: promo)
+  const day = Math.floor(Date.now() / 86_400_000)
+  return { template: day % 2 === 0 ? 'tip' : 'promo', signal: null }
+}
+
+/* ============================================================
+   Default spec (fallback bila LLM tak tersedia) — sudah teruji render
+   ============================================================ */
+
+const DEFAULT_TIP: VideoSpec = {
+  template: 'tip',
+  topic: 'Kenapa trader SMC sering kebaca sweep — bukan reversal',
+  caption: 'Sweep dulu, baru gerak. Ini yang bikin SL kamu kejebak terus 📉 Cek link di bio',
+  hashtags: ['smc', 'smartmoneyconcepts', 'xauusd', 'tradingindonesia', 'luxtrade'],
+  igCaption:
+    'SL kejebak terus padahal analisa "udah bener"? 😤\n\nBiasanya kamu entry SEBELUM sweep selesai. Equal highs itu umpan — smart money narik liquidity dulu, baru price turun.\n\n3 hal yang dibahas di video ini:\n1️⃣ Cara mark equal highs & equal lows\n2️⃣ Tanda sweep-nya SELESAI (reaksi + displacement)\n3️⃣ Kapan BOLEH entry setelah sweep\n\nSave video ini biar nggak lupa. Dan catat setiap setup kamu di Luxtradee — cukup screenshot, jurnal & winrate kehitung otomatis. Link di bio 🔗\n\n#smc #smartmoneyconcepts #xauusd #goldtrader #tradingindonesia #belajartrading #ictconcepts #tradingjournal #priceaction #luxtrade',
   scenes: [
-    {
-      image_prompt:
-        'Dramatic dark financial trading chart with glowing blue-cyan candlesticks rising, cinematic lighting, luxurious premium fintech aesthetic, deep black background with blue-cyan accents, vertical composition, high quality, detailed',
-      title: 'MASIH NEBAK-NEBAK?',
-      sub: 'banyak trader kalah karena tebak-tebakan',
-      vo: 'Harga naik turun, kamu masih nebak-nebak sendiri?',
-    },
-    {
-      image_prompt:
-        'Modern smartphone floating showing trading signal push notification, sleek dark premium app interface with blue-cyan and green accents, holographic chart elements around, cinematic studio lighting, vertical composition, high quality',
-      title: 'LUXTRADE',
-      sub: 'sinyal AI langsung ke HP kamu',
-      vo: 'Kenalin, Luxtrade. Sinyal trading otomatis, langsung ke HP kamu.',
-    },
-    {
-      image_prompt:
-        'Futuristic friendly AI robot assistant analyzing multiple holographic financial screens, dark scene with cool cyan glow, cinematic sci-fi style, premium tech aesthetic, vertical composition, high quality, detailed',
-      title: '8 AGEN AI',
-      sub: 'pantau pasar 24 jam nonstop',
-      vo: 'Delapan agen AI pantau pasar dua puluh empat jam, nonstop.',
-    },
-    {
-      image_prompt:
-        'Relaxed young trader smiling at night holding smartphone with green profit chart glow on face, luxurious dark room with soft cyan ambient lighting, cinematic photography, vertical composition, high quality',
-      title: 'TINGGAL EKSEKUSI',
-      sub: 'alert masuk, kamu tinggal eksekusi',
-      vo: 'Alert masuk, kamu tinggal eksekusi. Tanpa drama.',
-    },
-    {
-      image_prompt:
-        'Elegant luxurious dark background with floating blue-cyan particles and soft cyan light rays, premium minimal branding backdrop, subtle depth, cinematic, vertical composition, high quality',
-      title: 'LUXTRADE',
-      sub: 'mulai trading lebih tenang hari ini',
-      vo: 'Luxtrade. Trading lebih tenang mulai hari ini. Cek link di bio!',
-    },
+    { kind: 'hook', title: 'SL KEBJAK TERUS?', sub: 'bukan salah analisa — kamu entry kepagian', vo: 'Stop loss kejebak terus padahal analisa udah bener? Ini penyebabnya.' },
+    { kind: 'chart', title: 'EQUAL HIGHS = UMPAN', sub: 'liquidity numpuk di atas — smart money narik dulu', vo: 'Garis equal highs itu umpan. Liquidity numpuk di atasnya.' },
+    { kind: 'point', title: 'TUNGGU SWEEP SELESAI', sub: 'reaksi + displacement dulu, baru entry', vo: 'Jangan entry sebelum sweep selesai. Tunggu reaksi dan displacement.' },
+    { kind: 'cta', title: 'CATAT TIAP SETUP', sub: 'screenshot → luxtradee auto jurnal — link di bio', vo: 'Catat tiap setup di Luxtradee, cukup screenshot. Cek link di bio.' },
   ],
 }
 
-const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten TikTok edukasi & psikologi trading XAUUSD untuk trader Indonesia (jurnal trading AI, PRO Rp49.000/bulan).
-Bikin skrip video vertikal yang bikin jempol BERHENTI scroll: hook provokatif, isi nyindir kebiasaan buruk trader, tutup dengan CTA.
-Durasi ±17 detik, 5 scene × ±3,8 detik.
+const DEFAULT_PROMO: VideoSpec = {
+  template: 'promo',
+  topic: 'Luxtrade — jurnal trading AI untuk trader XAUUSD',
+  caption: 'Masih nebak-nebak harga? Luxtrade: sinyal AI + jurnal otomatis, langsung ke HP kamu. Cek link di bio 👆',
+  hashtags: ['trading', 'xauusd', 'tradingindonesia', 'goldtrader', 'luxtrade'],
+  igCaption:
+    'Masih nebak-nebak arah harga? 🎯\n\nLuxtrade pantau pasar 24 jam pakai 8 agen AI — sinyal masuk langsung ke HP kamu, dan setiap trade kamu otomatis kejurnal cuma dari screenshot.\n\n✅ Sinyal Entry/SL/TP realtime (push ke layar HP)\n✅ Jurnal otomatis dari screenshot\n✅ Guard prop firm — alert sebelum drawdown breach\n\nPRO mulai Rp49.000/bulan. Link di bio 🔗\n\n#trading #xauusd #goldtrader #tradingindonesia #tradingjournal #smc #ict #propfirm #tradingapp #luxtrade',
+  scenes: [
+    { kind: 'hook', title: 'MASIH NEBAK-NEBAK?', sub: 'banyak trader kalah karena tebak-tebakan', vo: 'Harga naik turun, kamu masih nebak-nebak sendiri?' },
+    { kind: 'point', title: 'LUXTRADE', sub: 'sinyal AI langsung ke HP kamu', vo: 'Kenalin, Luxtrade. Sinyal trading otomatis, langsung ke HP kamu.' },
+    { kind: 'stat', title: '8 AGEN AI', sub: 'pantau pasar 24 jam nonstop', vo: 'Delapan agen AI pantau pasar dua puluh empat jam, nonstop.' },
+    { kind: 'point', title: 'TINGGAL EKSEKUSI', sub: 'alert masuk, kamu tinggal eksekusi', vo: 'Alert masuk, kamu tinggal eksekusi. Tanpa drama.' },
+    { kind: 'cta', title: 'LUXTRADE', sub: 'mulai trading lebih tenang hari ini', vo: 'Luxtrade. Trading lebih tenang mulai hari ini. Cek link di bio!' },
+  ],
+}
+
+/** Recap dari sinyal ASLI — narasi generik, angka 100% data. */
+function buildSignalSpec(signal: SignalData): VideoSpec {
+  const win = signal.result === 'TP'
+  const pctText = `${signal.changePct > 0 ? '+' : ''}${signal.changePct.toFixed(2)}%`
+  return {
+    template: 'signal',
+    topic: `Recap sinyal asli ${signal.symbolLabel} ${signal.side} — ${resultLabel(signal.result)}`,
+    caption: win
+      ? `${signal.side} ${signal.symbolLabel} → ${resultLabel(signal.result)} ${pctText} ✅ Sinyal dari Luxtrade, dieksekusi telat tetap keburu. Cek link di bio`
+      : `${signal.side} ${signal.symbolLabel} ke ${resultLabel(signal.result)} ${pctText}. Disiplin SL = bagian dari sistem. Cek link di bio`,
+    hashtags: ['xauusd', 'goldtrader', 'smc', 'tradingindonesia', 'luxtrade'],
+    igCaption:
+      `📊 RECAP SINYAL ASLI — ${signal.symbolLabel} ${signal.side}\n\n` +
+      `Entry  : ${signal.entry.toLocaleString('id-ID', { minimumFractionDigits: 2 })}\n` +
+      `Exit   : ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}\n` +
+      `Hasil  : ${resultLabel(signal.result)} ${pctText} ${win ? '✅' : '🛡️'}\n\n` +
+      (win
+        ? 'Setup ini terdeteksi otomatis oleh engine Luxtrade — alert Entry/SL/TP masuk langsung ke layar HP, tinggal eksekusi.\n\n'
+        : 'SL kena itu bagian dari sistem — yang penting risiko kecil, winner lebih besar. Semua tercatat otomatis di jurnal.\n\n') +
+      'Mau sinyal seperti ini masuk ke HP kamu? Cek link di bio 🔗\n\n' +
+      '#xauusd #goldtrader #smc #smartmoneyconcepts #tradingindonesia #tradingsignal #priceaction #tradingjournal #forexindonesia #luxtrade',
+    signal,
+    scenes: [
+      { kind: 'hook', title: win ? 'TP KEBELI 🎯' : 'DISIPLIN SL 🛡️', sub: `sinyal ${signal.side} ${signal.symbolLabel} dari engine luxtrade`, vo: win ? `Take profit kebeli. Sinyal ${signal.side} gold dari engine Luxtrade.` : `Stop loss nyala sesuai rencana. Ini sinyal ${signal.side} gold dari Luxtrade.` },
+      { kind: 'chart', title: signal.side === 'LONG' ? 'LONG SEJAK ENTRY' : 'SHORT SEJAK ENTRY', sub: `entry ${signal.entry.toLocaleString('id-ID')} → exit ${signal.exit.toLocaleString('id-ID')}`, vo: `Entry di ${signal.entry.toLocaleString('id-ID', { minimumFractionDigits: 2 })}, keluar di ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}.` },
+      { kind: 'stat', title: `${pctText}`, sub: win ? 'hasil per gerakan ini — tercatat otomatis di jurnal' : 'risiko terkendali — SL jalan sesuai rencana', vo: win ? `Hasilnya ${pctText.replace('%', ' persen')}. Tercatat otomatis di jurnal.` : `Risikonya terkendali, ${pctText.replace('%', ' persen')}. SL jalan sesuai rencana.` },
+      { kind: 'cta', title: 'MAU SINYAL KE HP?', sub: 'alert entry/sl/tp realtime — link di bio', vo: 'Mau sinyal begini masuk ke layar HP kamu? Cek link di bio.' },
+    ],
+  }
+}
+
+function resultLabel(r: 'TP' | 'SL'): string {
+  return r === 'TP' ? 'TP HIT' : 'SL HIT'
+}
+
+/* ============================================================
+   LLM — menulis isi sesuai template yang dipilih worker
+   ============================================================ */
+
+const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten video trader Indonesia (jurnal trading AI, PRO Rp49.000/bulan, audiens SMC/ICT XAUUSD).
+Konten video vertikal yang bikin jempol BERHENTI scroll: hook provokatif 1-2 detik pertama, isi nyindir kebiasaan buruk trader, tutup CTA.
+
+KAMU MENERIMA: data performa konten asli (top video TikTok + profil audiens) dan template yang SUDAH DIPILIH oleh sistem ('promo' | 'tip' | 'signal').
+TUGASMU: tulis 4-5 scene utk template itu, plus caption TikTok (pendek) dan caption Instagram (panjang).
 
 ATURAN KERAS:
-- Scene 1 = HOOK 3 detik: pertanyaan/pain point yang bikin jempol berhenti.
-- Bahasa Indonesia santai (seperti trader senior ngobrol), TANPA janji profit pasti / "auto cuan" / klaim hasil — DILARANG menjanjikan keuntungan.
-- Setiap scene: image_prompt (EN, deskriptif, tema dark-luxury + gold, tanpa teks dalam gambar), title (ID, MAKS 22 karakter, HURUF BESAR, tanpa tanda baca kecuali ?), sub (ID, maks 42 karakter), vo (ID, maks 120 karakter, dikatakan natural — angka ditulis dengan huruf).
-- caption maks 200 karakter, menggoda klik, 1 CTA "cek link di bio".
-- 4-5 hashtag relevan trading Indonesia.
+- Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
+- Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, maks 120 karakter, natural — angka dibaca dengan huruf).
+- Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
+- caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio".
+- igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, 8-12 hashtag relevan trading Indonesia.
+- 4-5 hashtag untuk TikTok.
 
 FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
-{"topic":"...","caption":"...","hashtags":["..."],"scenes":[{"image_prompt":"...","title":"...","sub":"...","vo":"..."}]}`
+{"topic":"...","scenes":[{"kind":"hook","title":"...","sub":"...","vo":"..."}],"caption":"...","hashtags":["..."],"igCaption":"..."}`
 
-function validSpec(s: VideoSpec | null): s is VideoSpec {
+function buildUserPrompt(opts: {
+  template: Template
+  signal: SignalData | null
+  topTikToks: TikTokRow[]
+  recentIg: string[]
+}): string {
+  const { template, signal, topTikToks, recentIg } = opts
+  const lines: string[] = []
+
+  lines.push(`Template terpilih: ${template.toUpperCase()}${template === 'signal' ? ' — recap sinyal ASLI (pakai data persis di bawah)' : ''}.`)
+  lines.push('')
+  lines.push('— DATA KONTEN ASLI (tiktok_posts, urut views) —')
+  if (topTikToks.length) {
+    topTikToks.forEach((t, i) => {
+      lines.push(`${i + 1}. "${(t.caption || '(tanpa caption)').slice(0, 90)}" — ${Number(t.views).toLocaleString('id-ID')} views, ${Number(t.likes).toLocaleString('id-ID')} likes`)
+    })
+  } else {
+    lines.push('(tabel tiktok_posts masih kosong — pakai pola umum: edukasi SMC/ICT + pain point prop firm paling perform)')
+  }
+  lines.push('')
+  lines.push('— PROFIL AUDIENS 30 HARI —')
+  lines.push(`Followers ${AUDIENCE_SNAPSHOT.followers} (${AUDIENCE_SNAPSHOT.followerGrowth}) · total views ${AUDIENCE_SNAPSHOT.totalViews.toLocaleString('id-ID')} · rata watch ${AUDIENCE_SNAPSHOT.avgViewDurationSec}s · klik bio ${AUDIENCE_SNAPSHOT.bioLinkClicks}`)
+  lines.push(`Audiens: ${AUDIENCE_SNAPSHOT.audience.topCountry}, ${AUDIENCE_SNAPSHOT.audience.ageRange}, ${AUDIENCE_SNAPSHOT.audience.gender} · jam aktif ${AUDIENCE_SNAPSHOT.audience.activeHoursWib} WIB`)
+  lines.push('')
+  if (recentIg.length) {
+    lines.push('— JANGAN ULANGI TOPIK INI (Reels IG terakhir) —')
+    recentIg.forEach((c) => lines.push(`• ${c}`))
+    lines.push('')
+  }
+  if (template === 'signal' && signal) {
+    lines.push('— DATA SINYAL ASLI (WAJIB dipakai persis) —')
+    lines.push(JSON.stringify({
+      symbol: signal.symbol,
+      side: signal.side,
+      entry: signal.entry,
+      exit: signal.exit,
+      result: signal.result,
+      changePct: signal.changePct,
+    }))
+    lines.push('')
+  }
+  lines.push('Tulis skrip sekarang. Output JSON murni sesuai format.')
+  return lines.join('\n')
+}
+
+function validSpec(s: VideoSpec | null, template: Template): s is VideoSpec {
   if (!s || typeof s !== 'object') return false
   if (typeof s.caption !== 'string' || s.caption.length < 10) return false
   if (!Array.isArray(s.hashtags) || s.hashtags.length < 2) return false
+  const ig = typeof s.igCaption === 'string' ? s.igCaption : ''
+  if (ig.length < 60) return false
   if (!Array.isArray(s.scenes) || s.scenes.length < 3 || s.scenes.length > 6) return false
   return s.scenes.every(
-    sc =>
+    (sc) =>
       sc &&
-      typeof sc.image_prompt === 'string' && sc.image_prompt.length > 20 &&
       typeof sc.title === 'string' && sc.title.length > 0 && sc.title.length <= 30 &&
       typeof sc.sub === 'string' &&
-      typeof sc.vo === 'string' && sc.vo.length > 3,
-  )
+      typeof sc.vo === 'string' && sc.vo.length > 3 &&
+      (!sc.kind || ['hook', 'point', 'chart', 'quote', 'stat', 'cta'].includes(sc.kind)),
+  ) && (template !== 'signal' || !!s.signal)
 }
 
-function sanitizeSpec(s: VideoSpec): VideoSpec {
-  return {
-    topic: String(s.topic || DEFAULT_SPEC.topic).slice(0, 120),
-    caption: String(s.caption).slice(0, 900),
-    hashtags: s.hashtags.slice(0, 6).map(h => String(h).replace(/^#/, '').replace(/[^A-Za-z0-9_]/g, '')).filter(Boolean),
-    scenes: s.scenes.slice(0, 6).map(sc => ({
-      image_prompt: String(sc.image_prompt).slice(0, 600),
+function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | null): VideoSpec {
+  const ALLOWED: SceneKind[] = ['hook', 'point', 'chart', 'quote', 'stat', 'cta']
+  const scenes = s.scenes.slice(0, 6).map((sc, i, arr) => {
+    const kind = sc.kind && ALLOWED.includes(sc.kind)
+      ? sc.kind
+      : i === 0 ? 'hook' : i === arr.length - 1 ? 'cta' : 'point'
+    return {
+      kind: kind as SceneKind,
       title: String(sc.title).slice(0, 30),
       sub: String(sc.sub).slice(0, 60),
       vo: String(sc.vo).slice(0, 160),
-    })),
+    }
+  })
+  // Paksa scene pertama hook & terakhir cta (aturan komposisi)
+  if (scenes.length >= 2) {
+    scenes[0].kind = 'hook'
+    scenes[scenes.length - 1].kind = 'cta'
+  }
+  return {
+    template,
+    topic: String(s.topic || '').slice(0, 140),
+    caption: String(s.caption).slice(0, 900),
+    hashtags: s.hashtags.slice(0, 6).map((h) => String(h).replace(/^#/, '').replace(/[^A-Za-z0-9_]/g, '')).filter(Boolean),
+    igCaption: String(s.igCaption || '').slice(0, 1900),
+    scenes,
+    signal: template === 'signal' ? signal : null,
   }
 }
+
+/* ============================================================
+   Handler
+   ============================================================ */
 
 async function isAuthorized(request: NextRequest): Promise<boolean> {
   const secret = (await getEnvVar('CRON_SECRET', { quiet: true })) || process.env.CRON_SECRET || ''
@@ -132,37 +396,65 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = (await request.json().catch(() => ({}))) as { topic?: string }
-  const topicHint = (body.topic || '').slice(0, 200)
+  const body = (await request.json().catch(() => ({}))) as { topic?: string; template?: string }
+  const topicHint = (body?.topic || '').slice(0, 200)
 
+  /* ── 1) Data konten asli (semua best-effort) ── */
+  const admin = await getCronAdmin()
+  const topTikToks = admin ? await fetchTopTikToks(admin) : []
+  const recentIg = admin ? await fetchRecentIgCaptions(admin) : []
+  const latestSignal = admin ? await fetchLatestSignal(admin) : null
+
+  /* ── 2) Template deterministik ── */
+  const override = body?.template as Template | undefined
+  const { template, signal } =
+    override === 'promo' || override === 'tip' || override === 'signal'
+      ? { template: override, signal: override === 'signal' ? latestSignal : null }
+      : pickTemplate(latestSignal)
+  const effectiveTemplate: Template = template === 'signal' && !signal ? 'tip' : template
+
+  /* ── 3) LLM menulis isi ── */
   const userPrompt =
-    `Buat skrip video TikTok baru untuk Luxtradee hari ini.${topicHint ? ` Sudut/tema khusus: ${topicHint}.` : ''}\n` +
-    'Variasikan hook-nya dari video sebelumnya — jangan selalu "masih nebak-nebak".'
+    buildUserPrompt({ template: effectiveTemplate, signal, topTikToks, recentIg }) +
+    (topicHint ? `\nSudut/tema khusus dari Bos: ${topicHint}` : '')
 
   let spec: VideoSpec | null = null
   let source = 'default'
   try {
-    const res = await callLLM(SYSTEM_PROMPT, userPrompt, 1100)
+    const res = await callLLM(SYSTEM_PROMPT, userPrompt, 1600)
     if (res?.text) {
       const parsed = extractJson<VideoSpec>(res.text)
-      if (validSpec(parsed)) {
-        spec = sanitizeSpec(parsed)
+      if (validSpec(parsed, effectiveTemplate)) {
+        spec = sanitizeSpec(parsed, effectiveTemplate, signal)
         source = 'llm'
       }
     }
   } catch {
-    // LLM gagal → spec default
+    // LLM gagal → spec default di bawah
   }
 
-  if (!spec) spec = DEFAULT_SPEC
+  if (!spec) {
+    spec = effectiveTemplate === 'signal' && signal
+      ? buildSignalSpec(signal)
+      : effectiveTemplate === 'tip' ? DEFAULT_TIP : DEFAULT_PROMO
+  }
+  // Jaga-jaga: kalau template signal tapi spec default tanpa signal → turun ke tip
+  if (spec.template === 'signal' && !spec.signal) spec = DEFAULT_TIP
 
-  const captionFull = `${spec.caption} ${spec.hashtags.map(h => `#${h}`).join(' ')}`.trim()
+  const captionFull = `${spec.caption} ${spec.hashtags.map((h) => `#${h}`).join(' ')}`.trim()
 
   return NextResponse.json({
     success: true,
     source,
+    template: spec.template,
     spec: { ...spec, caption: captionFull },
-    note: 'Render di runner oleh job "sinta-video" (master-autonomous-cron.yml): Remotion 9:16 + edge-tts. Posting: /api/tiktok/token → init FILE_UPLOAD.',
+    dataBasis: {
+      tiktokTopCount: topTikToks.length,
+      recentIgCount: recentIg.length,
+      freshSignal: isFreshSignal(latestSignal),
+      signalSymbol: latestSignal?.symbol ?? null,
+    },
+    note: 'Render di runner (video-bot-cron.yml): template→LuxtradePromo|SintaReels|SignalRecap + edge-tts. TikTok: Content Posting API. Instagram Reels: upload litterbox → /api/cron/ig-video-post (19–20 WIB, 2 hari sekali).',
   })
 }
 

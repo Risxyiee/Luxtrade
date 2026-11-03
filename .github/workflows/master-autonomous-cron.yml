@@ -6,10 +6,12 @@ name: Master Autonomous Workforce
 # DUA SHIFT KERJA dalam SATU workforce (bukan bot terpisah):
 #   0 1  * * *  → 08.00 WIB  Shift pagi: 3 gelombang karyawan
 #               (Raka+Maya+Bagas+Putri+Dewi → Farhan+Sinta → Alexander)
-#   0 13 * * *  → 20.00 WIB  Shift sore: SINTA (CMO) produksi &
-#               posting video TikTok (prime time FYP Indonesia) —
-#               job "sinta-video" di bawah. Ini TUGAS KARYAWAN
-#               (desk kerja Sinta), bukan bot berdiri sendiri.
+#
+#   ⚠️ SHIFT SORE 20.00 WIB (video Sinta) PINDAH: sekarang SATU
+#   pipeline di video-bot-cron.yml jam 19.10 WIB — render SEKALI,
+#   posting ke TikTok + Instagram Reels (19–20 WIB, 2 hari sekali).
+#   Job "sinta-video" di file ini TIDAK dijadwalkan lagi (cuma
+#   workflow_dispatch utk uji manual) — mencegah render dobel.
 #
 # CF Workers gratis = MAKS 50 SUBREQUEST per invokasi. Run penuh 8 agen
 # (13 probe Raka + rantai LLM + DB + Discord) bisa melampaui batas itu →
@@ -30,16 +32,12 @@ name: Master Autonomous Workforce
 #     PROD_URL        = https://luxtradee.web.id
 #     CRON_SECRET     = string acak (SAMakan dengan env CRON_SECRET
 #                       di Cloudflare Workers — SATU nama saja)
-#     TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN
-#                     → diset di Cloudflare (wrangler secret put), BUKAN di
-#                       GitHub — runner hanya minta access token jangka
-#                       pendek dari /api/tiktok/token.
 #   Cloudflare Dashboard → Workers → luxtradee → Settings →
 #     Variables & Secrets → CRON_SECRET = string yang sama
 #
 # Uji manual: jalankan workflow ini manual (workflow_dispatch):
 #   - video_only=false (default) → shift pagi (3 gelombang)
-#   - video_only=true            → cuma produksi video Sinta
+#   - video_only=true            → cuma produksi video Sinta (uji)
 #   atau:
 #   curl -X POST -H "Authorization: Bearer $SECRET" \
 #     "https://luxtradee.web.id/api/cron/master-autonomous?agents=raka,maya,bagas,putri,dewi"
@@ -49,8 +47,8 @@ on:
   schedule:
     # 0 1 * * * UTC = 08.00 WIB (jam kerja kantor) — shift pagi
     - cron: '0 1 * * *'
-    # 0 13 * * * UTC = 20.00 WIB (prime time TikTok Indonesia) — shift sore Sinta
-    - cron: '0 13 * * *'
+    # (jadwal 0 13 * * * / 20.00 WIB DIHAPUS — video Sinta sekarang
+    #  lewat video-bot-cron.yml jam 19.10 WIB, sekali render dua platform)
   workflow_dispatch:
     inputs:
       video_only:
