@@ -11,11 +11,13 @@
  * Alur per grup (script, symbol, timeframe):
  *   1. fetchServerCandles (TradingView → TwelveData → Yahoo, keyless)
  *   2. runPineHeadless    (source TIDAK pernah keluar dari server)
- *   3. Kumpulkan pemicu: event engine alert() pada bar terakhir
- *      + alert_rules declaratif (cross_above/cross_below/above/below)
+ *   3. Kumpulkan pemicu: event engine alert() + alert_rules declaratif
+ *      pada JENDELA CATCH-UP (beberapa bar terakhir — cron bisa telat;
+ *      FIX "ada sinyal tapi diem aja": dulu HANYA bar terakhir, sinyal
+ *      yang terjadi 1 bar saja sebelum cron tick tidak pernah terkirim)
  *   4. Dedupe per-bar via pine_alert_log (unique index) + mem map
- *   5. PUSH LAYAR HP (push-notify.ts) — sinyal tampil otomatis di HP
- *      walau app tertutup (jalur Telegram dihapus — riwayat git).
+ *   5. PUSH layar HP + CHAT TELEGRAM (push-notify.ts) — user Pro yang
+ *      menghubungkan Telegram menerima sinyal masuk chat lagi.
  *
  * File ini WAJIB hanya diimpor dari server (API route).
  */
@@ -39,6 +41,10 @@ export interface RunnerScript {
 
 export interface RunnerUser {
   userId: string
+  /** Watermark anti-replay: epoch DETIK — sinyal lebih tua dari ini
+      dilewati (dipakai cron dari pine_alert_subscriptions.created_at
+      supaya langganan BARU tidak membanjiri sinyal historis). */
+  sinceSec?: number
 }
 
 export interface AlertTrigger {
@@ -99,36 +105,45 @@ function memDedupeOk(key: string): boolean {
 }
 
 /* ============================================================
-   Kumpulkan pemicu — logika identik dengan detectAndDispatch
-   compile-pine: engine alert() hanya bar TERAKHIR (anti spam)
-   + evaluateAlertRules declaratif.
+   Kumpulkan pemicu — JENDELA CATCH-UP (default 6 bar terakhir).
+   Dulu HANYA bar terakhir → sinyal yang muncul sesaat sebelum cron
+   tick (atau saat candle source belum memuat bar berjalan) hilang
+   senyap selamanya. Sekarang event (alert()/entry/SL/TP/cross)
+   dicari dalam jendela; kirim-ganda dicegah dedupe DB per-bar
+   (pine_alert_log unique) + memDedupe 5 menit.
    ============================================================ */
+export const ALERT_LOOKBACK_BARS = 6
+
 export function collectTriggers(opts: {
   engineAlerts: Array<{ message: string; time: number; barIndex: number }>
   rules: AlertRule[] | null | undefined
   plots: PlotSeries[]
   bars: Array<{ time: number; close: number }>
+  lookbackBars?: number
 }): AlertTrigger[] {
   const { engineAlerts, rules, plots, bars } = opts
+  const lookback = Math.max(1, opts.lookbackBars ?? ALERT_LOOKBACK_BARS)
   const triggers: AlertTrigger[] = []
   if (!bars.length) return triggers
   const lastBar = bars[bars.length - 1]
-  const lastTimeSec = lastBar.time
+  const cutoffSec = bars[Math.max(0, bars.length - lookback)].time
 
-  /* a) Sinyal dari event engine (script memakai alert()) — hanya bar terakhir */
+  /* a) Sinyal dari event engine (alert() / trade entry-exit) —
+     semua event dalam jendela catch-up */
   for (const a of engineAlerts) {
     const barSec = Number(a.barIndex) >= 0 && bars[a.barIndex] ? bars[a.barIndex].time : Math.floor(a.time / 1000)
-    if (barSec !== lastTimeSec) continue // historis → abaikan
+    if (barSec < cutoffSec) continue // di luar jendela → abaikan
     const msg = String(a.message || 'Sinyal indikator')
     const sig = /TP|TAKE.?PROFIT/i.test(msg) ? 'TAKE_PROFIT'
       : /SL|STOP.?LOSS/i.test(msg) ? 'STOP_LOSS'
       : /BUY|LONG|BULL/i.test(msg) ? 'ENTRY_LONG'
       : /SELL|SHORT|BEAR/i.test(msg) ? 'ENTRY_SHORT' : 'SIGNAL'
-    triggers.push({ signal: sig, message: msg, time: lastTimeSec, price: lastBar.close })
+    triggers.push({ signal: sig, message: msg, time: barSec, price: bars[a.barIndex]?.close ?? lastBar.close })
   }
 
-  /* b) Sinyal dari alert_rules declaratif (skrip tanpa alert()) */
-  triggers.push(...evaluateAlertRules(rules, plots, bars))
+  /* b) Sinyal dari alert_rules declaratif (skrip tanpa alert()) —
+     cross = event (jendela), above/below = state (bar terakhir) */
+  triggers.push(...evaluateAlertRules(rules, plots, bars, lookback))
   return triggers
 }
 
@@ -185,6 +200,9 @@ export async function runAlertGroup(
     let sentThis = false
     let reason = 'server belum terhubung'
     for (const t of outcome.triggers) {
+      /* Watermark langganan: jangan replay sinyal sebelum user aktifasi
+         (cron memakai created_at langganan; tes manual tanpa watermark) */
+      if (u.sinceSec && t.time < u.sinceSec) { reason = 'sinyal sebelum langganan aktif'; continue }
       const memKey = `${u.userId}:${script.id}:${symbol}:${t.signal}:${t.time}`
       if (!memDedupeOk(memKey)) { reason = 'dedupe 5 menit'; continue }
 
@@ -228,10 +246,14 @@ export async function runAlertGroup(
           url: '/dashboard',
           urgency: 'high',
         }, { dedupe: false })
-        if (push.sent > 0) {
+        /* Sukses = push layar HP TERKIRIM ATAU masuk chat Telegram
+           (user bisa punya salah satu / keduanya). */
+        if (push.sent > 0 || push.telegramSent) {
           outcome.sent++; sentThis = true; reason = ''
+        } else if (push.skipped === 'no-subs') {
+          reason = 'notifikasi belum diaktifkan (push browser/Telegram)'
         } else {
-          reason = push.skipped === 'no-subs' ? 'notifikasi belum diaktifkan' : (push.error || 'push gagal')
+          reason = push.error || (push.skipped === 'dedupe' ? 'dedupe' : 'push gagal')
         }
       }
     }

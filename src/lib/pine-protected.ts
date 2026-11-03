@@ -423,6 +423,7 @@ export function evaluateAlertRules(
   rules: AlertRule[] | null | undefined,
   plots: PlotSeries[],
   bars: Array<{ time: number; close: number }>,
+  lookbackBars = 1,
 ): Trigger[] {
   if (!Array.isArray(rules) || !rules.length || !bars.length) return []
   const plotsMap: Record<string, PlotSeries> = {}
@@ -434,7 +435,14 @@ export function evaluateAlertRules(
   }
   const triggers: Trigger[] = []
   const lastIdx = bars.length - 1
-  const lastBar = bars[lastIdx]
+
+  /* FIX "sinyal lewat": cron bisa telat (GHA 5 menit / CF 15 menit /
+     outage). Sinyal EVENT (cross) dievaluasi pada `lookbackBars` bar
+     terakhir — duplikasi kirim dicegah dedupe DB per-bar
+     (pine_alert_log unique user+script+symbol+signal+bar_time).
+     Sinyal STATE (above/below) tetap hanya bar terakhir (state
+     berlangsung tiap bar — kalau di-window akan spam). */
+  const firstEvalIdx = Math.max(1, lastIdx - Math.max(1, lookbackBars) + 1)
 
   for (const rule of rules) {
     try {
@@ -446,19 +454,23 @@ export function evaluateAlertRules(
         : (rule.b === 'close' ? bars.map((x) => x.close) : (plotsMap[String(rule.b)]?.data.map((d) => d.value) ?? []))
       if (!b.length) continue
 
-      let fire = false
-      if (rule.type === 'cross_above') fire = crossed(a, b, lastIdx, true)
-      else if (rule.type === 'cross_below') fire = crossed(a, b, lastIdx, false)
-      else if (rule.type === 'above') fire = a[lastIdx] != null && b[lastIdx] != null && a[lastIdx]! > b[lastIdx]!
-      else if (rule.type === 'below') fire = a[lastIdx] != null && b[lastIdx] != null && a[lastIdx]! < b[lastIdx]!
-      if (!fire) continue
+      const isState = rule.type === 'above' || rule.type === 'below'
+      const from = isState ? lastIdx : firstEvalIdx
+      for (let i = from; i <= lastIdx; i++) {
+        let fire = false
+        if (rule.type === 'cross_above') fire = crossed(a, b, i, true)
+        else if (rule.type === 'cross_below') fire = crossed(a, b, i, false)
+        else if (rule.type === 'above') fire = a[i] != null && b[i] != null && a[i]! > b[i]!
+        else if (rule.type === 'below') fire = a[i] != null && b[i] != null && a[i]! < b[i]!
+        if (!fire) continue
 
-      triggers.push({
-        signal: String(rule.signal || 'SIGNAL').toUpperCase(),
-        message: String(rule.message || rule.signal || 'Sinyal indikator'),
-        time: lastBar.time,
-        price: lastBar.close,
-      })
+        triggers.push({
+          signal: String(rule.signal || 'SIGNAL').toUpperCase(),
+          message: String(rule.message || rule.signal || 'Sinyal indikator'),
+          time: bars[i].time,
+          price: bars[i].close,
+        })
+      }
     } catch { /* rule rusak — lewati, jangan bunuh run */ }
   }
   return triggers

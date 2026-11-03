@@ -141,11 +141,11 @@ export async function POST(request: NextRequest) {
         url: '/dashboard',
         urgency: 'high',
       }, { dedupe: false })
-      if (push.sent > 0) { out.sent = 1; testMessage = true }
+      if (push.sent > 0 || push.telegramSent) { out.sent = 1; testMessage = true }
       else if (push.skipped === 'no-subs') {
         return NextResponse.json({
           ok: false,
-          error: 'Notifikasi belum diaktifkan di browser/PWA ini — izinkan notifikasi (ikon 🔔 di address bar / prompt PWA) lalu tes lagi. Alert kamu tetap terdaftar & aktif.',
+          error: 'Notifikasi belum terpasang — izinkan push di browser/PWA (ikon 🔔 di address bar) ATAU hubungkan Telegram di Dashboard → Pengaturan → Telegram (sinyal otomatis masuk chat). Setelah itu tes lagi.',
           triggers: [],
           sent: 0,
           pushSkipped: 'no-subs',

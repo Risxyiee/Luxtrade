@@ -76,10 +76,11 @@ async function handle(request: NextRequest) {
     const supabase = await getSupabaseAdminAsync()
     if (!supabase) return NextResponse.json({ error: 'Supabase service role tidak tersedia' }, { status: 503 })
 
-    /* 2) LANGGANAN AKTIF */
+    /* 2) LANGGANAN AKTIF — created_at = watermark anti-replay sinyal
+       historis utk langganan baru */
     const { data: subs, error: subErr } = await supabase
       .from('pine_alert_subscriptions')
-      .select('id, user_id, script_id, symbol, timeframe')
+      .select('id, user_id, script_id, symbol, timeframe, created_at')
       .eq('enabled', true)
       .limit(200)
     if (subErr) {
@@ -112,7 +113,8 @@ async function handle(request: NextRequest) {
       if (isProRow(p as any)) users.set(p.id, { userId: p.id })
     }
 
-    /* 4) GRUP per (script, symbol, timeframe) */
+    /* 4) GRUP per (script, symbol, timeframe) — sejakSec dari created_at
+       langganan: sinyal sebelum user mengaktifkan tidak di-replay */
     const groups = new Map<string, { script: RunnerScript; symbol: string; interval: string; users: RunnerUser[] }>()
     for (const s of subs as Array<Record<string, any>>) {
       const script = scripts.get(s.script_id)
@@ -122,9 +124,16 @@ async function handle(request: NextRequest) {
       const sym = sanitizeSymbol(String(s.symbol || ''))
       if (sym.length < 3) continue
       const tf = String(s.timeframe || '1h')
+      const sinceSec = s.created_at ? Math.floor(new Date(String(s.created_at)).getTime() / 1000) || undefined : undefined
       const key = `${script.id}|${sym}|${tf}`
       const g = groups.get(key) || { script, symbol: sym, interval: tf, users: [] as RunnerUser[] }
-      if (!g.users.some((x) => x.userId === u.userId)) g.users.push(u)
+      if (!g.users.some((x) => x.userId === u.userId)) {
+        /* Satu langganan per (user,script,symbol,tf) — unique index;
+           ambil watermark PALING LUAR (min) bila ada duplikat data */
+        const existing = g.users.find((x) => x.userId === u.userId)
+        if (!existing) g.users.push({ userId: u.userId, sinceSec })
+        else if (sinceSec && (!existing.sinceSec || sinceSec < existing.sinceSec)) existing.sinceSec = sinceSec
+      }
       groups.set(key, g)
     }
 
