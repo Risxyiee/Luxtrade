@@ -42,7 +42,13 @@ on:
   schedule:
     # 12:10 UTC = 19:10 WIB — di dalam window 19-20 WIB permintaan Bos
     - cron: '10 12 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Lewati window 19-20 WIB & cadence 2 hari (tes manual)'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: sinta-video-pipeline
@@ -162,16 +168,20 @@ jobs:
           test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
           echo "Ukuran video : $(du -h /tmp/luxtrade-video.mp4 | cut -f1)"
 
+      # 📸 Posting ke Instagram Reels (19–20 WIB, 2 hari sekali — server yang putuskan)
       - name: 📸 Posting ke Instagram Reels (19–20 WIB, 2 hari sekali — server yang putuskan)
         if: always()
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FORCE: ${{ inputs.force }}
         run: |
           # Video harus ada (kalau render gagal, lewati)
           [ -s /tmp/luxtrade-video.mp4 ] || { echo "⏭️ Tidak ada video — Reels IG dilewati"; exit 0; }
 
           PROD_URL="${PROD_URL%/}"
+          FORCE_FLAG=""
+          [ "$FORCE" = "true" ] && FORCE_FLAG="?force=true"
 
           # 1) Upload MP4 ke host publik (litterbox 72 jam — cukup utk IG memproses)
           VIDURL=$(curl -sS --max-time 300 \
@@ -193,7 +203,7 @@ jobs:
           code=$(curl -sS -L -o /tmp/ig.json -w '%{http_code}' --max-time 600 -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" -d "$BODY" \
-            "$PROD_URL/api/cron/ig-video-post") || code=000
+            "$PROD_URL/api/cron/ig-video-post$FORCE_FLAG") || code=000
           echo "HTTP $code"
           cat /tmp/ig.json; echo
           # skipped (luar window/cadence/token belum diset) = NORMAL, bukan gagal
@@ -203,11 +213,13 @@ jobs:
             echo "⚠️ Reels IG gagal — antrean tetap tersimpan, cron ig-auto-post akan retry"
           fi
 
+      # 🖼️ Render carousel IG (renderStill per slide) + posting
       - name: 🖼️ Render carousel IG (renderStill per slide) + posting
         if: always()
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FORCE: ${{ inputs.force }}
         run: |
           cd remotion-video
           NSLIDES=$(jq '.spec.carousel.slides | length' /tmp/spec.json 2>/dev/null || echo 0)
@@ -247,7 +259,7 @@ jobs:
           code=$(curl -sS -L -o /tmp/igc.json -w '%{http_code}' --max-time 600 -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" -d "$BODY" \
-            "$PROD_URL/api/cron/ig-carousel-post") || code=000
+            "$PROD_URL/api/cron/ig-carousel-post$FORCE_FLAG") || code=000
           echo "HTTP $code"
           cat /tmp/igc.json; echo
           # skipped (luar window/cadence/token belum diset) = NORMAL, bukan gagal
