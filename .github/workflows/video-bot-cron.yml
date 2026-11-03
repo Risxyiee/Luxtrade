@@ -183,15 +183,24 @@ jobs:
           FORCE_FLAG=""
           [ "$FORCE" = "true" ] && FORCE_FLAG="?force=true"
 
-          # 1) Upload MP4 ke host publik (litterbox 72 jam — cukup utk IG memproses)
-          VIDURL=$(curl -sS --max-time 300 \
-            -F reqtype=fileupload -F time=72h \
-            -F "fileToUpload=@/tmp/luxtrade-video.mp4" \
-            https://litterbox.catbox.moe/resources/internals/api.php)
+          # 1) Upload MP4 ke host publik (multi-host: litterbox → 0x0.st → tmpfiles)
+          upload_public() {
+            local F="$1" U
+            U=$(curl -sS --max-time 300 -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+              -F reqtype=fileupload -F time=72h -F "fileToUpload=@$F" \
+              https://litterbox.catbox.moe/resources/internals/api.php) || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
+            U=$(curl -sS --max-time 300 -F "file=@$F" https://0x0.st) || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
+            U=$(curl -sS --max-time 300 -F "file=@$F" https://tmpfiles.org/api/v1/upload 2>/dev/null | jq -r '.data.url // empty' | sed 's|tmpfiles.org/|tmpfiles.org/dl/|') || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
+            return 1
+          }
+          VIDURL=$(upload_public /tmp/luxtrade-video.mp4) || VIDURL=""
           echo "Host publik  : $VIDURL"
           case "$VIDURL" in
             https://*) : ;;
-            *) echo "⚠️ Upload litterbox gagal (nanti dicoba lagi jadwal berikutnya)"; exit 0 ;;
+            *) echo "⚠️ Semua host publik gagal (nanti dicoba lagi jadwal berikutnya)"; exit 0 ;;
           esac
 
           # 2) Kirim ke worker → server cek window 19-20 WIB + cadence 2 hari
@@ -237,12 +246,22 @@ jobs:
 
           PROD_URL="${PROD_URL%/}"
 
-          # 2) Upload semua slide PNG ke host publik (litterbox 72 jam)
+          # 2) Upload semua slide PNG ke host publik (multi-host)
+          upload_public() {
+            local F="$1" U
+            U=$(curl -sS --max-time 300 -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+              -F reqtype=fileupload -F time=72h -F "fileToUpload=@$F" \
+              https://litterbox.catbox.moe/resources/internals/api.php) || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
+            U=$(curl -sS --max-time 300 -F "file=@$F" https://0x0.st) || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
+            U=$(curl -sS --max-time 300 -F "file=@$F" https://tmpfiles.org/api/v1/upload 2>/dev/null | jq -r '.data.url // empty' | sed 's|tmpfiles.org/|tmpfiles.org/dl/|') || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
+            return 1
+          }
           URLS="[]"
           for i in $(seq 0 $((NSLIDES-1))); do
-            U=$(curl -sS --max-time 120 -F reqtype=fileupload -F time=72h \
-              -F "fileToUpload=@/tmp/carousel-$i.png" \
-              https://litterbox.catbox.moe/resources/internals/api.php)
+            U=$(upload_public /tmp/carousel-$i.png) || U=""
             case "$U" in
               https://*) URLS=$(echo "$URLS" | jq --arg u "$U" '. + [$u]') ;;
               *) echo "⚠️ upload slide $((i+1)) gagal — slide dilewati" ;;
