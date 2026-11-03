@@ -20,7 +20,7 @@
  * melakukan apa-apa. Tidak pernah gagal/ganggu proses lain (exit 0).
  * Jalankan manual kapan saja: `bun run guard`
  */
-import { existsSync, rmSync, readFileSync, writeFileSync, chmodSync, readdirSync } from 'node:fs'
+import { existsSync, rmSync, readFileSync, writeFileSync, chmodSync, readdirSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
@@ -157,6 +157,7 @@ fi
 `
 try {
   execSync('git rev-parse --git-dir', { cwd: ROOT, stdio: 'ignore' })
+  if (!existsSync(HOOK_DIR)) mkdirSync(HOOK_DIR, { recursive: true })
   if (!existsSync(HOOK_PATH) || readFileSync(HOOK_PATH, 'utf8') !== HOOK_BODY) {
     writeFileSync(HOOK_PATH, HOOK_BODY)
     chmodSync(HOOK_PATH, 0o755)

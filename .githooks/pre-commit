@@ -1,0 +1,18 @@
+#!/bin/sh
+# 🛡️ BLOCKLIST GUARD — tolak commit file junk yang sudah dihapus permanen.
+# Daftar lengkap: .gitignore (blok "BLOCKLIST PERMANEN") & scripts/guard-junk.mjs
+BLOCK='(^|/)vercel\.json$|(^|/)vercel-postbuild\.sh$|(^|/)\.vercelignore$|(^|/)fix_ai\.(js|py)$|(^|/)jest\.(config|setup)\.js$|(^|/)run-tests\.sh$|(^|/)package-lock\.json$|(^|/)yarn\.lock$|(^|/)pnpm-lock\.yaml$|(^|/)create-dummy-user\.ts$|(^|/)test-db\.ts$|(^|/)test-hf-vision\.ts$|(^|/)dev\.out$|(^|/)doku-.*\.json$'
+BAD=$(git diff --cached --name-only --diff-filter=ACR | grep -E "$BLOCK" || true)
+ROOTMD=$(git diff --cached --name-only --diff-filter=ACR | grep -E '^[^/]+\.md$' | grep -v '^README\.md$' || true)
+ROOTPNG=$(git diff --cached --name-only --diff-filter=ACR | grep -E '^[^/]+\.png$' || true)
+BAD="$BAD $ROOTMD $ROOTPNG"
+BAD=$(echo "$BAD" | xargs)
+if [ -n "$BAD" ]; then
+  echo ""
+  echo "🚫 COMMIT DITOLAK — file berikut ada di BLOCKLIST (sudah dihapus permanen):"
+  echo "$BAD" | sed 's/^/   - /'
+  echo ""
+  echo "   Lihat .gitignore (blok 'BLOCKLIST PERMANEN')."
+  echo "   Kalau benar-benar perlu, gunakan: git commit --no-verify"
+  exit 1
+fi
