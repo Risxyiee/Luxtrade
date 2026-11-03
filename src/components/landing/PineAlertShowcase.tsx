@@ -103,16 +103,16 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
       </div>
 
       <div className="relative max-w-5xl mx-auto text-center">
-        <span className="inline-block text-[11px] font-bold tracking-widest px-3 py-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 mb-5">
+        <span className="inline-block text-[11px] font-bold tracking-widest px-3 py-1 rounded-full border border-blue-400/30 bg-blue-400/10 text-blue-200 mb-5">
           {t.badge}
         </span>
         <h2 className="text-3xl md:text-5xl font-extrabold leading-tight tracking-tight">
           {t.title}{' '}
-          <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-300 bg-clip-text text-transparent">
             {t.titleAccent}
           </span>
         </h2>
-        <p className="mt-4 text-white/50 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">{t.sub}</p>
+        <p className="mt-4 text-blue-100/50 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">{t.sub}</p>
 
         {/* ============ "VIDEO" ANIMASI ============ */}
         <div ref={hostRef} className={`lxs mt-10 md:mt-14 ${inView ? 'lxs-run' : ''}`}>
@@ -128,11 +128,11 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
               <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" aria-hidden="true" />
               <span className="w-2.5 h-2.5 rounded-full bg-amber-300/70" aria-hidden="true" />
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" aria-hidden="true" />
-              <span className="ml-3 text-[11px] text-white/40 font-medium tracking-wide">
+              <span className="ml-3 text-[11px] text-blue-200/50 font-medium tracking-wide">
                 LuxTradee Terminal — XAUUSD · 1h
               </span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/25 text-emerald-300 flex items-center gap-1">
-                <span className="lxs-live-dot w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true" /> LIVE
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/25 text-blue-300 flex items-center gap-1">
+                <span className="lxs-live-dot w-1.5 h-1.5 rounded-full bg-blue-400" aria-hidden="true" /> LIVE
               </span>
             </div>
 
@@ -148,9 +148,9 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                     <line key={`v${i}`} y1="0" y2="380" x1={30 + i * 55} x2={30 + i * 55} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
                   ))}
 
-                  {/* level resistance (garis putus putih) */}
-                  <line className="lxs-level" x1="0" x2="600" y1="118" y2="118" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeDasharray="7 6" />
-                  <text x="10" y="110" fill="rgba(255,255,255,0.4)" fontSize="11">Resistance 2.400</text>
+                  {/* level resistance (garis putus biru) */}
+                  <line className="lxs-level" x1="0" x2="600" y1="118" y2="118" stroke="rgba(147,197,253,0.45)" strokeWidth="1.5" strokeDasharray="7 6" />
+                  <text x="10" y="110" fill="rgba(147,197,253,0.6)" fontSize="11">Resistance 2.400</text>
 
                   {/* candles: 14 baris, naik-turun, terakhir "hidup".
                       KOORDINAT SVG: y KECIL = harga LEBIH TINGGI.
@@ -187,8 +187,8 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                       key={i}
                       className={`lxs-scene lxs-scene-${i + 1} text-[11px] md:text-xs px-2.5 py-1 rounded-full border backdrop-blur ${
                         i === 3
-                          ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'
-                          : 'border-white/10 bg-black/40 text-white/70'
+                          ? 'border-blue-400/45 bg-blue-400/10 text-blue-200'
+                          : 'border-blue-400/20 bg-[#0a1524]/70 text-blue-100/80'
                       }`}
                     >
                       {['①', '②', '③', '④'][i]} {s}
@@ -200,13 +200,13 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
               {/* ---- EDITOR PINE (typewriter) ---- */}
               <div className="relative border-t md:border-t-0 md:border-l border-white/[0.06] bg-black/40">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
-                  <span className="text-[10.5px] uppercase tracking-widest text-white/35">Pine Editor®</span>
+                  <span className="text-[10.5px] uppercase tracking-widest text-blue-200/45">Pine Editor®</span>
                   {/* tombol compile "ditekan" pada siklus */}
                   <span className="lxs-compile text-[10.5px] font-semibold px-2.5 py-1 rounded-md bg-gradient-to-r from-blue-500 to-cyan-400 text-white">
                     ▶ {t.compile}
                   </span>
                 </div>
-                <pre className="lxs-code px-3 py-3 text-[10.5px] md:text-[11px] leading-[1.75] font-mono text-emerald-200/90 min-h-[150px] md:min-h-[300px] whitespace-pre-wrap">
+                <pre className="lxs-code px-3 py-3 text-[10.5px] md:text-[11px] leading-[1.75] font-mono text-blue-300/90 min-h-[150px] md:min-h-[300px] whitespace-pre-wrap">
                   <TypeWriter text={PINE_LINES.join('\n')} />
                   <span className="lxs-caret" aria-hidden="true">▌</span>
                 </pre>
@@ -214,15 +214,15 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
             </div>
 
             {/* ---- PUSH NOTIF (terbang masuk) ---- */}
-            <div className="lxs-push absolute top-16 right-3 md:right-5 w-[calc(100%-24px)] max-w-[320px] rounded-xl border border-white/15 bg-[#10141d]/95 backdrop-blur shadow-2xl p-3 flex gap-3 items-start z-10">
-              <span className="w-9 h-9 rounded-lg bg-emerald-400/15 border border-emerald-400/30 grid place-items-center text-lg shrink-0" aria-hidden="true">⚡</span>
+            <div className="lxs-push absolute top-16 right-3 md:right-5 w-[calc(100%-24px)] max-w-[320px] rounded-xl border border-blue-400/25 bg-[#0c1526]/95 backdrop-blur shadow-2xl p-3 flex gap-3 items-start z-10">
+              <span className="w-9 h-9 rounded-lg bg-blue-400/15 border border-blue-400/30 grid place-items-center text-lg shrink-0" aria-hidden="true">⚡</span>
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold tracking-wide text-white/85 truncate">{t.pushApp}</span>
-                  <span className="text-[9.5px] text-white/35 shrink-0">1s</span>
+                  <span className="text-[10px] font-bold tracking-wide text-blue-200 truncate">{t.pushApp}</span>
+                  <span className="text-[9.5px] text-blue-200/40 shrink-0">1s</span>
                 </div>
-                <div className="text-[11.5px] font-semibold text-white truncate">{t.pushTitle}</div>
-                <div className="text-[10.5px] text-white/50 truncate">{t.pushBody}</div>
+                <div className="text-[11.5px] font-semibold text-blue-100 truncate">{t.pushTitle}</div>
+                <div className="text-[10.5px] text-blue-200/55 truncate">{t.pushBody}</div>
               </div>
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
             >
               {t.cta} <span aria-hidden="true">→</span>
             </a>
-            <span className="text-xs text-white/35">{t.ctaNote}</span>
+            <span className="text-xs text-blue-200/40">{t.ctaNote}</span>
           </div>
         </div>
       </div>
@@ -283,7 +283,7 @@ const LXS_CSS = `
 @keyframes lxs-char-in { from { opacity: 0 } to { opacity: 1 } }
 
 /* caret berkedip */
-.lxs .lxs-caret { color: #34d399; opacity: 0; }
+.lxs .lxs-caret { color: #60a5fa; opacity: 0; }
 .lxs-run .lxs-caret { animation: lxs-caret-blink 0.9s steps(2, jump-none) infinite; }
 @keyframes lxs-caret-blink { 0%, 100% { opacity: 1 } 50% { opacity: 0.15 } }
 
@@ -301,16 +301,16 @@ const LXS_CSS = `
 @keyframes lxs-fadeout { from { opacity: 1 } to { opacity: 0 } }
 
 /* titik LIVE berdenyut */
-.lxs .lxs-live-dot { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); }
+.lxs .lxs-live-dot { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.6); }
 .lxs-run .lxs-live-dot { animation: lxs-ping 1.8s infinite; }
-@keyframes lxs-ping { 70% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0) } 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0) } }
+@keyframes lxs-ping { 70% { box-shadow: 0 0 0 7px rgba(96, 165, 250, 0) } 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0) } }
 
-/* garis resistance menyala hijau saat ditembus (5.6s) */
+/* garis resistance menyala biru saat ditembus (5.6s) */
 .lxs-run .lxs-level { animation: lxs-level 1.6s ease-in-out 5.6s both; }
 @keyframes lxs-level {
-  0% { opacity: 0.55; stroke: rgba(255, 255, 255, 0.35) }
-  40% { opacity: 1; stroke: rgba(52, 211, 153, 0.9) }
-  100% { opacity: 0.55; stroke: rgba(255, 255, 255, 0.35) }
+  0% { opacity: 0.55; stroke: rgba(147, 197, 253, 0.4) }
+  40% { opacity: 1; stroke: rgba(96, 165, 250, 0.95) }
+  100% { opacity: 0.55; stroke: rgba(147, 197, 253, 0.4) }
 }
 
 /* tombol compile "ditekan" (5.0s) */
