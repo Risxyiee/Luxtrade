@@ -1,0 +1,95 @@
+name: Instagram Auto-Post
+
+# ═══════════════════════════════════════════════════════════════════
+# 📸 AUTO-POST INSTAGRAM — Facebook Page Graph API v19.0
+# ───────────────────────────────────────────────────────────────────
+# Worker yang kerja semua (runner cuma nembak endpoint + bawa secret):
+#   1. /api/cron/ig-auto-post     → klaim antrean `instagram_posts`
+#      (status pending) → POST /{page-id}/media?image_url=&caption=
+#      → tunggu FINISHED → POST /{page-id}/media_publish?creation_id=
+#   2. /api/cron/ig-token-refresh → cek usia token harian; > 55 hari
+#      (dari umur 60 hari) → refresh fb_exchange_token otomatis,
+#      token baru disimpan Supabase ig_token_state.
+#
+# SETUP SEKALI (oleh Bos):
+#   Cloudflare dashboard → luxtradee → Variables & Secrets:
+#     FACEBOOK_PAGE_ID, FACEBOOK_PAGE_TOKEN,
+#     FACEBOOK_APP_ID, FACEBOOK_APP_SECRET (untuk refresh 60 hari)
+#   Supabase (SQL editor): jalankan supabase-migrations/037_instagram_autopost.sql
+#   GitHub (Settings → Secrets → Actions) — sudah ada dari cron lain:
+#     PROD_URL, CRON_SECRET
+#
+# Isi antrean: dashboard admin → POST /api/instagram/post
+#   { "imageUrl": "https://...jpg", "caption": "teks", "publishNow": false }
+# ═══════════════════════════════════════════════════════════════════
+
+on:
+  schedule:
+    # 02:00 UTC = 09:00 WIB — post pagi (prime time cek harga pagi)
+    - cron: '0 2 * * *'
+    # 12:00 UTC = 19:00 WIB — post sore (prime time IG Indonesia)
+    - cron: '0 12 * * *'
+    # 00:00 UTC = 07:00 WIB — pengecekan & refresh token harian
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'post = proses antrean | token = cek/refresh token'
+        required: false
+        default: 'post'
+        type: choice
+        options:
+          - post
+          - token
+
+concurrency:
+  group: instagram-auto-post
+  cancel-in-progress: false
+
+jobs:
+  refresh-token:
+    # Cek token tiap jadwal (murah — 1 GET) sebelum posting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 🔁 Cek & refresh token IG (60 hari)
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          [ -n "$PROD_URL" ] || { echo "❌ Secret PROD_URL belum diset"; exit 1; }
+          [ -n "$CRON_SECRET" ] || { echo "❌ Secret CRON_SECRET belum diset"; exit 1; }
+          code=$(curl -sS -L -o /tmp/tok.json -w '%{http_code}' --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PROD_URL/api/cron/ig-token-refresh") || code=000
+          echo "HTTP $code"
+          cat /tmp/tok.json; echo
+          # skip/dry → bukan kegagalan; ok:false → gagal refresh (admin sudah dinotifikasi Discord)
+          jq -e '.ok == true' /tmp/tok.json >/dev/null 2>&1 \
+            || jq -e '.skipped' /tmp/tok.json >/dev/null 2>&1 \
+            || { echo "❌ Refresh token gagal"; exit 1; }
+
+  auto-post:
+    # SENGAJA tanpa needs: refresh-token — kegagalan refresh (mis. APP_SECRET
+    # belum diset) tidak boleh men-stop posting: page token non-expiring
+    # tetap sah, dan ig-auto-post sudah panggil ensureFreshToken internal.
+    if: ${{ github.event_name == 'schedule' || inputs.mode != 'token' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📸 Proses antrean auto-post
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          code=$(curl -sS -L -o /tmp/ig.json -w '%{http_code}' --max-time 240 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PROD_URL/api/cron/ig-auto-post?max=2") || code=000
+          echo "HTTP $code"
+          cat /tmp/ig.json; echo
+          # skipped (token belum diset / cap harian) & antrean kosong = normal
+          jq -e '.ok == true' /tmp/ig.json >/dev/null 2>&1 \
+            || { echo "❌ Auto-post gagal — cek log di atas (admin dinotifikasi Discord)"; exit 1; }
+          echo "✅ Posted: $(jq -r '.posted // 0' /tmp/ig.json) — Failed: $(jq -r '.failed // 0' /tmp/ig.json)"
