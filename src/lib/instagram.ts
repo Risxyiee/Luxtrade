@@ -41,11 +41,17 @@ const TOKEN_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000
 export const IG_CAPTION_MAX = 2200
 /** Cap keamanan posting per 24 jam (batas API IG ±25 post/hari utk konten dibuat API). */
 export const IG_DAILY_CAP = 25
-/** Tipe media yang didukung: foto single (IMAGE) atau video Reels (REELS). */
-export type IgMediaType = 'IMAGE' | 'REELS'
+/** Tipe media yang didukung: foto single (IMAGE), video Reels (REELS), atau carousel multi-foto (CAROUSEL). */
+export type IgMediaType = 'IMAGE' | 'REELS' | 'CAROUSEL'
 /** Video Reels butuh proses server IG lebih lama (1–5 menit) → poll lebih panjang. */
 const REELS_POLL_MAX_WAIT_MS = 6 * 60 * 1000
 const REELS_POLL_INTERVAL_MS = 15_000
+/** Carousel multi-foto: proses server IG lebih lama dari 1 foto tapi jauh lebih cepat dari Reels. */
+const CAROUSEL_POLL_MAX_WAIT_MS = 3 * 60 * 1000
+const CAROUSEL_POLL_INTERVAL_MS = 8_000
+/** Batas jumlah slide carousel IG API: 2–10 item (semua foto). */
+export const IG_CAROUSEL_MIN = 2
+export const IG_CAROUSEL_MAX = 10
 
 /* ============================================================
    Tipe
@@ -69,8 +75,10 @@ export interface IgPostResult {
   error?: string
   /** Tahap gagal: 'config' | 'create' | 'status' | 'publish' | 'permalink' */
   stage?: string
-  /** 'IMAGE' atau 'REELS' — untuk log antrean */
+  /** 'IMAGE' | 'REELS' | 'CAROUSEL' — untuk log antrean */
   mediaType?: IgMediaType
+  /** Jumlah child container carousel yang berhasil dibuat (diagnostik). */
+  carouselItems?: number
 }
 
 export interface TokenRefreshResult {
@@ -276,6 +284,54 @@ export async function createMediaContainer(
 }
 
 /* ============================================================
+   1b) CAROUSEL — N foto → child containers → container induk
+   ============================================================
+   Alur IG API utk carousel (semua FOTO):
+     per foto : POST /{page-id}/media?image_url=&is_carousel_item=true
+                → { id }  (container anak, TIDAK boleh caption di sini)
+     induk    : POST /{page-id}/media?media_type=CAROUSEL
+                &children=id1,id2,...&caption=
+                → { id }  (container induk)
+   lalu publish creation_id induk seperti biasa (2–10 foto).
+   ============================================================ */
+
+export async function createCarouselContainer(
+  cfg: IgConfig,
+  opts: { imageUrls: string[]; caption?: string }
+): Promise<{ ok: boolean; containerId?: string; childIds: string[]; error?: string }> {
+  const urls = opts.imageUrls.map((u) => u.trim()).filter(Boolean)
+  if (urls.length < IG_CAROUSEL_MIN || urls.length > IG_CAROUSEL_MAX) {
+    return { ok: false, childIds: [], error: `carousel butuh ${IG_CAROUSEL_MIN}–${IG_CAROUSEL_MAX} foto, dapat ${urls.length}` }
+  }
+
+  /* 1) Child containers — is_carousel_item=true, TANPA caption */
+  const childIds: string[] = []
+  for (let i = 0; i < urls.length; i++) {
+    const r = await graphCall('POST', `${cfg.pageId}/media`, {
+      image_url: urls[i],
+      is_carousel_item: 'true',
+    }, cfg.pageToken, 60_000)
+    if (!r.ok) {
+      return { ok: false, childIds, error: `slide ${i + 1}/${urls.length}: ${r.error}` }
+    }
+    const id = String(r.data?.id || '')
+    if (!id) return { ok: false, childIds, error: `slide ${i + 1}/${urls.length}: Graph API tidak balik container id` }
+    childIds.push(id)
+  }
+
+  /* 2) Container induk — media_type=CAROUSEL + children + caption */
+  const r = await graphCall('POST', `${cfg.pageId}/media`, {
+    media_type: 'CAROUSEL',
+    children: childIds.join(','),
+    ...(opts.caption ? { caption: opts.caption } : {}),
+  }, cfg.pageToken, 60_000)
+  if (!r.ok) return { ok: false, childIds, error: r.error }
+  const containerId = String(r.data?.id || '')
+  if (!containerId) return { ok: false, childIds, error: 'Graph API tidak balik container id carousel' }
+  return { ok: true, containerId, childIds }
+}
+
+/* ============================================================
    2) Status container — GET /{container-id}?fields=status_code
    ============================================================ */
 
@@ -322,33 +378,51 @@ export async function getPostPermalink(cfg: IgConfig, postId: string): Promise<s
 
 export async function postToInstagram(
   cfg: IgConfig,
-  opts: { mediaType?: IgMediaType; imageUrl?: string; videoUrl?: string; caption?: string },
+  opts: { mediaType?: IgMediaType; imageUrl?: string; videoUrl?: string; imageUrls?: string[]; caption?: string },
   poll?: { maxWaitMs?: number; intervalMs?: number }
 ): Promise<IgPostResult> {
   const isReels = (opts.mediaType || 'IMAGE') === 'REELS'
-  const maxWaitMs = poll?.maxWaitMs ?? (isReels ? REELS_POLL_MAX_WAIT_MS : 45_000)
-  const intervalMs = poll?.intervalMs ?? (isReels ? REELS_POLL_INTERVAL_MS : 3_000)
+  const isCarousel = opts.mediaType === 'CAROUSEL'
+  const maxWaitMs = poll?.maxWaitMs
+    ?? (isReels ? REELS_POLL_MAX_WAIT_MS : isCarousel ? CAROUSEL_POLL_MAX_WAIT_MS : 45_000)
+  const intervalMs = poll?.intervalMs
+    ?? (isReels ? REELS_POLL_INTERVAL_MS : isCarousel ? CAROUSEL_POLL_INTERVAL_MS : 3_000)
+  const label: IgMediaType = isReels ? 'REELS' : isCarousel ? 'CAROUSEL' : 'IMAGE'
 
-  /* 1) Container */
-  const created = await createMediaContainer(cfg, {
-    mediaType: isReels ? 'REELS' : 'IMAGE',
-    imageUrl: opts.imageUrl,
-    videoUrl: opts.videoUrl,
-    caption: opts.caption,
-  })
-  if (!created.ok || !created.containerId) {
-    return { ok: false, stage: 'create', error: created.error, mediaType: isReels ? 'REELS' : 'IMAGE' }
+  /* 1) Container (carousel: N child dulu → container induk) */
+  let containerId: string
+  let carouselItems: number | undefined
+  if (isCarousel) {
+    const created = await createCarouselContainer(cfg, {
+      imageUrls: opts.imageUrls || (opts.imageUrl ? [opts.imageUrl] : []),
+      caption: opts.caption,
+    })
+    if (!created.ok || !created.containerId) {
+      return { ok: false, stage: 'create', error: created.error, mediaType: label, carouselItems: created.childIds.length || undefined }
+    }
+    containerId = created.containerId
+    carouselItems = created.childIds.length
+  } else {
+    const created = await createMediaContainer(cfg, {
+      mediaType: isReels ? 'REELS' : 'IMAGE',
+      imageUrl: opts.imageUrl,
+      videoUrl: opts.videoUrl,
+      caption: opts.caption,
+    })
+    if (!created.ok || !created.containerId) {
+      return { ok: false, stage: 'create', error: created.error, mediaType: label }
+    }
+    containerId = created.containerId
   }
-  const containerId = created.containerId
 
-  /* 2) Poll status (image: beberapa detik · Reels: 1–5 menit) */
+  /* 2) Poll status (image: detik · carousel: ±30 dtk · Reels: 1–5 menit) */
   const deadline = Date.now() + maxWaitMs
   let lastMsg: string | undefined
   while (Date.now() < deadline) {
     const st = await getContainerStatus(cfg, containerId)
     lastMsg = st.message
     if (st.statusCode === 'ERROR') {
-      return { ok: false, stage: 'status', containerId, mediaType: isReels ? 'REELS' : 'IMAGE', error: st.message || 'IG menolak media (ERROR)' }
+      return { ok: false, stage: 'status', containerId, mediaType: label, carouselItems, error: st.message || 'IG menolak media (ERROR)' }
     }
     if (st.statusCode === 'FINISHED') break
     await new Promise((r) => setTimeout(r, intervalMs))
@@ -357,18 +431,18 @@ export async function postToInstagram(
   // IG belum selesai, media_publish balik error jelas (jangan diam).
   const fin = await getContainerStatus(cfg, containerId)
   if (fin.statusCode === 'ERROR') {
-    return { ok: false, stage: 'status', containerId, mediaType: isReels ? 'REELS' : 'IMAGE', error: fin.message || 'IG menolak media (ERROR)' }
+    return { ok: false, stage: 'status', containerId, mediaType: label, carouselItems, error: fin.message || 'IG menolak media (ERROR)' }
   }
 
   /* 3) Publish */
   const pub = await publishContainer(cfg, containerId)
   if (!pub.ok || !pub.postId) {
-    return { ok: false, stage: 'publish', containerId, mediaType: isReels ? 'REELS' : 'IMAGE', error: pub.error }
+    return { ok: false, stage: 'publish', containerId, mediaType: label, carouselItems, error: pub.error }
   }
 
   /* 4) Permalink (best-effort) */
   const permalink = await getPostPermalink(cfg, pub.postId)
-  return { ok: true, containerId, postId: pub.postId, permalink, mediaType: isReels ? 'REELS' : 'IMAGE' }
+  return { ok: true, containerId, postId: pub.postId, permalink, mediaType: label, carouselItems }
 }
 
 /* ============================================================
@@ -472,16 +546,45 @@ export async function ensureFreshToken(
    ============================================================ */
 
 /**
- * Validasi input antrean — mendukung IMAGE (imageUrl) dan REELS (videoUrl).
- * Syarat IG API: https publik; image .jpg/.png ≤8MB; video .mp4 (H.264/AAC).
+ * Validasi input antrean — mendukung IMAGE (imageUrl), REELS (videoUrl),
+ * dan CAROUSEL (imageUrls 2–10). Syarat IG API: https publik;
+ * image .jpg/.png ≤8MB; video .mp4 (H.264/AAC).
  */
 export function validateIgPostInput(opts: {
   mediaType?: IgMediaType
   imageUrl?: string
   videoUrl?: string
+  imageUrls?: string[]
   caption?: string
 }): string | null {
   const isReels = (opts.mediaType || 'IMAGE') === 'REELS'
+
+  if (opts.mediaType === 'CAROUSEL') {
+    const urls = (opts.imageUrls || []).map((u) => u.trim()).filter(Boolean)
+    if (urls.length < IG_CAROUSEL_MIN || urls.length > IG_CAROUSEL_MAX) {
+      return `carousel butuh ${IG_CAROUSEL_MIN}–${IG_CAROUSEL_MAX} image_url, dapat ${urls.length}`
+    }
+    for (let i = 0; i < urls.length; i++) {
+      let url: URL
+      try {
+        url = new URL(urls[i])
+      } catch {
+        return `image_url slide ${i + 1} bukan URL yang valid`
+      }
+      if (url.protocol !== 'https:') {
+        return `image_url slide ${i + 1} wajib https:// (syarat Instagram API)`
+      }
+      if (!/\.(jpe?g|png)$/.test(url.pathname.toLowerCase())) {
+        return `image_url slide ${i + 1} harus menunjuk file .jpg/.jpeg/.png (syarat Instagram API)`
+      }
+    }
+    const cap = opts.caption || ''
+    if (cap.length > IG_CAPTION_MAX) {
+      return `caption ${cap.length} karakter — maksimal ${IG_CAPTION_MAX} (limit Instagram)`
+    }
+    return null
+  }
+
   const rawUrl = isReels ? (opts.videoUrl || '') : (opts.imageUrl || '')
   if (!rawUrl) {
     return isReels ? 'video_url wajib diisi untuk REELS' : 'image_url wajib diisi untuk IMAGE'

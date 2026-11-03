@@ -40,6 +40,7 @@ export const dynamic = 'force-dynamic'
 
 type SceneKind = 'hook' | 'point' | 'chart' | 'quote' | 'stat' | 'cta'
 type Template = 'promo' | 'tip' | 'signal'
+type CarouselSlideKind = 'cover' | 'point' | 'chart' | 'stat' | 'quote' | 'cta'
 
 interface VideoScene {
   kind?: SceneKind
@@ -47,6 +48,17 @@ interface VideoScene {
   sub: string
   vo: string
   image_prompt?: string
+}
+
+/** Slide carousel IG 1080×1350 — dirender runner via renderStill SintaCarousel. */
+interface CarouselSlideSpec {
+  kind?: CarouselSlideKind
+  title: string
+  sub: string
+}
+
+interface CarouselSpec {
+  slides: CarouselSlideSpec[]
 }
 
 interface SignalData {
@@ -69,6 +81,8 @@ interface VideoSpec {
   hashtags: string[]
   igCaption: string
   scenes: VideoScene[]
+  /** Carousel IG wajib — konten Sinta HANYA video Remotion + carousel (aturan Bos). */
+  carousel: CarouselSpec | null
   signal?: SignalData | null
 }
 
@@ -207,6 +221,7 @@ const DEFAULT_TIP: VideoSpec = {
   topic: 'Kenapa trader SMC sering kebaca sweep — bukan reversal',
   caption: 'Sweep dulu, baru gerak. Ini yang bikin SL kamu kejebak terus 📉 Cek link di bio',
   hashtags: ['smc', 'smartmoneyconcepts', 'xauusd', 'tradingindonesia', 'luxtrade'],
+  carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
   igCaption:
     'SL kejebak terus padahal analisa "udah bener"? 😤\n\nBiasanya kamu entry SEBELUM sweep selesai. Equal highs itu umpan — smart money narik liquidity dulu, baru price turun.\n\n3 hal yang dibahas di video ini:\n1️⃣ Cara mark equal highs & equal lows\n2️⃣ Tanda sweep-nya SELESAI (reaksi + displacement)\n3️⃣ Kapan BOLEH entry setelah sweep\n\nSave video ini biar nggak lupa. Dan catat setiap setup kamu di Luxtradee — cukup screenshot, jurnal & winrate kehitung otomatis. Link di bio 🔗\n\n#smc #smartmoneyconcepts #xauusd #goldtrader #tradingindonesia #belajartrading #ictconcepts #tradingjournal #priceaction #luxtrade',
   scenes: [
@@ -222,6 +237,7 @@ const DEFAULT_PROMO: VideoSpec = {
   topic: 'Luxtrade — jurnal trading AI untuk trader XAUUSD',
   caption: 'Masih nebak-nebak harga? Luxtrade: sinyal AI + jurnal otomatis, langsung ke HP kamu. Cek link di bio 👆',
   hashtags: ['trading', 'xauusd', 'tradingindonesia', 'goldtrader', 'luxtrade'],
+  carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
   igCaption:
     'Masih nebak-nebak arah harga? 🎯\n\nLuxtrade pantau pasar 24 jam pakai 8 agen AI — sinyal masuk langsung ke HP kamu, dan setiap trade kamu otomatis kejurnal cuma dari screenshot.\n\n✅ Sinyal Entry/SL/TP realtime (push ke layar HP)\n✅ Jurnal otomatis dari screenshot\n✅ Guard prop firm — alert sebelum drawdown breach\n\nPRO mulai Rp49.000/bulan. Link di bio 🔗\n\n#trading #xauusd #goldtrader #tradingindonesia #tradingjournal #smc #ict #propfirm #tradingapp #luxtrade',
   scenes: [
@@ -254,6 +270,7 @@ function buildSignalSpec(signal: SignalData): VideoSpec {
         : 'SL kena itu bagian dari sistem — yang penting risiko kecil, winner lebih besar. Semua tercatat otomatis di jurnal.\n\n') +
       'Mau sinyal seperti ini masuk ke HP kamu? Cek link di bio 🔗\n\n' +
       '#xauusd #goldtrader #smc #smartmoneyconcepts #tradingindonesia #tradingsignal #priceaction #tradingjournal #forexindonesia #luxtrade',
+    carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
     signal,
     scenes: [
       { kind: 'hook', title: win ? 'TP KEBELI 🎯' : 'DISIPLIN SL 🛡️', sub: `sinyal ${signal.side} ${signal.symbolLabel} dari engine luxtrade`, vo: win ? `Take profit kebeli. Sinyal ${signal.side} gold dari engine Luxtrade.` : `Stop loss nyala sesuai rencana. Ini sinyal ${signal.side} gold dari Luxtrade.` },
@@ -273,10 +290,14 @@ function resultLabel(r: 'TP' | 'SL'): string {
    ============================================================ */
 
 const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten video trader Indonesia (jurnal trading AI, PRO Rp49.000/bulan, audiens SMC/ICT XAUUSD).
-Konten video vertikal yang bikin jempol BERHENTI scroll: hook provokatif 1-2 detik pertama, isi nyindir kebiasaan buruk trader, tutup CTA.
+Konten vertikal yang bikin jempol BERHENTI scroll: hook provokatif 1-2 detik pertama, isi nyindir kebiasaan buruk trader, tutup CTA.
+
+ATURAN BENTUK KONTEN (HARD RULE dari Bos):
+- KONTEN LUXTRADEE HANYA 2 BENTUK: (1) video Remotion 9:16 (Reels IG / TikTok), (2) carousel Instagram 1080×1350 multi-slide. DILARANG usulkan bentuk lain (vlog, livestream, meme, foto stok, teks polos) — itu bukan tugasmu.
+- Satu output = SATU topik dalam DUA bentuk sekaligus: scenes video + slides carousel dari topik yang sama.
 
 KAMU MENERIMA: data performa konten asli (top video TikTok + profil audiens) dan template yang SUDAH DIPILIH oleh sistem ('promo' | 'tip' | 'signal').
-TUGASMU: tulis 4-5 scene utk template itu, plus caption TikTok (pendek) dan caption Instagram (panjang).
+TUGASMU: tulis 4-5 scene utk template itu, plus caption TikTok (pendek), caption Instagram (panjang), dan 4-6 slide carousel.
 
 ATURAN KERAS:
 - Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
@@ -285,9 +306,10 @@ ATURAN KERAS:
 - caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio".
 - igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, 8-12 hashtag relevan trading Indonesia.
 - 4-5 hashtag untuk TikTok.
+- Carousel: 4-6 slides. Slide pertama kind='cover' (hook, TANPA vo), slide terakhir kind='cta' (ajak save/share + cek link di bio), slide tengah kind 'point'|'chart'|'stat'|'quote'. Isi carousel = versi SAVEABLE dari topik video (poin-poin padat layak disave user), BUKAN salinan mentah scene video. title ≤ 40 karakter, sub ≤ 90 karakter.
 
 FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
-{"topic":"...","scenes":[{"kind":"hook","title":"...","sub":"...","vo":"..."}],"caption":"...","hashtags":["..."],"igCaption":"..."}`
+{"topic":"...","scenes":[{"kind":"hook","title":"...","sub":"...","vo":"..."}],"caption":"...","hashtags":["..."],"igCaption":"...","carousel":{"slides":[{"kind":"cover","title":"...","sub":"..."}]}}`
 
 function buildUserPrompt(opts: {
   template: Template
@@ -341,14 +363,21 @@ function validSpec(s: VideoSpec | null, template: Template): s is VideoSpec {
   const ig = typeof s.igCaption === 'string' ? s.igCaption : ''
   if (ig.length < 60) return false
   if (!Array.isArray(s.scenes) || s.scenes.length < 3 || s.scenes.length > 6) return false
-  return s.scenes.every(
+  const scenesOk = s.scenes.every(
     (sc) =>
       sc &&
       typeof sc.title === 'string' && sc.title.length > 0 && sc.title.length <= 30 &&
       typeof sc.sub === 'string' &&
       typeof sc.vo === 'string' && sc.vo.length > 3 &&
       (!sc.kind || ['hook', 'point', 'chart', 'quote', 'stat', 'cta'].includes(sc.kind)),
-  ) && (template !== 'signal' || !!s.signal)
+  )
+  // carousel opsional dari LLM — kalau tidak valid, fallback from-scenes di sanitize
+  const carouselOk =
+    !s.carousel ||
+    (Array.isArray(s.carousel.slides) &&
+      s.carousel.slides.length >= 4 &&
+      s.carousel.slides.every((sl) => sl && typeof sl.title === 'string' && sl.title.length > 0))
+  return scenesOk && carouselOk && (template !== 'signal' || !!s.signal)
 }
 
 function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | null): VideoSpec {
@@ -376,8 +405,67 @@ function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | nul
     hashtags: s.hashtags.slice(0, 6).map((h) => String(h).replace(/^#/, '').replace(/[^A-Za-z0-9_]/g, '')).filter(Boolean),
     igCaption: String(s.igCaption || '').slice(0, 1900),
     scenes,
+    carousel: null, // diisi withCarousel() di handler — satu jalur utk semua sumber
     signal: template === 'signal' ? signal : null,
   }
+}
+
+/* ============================================================
+   Carousel IG — WAJIB di setiap spec (aturan Bos: konten HANYA
+   video Remotion + carousel). Kalau LLM tidak memberi carousel
+   valid → bangun dari scenes (cover = scene 0, isi = tengah,
+   cta = scene terakhir) supaya DUA bentuk konten selalu ada.
+   ============================================================ */
+
+const CAROUSEL_PAD: CarouselSlideSpec[] = [
+  { kind: 'point', title: 'JURNAL OTOMATIS', sub: 'upload screenshot → entry, RR & hasil kecatat sendiri' },
+  { kind: 'stat', title: 'WINRATE PER SETUP', sub: 'tahu pola yang beneran cuan — bukan feeling' },
+  { kind: 'quote', title: 'DISIPLIN > PREDIKSI', sub: 'sistem yang konsisten ngalahin tebakan yang bagus' },
+]
+
+function buildCarouselFromScenes(spec: VideoSpec): CarouselSpec {
+  const sc = spec.scenes
+  const MID: CarouselSlideKind[] = ['point', 'chart', 'stat', 'quote']
+  const mids: CarouselSlideSpec[] = sc
+    .slice(1, Math.max(1, sc.length - 1))
+    .slice(0, 3)
+    .map((s, i) => ({
+      kind: (MID.includes(s.kind as CarouselSlideKind) ? s.kind : MID[(i + 1) % MID.length]) as CarouselSlideKind,
+      title: s.title,
+      sub: s.sub,
+    }))
+  let pad = 0
+  while (mids.length < 3) {
+    mids.push(CAROUSEL_PAD[pad % CAROUSEL_PAD.length])
+    pad++
+  }
+  return {
+    slides: [
+      { kind: 'cover', title: sc[0]?.title || 'LUXTRADE', sub: sc[0]?.sub || 'sinyal AI + jurnal otomatis buat trader Indonesia' },
+      ...mids,
+      { kind: 'cta', title: sc[sc.length - 1]?.title || 'MULAI SEKARANG', sub: 'screenshot → jurnal otomatis — cek link di bio' },
+    ],
+  }
+}
+
+function sanitizeCarousel(raw: CarouselSpec | null | undefined, spec: VideoSpec): CarouselSpec {
+  const ALLOWED: CarouselSlideKind[] = ['cover', 'point', 'chart', 'stat', 'quote', 'cta']
+  let slides = Array.isArray(raw?.slides) ? raw!.slides : []
+  slides = slides
+    .slice(0, 6)
+    .filter((sl) => sl && typeof sl.title === 'string' && sl.title.trim().length > 0)
+    .map((sl, i, arr) => ({
+      kind: (sl.kind && ALLOWED.includes(sl.kind) ? sl.kind : i === 0 ? 'cover' : i === arr.length - 1 ? 'cta' : 'point') as CarouselSlideKind,
+      title: String(sl.title).trim().slice(0, 40),
+      sub: String(sl.sub || '').trim().slice(0, 90),
+    }))
+  if (slides.length >= 2) {
+    slides[0].kind = 'cover'
+    slides[slides.length - 1].kind = 'cta'
+  }
+  // Kurang dari 4 slide → buang, pakai fallback dari scenes (deterministik)
+  if (slides.length < 4) return buildCarouselFromScenes(spec)
+  return { slides }
 }
 
 /* ============================================================
@@ -441,6 +529,9 @@ async function handle(request: NextRequest) {
   // Jaga-jaga: kalau template signal tapi spec default tanpa signal → turun ke tip
   if (spec.template === 'signal' && !spec.signal) spec = DEFAULT_TIP
 
+  /* ── 3b) Carousel IG WAJIB (aturan Bos: konten HANYA video + carousel) ── */
+  spec = { ...spec, carousel: sanitizeCarousel(spec.carousel, spec) }
+
   const captionFull = `${spec.caption} ${spec.hashtags.map((h) => `#${h}`).join(' ')}`.trim()
 
   return NextResponse.json({
@@ -454,7 +545,7 @@ async function handle(request: NextRequest) {
       freshSignal: isFreshSignal(latestSignal),
       signalSymbol: latestSignal?.symbol ?? null,
     },
-    note: 'Render di runner (video-bot-cron.yml): template→LuxtradePromo|SintaReels|SignalRecap + edge-tts. TikTok: Content Posting API. Instagram Reels: upload litterbox → /api/cron/ig-video-post (19–20 WIB, 2 hari sekali).',
+    note: 'Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts; CAROUSEL→renderStill SintaCarousel per slide (spec.carousel.slides). Konten HANYA 2 bentuk ini (aturan Bos). Instagram: Reels → /api/cron/ig-video-post + carousel → /api/cron/ig-carousel-post (sama-sama 19–20 WIB, 2 hari sekali). TikTok: Content Posting API (nunggu app approved).',
   })
 }
 

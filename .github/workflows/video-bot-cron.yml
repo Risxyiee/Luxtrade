@@ -1,15 +1,17 @@
-name: Sinta — Video TikTok + Instagram Reels
+name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 # ═══════════════════════════════════════════════════════════════════
-# 🎬 DESK SINTA (CMO) — SATU PIPELINE DUA PLATFORM (permintaan Bos)
+# 🎬 DESK SINTA (CMO) — SATU PIPELINE DUA PLATFORM + CAROUSEL (Bos)
 # ───────────────────────────────────────────────────────────────────
 # "posting samain kaya tiktok, jam 19-20, 2 hari sekali, video sama
 #  gapapa — tiktok kan belum bisa, nunggu, jadi IG dulu"
+# "konten hanya remotion sm konten corosal"
 #
 # Alur sekali jalan di runner (CPU-nya gratis):
 #   1. Ambil SPESIFIKASI dari otak Sinta (worker /api/cron/video-bot —
-#      sekarang makan DATA KONTEN ASLI: tiktok_posts + sinyal
-#      pine_alert_log + hindari topik Reels dobel)
+#      makan DATA KONTEN ASLI: tiktok_posts + sinyal pine_alert_log +
+#      hindari topik Reels dobel). Spec = VIDEO + CAROUSEL (2 bentuk
+#      konten yang diizinkan Bos — tidak ada bentuk lain).
 #   2. Render video 9:16 via REMOTION — template dinamis:
 #        promo  → LuxtradePromo (produk 5 scene)
 #        tip    → SintaReels    (kinetic typography edukasi)
@@ -18,10 +20,13 @@ name: Sinta — Video TikTok + Instagram Reels
 #   3. 📸 INSTAGRAM REELS (prioritas Bos): upload MP4 ke litterbox
 #      (host publik 72 jam) → worker /api/cron/ig-video-post →
 #      Graph API /media?media_type=REELS → /media_publish.
-#      JADWAL DIPUTUSKAN SERVER: window 19:00–20:59 WIB +
-#      cadence 2 hari sekali (guard 44 jam) — runner jalan harian,
-#      server yang skip di hari ganjil.
-#   4. 🎵 TIKTOK: posting via Content Posting API (token dispenser
+#   4. 🖼️ INSTAGRAM CAROUSEL: renderStill komposisi SintaCarousel
+#      1080×1350 per slide → upload PNG ke litterbox → worker
+#      /api/cron/ig-carousel-post → Graph API /media?is_carousel_item
+#      → media_type=CAROUSEL → /media_publish. JADWAL DIPUTUSKAN
+#      SERVER: window 19:00–20:59 WIB + cadence 2 hari sekali
+#      (guard 44 jam) — runner jalan harian, server yang skip.
+#   5. 🎵 TIKTOK: posting via Content Posting API (token dispenser
 #      /api/tiktok/token). App TikTok masih sandbox (SELF_ONLY) —
 #      kalau gagal, TIDAK menggagalkan Reels IG.
 #
@@ -29,7 +34,7 @@ name: Sinta — Video TikTok + Instagram Reels
 #   Cloudflare dashboard → luxtradee → Variables & Secrets:
 #     FACEBOOK_PAGE_ID, FACEBOOK_PAGE_TOKEN,
 #     FACEBOOK_APP_ID, FACEBOOK_APP_SECRET (refresh token 60 hari)
-#   Supabase (SQL editor): supabase-migrations/037 + 038
+#   Supabase (SQL editor): supabase-migrations/037 + 038 + 039
 #   GitHub Secrets: PROD_URL, CRON_SECRET (sudah ada)
 # ═══════════════════════════════════════════════════════════════════
 
@@ -196,6 +201,60 @@ jobs:
             echo "✅ Reels IG: $(jq -r 'if .posted then "POSTED → " + (.permalink // "?") else (.skipped // "queued") end' /tmp/ig.json)"
           else
             echo "⚠️ Reels IG gagal — antrean tetap tersimpan, cron ig-auto-post akan retry"
+          fi
+
+      - name: 🖼️ Render carousel IG (renderStill per slide) + posting
+        if: always()
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          cd remotion-video
+          NSLIDES=$(jq '.spec.carousel.slides | length' /tmp/spec.json 2>/dev/null || echo 0)
+          if [ "$NSLIDES" -lt 2 ]; then echo "⏭️ Carousel <2 slide di spec — dilewati"; exit 0; fi
+          if [ "$NSLIDES" -gt 10 ]; then NSLIDES=10; fi
+          echo "Slide carousel : $NSLIDES"
+
+          # 1) renderStill per slide (props.index memilih slide)
+          for i in $(seq 0 $((NSLIDES-1))); do
+            jq --argjson i "$i" '{slides: (.spec.carousel.slides[:10]), index: $i, handle: "@luxtradee", domain: "luxtradee.web.id"}' /tmp/spec.json > /tmp/carousel-props-$i.json
+            npx remotion still SintaCarousel /tmp/carousel-$i.png --props=/tmp/carousel-props-$i.json >/dev/null 2>&1
+            test -s /tmp/carousel-$i.png || { echo "❌ render slide $i gagal"; exit 1; }
+            echo "slide $((i+1))/$NSLIDES ✅ $(du -h /tmp/carousel-$i.png | cut -f1)"
+          done
+
+          PROD_URL="${PROD_URL%/}"
+
+          # 2) Upload semua slide PNG ke host publik (litterbox 72 jam)
+          URLS="[]"
+          for i in $(seq 0 $((NSLIDES-1))); do
+            U=$(curl -sS --max-time 120 -F reqtype=fileupload -F time=72h \
+              -F "fileToUpload=@/tmp/carousel-$i.png" \
+              https://litterbox.catbox.moe/resources/internals/api.php)
+            case "$U" in
+              https://*) URLS=$(echo "$URLS" | jq --arg u "$U" '. + [$u]') ;;
+              *) echo "⚠️ upload slide $((i+1)) gagal — slide dilewati" ;;
+            esac
+            sleep 1
+          done
+          NURL=$(echo "$URLS" | jq 'length')
+          echo "Slide ter-upload: $NURL"
+          if [ "$NURL" -lt 2 ]; then echo "⚠️ Ter-upload <2 slide — carousel dilewati (coba jadwal berikutnya)"; exit 0; fi
+
+          # 3) Kirim ke worker → server cek window 19-20 WIB + cadence 2 hari
+          CAPTION=$(jq -r '(.spec.igCaption // .spec.caption // "")[0:2100]' /tmp/spec.json)
+          BODY=$(jq -n --argjson u "$URLS" --arg c "$CAPTION" '{imageUrls:$u, caption:$c}')
+          code=$(curl -sS -L -o /tmp/igc.json -w '%{http_code}' --max-time 600 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" -d "$BODY" \
+            "$PROD_URL/api/cron/ig-carousel-post") || code=000
+          echo "HTTP $code"
+          cat /tmp/igc.json; echo
+          # skipped (luar window/cadence/token belum diset) = NORMAL, bukan gagal
+          if jq -e '.ok == true or .skipped' /tmp/igc.json >/dev/null 2>&1; then
+            echo "✅ Carousel IG: $(jq -r 'if .posted then "POSTED → " + (.permalink // "?") else (.skipped // "queued") end' /tmp/igc.json)"
+          else
+            echo "⚠️ Carousel IG gagal — antrean tetap tersimpan, cron ig-auto-post akan retry"
           fi
 
       - name: 🎵 Posting ke TikTok (Content Posting API — sandbox SELF_ONLY)

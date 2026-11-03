@@ -17,7 +17,9 @@ import {
  *   pending → publishing → published (ig_post_id, permalink)
  *                        ↘ failed (error, attempts ≥ 3)
  *   media_type: 'IMAGE' (image_url) | 'REELS' (video_url .mp4 —
- *   hasil render Remotion Sinta, diupload ke host publik)
+ *   hasil render Remotion Sinta) | 'CAROUSEL' (meta.image_urls —
+ *   slide PNG 1080×1350 renderStill SintaCarousel, diupload ke
+ *   host publik) — semua diupload ke host publik dulu.
  *
  * Langkah per tick:
  *   1. ensureFreshToken — token > 55 hari → refresh otomatis
@@ -28,7 +30,7 @@ import {
  *      butuh proses server IG 1–5 menit) → pending.
  *   4. Klaim maks N baris 'pending' (scheduled_for ≤ now, N default 2,
  *      maks 5 via ?max=) → postToInstagram (media → poll → media_publish;
- *      Reels poll sampai 6 menit).
+ *      Reels poll sampai 6 menit, carousel 3 menit).
  *   5. Sukses → published + permalink. Gagal → attempts<3 balik pending,
  *      else failed permanen. Ringkasan gagal → Discord admin.
  *
@@ -52,6 +54,7 @@ interface QueueRow {
   video_url: string | null
   caption: string | null
   attempts: number
+  meta?: { image_urls?: string[] } | null
 }
 
 export async function GET(request: NextRequest) {
@@ -127,7 +130,7 @@ async function handle(request: NextRequest) {
     /* ── 4) Klaim antrean pending ── */
     const { data: due, error: qErr } = await admin
       .from('instagram_posts')
-      .select('id, media_type, image_url, video_url, caption, attempts')
+      .select('id, media_type, image_url, video_url, caption, attempts, meta')
       .eq('status', 'pending')
       .lte('scheduled_for', new Date().toISOString())
       .order('created_at', { ascending: true })
@@ -154,10 +157,33 @@ async function handle(request: NextRequest) {
         .select('id')
       if (!claimed.data?.length) continue // baris diambil isolate lain
 
+      /* CAROUSEL → kumpulkan URL slide dari meta.image_urls
+         (fallback: image_url tunggal, kompatibilitas data lama) */
+      const isCarousel = row.media_type === 'CAROUSEL'
+      const carouselUrls = isCarousel
+        ? (row.meta?.image_urls?.length
+            ? row.meta.image_urls.map((u) => String(u))
+            : row.image_url ? [row.image_url] : [])
+        : []
+      if (isCarousel && carouselUrls.length < 2) {
+        // Slide hilang (host publik 72 jam kedaluwarsa dsb) → gagal permanen
+        await admin
+          .from('instagram_posts')
+          .update({
+            status: 'failed',
+            error: 'carousel butuh ≥2 URL slide — meta.image_urls kosong/tidak valid (upload runner kedaluwarsa?)',
+          })
+          .eq('id', row.id)
+        failures++
+        results.push({ id: row.id, ok: false, error: 'slide carousel hilang dari meta' })
+        continue
+      }
+
       const r = await postToInstagram(cfg, {
-        mediaType: row.media_type === 'REELS' ? 'REELS' : 'IMAGE',
-        imageUrl: row.image_url || undefined,
-        videoUrl: row.video_url || undefined,
+        mediaType: isCarousel ? 'CAROUSEL' : row.media_type === 'REELS' ? 'REELS' : 'IMAGE',
+        imageUrl: isCarousel ? undefined : (row.image_url || undefined),
+        videoUrl: isCarousel ? undefined : (row.video_url || undefined),
+        imageUrls: isCarousel ? carouselUrls : undefined,
         caption: row.caption || undefined,
       })
 
