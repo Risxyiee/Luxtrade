@@ -268,9 +268,12 @@ async function callOpenAIModel(
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: maxTokens,
+        // Reasoning model (gpt-oss dll) butuh budget besar — reasoning-nya
+        // memakan token sebelum content, kalau kecil → content kosong.
+        max_tokens: Math.max(maxTokens, 4000),
+        ...(model.includes('gpt-oss') ? { reasoning_effort: 'low' } : {}),
       }),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(40000),
     })
 
     if (!res.ok) {
@@ -339,9 +342,15 @@ async function callGeminiModel(
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: maxTokens },
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: Math.max(maxTokens, 4000),
+            // Gemini 2.5 = thinking model: reasoning memakan output token
+            // sampai JSON terpotong → validSpec gagal. Matikan thinking.
+            ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          },
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(40000),
       }
     )
 
