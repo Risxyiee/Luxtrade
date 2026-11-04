@@ -2,12 +2,15 @@
  * instagram.ts — Auto-post Instagram via Facebook Page Graph API v19.0
  * =====================================================================
  * Alur posting (persis spesifikasi):
- *   1) POST https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/media
+ *   0) GET /{page-id}?fields=instagram_business_account → IG user id
+ *      (edge /media & /media_publish ada di node AKUN IG — BUKAN node
+ *      Halaman; POST ke page id → "Unsupported post request" subcode 33)
+ *   1) POST https://graph.facebook.com/v19.0/{IG_USER_ID}/media
  *        ?image_url=<URL publik jpg/png>&caption=<teks>          (foto)
  *        ?media_type=REELS&video_url=<URL publik mp4>&caption=   (Reels)
  *      → { id: <creation_id> }  (container)
  *   2) Tunggu container status FINISHED (image: detik · Reels: 1–5 menit)
- *   3) POST https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/media_publish
+ *   3) POST https://graph.facebook.com/v19.0/{IG_USER_ID}/media_publish
  *        ?creation_id=<creation_id>
  *      → { id: <ig_post_id> }  → ambil permalink utk riwayat
  *
@@ -202,6 +205,54 @@ export async function ensureTokenBaseline(admin: SupabaseClient, cfg: IgConfig):
 }
 
 /* ============================================================
+   Resolusi IG user id — KUNCI publish
+   ============================================================
+   Edge /media dan /media_publish di Graph API modern hidup di node
+   AKUN INSTAGRAM ({ig-user-id}), bukan di node Halaman. POST ke
+   {page-id}/media selalu balik:
+     "Unsupported post request … does not support this operation"
+     (GraphMethodException code 100 subcode 33)
+   walau token & linkage valid. Jadi: resolve dulu IG user id dari
+   Halaman, lalu semua POST media pakai IG user id.
+   ============================================================ */
+
+/** Cache per-isolate: pageId → igUserId (linkage jarang berubah). */
+let igUserIdCache: { pageId: string; igUserId: string } | null = null
+
+/**
+ * Cari IG user id profesional dari config (page id + page token).
+ * Return null kalau Halaman belum tertaut akun IG profesional.
+ */
+export async function resolveIgUserId(cfg: IgConfig): Promise<string | null> {
+  if (igUserIdCache?.pageId === cfg.pageId) return igUserIdCache.igUserId
+
+  /* 1) Jalur normal: GET /{page-id}?fields=instagram_business_account */
+  const r = await graphCall('GET', cfg.pageId, { fields: 'instagram_business_account' }, cfg.pageToken)
+  if (r.ok) {
+    const id = String(r.data?.instagram_business_account?.id || '')
+    if (id) {
+      igUserIdCache = { pageId: cfg.pageId, igUserId: id }
+      return id
+    }
+    return null // Halaman valid, tapi belum ada akun IG profesional tertaut
+  }
+
+  /* 2) Fallback: FACEBOOK_PAGE_ID ternyata sudah berisi IG user id
+        (17841…) — node IG punya field username, Halaman tidak. */
+  const v = await graphCall('GET', cfg.pageId, { fields: 'username' }, cfg.pageToken)
+  if (v.ok && v.data?.username) {
+    igUserIdCache = { pageId: cfg.pageId, igUserId: cfg.pageId }
+    return cfg.pageId
+  }
+  return null
+}
+
+/** Pesan error baku kalau IG user id tidak ketemu. */
+function igLinkError(cfg: IgConfig): string {
+  return `Akun IG profesional belum tertaut ke halaman ${cfg.pageId} — sambungkan dulu (app Instagram → Alat bisnis → Sambungkan Halaman, atau Meta Business Suite → Akun Instagram)`
+}
+
+/* ============================================================
    Klien Graph — error ternormalisasi
    ============================================================ */
 
@@ -276,7 +327,9 @@ export async function createMediaContainer(
     params.image_url = opts.imageUrl
   }
   if (opts.caption) params.caption = opts.caption
-  const r = await graphCall('POST', `${cfg.pageId}/media`, params, cfg.pageToken, 60_000)
+  const igUserId = await resolveIgUserId(cfg)
+  if (!igUserId) return { ok: false, error: igLinkError(cfg) }
+  const r = await graphCall('POST', `${igUserId}/media`, params, cfg.pageToken, 60_000)
   if (!r.ok) return { ok: false, error: r.error }
   const id = String(r.data?.id || '')
   if (!id) return { ok: false, error: 'Graph API tidak balik container id' }
@@ -304,10 +357,13 @@ export async function createCarouselContainer(
     return { ok: false, childIds: [], error: `carousel butuh ${IG_CAROUSEL_MIN}–${IG_CAROUSEL_MAX} foto, dapat ${urls.length}` }
   }
 
+  const igUserId = await resolveIgUserId(cfg)
+  if (!igUserId) return { ok: false, childIds: [], error: igLinkError(cfg) }
+
   /* 1) Child containers — is_carousel_item=true, TANPA caption */
   const childIds: string[] = []
   for (let i = 0; i < urls.length; i++) {
-    const r = await graphCall('POST', `${cfg.pageId}/media`, {
+    const r = await graphCall('POST', `${igUserId}/media`, {
       image_url: urls[i],
       is_carousel_item: 'true',
     }, cfg.pageToken, 60_000)
@@ -320,7 +376,7 @@ export async function createCarouselContainer(
   }
 
   /* 2) Container induk — media_type=CAROUSEL + children + caption */
-  const r = await graphCall('POST', `${cfg.pageId}/media`, {
+  const r = await graphCall('POST', `${igUserId}/media`, {
     media_type: 'CAROUSEL',
     children: childIds.join(','),
     ...(opts.caption ? { caption: opts.caption } : {}),
@@ -352,14 +408,16 @@ export async function getContainerStatus(
 }
 
 /* ============================================================
-   3) Publish — POST /{page-id}/media_publish?creation_id=
+   3) Publish — POST /{ig-user-id}/media_publish?creation_id=
    ============================================================ */
 
 export async function publishContainer(
   cfg: IgConfig,
   containerId: string
 ): Promise<{ ok: boolean; postId?: string; error?: string }> {
-  const r = await graphCall('POST', `${cfg.pageId}/media_publish`, { creation_id: containerId }, cfg.pageToken)
+  const igUserId = await resolveIgUserId(cfg)
+  if (!igUserId) return { ok: false, error: igLinkError(cfg) }
+  const r = await graphCall('POST', `${igUserId}/media_publish`, { creation_id: containerId }, cfg.pageToken)
   if (!r.ok) return { ok: false, error: r.error }
   const id = String(r.data?.id || '')
   if (!id) return { ok: false, error: 'Graph API tidak balik post id' }
