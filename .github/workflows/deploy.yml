@@ -1,29 +1,26 @@
-name: Deploy to Cloudflare Workers
+name: Deploy to Cloudflare Workers (MANUAL — fallback)
 
 # ══════════════════════════════════════════════════════════════════════════
-# CI/CD — build OpenNext + deploy ke CF Workers "luxtradee"
+# ⚠️ DEPLOY UTAMA SEKARANG = CLOUDFLARE WORKERS BUILDS (dashboard CF ↔ GitHub).
+#    Setiap push ke main otomatis di-build & deploy oleh CF — bukti hidup:
+#    commit 6f09f4ac sudah produksi tanpa workflow ini.
 #
-# Trigger:
-#   - push ke main  → auto deploy produksi
-#   - workflow_dispatch (tombol "Run workflow" di GitHub app/web)
+#    Workflow ini TIDAK lagi jalan otomatis (trigger push dihapus) karena:
+#    1. Dobel deploy (Workers Builds + Actions) rawan race condition.
+#    2. CLOUDFLARE_API_TOKEN secret kosong (Bos tidak ingin pakai token di
+#       GitHub) → tiap push selalu merah X padahal deploy asli sukses.
 #
-# Secrets repo yang wajib ada (Settings → Secrets and variables → Actions):
-#   CLOUDFLARE_API_TOKEN   (template "Edit Cloudflare Workers" + Images/AI/Browser/Queues)
-#   CLOUDFLARE_ACCOUNT_ID  (a0365e485e4970191d6332a023ea9783)
+#    Pakai tombol "Run workflow" HANYA sebagai cadangan kalau Workers Builds
+#    bermasalah — dan itu butuh secrets:
+#      CLOUDFLARE_API_TOKEN   (template "Edit Cloudflare Workers" + Images/AI/Browser/Queues)
+#      CLOUDFLARE_ACCOUNT_ID  (a0365e485e4970191d6332a023ea9783)
 #
-# Catatan:
-#   - Config deploy = wrangler.jsonc (SINGLE SOURCE OF TRUTH — wrangler.toml
-#     sudah dihapus permanen; jangan buat lagi).
-#   - NEXT_PUBLIC_* di bawah di-inline saat build (client bundle). Nilainya
-#     public by design (anon key publishable + VAPID public).
-#   - Secret server (SERVICE_ROLE dsb) TIDAK disentuh workflow ini —
-#     tetap aman di CF dashboard.
+#    Config deploy = wrangler.jsonc (SINGLE SOURCE OF TRUTH — wrangler.toml
+#    dihapus + masuk .gitignore; JANGAN buat lagi).
 # ══════════════════════════════════════════════════════════════════════════
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 concurrency:
   group: deploy-production

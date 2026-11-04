@@ -7,8 +7,12 @@ import { getEnvVar } from '@/lib/cloudflare-bindings'
  * fs/node API yang tidak tersedia di CF Workers runtime.
  *
  * Rantai provider: GROQ_API_KEY (llama-3.3-70b, cepat & gratis) →
- * GEMINI_API_KEY (gemini-2.0-flash) → null (pemanggil wajib punya
+ * GEMINI_API_KEY (gemini-3.8-flash; dulu gemini-2.0-flash — DIMATIKAN
+ * Google pada Nov 2026, respons 404) → null (pemanggil wajib punya
  * fallback template sendiri agar cron tetap menghasilkan draf).
+ *
+ * Model bisa dioverride via env GROQ_MODEL / GEMINI_MODEL. Kalau model
+ * utama 404/deprecated, otomatis coba model cadangan di bawah.
  */
 
 export interface LLMResult {
@@ -17,8 +21,11 @@ export interface LLMResult {
   model: string
 }
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
-const GEMINI_MODEL = 'gemini-2.0-flash'
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+/** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
+const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
+const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
 
 async function getGroqKey(): Promise<string> {
   try { return (await getEnvVar('GROQ_API_KEY', { quiet: true })) || process.env.GROQ_API_KEY || '' } catch { return process.env.GROQ_API_KEY || '' }
@@ -59,79 +66,89 @@ export async function callLLM(systemPrompt: string, userPrompt: string, maxToken
 }
 
 async function callGroq(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number): Promise<LLMResult | null> {
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.8,
-        max_tokens: maxTokens,
-      }),
-      signal: AbortSignal.timeout(25000),
-    })
+  for (const model of [GROQ_MODEL, ...GROQ_FALLBACKS]) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.8,
+          max_tokens: maxTokens,
+        }),
+        signal: AbortSignal.timeout(25000),
+      })
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      console.error(`[ai-llm] Groq ${res.status}: ${errBody.substring(0, 200)}`)
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        console.error(`[ai-llm] Groq ${res.status} (${model}): ${errBody.substring(0, 200)}`)
+        // 404/400 = model dimatikan/deprecated → coba model cadangan.
+        // Selain itu (401 key salah, 429 rate limit) → percuma ganti model, stop.
+        if (res.status === 404 || res.status === 400) continue
+        return null
+      }
+
+      const data = await res.json()
+      const text: string | undefined = data?.choices?.[0]?.message?.content
+      if (!text || !text.trim()) {
+        console.error(`[ai-llm] Groq returned empty content (${model})`)
+        continue
+      }
+      return { text: text.trim(), provider: 'groq', model }
+    } catch (err: any) {
+      console.error(`[ai-llm] Groq error (${model}):`, err?.message || err)
       return null
     }
-
-    const data = await res.json()
-    const text: string | undefined = data?.choices?.[0]?.message?.content
-    if (!text || !text.trim()) {
-      console.error('[ai-llm] Groq returned empty content')
-      return null
-    }
-    return { text: text.trim(), provider: 'groq', model: GROQ_MODEL }
-  } catch (err: any) {
-    console.error('[ai-llm] Groq error:', err?.message || err)
-    return null
   }
+  return null
 }
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number): Promise<LLMResult | null> {
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: maxTokens },
-        }),
-        signal: AbortSignal.timeout(25000),
+  for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACKS]) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            generationConfig: { temperature: 0.8, maxOutputTokens: maxTokens },
+          }),
+          signal: AbortSignal.timeout(25000),
+        }
+      )
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        console.error(`[ai-llm] Gemini ${res.status} (${model}): ${errBody.substring(0, 200)}`)
+        if (res.status === 404 || res.status === 400) continue
+        return null
       }
-    )
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      console.error(`[ai-llm] Gemini ${res.status}: ${errBody.substring(0, 200)}`)
+      const data = await res.json()
+      const text: string | undefined = data?.candidates?.[0]?.content?.parts
+        ?.map((p: { text?: string }) => p?.text || '')
+        .join('')
+      if (!text || !text.trim()) {
+        console.error(`[ai-llm] Gemini returned empty content (${model})`)
+        continue
+      }
+      return { text: text.trim(), provider: 'gemini', model }
+    } catch (err: any) {
+      console.error(`[ai-llm] Gemini error (${model}):`, err?.message || err)
       return null
     }
-
-    const data = await res.json()
-    const text: string | undefined = data?.candidates?.[0]?.content?.parts
-      ?.map((p: { text?: string }) => p?.text || '')
-      .join('')
-    if (!text || !text.trim()) {
-      console.error('[ai-llm] Gemini returned empty content')
-      return null
-    }
-    return { text: text.trim(), provider: 'gemini', model: GEMINI_MODEL }
-  } catch (err: any) {
-    console.error('[ai-llm] Gemini error:', err?.message || err)
-    return null
   }
+  return null
 }
 
 /**

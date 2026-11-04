@@ -11,6 +11,7 @@ import {
   useVideoConfig,
 } from "remotion";
 import { Backdrop } from "./components/Backdrop";
+import { BackgroundMusic } from "./components/Music";
 import { CandleChart, ChartPanel } from "./components/Chart";
 import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, clamp01, pop, rise, SceneShell } from "./components/Ui";
 import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
@@ -464,6 +465,8 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
   return (
     <AbsoluteFill style={{ backgroundColor: C.bg, fontFamily: FONT }}>
       <Backdrop />
+      {/* 🎵 musik latar bebas-copyright di-bake ke MP4 (IG/TikTok API tidak bisa lampirkan musik library) */}
+      <BackgroundMusic />
       <ProgressBar />
       <BrandChip />
 

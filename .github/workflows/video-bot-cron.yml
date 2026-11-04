@@ -1,34 +1,44 @@
 name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 # ═══════════════════════════════════════════════════════════════════
-# 🎬 DESK SINTA (CMO) — SATU PIPELINE DUA PLATFORM + CAROUSEL (Bos)
+# 🎬 DESK SINTA (CMO) — 1 KONTEN/HARI, ROTASI PLATFORM (Bos, Nov 2026)
 # ───────────────────────────────────────────────────────────────────
-# "posting samain kaya tiktok, jam 19-20, 2 hari sekali, video sama
-#  gapapa — tiktok kan belum bisa, nunggu, jadi IG dulu"
-# "konten hanya remotion sm konten corosal"
+# "uploud tiap jam 7-8, 1 konten aja sehari, mau tiktok mau ig,
+#  sabtu minggu libur"
+#
+# Aturan berlaku:
+#   • JADWAL  : SENIN–JUMAT 19:10 WIB (12:10 UTC). Sabtu/Minggu LIBUR.
+#   • 1 konten/hari — rotasi platform otomatis:
+#       Senin / Rabu / Jumat → Instagram Reels
+#       Selasa / Kamis       → TikTok (kalau app belum approved atau
+#         upload gagal → FALLBACK otomatis ke IG Reels, konten tidak
+#         hangus)
+#   • Window + cadence tetap divalidasi SERVER (ig-video-post: window
+#     19–20 WIB, jeda minimal 20 jam) — runner cuma eksekutor.
+#   • Carousel IG: MANUAL only (Run workflow → carousel ✔) — sesuai
+#     "1 konten aja sehari".
+#   • 🎵 MUSIK LATAR: public/music/bg.mp3 (SoundHelix — bebas hak
+#     cipta, lihat CREDITS.txt) di-bake ke MP4 oleh Remotion
+#     (komponen BackgroundMusic). Catatan: musik trending dari library
+#     IG/TikTok TIDAK BISA dilampirkan via API resmi — satu-satunya
+#     cara = musik menyatu di file video (original sound). Nol risiko
+#     copyright strike, dan track sama dipakai IG + TikTok.
 #
 # Alur sekali jalan di runner (CPU-nya gratis):
 #   1. Ambil SPESIFIKASI dari otak Sinta (worker /api/cron/video-bot —
 #      makan DATA KONTEN ASLI: tiktok_posts + sinyal pine_alert_log +
-#      hindari topik Reels dobel). Spec = VIDEO + CAROUSEL (2 bentuk
-#      konten yang diizinkan Bos — tidak ada bentuk lain).
+#      hindari topik Reels dobel).
 #   2. Render video 9:16 via REMOTION — template dinamis:
 #        promo  → LuxtradePromo (produk 5 scene)
 #        tip    → SintaReels    (kinetic typography edukasi)
 #        signal → SignalRecap   (chart animasi + entry/exit ASLI)
-#      + voiceover Indonesia (edge-tts)
-#   3. 📸 INSTAGRAM REELS (prioritas Bos): upload MP4 ke litterbox
-#      (host publik 72 jam) → worker /api/cron/ig-video-post →
-#      Graph API /media?media_type=REELS → /media_publish.
-#   4. 🖼️ INSTAGRAM CAROUSEL: renderStill komposisi SintaCarousel
-#      1080×1350 per slide → upload PNG ke litterbox → worker
-#      /api/cron/ig-carousel-post → Graph API /media?is_carousel_item
-#      → media_type=CAROUSEL → /media_publish. JADWAL DIPUTUSKAN
-#      SERVER: window 19:00–20:59 WIB + cadence 2 hari sekali
-#      (guard 44 jam) — runner jalan harian, server yang skip.
-#   5. 🎵 TIKTOK: posting via Content Posting API (token dispenser
-#      /api/tiktok/token). App TikTok masih sandbox (SELF_ONLY) —
-#      kalau gagal, TIDAK menggagalkan Reels IG.
+#      + voiceover Indonesia (edge-tts) + musik latar.
+#   3. 🎛️ Putuskan platform hari ini (rotasi Sen/Rab/Jum=IG,
+#      Sel/Kam=TikTok + cek token TikTok).
+#   4. Posting: upload MP4 SELF-HOST dulu (KV /api/cron/ig-media-store —
+#      host pihak ketiga bikin IG error 2207082) → worker
+#      /api/cron/ig-video-post → Graph API /media REELS → /media_publish.
+#   5. 🖼️ Carousel IG — manual only.
 #
 # SETUP SEKALI (oleh Bos):
 #   Cloudflare dashboard → luxtradee → Variables & Secrets:
@@ -40,12 +50,17 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 on:
   schedule:
-    # 12:10 UTC = 19:10 WIB — di dalam window 19-20 WIB permintaan Bos
-    - cron: '10 12 * * *'
+    # 12:10 UTC = 19:10 WIB — Senin–Jumat saja (1-5). Sabtu/Minggu LIBUR (Bos).
+    - cron: '10 12 * * 1-5'
   workflow_dispatch:
     inputs:
       force:
-        description: 'Lewati window 19-20 WIB & cadence 2 hari (tes manual)'
+        description: 'Lewati window 19-20 WIB & cadence (tes manual)'
+        type: boolean
+        required: false
+        default: false
+      carousel:
+        description: 'Render + posting carousel IG juga (manual only)'
         type: boolean
         required: false
         default: false
@@ -103,7 +118,7 @@ jobs:
           npm install --no-audit --no-fund
           npx remotion browser ensure
 
-      - name: 🎬 Render video (template dinamis + voiceover)
+      - name: 🎬 Render video (template dinamis + voiceover + musik latar)
         run: |
           cd remotion-video
           TEMPLATE=$(jq -r '.template // "promo"' /tmp/spec.json)
@@ -163,14 +178,109 @@ jobs:
           print("props.json OK — template:", template)
           PYEOF
 
+          # Musik latar wajib ada (BackgroundMusic me-render staticFile) —
+          # kalau tidak ada di repo, video gagal render. Guard aman:
+          test -s public/music/bg.mp3 || { echo "❌ public/music/bg.mp3 hilang"; exit 1; }
+
           # 2) Render komposisi terpilih 1080x1920
           npx remotion render "$COMP" /tmp/luxtrade-video.mp4 --props=props.json
           test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
           echo "Ukuran video : $(du -h /tmp/luxtrade-video.mp4 | cut -f1)"
 
-      # 📸 Posting ke Instagram Reels (19–20 WIB, 2 hari sekali — server yang putuskan)
-      - name: 📸 Posting ke Instagram Reels (19–20 WIB, 2 hari sekali — server yang putuskan)
-        if: always()
+      # 🎛️ ROTASI PLATFORM — Sen/Rab/Jum = IG · Sel/Kam = TikTok (1 konten/hari)
+      - name: 🎛️ Putuskan platform hari ini (Sen/Rab/Jum=IG · Sel/Kam=TikTok)
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          DOW=$(date -u +%u) # 1=Senin..5=Jumat (cron cuma 1-5; 19:10 WIB = hari sama dgn UTC)
+          case "$DOW" in
+            1|3|5) PLATFORM="ig" ;;
+            2|4)   PLATFORM="tiktok" ;;
+            *)     PLATFORM="ig" ;; # jaga-jaga kalau dijalankan manual di akhir pekan
+          esac
+          echo "Hari ke-$DOW → giliran platform: $PLATFORM"
+
+          # Giliran TikTok tapi token belum tersedia (app belum approved)?
+          # → fallback ke IG Reels supaya 1 konten/hari tetap jalan.
+          if [ "$PLATFORM" = "tiktok" ]; then
+            TOK=$(curl -sS -L --max-time 60 -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$PROD_URL/api/tiktok/token") || TOK="{}"
+            ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
+            if [ -z "$ACCESS" ]; then
+              echo "⏭️ Token TikTok belum tersedia → fallback ke IG Reels"
+              PLATFORM="ig"
+            fi
+          fi
+
+          echo "PLATFORM=$PLATFORM" >> "$GITHUB_ENV"
+          echo "✅ Platform final hari ini: $PLATFORM"
+
+      # 🎵 TikTok — hanya kalau gilirannya; gagal → fallback IG (konten tidak hangus)
+      - name: 🎵 Posting ke TikTok (Content Posting API — sandbox SELF_ONLY)
+        if: env.PLATFORM == 'tiktok'
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          [ -s /tmp/luxtrade-video.mp4 ] || { echo "⏭️ Tidak ada video — TikTok dilewati"; exit 0; }
+          PROD_URL="${PROD_URL%/}"
+
+          TOK=$(curl -sS -L --max-time 60 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PROD_URL/api/tiktok/token") || TOK="{}"
+          ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
+          if [ -z "$ACCESS" ]; then
+            echo "⏭️ Token TikTok belum tersedia (app belum approved) — fallback ke IG"
+            echo "IG_FALLBACK=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "✅ Token siap (source: $(echo "$TOK" | jq -r '.source'))"
+
+          SIZE=$(stat -c%s /tmp/luxtrade-video.mp4)
+          TITLE=$(jq -Rn --arg t "$(jq -r '.spec.caption' /tmp/spec.json | head -c 1500)" '$t')
+          INIT=$(curl -sS --max-time 60 -X POST \
+            -H "Authorization: Bearer $ACCESS" \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            -d "{\"post_info\":{\"title\":$TITLE,\"privacy_level\":\"$PRIVACY\"},\"source_info\":{\"source\":\"FILE_UPLOAD\",\"video_size\":$SIZE,\"chunk_size\":$SIZE,\"total_chunk_count\":1}}" \
+            "https://open.tiktokapis.com/v2/post/publish/video/init/")
+          UPLOAD_URL=$(echo "$INIT" | jq -r '.data.upload_url // empty')
+          PUBLISH_ID=$(echo "$INIT" | jq -r '.data.publish_id // empty')
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "⏭️ Init upload TikTok gagal (app belum approved?) — fallback ke IG:"
+            echo "$INIT" | jq . 2>/dev/null || echo "$INIT"
+            echo "IG_FALLBACK=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "publish_id: $PUBLISH_ID"
+
+          code=$(curl -sS -o /tmp/upload-resp.txt -w '%{http_code}' -X PUT \
+            -H "Content-Type: video/mp4" \
+            -H "Content-Range: bytes 0-$((SIZE-1))/$SIZE" \
+            --data-binary @/tmp/luxtrade-video.mp4 "$UPLOAD_URL") || code=000
+          echo "Upload HTTP $code"
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            cat /tmp/upload-resp.txt
+            echo "IG_FALLBACK=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          for i in 1 2 3 4 5; do
+            sleep 15
+            ST=$(curl -sS --max-time 30 -X POST \
+              -H "Authorization: Bearer $ACCESS" \
+              -H "Content-Type: application/json; charset=UTF-8" \
+              -d "{\"publish_id\":\"$PUBLISH_ID\"}" \
+              "https://open.tiktokapis.com/v2/post/publish/status/fetch/")
+            echo "$ST" | grep -q 'PUBLISH_COMPLETE' && { echo "🎬 Video terkirim ke TikTok"; break; }
+            echo "status #$i: $(echo "$ST" | jq -c '.data' 2>/dev/null || echo "$ST")"
+          done
+
+      # 📸 IG Reels — giliran Sen/Rab/Jum ATAU fallback dari TikTok yang gagal
+      - name: 📸 Posting ke Instagram Reels (19–20 WIB · server putuskan window/cadence)
+        if: env.PLATFORM == 'ig' || env.IG_FALLBACK == 'true'
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -217,7 +327,7 @@ jobs:
             *) echo "⚠️ Semua host publik gagal (nanti dicoba lagi jadwal berikutnya)"; exit 0 ;;
           esac
 
-          # 2) Kirim ke worker → server cek window 19-20 WIB + cadence 2 hari
+          # 2) Kirim ke worker → server cek window 19-20 WIB + cadence 1x/hari
           CAPTION=$(jq -r '(.spec.igCaption // .spec.caption // "")[0:2100]' /tmp/spec.json)
           TEMPLATE=$(jq -r '.template // "promo"' /tmp/spec.json)
           HOOK=$(jq -r '.spec.scenes[0].title // ""' /tmp/spec.json)
@@ -236,9 +346,9 @@ jobs:
             echo "⚠️ Reels IG gagal — antrean tetap tersimpan, cron ig-auto-post akan retry"
           fi
 
-      # 🖼️ Render carousel IG (renderStill per slide) + posting
-      - name: 🖼️ Render carousel IG (renderStill per slide) + posting
-        if: always()
+      # 🖼️ Carousel IG — MANUAL ONLY (Run workflow → carousel ✔) — "1 konten aja sehari"
+      - name: 🖼️ Render carousel IG (renderStill per slide) + posting — manual only
+        if: inputs.carousel == true
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -286,7 +396,7 @@ jobs:
           echo "Slide ter-upload: $NURL"
           if [ "$NURL" -lt 2 ]; then echo "⚠️ Ter-upload <2 slide — carousel dilewati (coba jadwal berikutnya)"; exit 0; fi
 
-          # 3) Kirim ke worker → server cek window 19-20 WIB + cadence 2 hari
+          # 3) Kirim ke worker → server cek window 19-20 WIB + cadence
           CAPTION=$(jq -r '(.spec.igCaption // .spec.caption // "")[0:2100]' /tmp/spec.json)
           BODY=$(jq -n --argjson u "$URLS" --arg c "$CAPTION" '{imageUrls:$u, caption:$c}')
           code=$(curl -sS -L -o /tmp/igc.json -w '%{http_code}' --max-time 600 -X POST \
@@ -301,59 +411,3 @@ jobs:
           else
             echo "⚠️ Carousel IG gagal — antrean tetap tersimpan, cron ig-auto-post akan retry"
           fi
-
-      - name: 🎵 Posting ke TikTok (Content Posting API — sandbox SELF_ONLY)
-        if: always()
-        env:
-          PROD_URL: ${{ secrets.PROD_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          [ -s /tmp/luxtrade-video.mp4 ] || { echo "⏭️ Tidak ada video — TikTok dilewati"; exit 0; }
-          PROD_URL="${PROD_URL%/}"
-
-          TOK=$(curl -sS -L --max-time 60 -X POST \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            "$PROD_URL/api/tiktok/token") || TOK="{}"
-          ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
-          if [ -z "$ACCESS" ]; then
-            echo "⏭️ Token TikTok belum tersedia (app belum approved) — video tetap aman, IG Reels sudah diproses:"
-            cat /tmp/ig.json 2>/dev/null | head -c 600; echo
-            exit 0
-          fi
-          echo "✅ Token siap (source: $(echo "$TOK" | jq -r '.source'))"
-
-          SIZE=$(stat -c%s /tmp/luxtrade-video.mp4)
-          TITLE=$(jq -Rn --arg t "$(jq -r '.spec.caption' /tmp/spec.json | head -c 1500)" '$t')
-          INIT=$(curl -sS --max-time 60 -X POST \
-            -H "Authorization: Bearer $ACCESS" \
-            -H "Content-Type: application/json; charset=UTF-8" \
-            -d "{\"post_info\":{\"title\":$TITLE,\"privacy_level\":\"$PRIVACY\"},\"source_info\":{\"source\":\"FILE_UPLOAD\",\"video_size\":$SIZE,\"chunk_size\":$SIZE,\"total_chunk_count\":1}}" \
-            "https://open.tiktokapis.com/v2/post/publish/video/init/")
-          UPLOAD_URL=$(echo "$INIT" | jq -r '.data.upload_url // empty')
-          PUBLISH_ID=$(echo "$INIT" | jq -r '.data.publish_id // empty')
-          if [ -z "$UPLOAD_URL" ]; then
-            echo "⏭️ Init upload TikTok gagal (app belum approved?) — dilewati:"
-            echo "$INIT" | jq . 2>/dev/null || echo "$INIT"
-            exit 0
-          fi
-          echo "publish_id: $PUBLISH_ID"
-
-          code=$(curl -sS -o /tmp/upload-resp.txt -w '%{http_code}' -X PUT \
-            -H "Content-Type: video/mp4" \
-            -H "Content-Range: bytes 0-$((SIZE-1))/$SIZE" \
-            --data-binary @/tmp/luxtrade-video.mp4 "$UPLOAD_URL") || code=000
-          echo "Upload HTTP $code"
-          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
-            cat /tmp/upload-resp.txt; exit 0
-          fi
-
-          for i in 1 2 3 4 5; do
-            sleep 15
-            ST=$(curl -sS --max-time 30 -X POST \
-              -H "Authorization: Bearer $ACCESS" \
-              -H "Content-Type: application/json; charset=UTF-8" \
-              -d "{\"publish_id\":\"$PUBLISH_ID\"}" \
-              "https://open.tiktokapis.com/v2/post/publish/status/fetch/")
-            echo "$ST" | grep -q 'PUBLISH_COMPLETE' && { echo "🎬 Video terkirim ke TikTok"; break; }
-            echo "status #$i: $(echo "$ST" | jq -c '.data' 2>/dev/null || echo "$ST")"
-          done

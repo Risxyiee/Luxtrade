@@ -1,0 +1,3 @@
+bg.mp3 — SoundHelix Song 9 (Thomas Schürger, soundhelix.com)
+Lisensi: bebas dipakai utk proyek apa pun (bukan utk dijual sebagai musik).
+Dipotong 60 dtk + loudnorm -16 LUFS sebagai musik latar video Remotion.

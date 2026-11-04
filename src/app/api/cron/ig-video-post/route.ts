@@ -20,10 +20,12 @@ import {
  *   POST /{page-id}/media?media_type=REELS&video_url=&caption=
  *   → poll FINISHED (1–5 menit) → /media_publish?creation_id=
  *
- * ATURAN JADWAL (permintaan Bos): SAMAIN KAYA TIKTOK —
- *   • Window posting: 19:00–20:59 WIB (runner jalan 19:10 WIB)
- *   • Cadence: 2 hari sekali (guard: Reels published terakhir
- *     ≥ 44 jam lalu, kalau lebih sering → skipped)
+ * ATURAN JADWAL (permintaan Bos, update Nov 2026):
+ *   • "uploud tiap jam 7-8, 1 konten aja sehari, sabtu minggu libur"
+ *   • Window posting: 19:00–20:59 WIB (runner jalan 19:10 WIB, Senin–Jumat)
+ *   • Cadence: 1x/hari (guard: Reels published terakhir ≥ 20 jam lalu)
+ *   • Rotasi platform dikelola runner: Sen/Rab/Jum → IG Reels,
+ *     Sel/Kam → TikTok (kalau TikTok gagal/belum approved → fallback IG)
  *   ?force=true → lewati window + cadence (untuk tes manual)
  *
  * Flow:
@@ -40,8 +42,9 @@ import {
  */
 export const dynamic = 'force-dynamic'
 
-/** Jeda minimum antar Reels: 44 jam ≈ "2 hari sekali". */
-const MIN_GAP_MS = 44 * 60 * 60 * 1000
+/** Jeda minimum antar Reels: 20 jam — konten IG max 1x/hari (Senin–Jumat).
+ *  Dulu 44 jam (2 hari sekali); Bos minta harian: "1 konten aja sehari". */
+const MIN_GAP_MS = 20 * 60 * 60 * 1000
 /** Window jam WIB yang diizinkan: 19 dan 20 (permintaan Bos: jam 19–20). */
 const WINDOW_HOURS_WIB = [19, 20]
 

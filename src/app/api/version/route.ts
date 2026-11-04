@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-04.2'
-const NOTES = 'self-host media IG (ig-media-store + /api/media/ig) — atasi error 2207082'
+const VERSION = '2026-11-04.3'
+const NOTES = 'jadwal 1 konten/hari Sen-Jumat 19:10 WIB + rotasi IG/TikTok + musik latar bg.mp3 + fix LLM (gemini-3.8-flash)'
 
 export async function GET() {
   return NextResponse.json(

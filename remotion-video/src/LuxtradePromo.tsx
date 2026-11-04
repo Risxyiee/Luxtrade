@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { Backdrop } from "./components/Backdrop";
+import { BackgroundMusic } from "./components/Music";
 import { BrandChip, C, FONT, ProgressBar, SceneDots } from "./components/Ui";
 import { Scene1Hook } from "./scenes/Scene1Hook";
 import { Scene2Phone } from "./scenes/Scene2Phone";
@@ -69,6 +70,8 @@ export const LuxtradePromo: React.FC<VideoProps> = ({ scenes, handle, domain }) 
   return (
     <AbsoluteFill style={{ backgroundColor: C.bg, fontFamily: FONT }}>
       <Backdrop />
+      {/* 🎵 musik latar bebas-copyright di-bake ke MP4 (IG/TikTok API tidak bisa lampirkan musik library) */}
+      <BackgroundMusic />
       <ProgressBar />
       <BrandChip />
 
