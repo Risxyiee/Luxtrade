@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       const jamLalu = ((Date.now() - lastMs) / 3_600_000).toFixed(1)
       return NextResponse.json({
         ok: true,
-        skipped: `cadence 2 hari sekali — Reels terakhir baru ${jamLalu} jam lalu`,
+        skipped: `cadence 1x/hari (jeda 20 jam) — Reels terakhir baru ${jamLalu} jam lalu`,
         nextEligibleAt: new Date(lastMs + MIN_GAP_MS).toISOString(),
       })
     }

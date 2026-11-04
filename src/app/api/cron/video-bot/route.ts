@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { extractJson, callLLM, getLastLLMDiag } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { getCronAdmin } from '@/lib/cron-supabase'
+import {
+  aggregatePerf,
+  pickAngleAndTopic,
+  pickFallbackSpec,
+  pickTemplateSmart,
+  type Angle,
+  type PerfSnapshot,
+  type Template,
+  type TopicEntry,
+} from '@/lib/sinta-brain'
 
 /**
  * 🧠 POST /api/cron/video-bot — STUDIO VIDEO SINTA (CMO · Marketing & Konten)
@@ -39,7 +49,6 @@ export const dynamic = 'force-dynamic'
    ============================================================ */
 
 type SceneKind = 'hook' | 'point' | 'chart' | 'quote' | 'stat' | 'cta'
-type Template = 'promo' | 'tip' | 'signal'
 type CarouselSlideKind = 'cover' | 'point' | 'chart' | 'stat' | 'quote' | 'cta'
 
 interface VideoScene {
@@ -130,12 +139,56 @@ async function fetchRecentIgCaptions(admin: NonNullable<Awaited<ReturnType<typeo
       .select('caption,published_at')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
-      .limit(6)
+      .limit(12)
     if (error || !data) return []
     return (data as IgRow[]).map((r) => (r.caption || '').slice(0, 120)).filter(Boolean)
   } catch {
     return []
   }
+}
+
+/**
+ * SINTA BRAIN v4 — topik & hook 14 run terakhir (office_memory).
+ * Dipakai utk daftar "jangan ulangi" + pemilihan topik baru.
+ */
+interface SintaRunRow { content?: { hook?: string; topic?: string } }
+
+async function fetchSintaRecentRuns(
+  admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>,
+): Promise<{ topic: string; hook: string }[]> {
+  try {
+    const { data } = await admin
+      .from('office_memory')
+      .select('content')
+      .eq('agent_name', 'Sinta')
+      .eq('memory_type', 'lesson')
+      .order('created_at', { ascending: false })
+      .limit(14)
+    return ((data || []) as SintaRunRow[])
+      .map((r) => ({ topic: String(r?.content?.topic || ''), hook: String(r?.content?.hook || '') }))
+      .filter((x) => x.topic || x.hook)
+  } catch { return [] }
+}
+
+/**
+ * PERFORMA KONTEN 30 hari — dari meta.metrics instagram_posts
+ * (diisi /api/cron/ig-metrics). Fail-open: belum ada data → null.
+ */
+async function fetchSintaPerf(
+  admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>,
+): Promise<PerfSnapshot | null> {
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const { data } = await admin
+      .from('instagram_posts')
+      .select('meta,published_at')
+      .eq('status', 'published')
+      .gte('published_at', since)
+      .limit(60)
+    const rows = (data || []) as { meta?: Record<string, unknown> | null; published_at?: string | null }[]
+    const perf = aggregatePerf(rows)
+    return perf.samplePosts > 0 ? perf : null
+  } catch { return null }
 }
 
 /**
@@ -202,52 +255,15 @@ function isFreshSignal(s: SignalData | null): s is SignalData {
 }
 
 /* ============================================================
-   Pemilihan template (deterministik — LLM cuma menulis isi)
+   Pemilihan template + ANGLE + TOPIK → pindah ke src/lib/sinta-brain.ts
+   (Sinta Brain v4: 11 angle, 24 topik, anti-kembar 10 run, A/B performa)
    ============================================================ */
-
-function pickTemplate(signal: SignalData | null): { template: Template; signal: SignalData | null } {
-  if (isFreshSignal(signal)) return { template: 'signal', signal }
-  // bolak-balik tip ↔ promo biar feed variatif (genap: tip, ganjil: promo)
-  const day = Math.floor(Date.now() / 86_400_000)
-  return { template: day % 2 === 0 ? 'tip' : 'promo', signal: null }
-}
 
 /* ============================================================
-   Default spec (fallback bila LLM tak tersedia) — sudah teruji render
+   Fallback spec → FALLBACK_LIBRARY 7 spec variatif di src/lib/sinta-brain.ts
+   (dulu cuma 2 spec hardcoded — itu biang "kontennya itu-itu mulu"
+   saat semua provider LLM mati)
    ============================================================ */
-
-const DEFAULT_TIP: VideoSpec = {
-  template: 'tip',
-  topic: 'Kenapa trader SMC sering kebaca sweep — bukan reversal',
-  caption: 'Sweep dulu, baru gerak. Ini yang bikin SL kamu kejebak terus 📉 Cek link di bio',
-  hashtags: ['smc', 'smartmoneyconcepts', 'xauusd', 'tradingindonesia', 'luxtrade'],
-  carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
-  igCaption:
-    'SL kejebak terus padahal analisa "udah bener"? 😤\n\nBiasanya kamu entry SEBELUM sweep selesai. Equal highs itu umpan — smart money narik liquidity dulu, baru price turun.\n\n3 hal yang dibahas di video ini:\n1️⃣ Cara mark equal highs & equal lows\n2️⃣ Tanda sweep-nya SELESAI (reaksi + displacement)\n3️⃣ Kapan BOLEH entry setelah sweep\n\nSave video ini biar nggak lupa. Dan catat setiap setup kamu di Luxtradee — cukup screenshot, jurnal & winrate kehitung otomatis. Link di bio 🔗\n\n#smc #smartmoneyconcepts #xauusd #goldtrader #tradingindonesia #belajartrading #ictconcepts #tradingjournal #priceaction #luxtrade',
-  scenes: [
-    { kind: 'hook', title: 'SL KEBJAK TERUS?', sub: 'bukan salah analisa — kamu entry kepagian', vo: 'Stop loss kejebak terus padahal analisa udah bener? Ini penyebabnya.' },
-    { kind: 'chart', title: 'EQUAL HIGHS = UMPAN', sub: 'liquidity numpuk di atas — smart money narik dulu', vo: 'Garis equal highs itu umpan. Liquidity numpuk di atasnya.' },
-    { kind: 'point', title: 'TUNGGU SWEEP SELESAI', sub: 'reaksi + displacement dulu, baru entry', vo: 'Jangan entry sebelum sweep selesai. Tunggu reaksi dan displacement.' },
-    { kind: 'cta', title: 'CATAT TIAP SETUP', sub: 'screenshot → luxtradee auto jurnal — link di bio', vo: 'Catat tiap setup di Luxtradee, cukup screenshot. Cek link di bio.' },
-  ],
-}
-
-const DEFAULT_PROMO: VideoSpec = {
-  template: 'promo',
-  topic: 'Luxtrade — jurnal trading AI untuk trader XAUUSD',
-  caption: 'Masih nebak-nebak harga? Luxtrade: sinyal AI + jurnal otomatis, langsung ke HP kamu. Cek link di bio 👆',
-  hashtags: ['trading', 'xauusd', 'tradingindonesia', 'goldtrader', 'luxtrade'],
-  carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
-  igCaption:
-    'Masih nebak-nebak arah harga? 🎯\n\nLuxtrade pantau pasar 24 jam pakai 8 agen AI — sinyal masuk langsung ke HP kamu, dan setiap trade kamu otomatis kejurnal cuma dari screenshot.\n\n✅ Sinyal Entry/SL/TP realtime (push ke layar HP)\n✅ Jurnal otomatis dari screenshot\n✅ Guard prop firm — alert sebelum drawdown breach\n\nPRO mulai Rp49.000/bulan. Link di bio 🔗\n\n#trading #xauusd #goldtrader #tradingindonesia #tradingjournal #smc #ict #propfirm #tradingapp #luxtrade',
-  scenes: [
-    { kind: 'hook', title: 'MASIH NEBAK-NEBAK?', sub: 'banyak trader kalah karena tebak-tebakan', vo: 'Harga naik turun, kamu masih nebak-nebak sendiri?' },
-    { kind: 'point', title: 'LUXTRADE', sub: 'sinyal AI langsung ke HP kamu', vo: 'Kenalin, Luxtrade. Sinyal trading otomatis, langsung ke HP kamu.' },
-    { kind: 'stat', title: '8 AGEN AI', sub: 'pantau pasar 24 jam nonstop', vo: 'Delapan agen AI pantau pasar dua puluh empat jam, nonstop.' },
-    { kind: 'point', title: 'TINGGAL EKSEKUSI', sub: 'alert masuk, kamu tinggal eksekusi', vo: 'Alert masuk, kamu tinggal eksekusi. Tanpa drama.' },
-    { kind: 'cta', title: 'LUXTRADE', sub: 'mulai trading lebih tenang hari ini', vo: 'Luxtrade. Trading lebih tenang mulai hari ini. Cek link di bio!' },
-  ],
-}
 
 /** Recap dari sinyal ASLI — narasi generik, angka 100% data. */
 function buildSignalSpec(signal: SignalData): VideoSpec {
@@ -302,13 +318,15 @@ ATURAN BENTUK KONTEN (HARD RULE dari Bos):
 - KONTEN LUXTRADEE HANYA 2 BENTUK: (1) video Remotion 9:16 (Reels IG / TikTok), (2) carousel Instagram 1080×1350 multi-slide. DILARANG usulkan bentuk lain (vlog, livestream, meme, foto stok, teks polos) — itu bukan tugasmu.
 - Satu output = SATU topik dalam DUA bentuk sekaligus: scenes video + slides carousel dari topik yang sama.
 
-KAMU MENERIMA: data performa konten asli (top video TikTok + profil audiens) dan template yang SUDAH DIPILIH oleh sistem ('promo' | 'tip' | 'signal').
-TUGASMU: tulis 4-5 scene utk template itu, plus caption TikTok (pendek), caption Instagram (panjang), dan 4-6 slide carousel.
+KAMU MENERIMA: (1) data performa asli (top video TikTok + profil audiens + rata-rata performa IG per template), (2) template yang SUDAH DIPILIH sistem ('promo' | 'tip' | 'signal'), (3) ANGLE + TOPIK HARI INI hasil riset sistem — WAJIB diikuti.
+TUGASMU: tulis 4-5 scene utk template itu DENGAN ANGLE & TOPIK yang ditugaskan, plus caption TikTok (pendek), caption Instagram (panjang), dan 4-6 slide carousel.
 
 ATURAN KERAS:
+- IKUTI TUGASAN ANGLE & TOPIK: konten hari ini WAJIB membahas topik yang ditugaskan dengan sudut (angle) yang ditugaskan. Hook WAJIB memvariasikan salah satu pola hook angle tsb (boleh dimodifikasi, JANGAN salin mentah).
 - Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
 - Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, maks 120 karakter, natural — angka dibaca dengan huruf).
 - Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
+- VARIASI LINGUISTIK: jangan mulai hook dengan kata/frasa yang sama dengan daftar "jangan ulangi"; ganti struktur kalimat (pertanyaan / pernyataan / angka / perintah) dibanding run sebelumnya.
 - caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio".
 - igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, 8-12 hashtag relevan trading Indonesia.
 - 4-5 hashtag untuk TikTok.
@@ -322,13 +340,28 @@ function buildUserPrompt(opts: {
   signal: SignalData | null
   topTikToks: TikTokRow[]
   recentIg: string[]
+  recentHooks: string[]
   lessons: string[]
+  angle: Angle | null
+  topic: TopicEntry | null
+  perf: PerfSnapshot | null
 }): string {
-  const { template, signal, topTikToks, recentIg, lessons } = opts
+  const { template, signal, topTikToks, recentIg, recentHooks, lessons, angle, topic, perf } = opts
   const lines: string[] = []
 
   lines.push(`Template terpilih: ${template.toUpperCase()}${template === 'signal' ? ' — recap sinyal ASLI (pakai data persis di bawah)' : ''}.`)
   lines.push('')
+
+  if (angle && topic) {
+    lines.push('— ANGLE & TOPIK HARI INI (tugasan sistem — WAJIB diikuti) —')
+    lines.push(`Angle     : ${angle.label}`)
+    lines.push(`Cara      : ${angle.guidance}`)
+    lines.push('Pola hook (variasikan salah satu — boleh dimodifikasi):')
+    angle.hookPatterns.forEach((p) => lines.push(`  • ${p}`))
+    lines.push(`Topik     : ${topic.topic}`)
+    lines.push('')
+  }
+
   lines.push('— DATA KONTEN ASLI (tiktok_posts, urut views) —')
   if (topTikToks.length) {
     topTikToks.forEach((t, i) => {
@@ -342,14 +375,27 @@ function buildUserPrompt(opts: {
   lines.push(`Followers ${AUDIENCE_SNAPSHOT.followers} (${AUDIENCE_SNAPSHOT.followerGrowth}) · total views ${AUDIENCE_SNAPSHOT.totalViews.toLocaleString('id-ID')} · rata watch ${AUDIENCE_SNAPSHOT.avgViewDurationSec}s · klik bio ${AUDIENCE_SNAPSHOT.bioLinkClicks}`)
   lines.push(`Audiens: ${AUDIENCE_SNAPSHOT.audience.topCountry}, ${AUDIENCE_SNAPSHOT.audience.ageRange}, ${AUDIENCE_SNAPSHOT.audience.gender} · jam aktif ${AUDIENCE_SNAPSHOT.audience.activeHoursWib} WIB`)
   lines.push('')
-  if (recentIg.length) {
-    lines.push('— JANGAN ULANGI TOPIK INI (Reels IG terakhir) —')
+  if (recentIg.length || recentHooks.length) {
+    lines.push('— JANGAN ULANGI (hook & caption run sebelumnya — topik/hook/struktur kalimat HARUS beda) —')
+    recentHooks.filter(Boolean).forEach((h) => lines.push(`• HOOK: ${String(h).slice(0, 100)}`))
     recentIg.forEach((c) => lines.push(`• ${c}`))
     lines.push('')
   }
   if (lessons.length) {
     lines.push('— PELAJARAN RUN SEBELUMNYA (office_memory Sinta — WAJIB DIIKUTI) —')
     lessons.forEach((l, i) => lines.push(`${i + 1}. ${l}`))
+    lines.push('')
+  }
+  if (perf && perf.samplePosts > 0) {
+    lines.push('— PERFORMA KONTEN IG 30 HARI (belajar dari data asli — mana yang rame) —')
+    Object.entries(perf.byTemplate).forEach(([tpl, p]) => {
+      lines.push(`${tpl}: ${p.posts} konten · rata-rata ${p.avgViews.toFixed(0)} views · ${p.avgLikes.toFixed(0)} likes · ${p.avgSaves.toFixed(0)} saves`)
+    })
+    if (perf.winner) {
+      lines.push(`→ Template pemenang sejauh ini: ${perf.winner.toUpperCase()}. Pertahankan pola kontennya (ritme, panjang hook, gaya CTA) — TAPI topik & angle TETAP dari tugasan hari ini.`)
+    } else {
+      lines.push('→ Data masih sedikit — konten ini ikut serta eksperimen A/B; buat sekuat mungkin.')
+    }
     lines.push('')
   }
   if (template === 'signal' && signal) {
@@ -533,19 +579,49 @@ async function handle(request: NextRequest) {
   const recentIg = admin ? await fetchRecentIgCaptions(admin) : []
   const latestSignal = admin ? await fetchLatestSignal(admin) : null
   const lessons = admin ? await fetchSintaLessons(admin) : []
+  const recentRuns = admin ? await fetchSintaRecentRuns(admin) : []
+  const perf = admin ? await fetchSintaPerf(admin) : null
 
-  /* ── 2) Template deterministik ── */
+  /* ── 2) SINTA BRAIN v4: template + ANGLE + TOPIK hari ini ──
+     Anti "itu-itu mulu": tiap hari dapat angle & topik beda yang belum
+     dipakai 10 run terakhir; template diarahkan performa (70% pemenang,
+     30% eksperimen A/B). Override manual dari body tetap dihormati. */
+  const freshSignal = isFreshSignal(latestSignal)
   const override = body?.template as Template | undefined
-  const { template, signal } =
+  const chosen = pickTemplateSmart(freshSignal, perf)
+  const template: Template =
     override === 'promo' || override === 'tip' || override === 'signal'
-      ? { template: override, signal: override === 'signal' ? latestSignal : null }
-      : pickTemplate(latestSignal)
+      ? override
+      : chosen.template
+  const templateReason = override
+    ? 'override manual (body.template)'
+    : chosen.reason
+  const signal = template === 'signal' ? latestSignal : null
   const effectiveTemplate: Template = template === 'signal' && !signal ? 'tip' : template
+
+  const recentTopics = [
+    ...recentRuns.map((r) => r.topic),
+    ...recentRuns.map((r) => r.hook),
+    ...recentIg,
+  ].filter(Boolean)
+  const assignment =
+    effectiveTemplate === 'signal'
+      ? null
+      : pickAngleAndTopic(effectiveTemplate, recentTopics)
 
   /* ── 3) LLM menulis isi ── */
   const userPrompt =
-    buildUserPrompt({ template: effectiveTemplate, signal, topTikToks, recentIg, lessons }) +
-    (topicHint ? `\nSudut/tema khusus dari Bos: ${topicHint}` : '')
+    buildUserPrompt({
+      template: effectiveTemplate,
+      signal,
+      topTikToks,
+      recentIg,
+      recentHooks: recentRuns.map((r) => r.hook),
+      lessons,
+      angle: assignment?.angle ?? null,
+      topic: assignment?.topic ?? null,
+      perf,
+    }) + (topicHint ? `\nSudut/tema khusus dari Bos: ${topicHint}` : '')
 
   let spec: VideoSpec | null = null
   let source = 'default'
@@ -573,10 +649,12 @@ async function handle(request: NextRequest) {
   if (!spec) {
     spec = effectiveTemplate === 'signal' && signal
       ? buildSignalSpec(signal)
-      : effectiveTemplate === 'tip' ? DEFAULT_TIP : DEFAULT_PROMO
+      : { ...pickFallbackSpec(effectiveTemplate, recentTopics), carousel: null, signal: null } as VideoSpec
   }
-  // Jaga-jaga: kalau template signal tapi spec default tanpa signal → turun ke tip
-  if (spec.template === 'signal' && !spec.signal) spec = DEFAULT_TIP
+  // Jaga-jaga: kalau template signal tapi spec tanpa signal → fallback tip variatif
+  if (spec.template === 'signal' && !spec.signal) {
+    spec = { ...pickFallbackSpec('tip', recentTopics), carousel: null, signal: null } as VideoSpec
+  }
 
   /* ── 3b) Carousel IG WAJIB (aturan Bos: konten HANYA video + carousel) ── */
   spec = { ...spec, carousel: sanitizeCarousel(spec.carousel, spec) }
@@ -585,13 +663,22 @@ async function handle(request: NextRequest) {
   await writeSintaMemory(admin, {
     lesson:
       source === 'llm'
-        ? `Run ini: template ${spec.template}, hook "${spec.scenes[0]?.title || '?'}", topik "${String(spec.topic || '').slice(0, 60)}". LLM: ${llmMeta.provider}/${llmMeta.model}${Array.isArray(llmMeta.notes) && llmMeta.notes.length ? ` (catatan: ${llmMeta.notes.join(' | ')})` : ''}. Run berikutnya: jangan ulang hook/topik di atas; variasikan angle.`
-        : `Run ini PAKAI TEMPLATE (LLM gagal semua provider${llmMeta.notes && Array.isArray(llmMeta.notes) ? `: ${llmMeta.notes.join(' | ')}` : ''}) — cek kesehatan GROQ/GEMINI/OPENROUTER key & kuota; kalau sudah pulih, tulis draf sendiri lagi.`,
+        ? `Run ini: template ${spec.template} (${templateReason}), angle "${assignment?.angle.label ?? 'recap sinyal'}", hook "${spec.scenes[0]?.title || '?'}", topik "${String(spec.topic || '').slice(0, 60)}". LLM: ${llmMeta.provider}/${llmMeta.model}${Array.isArray(llmMeta.notes) && llmMeta.notes.length ? ` (catatan: ${llmMeta.notes.join(' | ')})` : ''}. Run berikutnya: jangan ulang hook/topik di atas; variasikan angle & struktur kalimat.`
+        : `Run ini PAKAI FALLBACK LIBRARY (LLM gagal semua provider${llmMeta.notes && Array.isArray(llmMeta.notes) ? `: ${llmMeta.notes.join(' | ')}` : ''}) — cek kesehatan GROQ/GEMINI/OPENROUTER key & kuota; kalau sudah pulih, tulis draf sendiri lagi.`,
     template: spec.template,
     hook: spec.scenes[0]?.title || '',
+    topic: spec.topic || '',
+    angle: assignment?.angle.id || (spec.template === 'signal' ? 'signal-recap' : ''),
+    templateReason,
     source,
     llm: llmMeta,
-    dataBasis: { tiktokTopCount: topTikToks.length, recentIgCount: recentIg.length, freshSignal: isFreshSignal(latestSignal) },
+    dataBasis: {
+      tiktokTopCount: topTikToks.length,
+      recentIgCount: recentIg.length,
+      recentRunCount: recentRuns.length,
+      freshSignal,
+      perfSamples: perf?.samplePosts ?? 0,
+    },
     runDate: new Date().toISOString(),
   })
 
@@ -601,16 +688,27 @@ async function handle(request: NextRequest) {
     success: true,
     source,
     template: spec.template,
+    templateReason,
+    assignment: effectiveTemplate === 'signal'
+      ? { angle: 'signal-recap', angleLabel: 'Recap sinyal autentik', topic: spec.topic || '', rationale: 'sinyal segar — struktur recap tetap' }
+      : {
+          angle: assignment?.angle.id ?? '',
+          angleLabel: assignment?.angle.label ?? '',
+          topic: assignment?.topic.topic ?? spec.topic,
+          rationale: assignment?.rationale ?? '',
+        },
     llm: llmMeta,
-    memory: { lessonsLoaded: lessons.length, saved: true },
+    memory: { lessonsLoaded: lessons.length, recentRuns: recentRuns.length, saved: true },
+    perf: perf ? { samplePosts: perf.samplePosts, byTemplate: perf.byTemplate, winner: perf.winner } : null,
     spec: { ...spec, caption: captionFull },
     dataBasis: {
       tiktokTopCount: topTikToks.length,
       recentIgCount: recentIg.length,
-      freshSignal: isFreshSignal(latestSignal),
+      freshSignal,
       signalSymbol: latestSignal?.symbol ?? null,
+      perfSamples: perf?.samplePosts ?? 0,
     },
-    note: 'Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). TikTok: Content Posting API (nunggu app approved). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
+    note: 'Sinta Brain v4: 11 angle + 24 topik + anti-kembar 10 run + A/B performa (70% pemenang / 30% eksperimen). Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). Performa IG disinkron /api/cron/ig-metrics (08:00 WIB). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
   })
 }
 

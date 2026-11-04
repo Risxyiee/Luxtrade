@@ -44,7 +44,7 @@ const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-7
 /** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
 const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
-const OPENROUTER_FALLBACKS = ['deepseek/deepseek-chat-v3-0324:free', 'google/gemini-2.0-flash-exp:free']
+const OPENROUTER_FALLBACKS = ['deepseek/deepseek-chat-v3-0324:free', 'google/gemini-2.5-flash:free']
 
 /* ── Cooldown antar-panggilan (per isolate Workers) ─────────────── */
 const COOLDOWN_MS_LIMIT = 10 * 60 * 1000
@@ -224,7 +224,7 @@ async function callOpenAICompatible(
   let sawModel404 = false
   for (const model of models) {
     const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes)
-    if (r.ok) return r.result
+    if (r.ok && r.result) return r.result
     if (r.hardStop) return null
     if (r.model404) sawModel404 = true
   }
@@ -237,7 +237,7 @@ async function callOpenAICompatible(
       notes.push(`${label} auto-discover kandidat: ${fresh.join(', ')}`)
       for (const alt of fresh) {
         const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
-        if (r.ok) return r.result
+        if (r.ok && r.result) return r.result
         if (r.hardStop) return null
       }
     } else if (!alts.length) {

@@ -26,7 +26,7 @@
 //               + PRICE ALERTS (watchlist target_price → push layar HP;
 //                 numpang slot — CF Free maks 5 cron trigger)
 const CRON_ROUTES = {
-  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth'],
+  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
   '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard'],
@@ -45,6 +45,9 @@ const PRICE_ALERTS_TIMEOUT_MS = 90_000
 /* Prop-firm-guard: loop semua challenge aktif × query trades (DB-only,
    tanpa fetch quote) — 60 dtk cukup utk user banyak. */
 const PROP_GUARD_TIMEOUT_MS = 60_000
+/* ig-metrics: sampai 12 Reels × 2 panggilan Graph API (±2 dtk per call)
+   + ringkasan → 90 dtk biar tidak kepotong pas jaringan lambat. */
+const IG_METRICS_TIMEOUT_MS = 90_000
 const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
 const timeoutFor = (route: string) =>
   ceoRoute(route)
@@ -53,7 +56,9 @@ const timeoutFor = (route: string) =>
       ? PRICE_ALERTS_TIMEOUT_MS
       : route.startsWith('/api/cron/prop-firm-guard')
         ? PROP_GUARD_TIMEOUT_MS
-        : DEFAULT_TIMEOUT_MS
+        : route.startsWith('/api/cron/ig-metrics')
+          ? IG_METRICS_TIMEOUT_MS
+          : DEFAULT_TIMEOUT_MS
 
 export default {
   async fetch(request, env, ctx) {
