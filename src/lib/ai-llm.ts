@@ -7,26 +7,26 @@ import { getEnvVar } from '@/lib/cloudflare-bindings'
  * fs/node API yang tidak tersedia di CF Workers runtime.
  *
  * ═══════════════════════════════════════════════════════════════════
- * RANTAI PROVIDER SELF-HEALING (permintaan Bos Nov 2026):
- * "perbaiki api yang limit — karyawan ai ganti ke yang baru dan free
- *  biar tetep bekerja"
+ * RANTAI PROVIDER SELF-HEALING + AUTO-DISCOVER (permintaan Bos):
+ * "perbaiki api yang limit — karyawan ai ganti ke yang baru dan free,
+ *  harus pintar berpikir & menemukan solusi sendiri"
  *
- *   Groq (llama-3.3-70b, free) → Gemini (gemini-3.8-flash, free) →
- *   OpenRouter (model :free, kalau OPENROUTER_API_KEY ada) → null
+ *   Groq (free) → Gemini (free) → OpenRouter (:free) → null
  *
- * Aturan rotasi otomatis:
- *   • 429 / quota / rate-limit → provider itu DIDINGINKAN 10 menit
- *     (call berikutnya langsung lompat ke provider lain, tidak buang
- *     waktu + tidak memperparah limit) → dicatat sebagai "note".
- *   • 404/400 → model dimatikan provider → coba model cadangan di
- *     provider yang sama dulu, baru pindah provider.
- *   • 401/403 (key salah/expired) → provider itu didinginkan 60 menit.
- *   • Semua keputusan dikembalikan via `notes` — caller (mis. Sinta)
- *     menuliskannya ke office_memory sebagai pelajaran → karyawan AI
- *     "tahu" provider mana yang bermasalah hari itu.
+ * Lapis pertahanan (dari luar ke dalam):
+ *   1. PROVIDER rotasi: 429/limit → provider didinginkan (10 mnt),
+ *      call berikutnya langsung lompat; 401/403 → cooldown 60 mnt.
+ *   2. MODEL fallback: 404/400 (model dimatikan) → coba model
+ *      cadangan hardcoded di provider yang sama.
+ *   3. AUTO-DISCOVER: semua model hardcoded mati? → tanya daftar model
+ *      LANGSUNG ke provider (GET /models), pilih yang masih hidup &
+ *      cocok (prefer flash/70b, OpenRouter WAJIB ':free' — nol biaya),
+ *      cache 6 jam. Provider pulih sendiri tanpa deploy ulang.
+ *   4. Gemini 5xx (overload) → retry model cadangan, bukan menyerah.
  *
- * Model bisa dioverride via env GROQ_MODEL / GEMINI_MODEL /
- * OPENROUTER_MODEL. Semua provider di rantai ini punya tier GRATIS.
+ * Semua keputusan dicatat di notes (getLastLLMDiag) → ditulis Sinta ke
+ * office_memory → run berikutnya "tahu" apa yang terjadi.
+ * Override model via env GROQ_MODEL / GEMINI_MODEL / OPENROUTER_MODEL.
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -34,7 +34,7 @@ export interface LLMResult {
   text: string
   provider: 'groq' | 'gemini' | 'openrouter'
   model: string
-  /** Catatan rotasi/fallback yang terjadi (untuk office_memory Sinta). */
+  /** Catatan rotasi/fallback/discover yang terjadi (untuk office_memory). */
   notes?: string[]
 }
 
@@ -46,11 +46,7 @@ const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
 const OPENROUTER_FALLBACKS = ['deepseek/deepseek-chat-v3-0324:free', 'google/gemini-2.0-flash-exp:free']
 
-/* ── Cooldown antar-panggilan (per isolate Workers) ─────────────────
-   429 = provider kena limit → jangan sentuh lagi selama 10 menit.
-   401/403 = key bermasalah → 60 menit. Ini bikin rotasi "pintar":
-   percobaan pertama setelah pemulihan tetap dicoba ulang, tapi
-   tidak mengganggu provider yang sehat. */
+/* ── Cooldown antar-panggilan (per isolate Workers) ─────────────── */
 const COOLDOWN_MS_LIMIT = 10 * 60 * 1000
 const COOLDOWN_MS_AUTH = 60 * 60 * 1000
 const providerCoolUntil = new Map<string, number>()
@@ -66,6 +62,72 @@ function coolReason(provider: string): string {
   const until = providerCoolUntil.get(provider) || 0
   const min = Math.max(1, Math.round((until - Date.now()) / 60_000))
   return `${provider} didinginkan ${min} menit lagi`
+}
+
+/* ── AUTO-DISCOVER model hidup (cache 6 jam per provider) ──────────
+   Semua model hardcoded 404? Tanya provider langsung via GET /models,
+   pilih kandidat terbaik yang masih tersedia. Ini yang bikin rantai
+   "menemukan solusi sendiri" — tanpa deploy ulang. */
+const DISCOVER_TTL = 6 * 60 * 60 * 1000
+const discovered = new Map<string, { model: string; until: number }>()
+
+async function discoverOpenAIModel(
+  label: 'groq' | 'openrouter',
+  baseUrl: string,
+  apiKey: string,
+  score: (id: string) => number,
+): Promise<string | null> {
+  const hit = discovered.get(label)
+  if (hit && Date.now() < hit.until) return hit.model
+  try {
+    const res = await fetch(`${baseUrl}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(12_000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { data?: { id?: string }[] }
+    const ids = (data?.data || []).map((m) => String(m?.id || '')).filter(Boolean)
+    if (!ids.length) return null
+    const best = [...ids].sort((a, b) => score(b) - score(a))[0]
+    if (!best || score(best) < 0) return null // hanya model junk tersisa → jangan
+    discovered.set(label, { model: best, until: Date.now() + DISCOVER_TTL })
+    return best
+  } catch { return null }
+}
+
+async function discoverGeminiModel(apiKey: string): Promise<string | null> {
+  const hit = discovered.get('gemini')
+  if (hit && Date.now() < hit.until) return hit.model
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`,
+      { signal: AbortSignal.timeout(12_000) },
+    )
+    if (!res.ok) return null
+    const data = await res.json() as { models?: { name?: string; supportedGenerationMethods?: string[] }[] }
+    const usable = (data?.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => String(m.name || '').replace(/^models\//, ''))
+      .filter((id) => id && !/embedding|aqa|image|audio|tts|veo/i.test(id))
+    if (!usable.length) return null
+    const score = (id: string) =>
+      (/flash/i.test(id) ? 40 : 0) + (/gemini/i.test(id) ? 20 : 0) + (/latest/i.test(id) ? 5 : 0) - (/thinking|pro/i.test(id) ? 8 : 0)
+    const best = [...usable].sort((a, b) => score(b) - score(a))[0]
+    if (!best) return null
+    discovered.set('gemini', { model: best, until: Date.now() + DISCOVER_TTL })
+    return best
+  } catch { return null }
+}
+
+/** Skor kandidat Groq: prefer chat LLM besar; penalti keras model non-chat. */
+const groqScore = (id: string) => {
+  if (/whisper|tts|guard|distil|embed|vision-preview|playai/i.test(id)) return -100
+  return (/70b/i.test(id) ? 40 : 0) + (/llama/i.test(id) ? 20 : 0) + (/qwen/i.test(id) ? 12 : 0) + (/gpt-oss/i.test(id) ? 16 : 0) + (/kimi|moonshot/i.test(id) ? 10 : 0)
+}
+/** Skor kandidat OpenRouter: WAJIB ':free' (Bos: nol biaya). */
+const openrouterScore = (id: string) => {
+  if (!id.endsWith(':free')) return -100
+  return (/70b/i.test(id) ? 30 : 0) + (/deepseek-chat/i.test(id) ? 20 : 0) + (/llama/i.test(id) ? 10 : 0) + (/gemini-flash/i.test(id) ? 14 : 0)
 }
 
 async function getGroqKey(): Promise<string> {
@@ -98,8 +160,7 @@ export async function getLLMChainStatus(): Promise<{ provider: string; ok: boole
   return out
 }
 
-/** Diagnosa rotasi dari callLLM TERAKHIR (termasuk saat gagal total) —
- *  dipakai caller utk menulis incident ke office_memory. Per-isolate. */
+/** Diagnosa rotasi dari callLLM TERAKHIR (termasuk saat gagal total). */
 let lastCallDiag: string[] = []
 export function getLastLLMDiag(): string[] { return lastCallDiag }
 
@@ -116,7 +177,7 @@ export async function callLLM(systemPrompt: string, userPrompt: string, maxToken
   if (groqKey && !isCool('groq')) {
     const res = await callGroq(groqKey, systemPrompt, userPrompt, maxTokens, notes)
     if (res) return { ...res, notes: notes.length ? notes : undefined }
-    if (!isCool('groq')) cool('groq', COOLDOWN_MS_LIMIT) // gagal tanpa status jelas → jangan spam
+    if (!isCool('groq')) cool('groq', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('groq'))
   } else if (groqKey && isCool('groq')) {
     notes.push(`groq dilompati — ${coolReason('groq')}`)
@@ -149,138 +210,199 @@ export async function callLLM(systemPrompt: string, userPrompt: string, maxToken
   return null
 }
 
-/** OpenAI-compatible (Groq & OpenRouter) — beda base URL + model list. */
+/** OpenAI-compatible (Groq & OpenRouter) + auto-discover. */
 async function callOpenAICompatible(
   label: 'groq' | 'openrouter',
   baseUrl: string,
   apiKey: string,
   models: string[],
+  score: (id: string) => number,
   systemPrompt: string,
   userPrompt: string,
   maxTokens: number,
   notes: string[],
 ): Promise<LLMResult | null> {
+  let sawModel404 = false
   for (const model of models) {
-    try {
-      const res = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          ...(label === 'openrouter' ? { 'HTTP-Referer': 'https://luxtradee.web.id', 'X-Title': 'Luxtradee AI Staff' } : {}),
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.8,
-          max_tokens: maxTokens,
-        }),
-        signal: AbortSignal.timeout(25000),
-      })
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '')
-        console.error(`[ai-llm] ${label} ${res.status} (${model}): ${errBody.substring(0, 180)}`)
-        if (res.status === 404 || res.status === 400) {
-          notes.push(`${label} model ${model} mati → coba cadangan`)
-          continue // model hilang/deprecated → model berikutnya
-        }
-        if (res.status === 429) {
-          notes.push(`${label} 429 rate-limit (model ${model}) → cooldown + pindah provider`)
-          cool(label, COOLDOWN_MS_LIMIT)
-          return null // langsung pindah provider, jangan paksa
-        }
-        if (res.status === 401 || res.status === 403) {
-          notes.push(`${label} ${res.status} auth bermasalah → cooldown 60 menit`)
-          cool(label, COOLDOWN_MS_AUTH)
-          return null
-        }
-        notes.push(`${label} HTTP ${res.status} (${model})`)
-        return null
-      }
-
-      const data = await res.json()
-      const text: string | undefined = data?.choices?.[0]?.message?.content
-      if (!text || !text.trim()) {
-        console.error(`[ai-llm] ${label} returned empty content (${model})`)
-        notes.push(`${label} ${model} jawaban kosong`)
-        continue
-      }
-      if (model !== models[0]) notes.push(`${label} fallback ke ${model}`)
-      return { text: text.trim(), provider: label, model }
-    } catch (err: any) {
-      console.error(`[ai-llm] ${label} error (${model}):`, err?.message || err)
-      notes.push(`${label} ${model} error: ${String(err?.message || err).slice(0, 80)}`)
-      return null
+    const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes)
+    if (r.ok) return r.result
+    if (r.hardStop) return null
+    if (r.model404) sawModel404 = true
+  }
+  /* AUTO-DISCOVER: semua model hardcoded mati → tanya provider langsung */
+  if (sawModel404) {
+    const alt = await discoverOpenAIModel(label, baseUrl, apiKey, score)
+    if (alt && !models.includes(alt)) {
+      notes.push(`${label} auto-discover model hidup: ${alt}`)
+      const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
+      if (r.ok) return r.result
+    } else if (!alt) {
+      notes.push(`${label} auto-discover tidak menemukan kandidat layak`)
     }
   }
   return null
 }
 
+async function callOpenAIModel(
+  label: 'groq' | 'openrouter',
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number,
+  notes: string[],
+): Promise<{ ok: boolean; result?: LLMResult; hardStop?: boolean; model404?: boolean }> {
+  try {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        ...(label === 'openrouter' ? { 'HTTP-Referer': 'https://luxtradee.web.id', 'X-Title': 'Luxtradee AI Staff' } : {}),
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.8,
+        max_tokens: maxTokens,
+      }),
+      signal: AbortSignal.timeout(25000),
+    })
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
+      console.error(`[ai-llm] ${label} ${res.status} (${model}): ${errBody.substring(0, 180)}`)
+      if (res.status === 404 || res.status === 400) {
+        notes.push(`${label} model ${model} mati → coba cadangan`)
+        return { ok: false, model404: true } // model hilang → model berikutnya
+      }
+      if (res.status === 429) {
+        notes.push(`${label} 429 rate-limit (model ${model}) → cooldown + pindah provider`)
+        cool(label, COOLDOWN_MS_LIMIT)
+        return { ok: false, hardStop: true }
+      }
+      if (res.status === 401 || res.status === 403) {
+        notes.push(`${label} ${res.status} auth bermasalah → cooldown 60 menit`)
+        cool(label, COOLDOWN_MS_AUTH)
+        return { ok: false, hardStop: true }
+      }
+      if (res.status >= 500) {
+        notes.push(`${label} HTTP ${res.status} (model ${model}) → coba model/provider lain`)
+        return { ok: false } // overload sementara → model/provider berikutnya
+      }
+      notes.push(`${label} HTTP ${res.status} (${model})`)
+      return { ok: false, hardStop: true }
+    }
+
+    const data = await res.json()
+    const text: string | undefined = data?.choices?.[0]?.message?.content
+    if (!text || !text.trim()) {
+      console.error(`[ai-llm] ${label} returned empty content (${model})`)
+      notes.push(`${label} ${model} jawaban kosong`)
+      return { ok: false }
+    }
+    if (model !== models[0] || discovered.has(label)) notes.push(`${label} memakai model ${model}`)
+    return { ok: true, result: { text: text.trim(), provider: label, model } }
+  } catch (err: any) {
+    console.error(`[ai-llm] ${label} error (${model}):`, err?.message || err)
+    notes.push(`${label} ${model} error: ${String(err?.message || err).slice(0, 80)}`)
+    return { ok: false, hardStop: true } // network error → provider lain
+  }
+}
+
 async function callGroq(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
-  return callOpenAICompatible('groq', 'https://api.groq.com/openai/v1', apiKey, [GROQ_MODEL, ...GROQ_FALLBACKS], systemPrompt, userPrompt, maxTokens, notes)
+  return callOpenAICompatible('groq', 'https://api.groq.com/openai/v1', apiKey, [GROQ_MODEL, ...GROQ_FALLBACKS], groqScore, systemPrompt, userPrompt, maxTokens, notes)
 }
 
 async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
-  return callOpenAICompatible('openrouter', 'https://openrouter.ai/api/v1', apiKey, [OPENROUTER_MODEL, ...OPENROUTER_FALLBACKS], systemPrompt, userPrompt, maxTokens, notes)
+  return callOpenAICompatible('openrouter', 'https://openrouter.ai/api/v1', apiKey, [OPENROUTER_MODEL, ...OPENROUTER_FALLBACKS], openrouterScore, systemPrompt, userPrompt, maxTokens, notes)
+}
+
+async function callGeminiModel(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number,
+  notes: string[],
+): Promise<{ ok: boolean; result?: LLMResult; model404?: boolean }> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          generationConfig: { temperature: 0.8, maxOutputTokens: maxTokens },
+        }),
+        signal: AbortSignal.timeout(25000),
+      }
+    )
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
+      console.error(`[ai-llm] Gemini ${res.status} (${model}): ${errBody.substring(0, 180)}`)
+      if (res.status === 404 || res.status === 400) {
+        notes.push(`gemini model ${model} mati → coba cadangan`)
+        return { ok: false, model404: true }
+      }
+      if (res.status === 429) {
+        notes.push('gemini 429 rate-limit → cooldown + pindah provider')
+        cool('gemini', COOLDOWN_MS_LIMIT)
+        return { ok: false }
+      }
+      if (res.status === 401 || res.status === 403) {
+        notes.push(`gemini ${res.status} auth bermasalah → cooldown 60 menit`)
+        cool('gemini', COOLDOWN_MS_AUTH)
+        return { ok: false }
+      }
+      if (res.status >= 500) {
+        // 503 = overload sementara → JANGAN menyerah, coba model berikutnya
+        notes.push(`gemini HTTP ${res.status} (${model}) overload → coba model lain`)
+        return { ok: false }
+      }
+      notes.push(`gemini HTTP ${res.status} (${model})`)
+      return { ok: false }
+    }
+
+    const data = await res.json()
+    const text: string | undefined = data?.candidates?.[0]?.content?.parts
+      ?.map((p: { text?: string }) => p?.text || '')
+      .join('')
+    if (!text || !text.trim()) {
+      console.error(`[ai-llm] Gemini returned empty content (${model})`)
+      notes.push(`gemini ${model} jawaban kosong`)
+      return { ok: false }
+    }
+    notes.push(`gemini memakai model ${model}`)
+    return { ok: true, result: { text: text.trim(), provider: 'gemini', model } }
+  } catch (err: any) {
+    console.error(`[ai-llm] Gemini error (${model}):`, err?.message || err)
+    notes.push(`gemini ${model} error: ${String(err?.message || err).slice(0, 80)}`)
+    return { ok: false }
+  }
 }
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
+  let saw404 = false
   for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACKS]) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-            generationConfig: { temperature: 0.8, maxOutputTokens: maxTokens },
-          }),
-          signal: AbortSignal.timeout(25000),
-        }
-      )
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '')
-        console.error(`[ai-llm] Gemini ${res.status} (${model}): ${errBody.substring(0, 180)}`)
-        if (res.status === 404 || res.status === 400) {
-          notes.push(`gemini model ${model} mati → coba cadangan`)
-          continue
-        }
-        if (res.status === 429) {
-          notes.push('gemini 429 rate-limit → cooldown + pindah provider')
-          cool('gemini', COOLDOWN_MS_LIMIT)
-          return null
-        }
-        if (res.status === 401 || res.status === 403) {
-          notes.push(`gemini ${res.status} auth bermasalah → cooldown 60 menit`)
-          cool('gemini', COOLDOWN_MS_AUTH)
-          return null
-        }
-        notes.push(`gemini HTTP ${res.status} (${model})`)
-        return null
-      }
-
-      const data = await res.json()
-      const text: string | undefined = data?.candidates?.[0]?.content?.parts
-        ?.map((p: { text?: string }) => p?.text || '')
-        .join('')
-      if (!text || !text.trim()) {
-        console.error(`[ai-llm] Gemini returned empty content (${model})`)
-        notes.push(`gemini ${model} jawaban kosong`)
-        continue
-      }
-      if (model !== GEMINI_MODEL) notes.push(`gemini fallback ke ${model}`)
-      return { text: text.trim(), provider: 'gemini', model }
-    } catch (err: any) {
-      console.error(`[ai-llm] Gemini error (${model}):`, err?.message || err)
-      notes.push(`gemini ${model} error: ${String(err?.message || err).slice(0, 80)}`)
-      return null
+    const r = await callGeminiModel(apiKey, model, systemPrompt, userPrompt, maxTokens, notes)
+    if (r.ok) return r.result!
+    if (r.model404) saw404 = true
+  }
+  /* AUTO-DISCOVER: daftar model langsung dari Google, pilih flash hidup */
+  if (saw404) {
+    const alt = await discoverGeminiModel(apiKey)
+    if (alt && alt !== GEMINI_MODEL) {
+      notes.push(`gemini auto-discover model hidup: ${alt}`)
+      const r = await callGeminiModel(apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
+      if (r.ok) return r.result!
     }
   }
   return null
