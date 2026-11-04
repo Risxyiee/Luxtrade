@@ -69,65 +69,64 @@ function coolReason(provider: string): string {
    pilih kandidat terbaik yang masih tersedia. Ini yang bikin rantai
    "menemukan solusi sendiri" — tanpa deploy ulang. */
 const DISCOVER_TTL = 6 * 60 * 60 * 1000
-const discovered = new Map<string, { model: string; until: number }>()
+const discovered = new Map<string, { models: string[]; until: number }>()
 
-async function discoverOpenAIModel(
+async function discoverOpenAIModels(
   label: 'groq' | 'openrouter',
   baseUrl: string,
   apiKey: string,
   score: (id: string) => number,
-): Promise<string | null> {
+): Promise<string[]> {
   const hit = discovered.get(label)
-  if (hit && Date.now() < hit.until) return hit.model
+  if (hit && Date.now() < hit.until) return hit.models
   try {
     const res = await fetch(`${baseUrl}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(12_000),
     })
-    if (!res.ok) return null
+    if (!res.ok) return []
     const data = await res.json() as { data?: { id?: string }[] }
     const ids = (data?.data || []).map((m) => String(m?.id || '')).filter(Boolean)
-    if (!ids.length) return null
-    const best = [...ids].sort((a, b) => score(b) - score(a))[0]
-    if (!best || score(best) < 0) return null // hanya model junk tersisa → jangan
-    discovered.set(label, { model: best, until: Date.now() + DISCOVER_TTL })
-    return best
-  } catch { return null }
+    if (!ids.length) return []
+    const ranked = [...ids].sort((a, b) => score(b) - score(a)).filter((id) => score(id) > 0).slice(0, 3)
+    if (!ranked.length) return []
+    discovered.set(label, { models: ranked, until: Date.now() + DISCOVER_TTL })
+    return ranked
+  } catch { return [] }
 }
 
-async function discoverGeminiModel(apiKey: string): Promise<string | null> {
+async function discoverGeminiModels(apiKey: string): Promise<string[]> {
   const hit = discovered.get('gemini')
-  if (hit && Date.now() < hit.until) return hit.model
+  if (hit && Date.now() < hit.until) return hit.models
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`,
       { signal: AbortSignal.timeout(12_000) },
     )
-    if (!res.ok) return null
+    if (!res.ok) return []
     const data = await res.json() as { models?: { name?: string; supportedGenerationMethods?: string[] }[] }
     const usable = (data?.models || [])
       .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
       .map((m) => String(m.name || '').replace(/^models\//, ''))
       .filter((id) => id && !/embedding|aqa|image|audio|tts|veo/i.test(id))
-    if (!usable.length) return null
+    if (!usable.length) return []
     const score = (id: string) =>
       (/flash/i.test(id) ? 40 : 0) + (/gemini/i.test(id) ? 20 : 0) + (/latest/i.test(id) ? 5 : 0) - (/thinking|pro/i.test(id) ? 8 : 0)
-    const best = [...usable].sort((a, b) => score(b) - score(a))[0]
-    if (!best) return null
-    discovered.set('gemini', { model: best, until: Date.now() + DISCOVER_TTL })
-    return best
-  } catch { return null }
+    const ranked = [...usable].sort((a, b) => score(b) - score(a)).slice(0, 3)
+    discovered.set('gemini', { models: ranked, until: Date.now() + DISCOVER_TTL })
+    return ranked
+  } catch { return [] }
 }
 
 /** Skor kandidat Groq: prefer chat LLM besar; penalti keras model non-chat. */
 const groqScore = (id: string) => {
   if (/whisper|tts|guard|distil|embed|vision-preview|playai/i.test(id)) return -100
-  return (/70b/i.test(id) ? 40 : 0) + (/llama/i.test(id) ? 20 : 0) + (/qwen/i.test(id) ? 12 : 0) + (/gpt-oss/i.test(id) ? 16 : 0) + (/kimi|moonshot/i.test(id) ? 10 : 0)
+  return (/120b/i.test(id) ? 45 : 0) + (/70b/i.test(id) ? 40 : 0) + (/32b|27b/i.test(id) ? 18 : 0) + (/llama/i.test(id) ? 20 : 0) + (/gpt-oss/i.test(id) ? 16 : 0) + (/qwen/i.test(id) ? 12 : 0) + (/kimi|moonshot/i.test(id) ? 10 : 0) - (/8b|20b|1b|3b/i.test(id) ? 6 : 0)
 }
 /** Skor kandidat OpenRouter: WAJIB ':free' (Bos: nol biaya). */
 const openrouterScore = (id: string) => {
   if (!id.endsWith(':free')) return -100
-  return (/70b/i.test(id) ? 30 : 0) + (/deepseek-chat/i.test(id) ? 20 : 0) + (/llama/i.test(id) ? 10 : 0) + (/gemini-flash/i.test(id) ? 14 : 0)
+  return (/llama-3\.3-70b/i.test(id) ? 30 : 0) + (/deepseek-chat|deepseek-v3/i.test(id) ? 25 : 0) + (/qwen/i.test(id) ? 14 : 0) + (/llama/i.test(id) ? 10 : 0) + (/gemini-flash/i.test(id) ? 14 : 0) - (/exp|preview|deprecated/i.test(id) ? 12 : 0)
 }
 
 async function getGroqKey(): Promise<string> {
@@ -229,14 +228,19 @@ async function callOpenAICompatible(
     if (r.hardStop) return null
     if (r.model404) sawModel404 = true
   }
-  /* AUTO-DISCOVER: semua model hardcoded mati → tanya provider langsung */
+  /* AUTO-DISCOVER: semua model hardcoded mati → tanya provider langsung.
+     Coba hingga 3 kandidat terbaik (skor tertinggi dulu). */
   if (sawModel404) {
-    const alt = await discoverOpenAIModel(label, baseUrl, apiKey, score)
-    if (alt && !models.includes(alt)) {
-      notes.push(`${label} auto-discover model hidup: ${alt}`)
-      const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
-      if (r.ok) return r.result
-    } else if (!alt) {
+    const alts = await discoverOpenAIModels(label, baseUrl, apiKey, score)
+    const fresh = alts.filter((m) => !models.includes(m))
+    if (fresh.length) {
+      notes.push(`${label} auto-discover kandidat: ${fresh.join(', ')}`)
+      for (const alt of fresh) {
+        const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
+        if (r.ok) return r.result
+        if (r.hardStop) return null
+      }
+    } else if (!alts.length) {
       notes.push(`${label} auto-discover tidak menemukan kandidat layak`)
     }
   }
@@ -302,13 +306,24 @@ async function callOpenAIModel(
     }
 
     const data = await res.json()
-    const text: string | undefined = data?.choices?.[0]?.message?.content
+    const msg = data?.choices?.[0]?.message
+    let text: string | undefined = msg?.content
+    if ((!text || !text.trim()) && msg) {
+      // Model reasoning (gpt-oss/flint dll) kadang menaruh jawaban di field
+      // reasoning dan membiarkan content kosong — coba ambil dari sana
+      // (extractJson di caller akan mencari blok JSON yang seimbang).
+      const reasoning = String(msg.reasoning || msg.reasoning_content || '')
+      if (reasoning.trim()) {
+        notes.push(`${label} ${model} content kosong — pakai field reasoning`)
+        text = reasoning
+      }
+    }
     if (!text || !text.trim()) {
       console.error(`[ai-llm] ${label} returned empty content (${model})`)
       notes.push(`${label} ${model} jawaban kosong`)
       return { ok: false }
     }
-    if (model !== models[0] || discovered.has(label)) notes.push(`${label} memakai model ${model}`)
+    notes.push(`${label} memakai model ${model}`)
     return { ok: true, result: { text: text.trim(), provider: label, model } }
   } catch (err: any) {
     console.error(`[ai-llm] ${label} error (${model}):`, err?.message || err)
@@ -405,13 +420,16 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
     if (r.ok) return r.result!
     if (r.model404) saw404 = true
   }
-  /* AUTO-DISCOVER: daftar model langsung dari Google, pilih flash hidup */
+  /* AUTO-DISCOVER: daftar model langsung dari Google, coba 3 kandidat */
   if (saw404) {
-    const alt = await discoverGeminiModel(apiKey)
-    if (alt && alt !== GEMINI_MODEL) {
-      notes.push(`gemini auto-discover model hidup: ${alt}`)
-      const r = await callGeminiModel(apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
-      if (r.ok) return r.result!
+    const alts = await discoverGeminiModels(apiKey)
+    const fresh = alts.filter((m) => m !== GEMINI_MODEL && !GEMINI_FALLBACKS.includes(m))
+    if (fresh.length) {
+      notes.push(`gemini auto-discover kandidat: ${fresh.join(', ')}`)
+      for (const alt of fresh) {
+        const r = await callGeminiModel(apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
+        if (r.ok) return r.result!
+      }
     }
   }
   return null
