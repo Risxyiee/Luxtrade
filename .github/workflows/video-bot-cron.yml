@@ -183,9 +183,23 @@ jobs:
           FORCE_FLAG=""
           [ "$FORCE" = "true" ] && FORCE_FLAG="?force=true"
 
-          # 1) Upload MP4 ke host publik (multi-host: litterbox → 0x0.st → tmpfiles)
+          # 1) Upload media ke host publik (urutan: SELF-HOST KV → litterbox → 0x0.st → tmpfiles)
+          #    SELF-HOST wajib prioritas: fetcher server IG pernah gagal error 2207082
+          #    karena host pihak ketiga (tmpfiles 302+cookie+HTML, bukan file video).
           upload_public() {
-            local F="$1" U
+            local F="$1" U CT
+            case "$F" in
+              *.png) CT=image/png ;;
+              *.jpg|*.jpeg) CT=image/jpeg ;;
+              *.webp) CT=image/webp ;;
+              *) CT=video/mp4 ;;
+            esac
+            U=$(curl -sS --max-time 300 -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              -H "Content-Type: $CT" \
+              --data-binary "@$F" \
+              "$PROD_URL/api/cron/ig-media-store" 2>/dev/null | jq -r '.url // empty') || U=""
+            case "$U" in https://*) echo "$U"; return 0 ;; esac
             U=$(curl -sS --max-time 300 -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
               -F reqtype=fileupload -F time=72h -F "fileToUpload=@$F" \
               https://litterbox.catbox.moe/resources/internals/api.php) || U=""

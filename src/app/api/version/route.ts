@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-04.1'
-const NOTES = 'ig-user-node-fix + sb_publishable key + wrangler.json dihapus'
+const VERSION = '2026-11-04.2'
+const NOTES = 'self-host media IG (ig-media-store + /api/media/ig) — atasi error 2207082'
 
 export async function GET() {
   return NextResponse.json(

@@ -1,0 +1,39 @@
+name: IG Media Self-Host Test
+
+# ══════════════════════════════════════════════════════════════════════════
+# 🧪 Tes cepat (±20 detik) rantai self-host media IG:
+#   POST /api/cron/ig-media-store (binary) → dapat URL
+#   GET  /api/media/ig/<key> → 200, Content-Type benar, ukuran sama
+# Dipakai untuk memastikan fetcher IG tidak akan kena 302/HTML seperti
+# kejadian tmpfiles (error 2207082).
+# ══════════════════════════════════════════════════════════════════════════
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 🧪 Store + Fetch test
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          head -c 102400 /dev/urandom > /tmp/t.bin
+
+          RESP=$(curl -sS --max-time 120 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: video/mp4" \
+            --data-binary "@/tmp/t.bin" \
+            "$PROD_URL/api/cron/ig-media-store")
+          echo "STORE → $RESP"
+
+          URL=$(echo "$RESP" | jq -r '.url // empty')
+          [ -n "$URL" ] || { echo "❌ Store gagal (cek auth/KV di atas)"; exit 1; }
+
+          curl -sS -o /tmp/back.bin -w "FETCH → HTTP %{http_code} | ct=%{content_type} | size=%{size_download}B\n" "$URL"
+          [ "$(stat -c%s /tmp/back.bin)" = "102400" ] || { echo "❌ Ukuran tidak sama"; exit 1; }
+          echo "✅ Self-host media OK → $URL"

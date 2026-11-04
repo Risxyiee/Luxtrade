@@ -19,7 +19,7 @@
  *     segmen Entry/SL/TP di-sintesis dari TRADES engine (lihat
  *     synthesizeTradePlots di pine-protected.ts) — klik indikator
  *     → garis Entry/SL/TP langsung muncul, tanpa paste manual.
- *  3. Sinyal alert: tiap trade engine → engineAlerts
+ *  3. Sinyal Telegram: tiap trade engine → engineAlerts
  *     (ENTRY_LONG/ENTRY_SHORT/STOP_LOSS/TAKE_PROFIT) di
  *     pine-protected.ts — jalur resmi pemicu notif utk strategy().
  *  4. ensureDefaultScript() — auto-seed + auto-migrate ke tabel
