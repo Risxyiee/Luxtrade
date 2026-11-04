@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { extractJson, callLLM } from '@/lib/ai-llm'
+import { extractJson, callLLM, getLastLLMDiag } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { getCronAdmin } from '@/lib/cron-supabase'
 
@@ -561,9 +561,13 @@ async function handle(request: NextRequest) {
       } else {
         llmMeta = { ...llmMeta, note: 'output LLM tidak lolos validSpec → template' }
       }
+    } else {
+      // Semua provider gagal — tampilkan diagnosa rotasi (429/404/auth) di meta
+      llmMeta = { provider: 'template', notes: getLastLLMDiag() }
     }
   } catch {
     // LLM gagal → spec default di bawah
+    llmMeta = { provider: 'template', notes: [...getLastLLMDiag(), 'exception saat callLLM'] }
   }
 
   if (!spec) {

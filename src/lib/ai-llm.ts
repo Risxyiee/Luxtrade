@@ -98,12 +98,19 @@ export async function getLLMChainStatus(): Promise<{ provider: string; ok: boole
   return out
 }
 
+/** Diagnosa rotasi dari callLLM TERAKHIR (termasuk saat gagal total) —
+ *  dipakai caller utk menulis incident ke office_memory. Per-isolate. */
+let lastCallDiag: string[] = []
+export function getLastLLMDiag(): string[] { return lastCallDiag }
+
 /**
  * Panggil LLM dengan system + user prompt. Returns null jika tidak ada
  * API key ataupun semua provider gagal — caller harus punya fallback.
+ * Diagnosa kenapa gagal = getLastLLMDiag().
  */
 export async function callLLM(systemPrompt: string, userPrompt: string, maxTokens = 800): Promise<LLMResult | null> {
   const notes: string[] = []
+  lastCallDiag = notes
 
   const groqKey = await getGroqKey()
   if (groqKey && !isCool('groq')) {
