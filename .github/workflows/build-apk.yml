@@ -127,29 +127,11 @@ jobs:
           echo ""
           echo "📊 .env vars loaded: $(grep -c '=' .env 2>/dev/null || echo 0)"
           echo "🔑 NEXT_PUBLIC vars: $(grep -c '^NEXT_PUBLIC' .env 2>/dev/null || echo 0)"
-        env:
-          # Pass GitHub Secrets as env vars so the script above can detect them
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          ZAI_BASE_URL: ${{ secrets.ZAI_BASE_URL }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          ZAI_CHAT_ID: ${{ secrets.ZAI_CHAT_ID }}
-          ZAI_USER_ID: ${{ secrets.ZAI_USER_ID }}
-          ZAI_TOKEN: ${{ secrets.ZAI_TOKEN }}
-          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
-          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_TEMPLATE_CONFIRM: ${{ secrets.RESEND_TEMPLATE_CONFIRM }}
-          RESEND_TEMPLATE_RESET: ${{ secrets.RESEND_TEMPLATE_RESET }}
-          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
-          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
-          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
-          RAPIDAPI_TRADING_ECONOMICS_KEY: ${{ secrets.RAPIDAPI_TRADING_ECONOMICS_KEY }}
-          METAAPI_TOKEN: ${{ secrets.METAAPI_TOKEN }}
+          # SECURITY (2026-11): GitHub server-side secrets are NO LONGER passed into
+          # this step. Static APK export strips API routes, so server secrets are
+          # never embedded in the bundle — injecting them here only created exposure
+          # risk on the runner (and the placeholder loop above still writes empty
+          # "VAR=" lines so process.env reads do not crash at build time).
 
       # ─── Install Dependencies ─────────────────────────────────────────────
       - name: 📦 Install dependencies
