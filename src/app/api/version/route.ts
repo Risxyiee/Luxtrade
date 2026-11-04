@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-04.4'
-const NOTES = 'mode ACC Bos utk Reels IG (ai_pending_actions PUBLISH_IG_REEL) + Sinta belajar mandiri (office_memory) + LLM self-healing Groq-Gemini-OpenRouter'
+const VERSION = '2026-11-05.1'
+const NOTES = 'Sinta Brain v4: 11 angle + 24 topik anti-kembar + A/B performa IG (ig-metrics 08:00 WIB) + fallback 7 script — solusi "kontennya itu-itu mulu"'
 
 export async function GET() {
   return NextResponse.json(
