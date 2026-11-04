@@ -97,6 +97,8 @@ jobs:
             echo "❌ Skrip video gagal dibuat:"; cat /tmp/spec.json; exit 1
           fi
           echo "Sumber skrip : $(jq -r '.source' /tmp/spec.json)"
+          echo "Otak AI      : $(jq -c '.llm // {}' /tmp/spec.json)"
+          echo "Memori Sinta : $(jq -c '.memory // {}' /tmp/spec.json)"
           echo "Template     : $(jq -r '.template // "promo"' /tmp/spec.json)"
           echo "Data konten  : $(jq -c '.dataBasis // {}' /tmp/spec.json)"
           echo "Caption      : $(jq -r '.spec.caption' /tmp/spec.json | head -c 160)"
