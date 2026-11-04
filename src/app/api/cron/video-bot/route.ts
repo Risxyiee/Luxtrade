@@ -292,6 +292,12 @@ function resultLabel(r: 'TP' | 'SL'): string {
 const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten video trader Indonesia (jurnal trading AI, PRO Rp49.000/bulan, audiens SMC/ICT XAUUSD).
 Konten vertikal yang bikin jempol BERHENTI scroll: hook provokatif 1-2 detik pertama, isi nyindir kebiasaan buruk trader, tutup CTA.
 
+KEMANDIRIAN (amanat Bos: "harus pintar, berpikir sendiri, menemukan solusi sendiri, belajar sendiri"):
+- BERPIKIR KRITIS: analisa data di bawah dulu (top video + audiens + pelajaran run sebelumnya) SEBELUM menulis. Pilih sudut/angle paling menohok dari bukti — jangan menunggu perintah detail.
+- BELAJAR: kalau ada bagian "PELAJARAN RUN SEBELUMNYA", wajib mengikuti instruksi koreksinya (hindari hook/topik/kesalahan yang disebut). Jangan pernah mengulang hook yang persis sama dgn Reels terakhir.
+- SOLUSI SENDIRI: kalau data minim/kosong, pakai pola yang terbukti di industri (pain point prop firm, SMC/ICT edukasi) dan tetap output spec valid — JANGAN menyerah/menolak.
+- SIRI DIRI: sebelum output, cek ulang: hook ≤22 char? vo natural dibaca? angka sinyal PERSIS? carousel saveable? Output yang tidak lolos cekmu sendiri = gagal.
+
 ATURAN BENTUK KONTEN (HARD RULE dari Bos):
 - KONTEN LUXTRADEE HANYA 2 BENTUK: (1) video Remotion 9:16 (Reels IG / TikTok), (2) carousel Instagram 1080×1350 multi-slide. DILARANG usulkan bentuk lain (vlog, livestream, meme, foto stok, teks polos) — itu bukan tugasmu.
 - Satu output = SATU topik dalam DUA bentuk sekaligus: scenes video + slides carousel dari topik yang sama.
@@ -316,8 +322,9 @@ function buildUserPrompt(opts: {
   signal: SignalData | null
   topTikToks: TikTokRow[]
   recentIg: string[]
+  lessons: string[]
 }): string {
-  const { template, signal, topTikToks, recentIg } = opts
+  const { template, signal, topTikToks, recentIg, lessons } = opts
   const lines: string[] = []
 
   lines.push(`Template terpilih: ${template.toUpperCase()}${template === 'signal' ? ' — recap sinyal ASLI (pakai data persis di bawah)' : ''}.`)
@@ -338,6 +345,11 @@ function buildUserPrompt(opts: {
   if (recentIg.length) {
     lines.push('— JANGAN ULANGI TOPIK INI (Reels IG terakhir) —')
     recentIg.forEach((c) => lines.push(`• ${c}`))
+    lines.push('')
+  }
+  if (lessons.length) {
+    lines.push('— PELAJARAN RUN SEBELUMNYA (office_memory Sinta — WAJIB DIIKUTI) —')
+    lessons.forEach((l, i) => lines.push(`${i + 1}. ${l}`))
     lines.push('')
   }
   if (template === 'signal' && signal) {
@@ -479,6 +491,34 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
   return provided === secret
 }
 
+/* ── BELAJAR MANDIRI SINTA (office_memory) ───────────────────────
+   Baca pelajaran 7 run terakhir → diinjeksi ke prompt. Tulis pelajaran
+   baru tiap run (apa yang dibuat, pakai otak siapa, apa datanya) supaya
+   run berikutnya punya kontinuitas — bukan amnesia tiap hari.
+   Fail-open: tabel belum ada / RLS → tetap jalan tanpa memori. */
+async function fetchSintaLessons(admin: Awaited<ReturnType<typeof getCronAdmin>>): Promise<string[]> {
+  if (!admin) return []
+  try {
+    const { data } = await admin
+      .from('office_memory')
+      .select('content')
+      .eq('agent_name', 'Sinta')
+      .eq('memory_type', 'lesson')
+      .order('created_at', { ascending: false })
+      .limit(7)
+    return ((data || []) as { content?: { lesson?: string } }[])
+      .map((r) => r?.content?.lesson)
+      .filter((x): x is string => typeof x === 'string' && x.length > 3)
+  } catch { return [] }
+}
+
+async function writeSintaMemory(admin: Awaited<ReturnType<typeof getCronAdmin>>, content: Record<string, unknown>): Promise<void> {
+  if (!admin) return
+  try {
+    await admin.from('office_memory').insert({ agent_name: 'Sinta', memory_type: 'lesson', content })
+  } catch { /* fail-open — pembelajaran tidak boleh menggagalkan produksi konten */ }
+}
+
 async function handle(request: NextRequest) {
   if (!(await isAuthorized(request))) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -487,11 +527,12 @@ async function handle(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { topic?: string; template?: string }
   const topicHint = (body?.topic || '').slice(0, 200)
 
-  /* ── 1) Data konten asli (semua best-effort) ── */
+  /* ── 1) Data konten asli + memori jangka panjang (semua best-effort) ── */
   const admin = await getCronAdmin()
   const topTikToks = admin ? await fetchTopTikToks(admin) : []
   const recentIg = admin ? await fetchRecentIgCaptions(admin) : []
   const latestSignal = admin ? await fetchLatestSignal(admin) : null
+  const lessons = admin ? await fetchSintaLessons(admin) : []
 
   /* ── 2) Template deterministik ── */
   const override = body?.template as Template | undefined
@@ -503,18 +544,22 @@ async function handle(request: NextRequest) {
 
   /* ── 3) LLM menulis isi ── */
   const userPrompt =
-    buildUserPrompt({ template: effectiveTemplate, signal, topTikToks, recentIg }) +
+    buildUserPrompt({ template: effectiveTemplate, signal, topTikToks, recentIg, lessons }) +
     (topicHint ? `\nSudut/tema khusus dari Bos: ${topicHint}` : '')
 
   let spec: VideoSpec | null = null
   let source = 'default'
+  let llmMeta: Record<string, unknown> = { provider: 'template', notes: [] as string[] }
   try {
     const res = await callLLM(SYSTEM_PROMPT, userPrompt, 1600)
     if (res?.text) {
+      llmMeta = { provider: res.provider, model: res.model, notes: res.notes || [] }
       const parsed = extractJson<VideoSpec>(res.text)
       if (validSpec(parsed, effectiveTemplate)) {
         spec = sanitizeSpec(parsed, effectiveTemplate, signal)
         source = 'llm'
+      } else {
+        llmMeta = { ...llmMeta, note: 'output LLM tidak lolos validSpec → template' }
       }
     }
   } catch {
@@ -532,12 +577,28 @@ async function handle(request: NextRequest) {
   /* ── 3b) Carousel IG WAJIB (aturan Bos: konten HANYA video + carousel) ── */
   spec = { ...spec, carousel: sanitizeCarousel(spec.carousel, spec) }
 
+  /* ── 3c) TULIS PELAJARAN utk run berikutnya (belajar mandiri) ── */
+  await writeSintaMemory(admin, {
+    lesson:
+      source === 'llm'
+        ? `Run ini: template ${spec.template}, hook "${spec.scenes[0]?.title || '?'}", topik "${String(spec.topic || '').slice(0, 60)}". LLM: ${llmMeta.provider}/${llmMeta.model}${Array.isArray(llmMeta.notes) && llmMeta.notes.length ? ` (catatan: ${llmMeta.notes.join(' | ')})` : ''}. Run berikutnya: jangan ulang hook/topik di atas; variasikan angle.`
+        : `Run ini PAKAI TEMPLATE (LLM gagal semua provider${llmMeta.notes && Array.isArray(llmMeta.notes) ? `: ${llmMeta.notes.join(' | ')}` : ''}) — cek kesehatan GROQ/GEMINI/OPENROUTER key & kuota; kalau sudah pulih, tulis draf sendiri lagi.`,
+    template: spec.template,
+    hook: spec.scenes[0]?.title || '',
+    source,
+    llm: llmMeta,
+    dataBasis: { tiktokTopCount: topTikToks.length, recentIgCount: recentIg.length, freshSignal: isFreshSignal(latestSignal) },
+    runDate: new Date().toISOString(),
+  })
+
   const captionFull = `${spec.caption} ${spec.hashtags.map((h) => `#${h}`).join(' ')}`.trim()
 
   return NextResponse.json({
     success: true,
     source,
     template: spec.template,
+    llm: llmMeta,
+    memory: { lessonsLoaded: lessons.length, saved: true },
     spec: { ...spec, caption: captionFull },
     dataBasis: {
       tiktokTopCount: topTikToks.length,
@@ -545,7 +606,7 @@ async function handle(request: NextRequest) {
       freshSignal: isFreshSignal(latestSignal),
       signalSymbol: latestSignal?.symbol ?? null,
     },
-    note: 'Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts; CAROUSEL→renderStill SintaCarousel per slide (spec.carousel.slides). Konten HANYA 2 bentuk ini (aturan Bos). Instagram: Reels → /api/cron/ig-video-post + carousel → /api/cron/ig-carousel-post (sama-sama 19–20 WIB, 2 hari sekali). TikTok: Content Posting API (nunggu app approved).',
+    note: 'Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). TikTok: Content Posting API (nunggu app approved). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
   })
 }
 

@@ -339,11 +339,11 @@ jobs:
             "$PROD_URL/api/cron/ig-video-post$FORCE_FLAG") || code=000
           echo "HTTP $code"
           cat /tmp/ig.json; echo
-          # skipped (luar window/cadence/token belum diset) = NORMAL, bukan gagal
-          if jq -e '.ok == true or .skipped' /tmp/ig.json >/dev/null 2>&1; then
-            echo "✅ Reels IG: $(jq -r 'if .posted then "POSTED → " + (.permalink // "?") else (.skipped // "queued") end' /tmp/ig.json)"
+          # skipped (luar window/cadence/token belum diset) + awaitingApproval = NORMAL
+          if jq -e '.ok == true or .skipped or .awaitingApproval' /tmp/ig.json >/dev/null 2>&1; then
+            echo "✅ Reels IG: $(jq -r 'if .posted then "POSTED → " + (.permalink // "?") elif .awaitingApproval then "⏳ DRAFT SIAP — menunggu ACC Bos (Kantor CEO → Antrean Eksekusi)" else (.skipped // "queued") end' /tmp/ig.json)"
           else
-            echo "⚠️ Reels IG gagal — antrean tetap tersimpan, cron ig-auto-post akan retry"
+            echo "⚠️ Reels IG gagal — draft tersimpan, cron ig-auto-post akan retry"
           fi
 
       # 🖼️ Carousel IG — MANUAL ONLY (Run workflow → carousel ✔) — "1 konten aja sehari"

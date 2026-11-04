@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-04.3'
-const NOTES = 'jadwal 1 konten/hari Sen-Jumat 19:10 WIB + rotasi IG/TikTok + musik latar bg.mp3 + fix LLM (gemini-3.8-flash)'
+const VERSION = '2026-11-04.4'
+const NOTES = 'mode ACC Bos utk Reels IG (ai_pending_actions PUBLISH_IG_REEL) + Sinta belajar mandiri (office_memory) + LLM self-healing Groq-Gemini-OpenRouter'
 
 export async function GET() {
   return NextResponse.json(

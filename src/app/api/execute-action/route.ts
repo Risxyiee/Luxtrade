@@ -26,6 +26,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { metaAutoPost } from '@/lib/meta-post'
+import { ensureFreshToken, postToInstagram } from '@/lib/instagram'
+import { getCronAdmin } from '@/lib/cron-supabase'
+import { sendAdminNotification } from '@/lib/admin-notify'
 import {
   envGet, sbConfig, ownerEmail, getActionById, decideAction, kvSetKey, kvIncrKey,
   fetchAllUsers, fetchUnsubscribedUserIds, wibDay,
@@ -170,6 +173,52 @@ async function executePayload(actionType: string, payload: Record<string, any>):
       const b = await kvSetKey(cfg, `feature:${feature}:reason`, String(payload.reason || 'ceo_decision'))
       if (!a) return { ok: false, detail: 'Gagal simpan feature flag ke agent_kv' }
       return { ok: true, detail: `Fitur "${feature}" ${action === 'disable' ? 'DINONAKTIFKAN' : 'diaktifkan kembali'} untuk free user (alasan: ${payload.reason || 'ceo_decision'})${b ? '' : ' (reason gagal disimpan)'}` }
+    }
+
+    /* ── Reels IG (Sinta, ACC Bos — mode approval default) → publish REELS ──
+       Draft dibuat /api/cron/ig-video-post (TANPA row instagram_posts).
+       Saat di-ACC: publish via Graph API (poll FINISHED) → baru catat
+       riwayat instagram_posts status 'published' (sumber cadence/dedupe). */
+    case 'PUBLISH_IG_REEL': {
+      const videoUrl = String(payload.videoUrl || '')
+      const caption = String(payload.caption || '')
+      if (!videoUrl.startsWith('http')) return { ok: false, detail: 'payload.videoUrl tidak valid' }
+      const admin = await getCronAdmin()
+      if (!admin) return { ok: false, detail: 'Database tidak tersedia' }
+      const tok = await ensureFreshToken(admin)
+      if (!tok.cfg) return { ok: false, detail: 'FACEBOOK_PAGE_ID / FACEBOOK_PAGE_TOKEN belum diset (Cloudflare secrets)' }
+      const r = await postToInstagram(tok.cfg, { mediaType: 'REELS', videoUrl, caption })
+      if (!r.ok) return { ok: false, detail: `Publish IG gagal (stage ${r.stage || '?'}): ${r.error || '?'}` }
+      // Riwayat publikasi — dipakai guard cadence 20 jam + cap harian ig-video-post
+      try {
+        await admin
+          .from('instagram_posts')
+          .insert({
+            media_type: 'REELS',
+            video_url: videoUrl,
+            caption,
+            status: 'published',
+            source: 'sinta-video',
+            ig_post_id: r.postId ?? null,
+            permalink: r.permalink ?? null,
+            published_at: new Date().toISOString(),
+            error: null,
+            meta: {
+              template: String(payload.template || 'reels'),
+              hook: String(payload.hook || ''),
+              renderBy: 'sinta (cmo) — remotion 9:16',
+              approvedBy: ownerEmail(),
+            },
+            scheduled_for: new Date().toISOString(),
+          })
+      } catch { /* riwayat gagal disimpan → tidak menggagalkan posting */ }
+      await sendAdminNotification(
+        `📸🎬 <b>Sinta posting Reels ke Instagram</b> (ACC Bos)\n` +
+        `${caption ? caption.slice(0, 200) + (caption.length > 200 ? '…' : '') + '\n' : ''}` +
+        (r.permalink ? `🔗 ${r.permalink}\n` : '') +
+        `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
+      ).catch(() => {})
+      return { ok: true, detail: `Reels terposting ke Instagram${r.permalink ? ` — ${r.permalink}` : ''}` }
     }
 
     default:

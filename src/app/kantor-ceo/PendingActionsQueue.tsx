@@ -42,6 +42,7 @@ const AGENT_META: Record<string, { emoji: string; color: string }> = {
 /* Label manusiawi per jenis aksi */
 const TYPE_LABEL: Record<string, string> = {
   PUBLISH_CONTENT: 'Publikasikan Konten',
+  PUBLISH_IG_REEL: 'Reels IG — Nunggu ACC Bos',
   SEND_WINBACK_EMAIL: 'Kirim Email Winback',
   UPDATE_AB_TEST: 'Update A/B Test Landing',
   SEND_UPGRADE_OFFER: 'Kirim Offer Upgrade PRO',
@@ -51,10 +52,20 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 /* Deskripsi singkat dari payload RIIL — tiap jenis aksi beda tampilan */
-function describe(a: PendingAction): { lines: string[] } {
+function describe(a: PendingAction): { lines: string[]; link?: { href: string; label: string } } {
   const p = a.action_payload || {}
   const lines: string[] = []
+  let link: { href: string; label: string } | undefined
   switch (a.action_type) {
+    case 'PUBLISH_IG_REEL': {
+      lines.push(`Template: ${String(p.template || 'reels')} · Hook: "${String(p.hook || '-')}"`)
+      if (p.caption) lines.push(`Caption: ${String(p.caption).slice(0, 140)}${String(p.caption).length > 140 ? '…' : ''}`)
+      lines.push('ACC → video langsung dipublish ke Instagram sbg Reels (musik latar menyatu). Tolak → draft dibuang.')
+      if (typeof p.videoUrl === 'string' && p.videoUrl.startsWith('http')) {
+        link = { href: p.videoUrl, label: 'Tonton preview videonya dulu' }
+      }
+      break
+    }
     case 'PUBLISH_CONTENT': {
       lines.push(`Platform: ${String(p.platform || 'ig').toUpperCase()} · Judul: "${String(p.title || '-').slice(0, 80)}"`)
       if (p.content_body) lines.push(String(p.content_body).slice(0, 160) + (String(p.content_body).length > 160 ? '…' : ''))
@@ -290,7 +301,7 @@ export default function PendingActionsQueue() {
         <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto kscroll pr-0.5">
           {items.map(a => {
             const meta = AGENT_META[a.agent_name] || { emoji: '🤖', color: 'text-white border-white/20 bg-white/10' }
-            const { lines } = describe(a)
+            const { lines, link } = describe(a)
             const busy = acting === a.id + 'approve' || acting === a.id + 'reject'
             return (
               <div key={a.id} className="rounded-xl border border-white/10 bg-white/[0.04] p-3 flex flex-col gap-2">
@@ -325,6 +336,16 @@ export default function PendingActionsQueue() {
                   {lines.map((l, i) => (
                     <div key={i} className="text-[10px] leading-relaxed text-white/60">{l}</div>
                   ))}
+                  {link && (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2 py-1.5 text-[10px] font-medium text-cyan-200 transition-colors hover:bg-cyan-300/20"
+                    >
+                      🎬 {link.label}
+                    </a>
+                  )}
                   {String(a.action_payload?.ai_error || '') && (
                     <div className="text-[10px] leading-relaxed text-rose-200/90">💬 Alasan AI gagal: {String(a.action_payload.ai_error).slice(0, 150)}</div>
                   )}

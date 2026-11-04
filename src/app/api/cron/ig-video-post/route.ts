@@ -20,13 +20,17 @@ import {
  *   POST /{page-id}/media?media_type=REELS&video_url=&caption=
  *   → poll FINISHED (1–5 menit) → /media_publish?creation_id=
  *
- * ATURAN JADWAL (permintaan Bos, update Nov 2026):
+ * ATURAN JADWAL + ACC (permintaan Bos, update Nov 2026):
  *   • "uploud tiap jam 7-8, 1 konten aja sehari, sabtu minggu libur"
+ *   • "nunggu saya acc" → DEFAULT MODE = APPROVAL:
+ *       runner kirim draft → ai_pending_actions (PUBLISH_IG_REEL) →
+ *       Bos ACC di Kantor CEO → Antrean Eksekusi → /api/execute-action
+ *       → publish REELS. (Set env IG_AUTO_POST="true" utk mode lama)
  *   • Window posting: 19:00–20:59 WIB (runner jalan 19:10 WIB, Senin–Jumat)
  *   • Cadence: 1x/hari (guard: Reels published terakhir ≥ 20 jam lalu)
  *   • Rotasi platform dikelola runner: Sen/Rab/Jum → IG Reels,
  *     Sel/Kam → TikTok (kalau TikTok gagal/belum approved → fallback IG)
- *   ?force=true → lewati window + cadence (untuk tes manual)
+ *   ?force=true → lewati window + cadence (TIDAK melewati ACC)
  *
  * Flow:
  *   1. Auth CRON_SECRET (fail-closed produksi)
@@ -77,8 +81,11 @@ export async function GET(request: NextRequest) {
 
   const last = lastReels?.[0] ?? null
   const lastMs = last?.published_at ? Date.parse(last.published_at) : null
+  const autoPost = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'true'
+    || process.env.IG_AUTO_POST === 'true'
   return NextResponse.json({
     ok: true,
+    postMode: autoPost ? 'auto' : 'approval (nunggu ACC Bos — Kantor CEO → Antrean Eksekusi)',
     windowWib: WINDOW_HOURS_WIB,
     wibHourNow: wibHourNow(),
     cadenceHours: Math.round(MIN_GAP_MS / 3_600_000),
@@ -143,6 +150,81 @@ export async function POST(request: NextRequest) {
         nextEligibleAt: new Date(lastMs + MIN_GAP_MS).toISOString(),
       })
     }
+  }
+
+  /* ── 3b) MODE APPROVAL (default — permintaan Bos: "nunggu saya acc") ──
+     Draft disimpan di ai_pending_actions (PUBLISH_IG_REEL). Bos ACC via
+     Kantor CEO → Antrean Eksekusi → /api/execute-action yang mem-publish.
+     Set env IG_AUTO_POST="true" di Cloudflare utk balik ke mode otomatis. */
+  const autoPost = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'true'
+    || process.env.IG_AUTO_POST === 'true'
+  if (!autoPost) {
+    /* Cap harian tetap dihormati */
+    const since24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { count: pub24 } = await admin
+      .from('instagram_posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'published')
+      .gte('published_at', since24)
+    if ((pub24 ?? 0) >= IG_DAILY_CAP) {
+      return NextResponse.json({ ok: true, skipped: `cap harian tercapai (${IG_DAILY_CAP}/24 jam)` })
+    }
+
+    /* Jangan dobel draft untuk video yang sama */
+    const { data: dup } = await admin
+      .from('ai_pending_actions')
+      .select('id')
+      .eq('action_type', 'PUBLISH_IG_REEL')
+      .eq('status', 'pending')
+      .contains('action_payload', { videoUrl })
+      .limit(1)
+    if (dup?.length) {
+      return NextResponse.json({
+        ok: true,
+        awaitingApproval: true,
+        skipped: 'draft Reels ini sudah ada di Antrean ACC (tidak diduplikat)',
+        actionId: dup[0].id,
+      })
+    }
+
+    const { data: action, error: actErr } = await admin
+      .from('ai_pending_actions')
+      .insert({
+        agent_name: 'Sinta',
+        action_type: 'PUBLISH_IG_REEL',
+        action_payload: {
+          videoUrl,
+          caption,
+          template: body?.template || 'reels',
+          hook: body?.hook || '',
+          renderNote: 'remotion 9:16 + musik latar — ACC Bos → publish REELS',
+          requestedWib: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        },
+        status: 'pending',
+      })
+      .select('id')
+      .single()
+    if (actErr || !action) {
+      return NextResponse.json({
+        error: `Gagal simpan draft ACC (jalankan migrasi 015_create_ai_pending_actions.sql di Supabase?): ${actErr?.message || '?'}`,
+      }, { status: 500 })
+    }
+
+    await sendAdminNotification(
+      `📸⏳ <b>Sinta: draft Reels siap — menunggu ACC Bos</b>\n` +
+      `${caption ? caption.slice(0, 200) + (caption.length > 200 ? '…' : '') + '\n' : ''}` +
+      `🎬 Preview: ${videoUrl}\n` +
+      `✅ ACC di: Kantor CEO → Antrean Eksekusi\n` +
+      `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
+    ).catch(() => {})
+
+    return NextResponse.json({
+      ok: true,
+      awaitingApproval: true,
+      mode: 'approval',
+      actionId: (action as { id: string }).id,
+      note: 'Konten TIDAK diposting sampai Bos ACC (Kantor CEO → Antrean Eksekusi). Set env IG_AUTO_POST=true untuk mode otomatis.',
+    })
   }
 
   try {
