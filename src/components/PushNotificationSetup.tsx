@@ -8,12 +8,13 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { isIOSSafari, isStandaloneMode } from '@/components/PWAInstallPrompt'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// "Nanti" BUKAN dismiss permanen — cukup snooze 24 jam. Dulu pakai flag
-// boolean yang menempel selama localStorage hidup, dan session PWA di HP
-// bisa bertahan berhari-hari (app cuma di-suspend, bukan dibunuh) →
-// sekali tekan "Nanti"/X, prompt "ilang" dan gak pernah muncul lagi.
+// "Nanti"/X = snooze. FIX (laporan Bos: "popup aktifin notif masih muncul
+// tiap masuk dashboard"): dulu snooze DIHAPUS tiap session baru — efeknya
+// tekan "Nanti" nggak pernah ngefek, popup balik lagi besoknya/kalau PWA
+// dibuka ulang. Sekarang snooze dihormati lintas session (3 hari) — popup
+// balik cuma kalau memang belum subscribe DAN snooze-nya sudah habis.
 const SNOOZE_KEY = 'luxtrade_push_snoozed_until'
-const SNOOZE_MS = 24 * 60 * 60 * 1000
+const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000
 /** Dipancarkan LuxTradeDashboard saat onboarding selesai/skip — momen tepat
   * menawarkan push notif, sekaligus memunculkan lagi banner yang ke-tutup
   * overlay onboarding (keluhan: "setelah skip onboarding notifnya ilang"). */
@@ -90,11 +91,12 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
     }
   }, [])
 
-  // Onboarding selesai/skip → hapus snooze → banner langsung evaluasi ulang
+  // Onboarding selesai/skip → evaluasi ulang visibilitas banner (banner
+  // bisa tertutup overlay onboarding). SNOOZE TIDAK dihapus — keputusan
+  // "Nanti" dari Bos/user tetap dihormati.
   useEffect(() => {
     const reset = () => {
-      try { localStorage.removeItem(SNOOZE_KEY) } catch {}
-      setSnoozedUntil(0)
+      try { setSnoozedUntil(Number(localStorage.getItem(SNOOZE_KEY) || 0)) } catch { /* biarkan nilai lama */ }
     }
     window.addEventListener(PUSH_PROMPT_RESET_EVENT, reset)
     return () => window.removeEventListener(PUSH_PROMPT_RESET_EVENT, reset)
@@ -152,22 +154,6 @@ export default function PushNotificationSetup({ onShowIOSInstall }: PushNotifica
       setVisible(false)
     }
   }
-
-  // Session baru (app dibuka ulang) → hapus snooze aktif, kasih kesempatan lagi
-  // (perilaku lama dipertahankan: "Nanti" maksimal hidup selama 1 session)
-  useEffect(() => {
-    if (!userId) return
-    const sessionKey = `luxtrade_push_session_${userId}`
-    if (!sessionStorage.getItem(sessionKey)) {
-      sessionStorage.setItem(sessionKey, 'true')
-      try {
-        if (Number(localStorage.getItem(SNOOZE_KEY) || 0) > Date.now()) {
-          localStorage.removeItem(SNOOZE_KEY)
-          setSnoozedUntil(0)
-        }
-      } catch {}
-    }
-  }, [userId])
 
   const isIOSBrowser = isIOS && !isStandalone
 

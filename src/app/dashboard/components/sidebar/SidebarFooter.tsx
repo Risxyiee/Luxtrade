@@ -5,6 +5,7 @@ import { Settings, LogOut, Menu, X, ChevronLeft, ChevronRight } from 'lucide-rea
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import NotificationSetup from '@/components/NotificationSetup'
+import AppUpdateButton from '@/components/AppUpdateButton'
 
 interface SidebarFooterProps {
   sidebarOpen: boolean
@@ -34,6 +35,12 @@ export default function SidebarFooter({
       {/* Push Notification Toggle — compact switch in sidebar (iOS-aware) */}
       {(sidebarOpen || mobileSidebarOpen) && userId && isPro && (
         <NotificationSetup compact />
+      )}
+
+      {/* Perbarui Aplikasi (PWA) — dipindah dari Header (laporan Bos:
+          dua ikon refresh berdempet di header membingungkan) */}
+      {(sidebarOpen || mobileSidebarOpen) && (
+        <AppUpdateButton />
       )}
 
       {/* Settings Link */}

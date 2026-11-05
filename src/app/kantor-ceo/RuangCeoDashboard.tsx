@@ -250,6 +250,89 @@ function Dot({ tone }: { tone: 'ok' | 'busy' | 'idle' }) {
   return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${tone === 'ok' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.8)]' : tone === 'busy' ? 'bg-amber-300 animate-pulse shadow-[0_0_8px_rgba(252,211,77,.8)]' : 'bg-white/25'}`} />
 }
 
+type TeamMember = typeof TEAM_DETAIL[number]
+
+/* ---------- Kartu karyawan Tim AI (akordeon) ----------
+   Redesign (laporan Bos: daftar tugas & kerjaan "kurang rapi"): dulu satu
+   kartu = tembok teks semua bagian terbuka sekaligus. Sekarang akordeon —
+   tertutup = ringkas (avatar + nama + jabatan), klik = detail terstruktur
+   dengan nomor tugas berwarna per karyawan + kotak batas + ide. */
+function EmployeeCard({ m, open, onToggle }: { m: TeamMember; open: boolean; onToggle: () => void }) {
+  const bright = BRIGHT[m.color] || m.color
+  return (
+    <div
+      className="rounded-2xl border overflow-hidden mb-2 transition-colors duration-200"
+      style={{ borderColor: open ? `${bright}66` : 'rgba(255,255,255,0.10)', background: open ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)' }}
+    >
+      {/* Kepala kartu — selalu terlihat, klik untuk buka/tutup */}
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left cursor-pointer hover:bg-white/5 transition-colors"
+      >
+        <span
+          className="w-9 h-9 rounded-full grid place-items-center text-base shrink-0"
+          style={{ background: `${bright}1f`, border: `1px solid ${bright}59` }}
+          aria-hidden="true"
+        >{m.emoji}</span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[12.5px] font-bold text-white">{m.name}</span>
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wide"
+              style={{ background: `${bright}1a`, color: bright }}
+            >{m.id}</span>
+          </span>
+          <span className="block text-[10px] text-white/45 truncate">{m.jabatan} · {m.divisi}</span>
+        </span>
+        <span
+          className={`text-white/35 text-[9px] shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        >▼</span>
+      </button>
+
+      {/* Detail — hanya saat terbuka */}
+      {open && (
+        <div className="px-3 pb-3 pt-0.5 space-y-2 text-[10.5px] leading-relaxed">
+          <div className="flex flex-col gap-1">
+            <span className="flex gap-1.5 text-white/70"><span aria-hidden="true">🕐</span><span><b className="text-white/85">Jam kerja:</b> {m.shift}</span></span>
+            <span className="flex gap-1.5 text-white/70"><span aria-hidden="true">📥</span><span><b className="text-white/85">Baca data:</b> {m.baca}</span></span>
+          </div>
+
+          <div className="rounded-xl px-2.5 py-2" style={{ background: `${bright}0d`, border: `1px solid ${bright}33` }}>
+            <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: bright }}>📋 Tugas</div>
+            <ol className="m-0 p-0 list-none flex flex-col gap-1">
+              {m.tugas.map((t, i) => (
+                <li key={i} className="flex gap-1.5">
+                  <span
+                    className="shrink-0 w-4 h-4 mt-px rounded-full grid place-items-center text-[8.5px] font-bold"
+                    style={{ background: `${bright}22`, color: bright }}
+                    aria-hidden="true"
+                  >{i + 1}</span>
+                  <span className="text-white/80">{t}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <span className="flex gap-1.5 text-white/70"><span aria-hidden="true">📤</span><span><b className="text-white/85">Laporan:</b> {m.lapor}</span></span>
+
+          <div className="rounded-xl bg-amber-400/5 border border-amber-300/20 px-2.5 py-2">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-amber-300/80 mb-1">⚠️ Belum bisa</div>
+            <ul className="m-0 p-0 list-none flex flex-col gap-0.5">
+              {m.batas.map((t, i) => (
+                <li key={i} className="flex gap-1.5 text-white/70"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span>{t}</span></li>
+              ))}
+            </ul>
+          </div>
+
+          <span className="flex gap-1.5 text-white/75"><span aria-hidden="true">💡</span><span><b className="text-teal-300">Bisa ditambah:</b> {m.ide}</span></span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ============================================================ */
 export interface RuangCeoDashboardProps {
   room: string
@@ -288,6 +371,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [cmoVar, setCmoVar] = useState(0)
   const [speaking, setSpeaking] = useState(false)
+  /* Akordeon Tim AI: satu karyawan terbuka pada satu waktu (null = semua tertutup) */
+  const [openStaff, setOpenStaff] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
 
   /* 🔊 Bacakan/berhentikan briefing (suara browser, lang id-ID) */
@@ -986,32 +1071,22 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className="text-white/50 text-[11px] mb-3 leading-relaxed">
                 Jabatan, pekerjaan &amp; jadwal tiap karyawan — plus <b className="text-amber-300">batas kemampuan yang jujur</b>, biar Bos bisa menilai apa yang kurang dan layak ditambah.
               </div>
-              <div className="max-h-[30vh] overflow-y-auto kscroll pr-0.5">
+              <div className="max-h-[34vh] overflow-y-auto kscroll pr-0.5">
                 {TEAM_DETAIL.map(m => (
-                  <div key={m.id} className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-2 mb-2">
-                    <div className="text-[12.5px] font-bold" style={{ color: BRIGHT[m.color] || m.color }}>{m.emoji} {m.name} — {m.jabatan}</div>
-                    <div className="text-[9.5px] text-white/40 mb-1 uppercase tracking-wider">{m.divisi}</div>
-                    <div className="text-[10.5px] leading-relaxed">
-                      <b>🕐 Jam kerja:</b> {m.shift}<br />
-                      <b>📥 Baca data:</b> {m.baca}
-                      <div className="mt-1"><b>📋 Tugas:</b>
-                        <ul className="m-0 mt-0.5 pl-4 list-disc">{m.tugas.map((t, i) => <li key={i}>{t}</li>)}</ul>
-                      </div>
-                      <div className="mt-1"><b>📤 Laporan:</b> {m.lapor}</div>
-                      <div className="mt-1"><b className="text-amber-300">⚠️ Belum bisa:</b>
-                        <ul className="m-0 mt-0.5 pl-4 list-disc">{m.batas.map((t, i) => <li key={i}>{t}</li>)}</ul>
-                      </div>
-                      <div className="mt-1 text-white/75"><b className="text-teal-300">💡 Bisa ditambah:</b> {m.ide}</div>
-                    </div>
-                  </div>
+                  <EmployeeCard
+                    key={m.id}
+                    m={m}
+                    open={openStaff === m.id}
+                    onToggle={() => setOpenStaff(openStaff === m.id ? null : m.id)}
+                  />
                 ))}
-                <div className="rounded-xl border border-dashed border-amber-300/40 bg-amber-400/5 px-2.5 py-2 text-[10.5px] leading-relaxed mb-1">
+                <div className="rounded-2xl border border-dashed border-amber-300/40 bg-amber-400/5 px-3 py-2.5 text-[10.5px] leading-relaxed mb-1">
                   <b className="text-amber-300">🧩 Sisa kursi kosong (opini jujur):</b>
-                  <ul className="m-0 mt-0.5 pl-4 list-disc">
-                    <li><b>Support Closer</b> — CS bot chat (/api/chat) sudah jawab pertanyaan user, tapi belum ada yang follow-up penyelesaian bug ke user pelapor sampai tuntas</li>
-                    <li><b>Eksekusi A/B test otomatis</b> — Farhan sudah merancang eksperimen tiap Senin, tapi pelaksanaannya masih tangan Bos (belum ada mesin A/B otomatis)</li>
+                  <ul className="m-0 mt-1 p-0 list-none flex flex-col gap-1">
+                    <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Support Closer</b> — CS bot chat (/api/chat) sudah jawab pertanyaan user, tapi belum ada yang follow-up penyelesaian bug ke user pelapor sampai tuntas</span></li>
+                    <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Eksekusi A/B test otomatis</b> — Farhan sudah merancang eksperimen tiap Senin, tapi pelaksanaannya masih tangan Bos (belum ada mesin A/B otomatis)</span></li>
                   </ul>
-                  <div className="mt-1 text-white/70">✅ Kursi <b>Data Analyst</b> (Dewi) &amp; <b>Growth Hacker</b> (Farhan) yang dulu kosong — kini SUDAH DIISI. Promosi affiliate masuk ke eksperimen mingguan Farhan.</div>
+                  <div className="mt-1.5 text-white/70">✅ Kursi <b>Data Analyst</b> (Dewi) &amp; <b>Growth Hacker</b> (Farhan) yang dulu kosong — kini SUDAH DIISI. Promosi affiliate masuk ke eksperimen mingguan Farhan.</div>
                 </div>
                 <div className="text-white/40 text-[10px] leading-relaxed">
                   Semua jadwal jalan otomatis via Cloudflare Cron bawaan — tanpa cron-job.org.<br />
