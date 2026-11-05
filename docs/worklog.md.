@@ -51,3 +51,13 @@
 - `docs/security-review-next.md` — laporan audit P0 lengkap.
 - `scripts/regression-p0-routes.mjs` — script regresi v2 (anti false-pass, masuk di PR `fix/regresi-v2-dan-worklog`).
 - Verifikasi terakhir dilakukan dari `origin/main` = `ebc335d6` · sesi ini.
+
+---
+
+## 2026-11-05 — Deploy PR #4 + migrasi pine-alert ✅ BERES
+- **Deploy command CF** diganti `npx wrangler deploy` (oleh Bos via dashboard) → build main **sukses 2×** (402b5e98 @09:09Z, 80864ea3 @~11:10Z). Bukti: check-run "Workers Builds: luxtradee" success.
+- **PR #4 merged → main 80864ea3**: fix CSV import profit $40→$4000 (parser per-sel + label profit/pnl + tanda +/-), pine default DIHAPUS (UI + cron + auto-load), klik nama Pine = 🔔 pasang alert (Pro), cron pine-alerts dukung `script_kind` protected|pine, file migrasi `docs/PINE_ALERT_PINE_SCRIPTS.sql`.
+- Build branch PR #4 (50e44d0e) FAILURE = **non-production branch build** — tidak memengaruhi produksi (deploy hanya dari main, sukses).
+- **Insiden 500 `/api/cron/pine-alerts` @11:15Z**: penyebab = migrasi SQL belum dijalankan (kolom `script_kind` tidak ada) → query cron gagal. Fix = Bos jalankan SQL migrasi di Supabase (~11:3xZ). **Terverifikasi via REST probe**: `select=script_kind` → 42501 permission denied (kolom ADA), kontrol kolom ngawur → 42703 does not exist. Tanpa deploy ulang.
+- Token model: Workers Builds tidak butuh token repo; deploy.yml = manual-only tanpa secret (sengaja). GitHub PAT Bos = hanya untuk push/merge dari sandbox, disarankan revoke.
+- Status akhir: menunggu slot cron */15 hijau + tes fitur (import CSV ulang, pine sendiri, 🔔 alert) oleh Bos.
