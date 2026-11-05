@@ -10,12 +10,23 @@
 //                        Horizontal Agent Dock (scroll menyamping, snap)
 //                        + panel ruangan yang dipilih (dark glass).
 //
+// Aturan tampilan (permintaan Bos): KANTOR AI BEBAS EMOJI.
+//   - Label, tombol, status & catatan sistem pakai teks polos berwarna.
+//   - Teks dinamis dari API (briefing, memori, insight) difilter noEmoji().
+//   - Draf konten (TikTok/skrip/email) TETAP apa adanya — itu barang jadi
+//     yang Bos salin ke media sosial, bukan kerangka UI.
+//
+// Detail karyawan (baru): kartu akordeon per karyawan kini punya STATUS
+// KERJA LIVE (dari data agen nyata) + MEMORI KARYAWAN (riwayat kerja
+// pribadi dari action=mem-agent) + model AI resminya.
+//
 // Semua logika bisnis (state, call API, antrean COO, bahan TikTok)
 // tetap tinggal di KantorCeo3D.tsx — komponen ini presentational + toggle sheet.
 // ============================================================
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, X } from 'lucide-react'
+import { ChevronDown, Sparkles, Trash2, X } from 'lucide-react'
 import PendingActionsQueue from './PendingActionsQueue'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 /* ============================================================
    STRUKTUR & JABATAN TIM AI — data lengkap untuk Ruang Struktur.
@@ -25,33 +36,35 @@ import PendingActionsQueue from './PendingActionsQueue'
    ============================================================ */
 const TEAM_DETAIL = [
   {
-    id: 'COO', emoji: '💼', name: 'Bagas', jabatan: 'COO · Chief Operating Officer', divisi: 'Divisi Jualan & Monetisasi', color: '#059669',
+    id: 'COO', name: 'Bagas', jabatan: 'COO · Chief Operating Officer', divisi: 'Divisi Jualan & Monetisasi', color: '#059669',
+    model: 'Gemma 4 26B (OpenRouter)',
     shift: 'Cron harian 08:00 WIB (slot 0 1 * * * UTC) · ACC Bos kapan pun di Ruang COO',
     baca: 'profiles (free user + email) · trades 7 hari per user · ai_pending_tasks (riwayat kontak)',
     tugas: [
       'Pilih maks 3 free user paling aktif 7 hari = hot lead (sudah ketagihan produk, paling siap upgrade)',
-      'Racik email penawaran PRO personal via model resminya: Llama 3.1 8B (OpenRouter) → Groq/Gemini cadangan → templat',
+      'Racik email penawaran PRO personal via model resminya (Gemma 4 26B via OpenRouter) → templat cadangan',
       'Simpan draf sebagai task PENDING → tunggu ACC Bos di Ruang COO (human-in-the-loop)',
       'Setelah ACC: email terkirim via Resend, status dicatat untuk pengukuran konversi',
-      '⭐ FOLLOW-UP OPEN-RATE: lead yang BUKA email tapi belum PRO (deteksi via webhook Resend /api/webhooks/resend) otomatis dapat draf follow-up berisi kupon diskon terkontrol (env COUPON_PERCENT, default 20%) — anti-spam 1×/7 hari, bounce tidak di-email lagi',
+      'FOLLOW-UP OPEN-RATE: lead yang BUKA email tapi belum PRO (deteksi via webhook Resend /api/webhooks/resend) otomatis dapat draf follow-up berisi kupon diskon terkontrol (env COUPON_PERCENT, default 20%) — anti-spam 1x/7 hari, bounce tidak di-email lagi',
     ],
     lapor: 'Ringkasan 24 jam di briefing 08:00 · % konversi penawaran→PRO & open-rate email di laporan mingguan Senin 10:00',
     batas: [
-      'Maks 3 lead/hari & 1 lead cuma dikontak 1× per 7 hari (anti-spam)',
+      'Maks 3 lead/hari & 1 lead cuma dikontak 1x per 7 hari (anti-spam)',
       'Tidak bisa membalas reply dari lead — itu tetap tangan Bos',
       'Open-rate cuma terlihat setelah webhook dipasang: resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend',
     ],
     ide: 'A/B subject email otomatis (butuh volume pengiriman lebih besar) · skor lead dari jumlah klik · diskon bertingkat per tingkat ketertarikan',
   },
   {
-    id: 'CTO', emoji: '🖥️', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488',
+    id: 'CTO', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488',
+    model: 'Nemotron 3.5 Lightning (OpenRouter)',
     shift: 'Watchdog tiap 15 menit 24/7 · QA sweep + laporan di briefing 08:00 WIB',
     baca: 'Ping https://luxtradee.web.id · bug_reports · riwayat uptime (agent_kv) · env diagnostik',
     tugas: [
       'Ping situs tiap 15 menit — DOWN → alarm Discord instan (dedup 30 mnt), pulih → kabari sekali',
-      'Bug baru masuk → triage pakai model resminya (Qwen 2.5 Coder via OpenRouter): 3 bug terakhir diringkas jadi diagnosa + prioritas P1/P2/P3',
+      'Bug baru masuk → triage pakai model resminya: 3 bug terakhir diringkas jadi diagnosa + prioritas P1/P2/P3',
       'QA otomatis 15 route utama tiap briefing pagi — 12 halaman + 3 ENDPOINT KRITIS API (jurnal trades, evaluasi AI screenshot, CS chat): 401/405 = hidup & terjaga, 5xx/timeout dilaporkan',
-      'Diagnostik env & tes query Supabase (tombol 🩺 Diagnostik di Ruang CTO)',
+      'Diagnostik env & tes query Supabase (tombol Diagnostik di Ruang CTO)',
     ],
     lapor: 'Alarm instan ke Discord · baris QA & bug di Morning Briefing 08:00 · uptime % di laporan mingguan',
     batas: [
@@ -62,13 +75,14 @@ const TEAM_DETAIL = [
     ide: 'QA route butuh-login pakai token uji beneran · rollback otomatis kalau QA gagal parah (butuh pipeline deploy baru)',
   },
   {
-    id: 'CSO', emoji: '👥', name: 'Maya', jabatan: 'CSO · Chief Customer Success Officer', divisi: 'Customer Success & Retensi', color: '#be185d',
-    shift: 'Hitung user di briefing 08:00 · email pasif otomatis 1×/hari (kalau AUTO-ACC on) · rapat dengan CMO 1×/hari',
+    id: 'CSO', name: 'Maya', jabatan: 'CSO · Chief Customer Success Officer', divisi: 'Customer Success & Retensi', color: '#be185d',
+    model: 'Gemma 4 26B (OpenRouter)',
+    shift: 'Hitung user di briefing 08:00 · email pasif otomatis 1x/hari (kalau AUTO-ACC on) · rapat dengan CMO 1x/hari',
     baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
     tugas: [
       'Hitung pendaftar / aktif 24 jam / pasif tiap pagi — tampil di briefing & panel Ruang CSO',
-      '⭐ SKOR RISIKO CHURN: hitung user yang pernah aktif 30 hari tapi 3 hari terakhir diam → kandidat win-back dilaporkan tiap pagi (briefing + panel Ruang CSO)',
-      'Kirim EMAIL PERSONAL ke maks 50 user pasif — 2 GRUP, masing-masing draf beda: (A) user vakum yang pernah upload → nada kangen & nilai jurnalnya, (B) user yang belum pernah upload 1 trade pun → nada ajakan pertama. Nada email diracik model resminya (Gemma 2 9B via OpenRouter, rotasi 3 variasi), pembuka per user dari data trading asli (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload)',
+      'SKOR RISIKO CHURN: hitung user yang pernah aktif 30 hari tapi 3 hari terakhir diam → kandidat win-back dilaporkan tiap pagi (briefing + panel Ruang CSO)',
+      'Kirim EMAIL PERSONAL ke maks 50 user pasif — 2 GRUP, masing-masing draf beda: (A) user vakum yang pernah upload → nada kangen & nilai jurnalnya, (B) user yang belum pernah upload 1 trade pun → nada ajakan pertama. Nada email diracik model resminya (Gemma via OpenRouter, rotasi 3 variasi), pembuka per user dari data trading asli (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload)',
       'Ukur feedback: besoknya hitung berapa dari yang di-email yang balik upload (dilaporkan di briefing)',
       'Bawa data nyata ke meja rapat sama Sinta (CMO): kenapa user daftar tapi males upload jurnal → jadi skrip konten',
     ],
@@ -81,17 +95,18 @@ const TEAM_DETAIL = [
     ide: 'Prediksi churn per user pakai model ML (butuh histori lebih panjang) · A/B subject email otomatis (butuh open-rate dari Resend) · segmen email per tingkat risiko',
   },
   {
-    id: 'CMO', emoji: '📣', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed',
+    id: 'CMO', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed',
+    model: 'Gemma 4 31B (OpenRouter)',
     shift: 'Shift pagi: LAPORAN RISET TikTok + draf skrip di briefing 08:00 · Shift sore: produksi & posting video 20:00 WIB (prime time FYP)',
     baca: 'tiktok_posts (top 5 konten Bos urut views) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
     tugas: [
-      '🔍 LAPORAN RISET TIKTOK/hari (analisis pasar, bukan cuma bahan konten): pola hook yang works, topik berpeluang FYP, jadwal posting terbaik, risiko — dibagikan ke SELURUH kantor (briefing Alexander, bahan artikel Farhan, angle email Bagas, panel Memori Kantor)',
+      'LAPORAN RISET TIKTOK/hari (analisis pasar, bukan cuma bahan konten): pola hook yang works, topik berpeluang FYP, jadwal posting terbaik, risiko — dibagikan ke SELURUH kantor (briefing Alexander, bahan artikel Farhan, angle email Bagas, panel Memori Kantor)',
       'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
-      '⭐ 3 DRAF PILIHAN/hari via 1 panggilan model resminya GLM-4.7-Flash (OpenRouter) — 3 pendekatan berbeda, WAJIB selaras hasil risetnya sendiri; Bos tinggal pilih yang paling pas di Ruang CMO',
+      '3 DRAF PILIHAN/hari via 1 panggilan model resminya (Gemma 4 31B via OpenRouter) — 3 pendekatan berbeda, WAJIB selaras hasil risetnya sendiri; Bos tinggal pilih yang paling pas di Ruang CMO',
       'Draf wajib menjawab alasan churn dari rapat Maya (bukan sekadar ikut angle rotasi)',
-      'Rantai model: GLM-4.7-Flash → GLM-4-Flash → Gemini → templat statis (draf tidak pernah kosong)',
+      'Rantai model: Gemma 4 31B → Nemotron Lightning → Gemma 4 26B → Gemini → templat statis (draf tidak pernah kosong)',
       'Ikut rapat harian sama Maya: ubah akar masalah churn jadi skrip konten anti-churn',
-      '🎬 SHIFT SORE (20:00 WIB): produksi video TikTok utuh — skrip dari studio-nya → render Remotion 9:16 + voiceover Indonesia → posting otomatis via API resmi TikTok (job "sinta-video")',
+      'SHIFT SORE (20:00 WIB): produksi video TikTok utuh — skrip dari studio-nya → render Remotion 9:16 + voiceover Indonesia → posting otomatis via API resmi TikTok (job "sinta-video")',
     ],
     lapor: 'LAPORAN RISET di briefing 08:00 + panel Memori Kantor · 3 draf di panel Ruang CMO (pilih → salin) · video harian masuk TikTok 20:00 WIB (atau diambil Bos dari artifact kalau app belum approved) · skrip rapat di Ruang CSO',
     batas: [
@@ -102,31 +117,33 @@ const TEAM_DETAIL = [
     ide: 'Refresh views otomatis via oEmbed mingguan · bank hook yang terbukti FYP · pakai draf pilihan Bos sebagai skrip video besok',
   },
   {
-    id: 'CFO', emoji: '💰', name: 'Putri', jabatan: 'CFO · Chief Financial Officer', divisi: 'Anggaran API & Biaya', color: '#b45309',
+    id: 'CFO', name: 'Putri', jabatan: 'CFO · Chief Financial Officer', divisi: 'Anggaran API & Biaya', color: '#b45309',
+    model: 'Tanpa LLM — 100% matematika hardcoded (SOP Bos)',
     shift: 'Cek kuota di briefing 08:00 + watchdog 15 menit (alarm di 80%)',
     baca: 'agent_kv quota: (Gemini Vision) · email: (Resend) · quota429: (event rate-limit) · profiles is_pro (pendapatan)',
     tugas: [
       'Satu-satunya karyawan TANPA LLM — 100% matematika hardcoded (SOP Bos): tidak bisa halusinasi angka',
       'Pantau kuota Gemini Vision harian (limit ±1.400) & kuota email Resend (100/hari)',
       'Gerbang quota-track: setiap evaluasi upload user dicek dulu — kuota habis → ditunda (anti-429)',
-      'Alarm Discord 1×/hari kalau pemakaian ≥80%',
-      '⭐ LAPORAN PENDAPATAN: hitung user PRO (is_pro) × harga paket bulanan (env PRO_PRICE_IDR, default 49.000) → estimasi MRR bulanan + progres target (env MRR_TARGET_IDR) — tampil di briefing & Ruang CFO',
+      'Alarm Discord 1x/hari kalau pemakaian >=80%',
+      'LAPORAN PENDAPATAN: hitung user PRO (is_pro) x harga paket bulanan (env PRO_PRICE_IDR, default 49.000) → estimasi MRR bulanan + progres target (env MRR_TARGET_IDR) — tampil di briefing & Ruang CFO',
       'Laporan pemakaian 7 hari di laporan mingguan',
     ],
     lapor: 'Baris kuota + pendapatan MRR di briefing & panel Ruang CFO · alarm instan di 80% · rekap 7 hari mingguan',
     batas: [
-      'Pendapatan = estimasi (PRO × harga paket bulanan) — belum hitung paket 6 bulanan/lifetime & biaya server',
+      'Pendapatan = estimasi (PRO x harga paket bulanan) — belum hitung paket 6 bulanan/lifetime & biaya server',
       'Limit & harga diambil dari env, bukan dibaca langsung dari billing Gemini/Resend/Supabase',
     ],
     ide: 'Baca billing asli Gemini/Resend/Supabase (butuh API billing masing-masing) · banding biaya API vs revenue per bulan · laporan pajak dasar',
   },
   {
-    id: 'DA', emoji: '📊', name: 'Dewi', jabatan: 'Data Analyst · Analis Pola Trading', divisi: 'Data & Insight', color: '#0891b2',
-    shift: 'Analisis mendalam tiap Senin 10:00 WIB (cron mingguan) · kapan pun lewat tombol di Ruang Data Analyst',
+    id: 'DA', name: 'Dewi', jabatan: 'Data Analyst · Analis Pola Trading', divisi: 'Data & Insight', color: '#0891b2',
+    model: 'Gemma 4 31B (OpenRouter)',
+    shift: 'Analisis harian 08:00 WIB (cron) · analisis mendalam tiap Senin 10:00 · kapan pun lewat tombol di Ruang Data Analyst',
     baca: 'trades 30 hari terakhir (maks 1.000 terbaru): symbol, profit_loss, session, user_id, created_at, emotion (self-report user)',
     tugas: [
       'Hitung statistik NYATA: total upload, trader unik, win rate agregat, pair favorit, sesi & jam tersibuk',
-      '⭐ KORELASI EMOSI vs PROFIT: win rate per emosi (self-report saat upload, min 5 sampel/emosi) — emosi paling untung & paling rugi → bahan edukasi psikologi trading',
+      'KORELASI EMOSI vs PROFIT: win rate per emosi (self-report saat upload, min 5 sampel/emosi) — emosi paling untung & paling rugi → bahan edukasi psikologi trading',
       'Ubah angka mentah jadi insight 2 kalimat + 3 pola yang tidak terlihat kasat mata',
       'Beri 3 rekomendasi konkret yang bisa dieksekusi Bos minggu ini (produk/konten/retensi)',
       'Evaluasi rekomendasi minggu lalu dengan data terbaru — learning loop, bukan analisis amnesia',
@@ -140,12 +157,13 @@ const TEAM_DETAIL = [
     ide: 'Prediksi trader yang mau churn (butuh histori lebih panjang) · skor kualitas setup (butuh label setup yang konsisten)',
   },
   {
-    id: 'GH', emoji: '🚀', name: 'Farhan', jabatan: 'Growth Hacker · Eksperimen Pertumbuhan', divisi: 'Growth & Eksperimen', color: '#ea580c',
-    shift: 'Rancang eksperimen tiap Senin 10:00 WIB (cron mingguan) · kapan pun lewat tombol di Ruang Growth',
+    id: 'GH', name: 'Farhan', jabatan: 'Growth Hacker · Eksperimen Pertumbuhan', divisi: 'Growth & Eksperimen', color: '#ea580c',
+    model: 'Nemotron 3.5 Lightning (OpenRouter)',
+    shift: 'Rancang eksperimen harian 08:00 WIB (cron) · mendalam tiap Senin 10:00 · kapan pun lewat tombol di Ruang Growth',
     baca: 'Funnel profiles: pendaftar, PRO, pendaftar 7 hari, user dari referral (referred_by_code), onboarding selesai, aktivasi (upload trade) + insight Dewi (DA)',
     tugas: [
       'Ukur funnel nyata: pendaftar → aktivasi (upload trade pertama) → PRO → referral',
-      '⭐ A/B TEST CTA LANDING OTOMATIS: pengunjung dibagi 50/50 ke 2 varian teks tombol CTA (localStorage bucket), view & klik terukur via /api/ab-track → pemenang mingguan dilaporkan CEO & tampil di panel ini',
+      'A/B TEST CTA LANDING OTOMATIS: pengunjung dibagi 50/50 ke 2 varian teks tombol CTA (localStorage bucket), view & klik terukur via /api/ab-track → pemenang mingguan dilaporkan CEO & tampil di panel ini',
       'Temukan titik bocor terbesar (mis. aktivasi rendah, referral sepi)',
       'Usulkan 3 eksperimen minggu ini: nama, langkah konkret, metrik keberhasilan, estimasi effort',
       'Selipkan angle promosi program affiliate/referral ke eksperimennya',
@@ -159,17 +177,18 @@ const TEAM_DETAIL = [
     ide: 'Integrasi analitik landing lengkap (butuh analytics engine) · A/B di halaman lain (pricing, blog) · program reward referral 2 arah · notifikasi win-back',
   },
   {
-    id: 'CEO', emoji: '👔', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
+    id: 'CEO', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
+    model: 'Gemma 4 31B (OpenRouter)',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
-    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + 🧠 Memori Kantor',
+    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + Memori Kantor',
     tugas: [
-      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Llama 3.1 8B via OpenRouter) → kirim ke Discord 08:00',
+      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Gemma 4 31B via OpenRouter) → kirim ke Discord 08:00',
       'Pilih 1 NEXT BEST ACTION tiap pagi pakai modelnya sendiri — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
       'Ingatkan PRIORITAS KEMARIN di briefing — akuntabilitas: dilakukan, atau ganti dengan alasan jelas',
-      '⭐ NBA OKE/NOT OKE: Bos jawab prioritas hari ini via tombol Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not → dicatat ke memori & briefing besok menghormati jawaban itu',
-      '⭐ CHAT 2 ARAH Discord: Bos ketik /bos <pesan> → Alexander jawab langsung (route /api/discord-interactions, mode Interactions — bukan Gateway, kompatibel Workers) dengan konteks briefing terakhir',
-      '⭐ RINGKASAN SUARA: tombol 🔊 Bacakan Briefing di Ruang Rapat — laporan pagi dibacakan suara browser (TTS lokal, tanpa API key)',
-      'Catat keputusan & kesimpulan penting ke 🧠 Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
+      'NBA OKE/NOT OKE: Bos jawab prioritas hari ini via tombol Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not → dicatat ke memori & briefing besok menghormati jawaban itu',
+      'CHAT 2 ARAH Discord: Bos ketik /bos <pesan> → Alexander jawab langsung (route /api/discord-interactions, mode Interactions — bukan Gateway, kompatibel Workers) dengan konteks briefing terakhir',
+      'RINGKASAN SUARA: tombol Bacakan Briefing di Ruang Rapat — laporan pagi dibacakan suara browser (TTS lokal, tanpa API key)',
+      'Catat keputusan & kesimpulan penting ke Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
       'Jalankan AUTO-ACC email CSO otomatis tiap pagi (default ON — toggle AUTO-ACC untuk mematikan) · Dewi & Farhan lapor HARIAN jam 08:00 (dulu cuma Senin)',
     ],
     lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca · memori bisa dibaca di Ruang Rapat · chat balik via /bos di Discord',
@@ -187,6 +206,15 @@ const TEAM_DETAIL = [
 const BRIGHT: Record<string, string> = {
   '#059669': '#34d399', '#0d9488': '#2dd4bf', '#be185d': '#f472b6', '#7c3aed': '#a78bfa',
   '#b45309': '#fbbf24', '#0891b2': '#22d3ee', '#ea580c': '#fb923c', '#334155': '#cbd5e1', '#94a3b8': '#cbd5e1',
+}
+
+/* ---------- filter emoji untuk teks DINAMIS dari API ----------
+   Briefing, memori, insight & status dari server kadang membawa emoji
+   (format Discord) — kantor AI harus bersih, jadi disaring di tampilan.
+   Draf konten (TikTok/skrip/email) sengaja TIDAK difilter: itu barang jadi. */
+const EMOJI_RE = /[\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FAFF}\u{FE0F}\u{200D}]/gu
+function noEmoji(s: unknown): string {
+  return String(s ?? '').replace(EMOJI_RE, '').replace(/ {2,}/g, ' ').trim()
 }
 
 /* ---------- Jam WIB nyata — komponen TERPISAH: interval 1 detik hanya
@@ -207,10 +235,8 @@ function ClockWib() {
   )
 }
 
-/* ============================================================
-   🔊 TTS BRIEFING — ringkasan laporan bentuk suara (bonus Alexander).
-   100% browser (Web Speech API) — tanpa API key, tanpa kuota.
-   ============================================================ */
+/* ---------- TTS BRIEFING — ringkasan laporan bentuk suara (bonus Alexander).
+   100% browser (Web Speech API) — tanpa API key, tanpa kuota. ---------- */
 function stripMarkdownForSpeech(t: string): string {
   return t
     .replace(/[*_`#>]/g, '')
@@ -231,9 +257,8 @@ const SEP = 'mt-3 pt-3 border-t border-white/10'
 const ERR = 'mt-2 text-[11.5px] text-red-300'
 const OKS = 'mt-2 text-[11.5px] text-emerald-300'
 
-/* Task 35f: env yang BOLEH kosong — di ringkasan diag ditandai ⚪ (opsional),
-   bukan ❌, supaya tidak tampak seperti masalah (Bos pernah bingung: bot token
-   opsional ditandai ❌ seolah key utama gagal). */
+/* env yang BOLEH kosong — di ringkasan diag ditandai "(opsional)",
+   bukan gagal, supaya tidak tampak seperti masalah. */
 const OPTIONAL_ENV: Record<string, boolean> = {
   OPENROUTER_MODEL: true,        // override model Sinta — default tim sudah jalan
   RESEND_WEBHOOK_SECRET: true,   // statistik email dibuka — nice to have
@@ -251,13 +276,71 @@ function Dot({ tone }: { tone: 'ok' | 'busy' | 'idle' }) {
 }
 
 type TeamMember = typeof TEAM_DETAIL[number]
+interface MemEntry { at: string; who: string; text: string }
+
+/* ---------- Memori pribadi karyawan — dimuat lazy saat kartu dibuka.
+   Sumber: GET /api/ceo-agent?action=mem-agent&agent=<key> (Bearer token Bos). */
+function StaffMemory({ agent }: { agent: string }) {
+  const [mem, setMem] = useState<MemEntry[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let dead = false
+    setLoading(true)
+    setErr('')
+    ;(async () => {
+      try {
+        const sb = await getClientBrowserAsync()
+        let token = ''
+        if (sb) {
+          const { data } = await sb.auth.getSession()
+          token = data?.session?.access_token || ''
+        }
+        const res = await fetch(`/api/ceo-agent?action=mem-agent&agent=${agent}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          cache: 'no-store',
+        })
+        const js = await res.json()
+        if (!dead) setMem(Array.isArray(js?.mem) ? js.mem : [])
+      } catch {
+        if (!dead) { setMem([]); setErr('Gagal memuat memori — coba buka kartu lagi.') }
+      } finally {
+        if (!dead) setLoading(false)
+      }
+    })()
+    return () => { dead = true }
+  }, [agent])
+
+  return (
+    <div className="rounded-xl bg-cyan-400/5 border border-cyan-300/20 px-2.5 py-2">
+      <div className="text-[9px] font-bold uppercase tracking-wider text-cyan-300/80 mb-1">Memori Karyawan</div>
+      {loading ? (
+        <div className="text-white/45 text-[10px]">Memuat riwayat kerja...</div>
+      ) : err ? (
+        <div className="text-red-300/80 text-[10px]">{err}</div>
+      ) : mem && mem.length ? (
+        <div className="max-h-32 overflow-y-auto kscroll">
+          {mem.map((mm, i) => (
+            <div key={i} className="mb-1 pl-2 border-l-2 border-cyan-300/25 text-[10px] leading-relaxed text-white/70">
+              <span className="text-white/40">[{String(mm.at || '').slice(5, 10)}]</span> {mm.text}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-white/45 text-[10px]">Belum ada catatan — terisi otomatis setiap kali karyawan ini menyelesaikan tugasnya.</div>
+      )}
+      <div className="text-white/35 text-[9px] mt-1">Karyawan membaca catatan ini saat bekerja — dia ingat hasil kerjanya sendiri, tidak mulai dari nol.</div>
+    </div>
+  )
+}
 
 /* ---------- Kartu karyawan Tim AI (akordeon) ----------
-   Redesign (laporan Bos: daftar tugas & kerjaan "kurang rapi"): dulu satu
-   kartu = tembok teks semua bagian terbuka sekaligus. Sekarang akordeon —
-   tertutup = ringkas (avatar + nama + jabatan), klik = detail terstruktur
-   dengan nomor tugas berwarna per karyawan + kotak batas + ide. */
-function EmployeeCard({ m, open, onToggle }: { m: TeamMember; open: boolean; onToggle: () => void }) {
+   Tertutup = avatar inisial + nama + jabatan + status live.
+   Terbuka = detail terstruktur: status kerja, jam kerja, data dibaca,
+   model AI, tugas bernomor, laporan, batas jujur, ide — plus memori
+   pribadi karyawan (riwayat kerja yang dia ingat). TANPA EMOJI. */
+function EmployeeCard({ m, open, onToggle, live }: { m: TeamMember; open: boolean; onToggle: () => void; live: { tone: 'ok' | 'warn' | 'idle'; text: string } }) {
   const bright = BRIGHT[m.color] || m.color
   return (
     <div
@@ -271,10 +354,10 @@ function EmployeeCard({ m, open, onToggle }: { m: TeamMember; open: boolean; onT
         className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left cursor-pointer hover:bg-white/5 transition-colors"
       >
         <span
-          className="w-9 h-9 rounded-full grid place-items-center text-base shrink-0"
-          style={{ background: `${bright}1f`, border: `1px solid ${bright}59` }}
+          className="w-9 h-9 rounded-full grid place-items-center text-[15px] font-bold shrink-0"
+          style={{ background: `${bright}1f`, border: `1px solid ${bright}59`, color: bright }}
           aria-hidden="true"
-        >{m.emoji}</span>
+        >{m.name.charAt(0)}</span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[12.5px] font-bold text-white">{m.name}</span>
@@ -285,22 +368,32 @@ function EmployeeCard({ m, open, onToggle }: { m: TeamMember; open: boolean; onT
           </span>
           <span className="block text-[10px] text-white/45 truncate">{m.jabatan} · {m.divisi}</span>
         </span>
-        <span
-          className={`text-white/35 text-[9px] shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        <ChevronDown
+          size={14}
+          className={`text-white/35 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
-        >▼</span>
+        />
       </button>
 
       {/* Detail — hanya saat terbuka */}
       {open && (
         <div className="px-3 pb-3 pt-0.5 space-y-2 text-[10.5px] leading-relaxed">
+          {/* Status kerja LIVE — dari data agen nyata, bukan teks statis */}
+          <div className="rounded-xl bg-white/5 border border-white/10 px-2.5 py-2 flex items-start gap-2">
+            <span className="pt-0.5"><Dot tone={live.tone === 'ok' ? 'ok' : live.tone === 'warn' ? 'busy' : 'idle'} /></span>
+            <span className="text-white/80">
+              <b className="text-white/90">Status kerja:</b> {live.text || 'menunggu data'}
+            </span>
+          </div>
+
           <div className="flex flex-col gap-1">
-            <span className="flex gap-1.5 text-white/70"><span aria-hidden="true">🕐</span><span><b className="text-white/85">Jam kerja:</b> {m.shift}</span></span>
-            <span className="flex gap-1.5 text-white/70"><span aria-hidden="true">📥</span><span><b className="text-white/85">Baca data:</b> {m.baca}</span></span>
+            <span className="text-white/70"><b className="text-white/85">Jam kerja:</b> {m.shift}</span>
+            <span className="text-white/70"><b className="text-white/85">Data yang dibaca:</b> {m.baca}</span>
+            <span className="text-white/70"><b className="text-white/85">Model AI:</b> {m.model}</span>
           </div>
 
           <div className="rounded-xl px-2.5 py-2" style={{ background: `${bright}0d`, border: `1px solid ${bright}33` }}>
-            <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: bright }}>📋 Tugas</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: bright }}>Tugas</div>
             <ol className="m-0 p-0 list-none flex flex-col gap-1">
               {m.tugas.map((t, i) => (
                 <li key={i} className="flex gap-1.5">
@@ -315,10 +408,10 @@ function EmployeeCard({ m, open, onToggle }: { m: TeamMember; open: boolean; onT
             </ol>
           </div>
 
-          <span className="flex gap-1.5 text-white/70"><span aria-hidden="true">📤</span><span><b className="text-white/85">Laporan:</b> {m.lapor}</span></span>
+          <span className="block text-white/70"><b className="text-white/85">Laporan:</b> {m.lapor}</span>
 
           <div className="rounded-xl bg-amber-400/5 border border-amber-300/20 px-2.5 py-2">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-amber-300/80 mb-1">⚠️ Belum bisa</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-amber-300/80 mb-1">Belum bisa</div>
             <ul className="m-0 p-0 list-none flex flex-col gap-0.5">
               {m.batas.map((t, i) => (
                 <li key={i} className="flex gap-1.5 text-white/70"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span>{t}</span></li>
@@ -326,7 +419,10 @@ function EmployeeCard({ m, open, onToggle }: { m: TeamMember; open: boolean; onT
             </ul>
           </div>
 
-          <span className="flex gap-1.5 text-white/75"><span aria-hidden="true">💡</span><span><b className="text-teal-300">Bisa ditambah:</b> {m.ide}</span></span>
+          <span className="block text-white/75"><b className="text-teal-300">Bisa ditambah:</b> {m.ide}</span>
+
+          {/* Memori pribadi — karyawan ingat kerjaannya sendiri */}
+          <StaffMemory agent={m.id.toLowerCase()} />
         </div>
       )}
     </div>
@@ -375,11 +471,11 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const [openStaff, setOpenStaff] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
 
-  /* 🔊 Bacakan/berhentikan briefing (suara browser, lang id-ID) */
+  /* Bacakan/berhentikan briefing (suara browser, lang id-ID) */
   const toggleSpeak = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return }
-    const u = new SpeechSynthesisUtterance(stripMarkdownForSpeech(String(data?.text || '')).slice(0, 3200))
+    const u = new SpeechSynthesisUtterance(stripMarkdownForSpeech(noEmoji(String(data?.text || ''))).slice(0, 3200))
     u.lang = 'id-ID'
     u.rate = 1.05
     u.onend = () => setSpeaking(false)
@@ -406,18 +502,65 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const cmoDrafts: string[] = Array.isArray(cmo?.drafts) && cmo.drafts.length ? cmo.drafts : cmo?.draft ? [cmo.draft] : []
   const cmoCur = cmoDrafts[Math.min(cmoVar, cmoDrafts.length - 1)] || ''
 
-  /* ---------- Horizontal Agent Dock — status langsung dari data agen ---------- */
   const trunc = (s: string, n: number) => (s && s.length > n ? s.slice(0, n) + '…' : s)
+
+  /* ---------- Status live per karyawan — dari data agen NYATA.
+     Dipakai kartu detail karyawan (Ruang Struktur) supaya "detail
+     karyawan" berisi logika kerja beneran, bukan cuma deskripsi statis. */
+  const liveOf = (id: string): { tone: 'ok' | 'warn' | 'idle'; text: string } => {
+    switch (id) {
+      case 'COO':
+        return coo
+          ? (coo.pending > 0
+            ? { tone: 'warn', text: `${coo.pending} draf penawaran menunggu ACC Bos (ACC di Ruang COO)` }
+            : { tone: 'ok', text: `Antrean jualan bersih · ${coo.approved24h ?? 0} email ter-ACC dalam 24 jam` })
+          : { tone: 'idle', text: 'Belum ada data — cron 08:00 WIB' }
+      case 'CTO':
+        return cto
+          ? { tone: cto.siteOk ? 'ok' : 'warn', text: `Web ${cto.siteOk ? 'OK' : 'DOWN'}${cto.latencyMs ? ` (${cto.latencyMs} ms)` : ''} · bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` }
+          : { tone: 'idle', text: 'Watchdog tiap 15 menit 24/7' }
+      case 'CSO':
+        return cso
+          ? { tone: (cso.churnRisk ?? 0) > 0 ? 'warn' : 'ok', text: `Total ${cso.total ?? '-'} pendaftar · aktif ${cso.active ?? '-'} · pasif ${cso.passive ?? '-'} · risiko churn ${cso.churnRisk ?? 0}` }
+          : { tone: 'idle', text: 'Hitung user + email pasif tiap briefing 08:00' }
+      case 'CMO':
+        return cmo
+          ? { tone: 'ok', text: cmoDrafts.length > 1 ? `${cmoDrafts.length} draf TikTok hari ini siap — Bos tinggal pilih` : cmoDrafts.length === 1 ? 'Draf TikTok hari ini siap' : 'Belum ada draf hari ini' }
+          : { tone: 'idle', text: 'Draf TikTok tiap pagi · video 20:00 WIB' }
+      case 'CFO':
+        return cfo
+          ? { tone: String(cfo.status || '').indexOf('KRITIS') === 0 ? 'warn' : 'ok', text: `Kuota ${cfo.usedToday ?? '-'}/${cfo.limit} hari ini · email ${cfo.emailToday ?? '-'}/${cfo.emailLimit ?? 100} · est. MRR Rp${fmtIdr(cfo.estMRR || 0)}` }
+          : { tone: 'idle', text: 'Gerbang anti-429 + laporan MRR' }
+      case 'DA':
+        return da?.insight
+          ? { tone: 'ok', text: trunc(noEmoji(da.insight), 92) }
+          : { tone: 'idle', text: 'Analisis trades harian 08:00 WIB' }
+      case 'GH':
+        return gh
+          ? (gh.experiments?.length
+            ? { tone: 'ok', text: `${gh.experiments.length} eksperimen siap dieksekusi Bos` }
+            : (gh.insight ? { tone: 'ok', text: trunc(noEmoji(gh.insight), 92) } : { tone: 'idle', text: 'Rancang eksperimen harian 08:00 WIB' }))
+          : { tone: 'idle', text: 'Rancang eksperimen harian 08:00 WIB' }
+      case 'CEO':
+        return data?.nba?.text
+          ? { tone: 'ok', text: `Prioritas hari ini: ${trunc(noEmoji(data.nba.text), 84)}` }
+          : { tone: 'idle', text: 'Briefing 08:00 WIB otomatis' }
+      default:
+        return { tone: 'idle', text: '' }
+    }
+  }
+
+  /* ---------- Horizontal Agent Dock — status langsung dari data agen ---------- */
   const DOCK = [
-    { id: 'rapat', emoji: '👔', name: 'Alexander', role: 'CEO · Ruang Rapat', live: data?.nba?.text ? '🎯 NBA hari ini siap' : data?.mem?.length ? `🧠 ${data.mem.length} catatan memori kantor` : 'Briefing 08:00 WIB otomatis', has: !!(data?.nba || data?.mem) },
-    { id: 'CTO', emoji: '🖥️', name: 'Raka', role: 'CTO · IT & QA', live: cto ? `Web ${cto.siteOk ? '✅' : '❌'} · Bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` : 'Watchdog tiap 15 menit', has: !!cto },
-    { id: 'CSO', emoji: '👥', name: 'Maya', role: 'CSO · Customer Success', live: cso ? `Total ${cso.total ?? '—'} · Aktif ${cso.active ?? '—'} · ⚠️ churn ${cso.churnRisk ?? 0}` : 'Email pasif + riset churn', has: !!cso },
-    { id: 'CMO', emoji: '📣', name: 'Sinta', role: 'CMO · Marketing & Video TikTok', live: cmo?.drafts?.length > 1 ? '3 draf hari ini siap ✅ — Bos tinggal pilih' : cmo?.draft ? 'Draf hari ini siap ✅' : 'Belum ada draf hari ini', has: !!cmo },
-    { id: 'CFO', emoji: '💰', name: 'Putri', role: 'CFO · Kuota & Pendapatan', live: cfo ? `${cfo.usedToday ?? '—'}/${cfo.limit} hari ini · est. MRR Rp${fmtIdr(cfo.estMRR || 0)}` : 'Gerbang anti-429 + laporan MRR', has: !!cfo },
-    { id: 'COO', emoji: '💼', name: 'Bagas', role: 'COO · Jualan', live: coo ? (coo.pending > 0 ? `${coo.pending} draf nunggu ACC ⏳` : 'Antrean jualan bersih ✅') : 'Hot lead → email PRO', has: !!coo },
-    { id: 'DA', emoji: '📊', name: 'Dewi', role: 'Data Analyst', live: da?.insight ? trunc(String(da.insight), 64) : 'Insight tiap Senin 10:00', has: !!da },
-    { id: 'GH', emoji: '🚀', name: 'Farhan', role: 'Growth Hacker', live: gh?.experiments?.length ? `${gh.experiments.length} eksperimen siap dieksekusi` : 'Eksperimen tiap Senin 10:00', has: !!gh },
-    { id: 'struktur', emoji: '📋', name: 'Tim AI', role: 'Struktur & Jabatan', live: '8 karyawan · tugas, jadwal & batas kemampuan', has: true },
+    { id: 'rapat', name: 'Alexander', role: 'CEO · Ruang Rapat', live: data?.nba?.text ? 'Prioritas hari ini siap' : data?.mem?.length ? `${data.mem.length} catatan memori kantor` : 'Briefing 08:00 WIB otomatis', has: !!(data?.nba || data?.mem) },
+    { id: 'CTO', name: 'Raka', role: 'CTO · IT & QA', live: cto ? `Web ${cto.siteOk ? 'OK' : 'DOWN'} · Bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` : 'Watchdog tiap 15 menit', has: !!cto },
+    { id: 'CSO', name: 'Maya', role: 'CSO · Customer Success', live: cso ? `Total ${cso.total ?? '-'} · Aktif ${cso.active ?? '-'} · churn ${cso.churnRisk ?? 0}` : 'Email pasif + riset churn', has: !!cso },
+    { id: 'CMO', name: 'Sinta', role: 'CMO · Marketing & Video TikTok', live: cmoDrafts.length > 1 ? '3 draf hari ini siap — Bos tinggal pilih' : cmoDrafts.length === 1 ? 'Draf hari ini siap' : 'Belum ada draf hari ini', has: !!cmo },
+    { id: 'CFO', name: 'Putri', role: 'CFO · Kuota & Pendapatan', live: cfo ? `${cfo.usedToday ?? '-'}/${cfo.limit} hari ini · est. MRR Rp${fmtIdr(cfo.estMRR || 0)}` : 'Gerbang anti-429 + laporan MRR', has: !!cfo },
+    { id: 'COO', name: 'Bagas', role: 'COO · Jualan', live: coo ? (coo.pending > 0 ? `${coo.pending} draf nunggu ACC` : 'Antrean jualan bersih') : 'Hot lead → email PRO', has: !!coo },
+    { id: 'DA', name: 'Dewi', role: 'Data Analyst', live: da?.insight ? trunc(noEmoji(da.insight), 64) : 'Insight harian 08:00 WIB', has: !!da },
+    { id: 'GH', name: 'Farhan', role: 'Growth Hacker', live: gh?.experiments?.length ? `${gh.experiments.length} eksperimen siap dieksekusi` : 'Eksperimen harian 08:00 WIB', has: !!gh },
+    { id: 'struktur', name: 'Tim AI', role: 'Struktur & Jabatan', live: '8 karyawan · tugas, jadwal, memori & batas kemampuan', has: true },
   ] as const
 
   const pick = (id: string) => {
@@ -470,7 +613,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           <div className="min-w-0">
             <div className="text-white text-sm font-semibold leading-tight">CEO Command Center</div>
             <div className="text-white/45 text-[10.5px] leading-tight truncate">
-              SUPER AI AGENT · 👤 luxtradee@gmail.com{busy ? <span className="text-amber-200/90"> · ⏳ memproses…</span> : null}
+              SUPER AI AGENT · luxtradee@gmail.com{busy ? <span className="text-amber-200/90"> · memproses...</span> : null}
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2.5 shrink-0">
@@ -490,12 +633,12 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         <div className="flex-1 min-h-0 overflow-y-auto kscroll pr-0.5">
           {room === 'overview' ? (
             <div className={`${PANEL} p-4 flex flex-col gap-2`}>
-              <b className="text-teal-200 text-[13px]">🏢 Kantor CEO — 8 karyawan AI siap</b>
+              <b className="text-teal-200 text-[13px]">Kantor CEO — 8 karyawan AI siap</b>
               <div className="text-white/65 text-[11.5px] leading-relaxed">
                 Pilih karyawan di dock bawah untuk masuk ruangannya · klik karakter di kantor 3D juga bisa — kamera langsung terbang ke meja dia.
               </div>
               <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
-                🤖 <b>Karyawan AI tetap kerja 24/7 walau kantor ini tidak dibuka</b> — cron otomatis: briefing 08:00 WIB, watchdog tiap 15 mnt, laporan Senin 10:00. Semua hasil masuk Discord.
+                <b>Karyawan AI tetap kerja 24/7 walau kantor ini tidak dibuka</b> — cron otomatis: briefing 08:00 WIB, watchdog tiap 15 mnt, laporan Senin 10:00. Semua hasil masuk Discord.
               </div>
               <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Alexander (CEO)</div>
               {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
@@ -504,25 +647,25 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           ) : room === 'rapat' ? (
             /* ============ RUANG RAPAT — CEO Suite ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-teal-200 mb-0.5">🌅 RUANG RAPAT</div>
+              <div className="text-[15px] font-bold text-teal-200 mb-0.5">RUANG RAPAT</div>
               <div className="text-white/50 text-[11px] mb-3">CEO Suite · Briefing &amp; kontrol utama</div>
               <div className="flex flex-wrap gap-1.5">
-                <button className={BTN} disabled={busy} onClick={() => call('briefing', 'POST')}>{busy ? '⏳ Jalan…' : '🌅 Briefing + Discord'}</button>
-                <button className={BTN} onClick={() => call('briefing-last')}>📜 Terakhir</button>
-                <button className={BTNR} onClick={async () => { const r = await call('reset-work'); (window as any).__kceo?.toast?.(r?.text ? '♻️ ' + String(r.text).slice(0, 130) : '♻️ Reset dijalankan') }}>♻️ Reset Kerjaan AI</button>
-                <button className={BTNO} onClick={() => call('discord-test')}>🧪 Tes Discord</button>
-                <button className={BTNO} onClick={() => call('email-test')}>🧪 Tes Email</button>
-                <button className={BTN} onClick={() => call('watchdog')}>🕵️ Jalankan Watchdog</button>
-                <button className={BTNP} onClick={() => call('weekly')}>📊 Laporan Mingguan</button>
-                <button className={BTNP} onClick={() => call('discord-setup', 'POST')}>🤖 Daftarkan /bos</button>
+                <button className={BTN} disabled={busy} onClick={() => call('briefing', 'POST')}>{busy ? 'Jalan...' : 'Briefing + Discord'}</button>
+                <button className={BTN} onClick={() => call('briefing-last')}>Briefing Terakhir</button>
+                <button className={BTNR} onClick={async () => { const r = await call('reset-work'); (window as any).__kceo?.toast?.(r?.text ? String(r.text).slice(0, 130) : 'Reset dijalankan') }}>Reset Kerjaan AI</button>
+                <button className={BTNO} onClick={() => call('discord-test')}>Tes Discord</button>
+                <button className={BTNO} onClick={() => call('email-test')}>Tes Email</button>
+                <button className={BTN} onClick={() => call('watchdog')}>Jalankan Watchdog</button>
+                <button className={BTNP} onClick={() => call('weekly')}>Laporan Mingguan</button>
+                <button className={BTNP} onClick={() => call('discord-setup', 'POST')}>Daftarkan /bos</button>
               </div>
               {(data && data.ok !== undefined && !data.cto && !data.cso) && (
                 <div className={data.ok ? OKS : ERR}>
                   {String(data.message || '').startsWith('Perintah')
-                    ? <>🤖 Discord Bot: {data.message}</>
+                    ? <>Discord Bot: {data.message}</>
                     : data.id
-                      ? <>📬 Tes Email: {data.message} ✅</>
-                      : <>🧪 Tes Discord: {data.ok ? 'berhasil — cek channel Discord ✅' : String(data.error || 'gagal').slice(0, 140)}</>}
+                      ? <>Tes Email: {data.message} — berhasil</>
+                      : <>Tes Discord: {data.ok ? 'berhasil — cek channel Discord' : String(data.error || 'gagal').slice(0, 140)}</>}
                   {data.error && Array.isArray(data.setup) && data.setup.length > 0 && (
                     <div className="mt-1 text-[10px] text-white/55 leading-relaxed">
                       {data.setup.map((s: string, i: number) => <div key={i}>{s}</div>)}
@@ -530,24 +673,24 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 </div>)}
               {data?.watch && (
                 <div className={OKS}>
-                  🕵️ Watchdog: situs {data.siteOk ? '✅ OK' : '❌ DOWN'}{data.quota ? ` · kuota ${data.quota}` : ''} · {data.alerts && data.alerts.length ? `🔔 ${data.alerts.length} alert dikirim ke Discord` : 'semua aman — tanpa alarm'}
+                  Watchdog: situs {data.siteOk ? <b className="text-emerald-300">OK</b> : <b className="text-red-300">DOWN</b>}{data.quota ? ` · kuota ${data.quota}` : ''} · {data.alerts && data.alerts.length ? `${data.alerts.length} alert dikirim ke Discord` : 'semua aman — tanpa alarm'}
                 </div>)}
               {data?.nba?.text && (
                 <div className="mt-3 rounded-xl bg-violet-400/10 border border-violet-300/20 px-2.5 py-2 text-[11.5px] leading-relaxed">
-                  <b className="text-violet-200">🎯 Next Best Action hari ini — pilihan Alexander:</b><br />{data.nba.text}
+                  <b className="text-violet-200">Next Best Action hari ini — pilihan Alexander:</b><br />{noEmoji(data.nba.text)}
                   <div className="flex gap-1.5 mt-2">
-                    <button className={BTN} onClick={() => call('nba-verdict&verdict=oke', 'POST')}>✅ Oke, dieksekusi</button>
-                    <button className={BTNR} onClick={() => call('nba-verdict&verdict=not', 'POST')}>❌ Not oke — ganti</button>
+                    <button className={BTN} onClick={() => call('nba-verdict&verdict=oke', 'POST')}>Oke, dieksekusi</button>
+                    <button className={BTNR} onClick={() => call('nba-verdict&verdict=not', 'POST')}>Not oke — ganti</button>
                   </div>
-                  {data.verdict ? <div className="text-white/50 text-[10px] mt-1">Jawaban Bos hari ini: {data.verdict === 'oke' ? '✅ OKE — dicatat ke memori & Discord' : '❌ NOT OKE — besok Alexander pilih prioritas baru'}</div> : null}
+                  {data.verdict ? <div className="text-white/50 text-[10px] mt-1">Jawaban Bos hari ini: {data.verdict === 'oke' ? 'OKE — dicatat ke memori & Discord' : 'NOT OKE — besok Alexander pilih prioritas baru'}</div> : null}
                 </div>)}
               {Array.isArray(data?.mem) && data.mem.length > 0 && (
                 <div className="mt-3 rounded-xl bg-cyan-400/10 border border-cyan-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
-                  <b className="text-cyan-200">🧠 Memori Kantor — {data.mem.length} catatan terakhir</b>
+                  <b className="text-cyan-200">Memori Kantor — {data.mem.length} catatan terakhir</b>
                   <div className="mt-1 max-h-36 overflow-y-auto kscroll">
                     {data.mem.map((m: any, i: number) => (
                       <div key={i} className="mb-1 pl-2 border-l-2 border-cyan-300/25">
-                        <span className="text-white/50">[{String(m.at || '').slice(5, 10)}] <b>{m.who}</b>:</span> {m.text}
+                        <span className="text-white/50">[{String(m.at || '').slice(5, 10)}] <b>{m.who}</b>:</span> {noEmoji(m.text)}
                       </div>))}
                   </div>
                   <div className="text-white/40 text-[9.5px] mt-1">Semua karyawan membaca memori ini di tugas berikutnya — tim belajar bersama, bukan kerja amnesia.</div>
@@ -555,22 +698,22 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               {data?.text && (
                 <div className="mt-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <b>Discord:</b> {data.notifySent ? '✅ terkirim' : `❌ ${data.notifyErr || 'gagal — klik 🧪 Tes Discord'}`}
-                    <button className={BTNP + ' ml-auto'} onClick={toggleSpeak}>{speaking ? '⏹ Berhenti' : '🔊 Bacakan Briefing'}</button>
+                    <b>Discord:</b> {data.notifySent ? <span className="text-emerald-300">terkirim</span> : <span className="text-red-300">gagal — {noEmoji(data.notifyErr || 'klik Tes Discord')}</span>}
+                    <button className={BTNP + ' ml-auto'} onClick={toggleSpeak}>{speaking ? 'Berhenti' : 'Bacakan Briefing'}</button>
                   </div>
-                  <div className="whitespace-pre-wrap mt-1.5 text-white/75 text-[11.5px] max-h-52 overflow-y-auto kscroll rounded-lg bg-white/5 border border-white/10 p-2">{data.text}</div>
+                  <div className="whitespace-pre-wrap mt-1.5 text-white/75 text-[11.5px] max-h-52 overflow-y-auto kscroll rounded-lg bg-white/5 border border-white/10 p-2">{noEmoji(data.text)}</div>
                 </div>)}
-              {data?.error && data.text === undefined && data.ok === undefined && <div className={ERR}>⚠️ {String(data.error).slice(0, 200)}</div>}
+              {data?.error && data.text === undefined && data.ok === undefined && <div className={ERR}>{noEmoji(data.error).slice(0, 200)}</div>}
               <div className={SEP}>
-                <b>⚙️ Jadwal Kerja Karyawan — OTOMATIS ✅</b>
+                <b>Jadwal Kerja Karyawan — OTOMATIS</b>
                 <div className="text-white/60 text-[10.5px] mt-1 leading-relaxed">
-                  🌅 <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — QA + CSO + CMO + CFO + COO + AUTO-ACC + 💬 diskusi CSO×CMO + 🎯 NBA + akuntabilitas prioritas kemarin<br />
-                  📊 <b>Dewi & Farhan lapor HARIAN</b> 08:00 WIB — analisis trades + eksperimen growth, pesan Discord terpisah<br />
-                  🎬 <b>Shift sore Sinta (CMO)</b> 20:00 WIB tiap hari — produksi & posting video TikTok otomatis (prime time FYP)<br />
-                  🕵️ <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord INSTAN<br />
-                  📈 <b>Laporan mingguan Senin 10:00 WIB</b> — rekap 7 hari versi CEO — pesan Discord terpisah<br />
-                  ⚡ Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br />
-                  🏢 Semua karyawan sekarang di kantor ini — halaman /admin/ai-staff sudah pensiun.
+                  <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — QA + CSO + CMO + CFO + COO + AUTO-ACC + diskusi CSO×CMO + NBA + akuntabilitas prioritas kemarin<br />
+                  <b>Dewi &amp; Farhan lapor HARIAN</b> 08:00 WIB — analisis trades + eksperimen growth, pesan Discord terpisah<br />
+                  <b>Shift sore Sinta (CMO)</b> 20:00 WIB tiap hari — produksi &amp; posting video TikTok otomatis (prime time FYP)<br />
+                  <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord instan<br />
+                  <b>Laporan mingguan Senin 10:00 WIB</b> — rekap 7 hari versi CEO — pesan Discord terpisah<br />
+                  Semua jalan lewat <b>Cloudflare Cron bawaan</b> — tanpa cron-job.org, tanpa setup manual.<br />
+                  Semua karyawan sekarang di kantor ini — halaman /admin/ai-staff sudah pensiun.
                 </div>
               </div>
               <div className={`${SEP} text-white/45 text-[10.5px] leading-relaxed`}>
@@ -581,12 +724,12 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           ) : room === 'CTO' ? (
             /* ============ RUANG CTO — IT & QA ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-teal-300 mb-0.5">🖥️ RUANG CTO</div>
+              <div className="text-[15px] font-bold text-teal-300 mb-0.5">RUANG CTO</div>
               <div className="text-white/50 text-[11px] mb-3">IT &amp; QA · Monitor sistem, bug &amp; tes fitur otomatis</div>
               {cto ? (
                 <div>
                   <div className="flex gap-2.5 items-center">
-                    <span className="text-[22px]">{cto.siteOk ? '✅' : '❌'}</span>
+                    <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${cto.siteOk ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>{cto.siteOk ? 'OK' : 'DOWN'}</span>
                     <div>
                       <b className="text-white">Website luxtradee.web.id</b><br />
                       <span className="text-white/70">{cto.siteOk ? `${cto.status} OK · ${cto.latencyMs} ms` : `DOWN (${cto.status || 'timeout'})`}</span>
@@ -596,70 +739,70 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     <b>Bug 24 jam terakhir</b><br />
                     {cto.bugs24h >= 0
                       ? <span className={`text-[18px] font-bold ${cto.bugs24h > 0 ? 'text-red-300' : 'text-emerald-300'}`}>{cto.bugs24h}</span>
-                      : <span className="text-red-300">gagal diambil ⚠️</span>}
+                      : <span className="text-red-300">gagal diambil</span>}
                   </div>
                   {cto.upToday !== undefined && (cto.upToday + cto.downToday) > 0 ? (
-                    <div className="text-white/65 text-[11px] mt-1">🤖 Watchdog hari ini: <b className="text-emerald-300">{cto.upToday}× OK</b> · <b className={cto.downToday > 0 ? 'text-red-300' : 'text-white/35'}>{cto.downToday}× gagal</b></div>
-                  ) : cto.upToday === 0 && cto.downToday === 0 ? <div className="text-white/45 text-[11px] mt-1">🤖 Watchdog belum jalan hari ini — cron 15 mnt (cek Ruang Rapat)</div> : null}
-                  {cto.err ? <div className="text-white/45 text-[11px] mt-1">📝 {String(cto.err).slice(0, 130)}</div> : null}
+                    <div className="text-white/65 text-[11px] mt-1">Watchdog hari ini: <b className="text-emerald-300">{cto.upToday}x OK</b> · <b className={cto.downToday > 0 ? 'text-red-300' : 'text-white/35'}>{cto.downToday}x gagal</b></div>
+                  ) : cto.upToday === 0 && cto.downToday === 0 ? <div className="text-white/45 text-[11px] mt-1">Watchdog belum jalan hari ini — cron 15 mnt (cek Ruang Rapat)</div> : null}
+                  {cto.err ? <div className="text-white/45 text-[11px] mt-1">{noEmoji(cto.err).slice(0, 130)}</div> : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada data — klik tombol di bawah</div>}
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} onClick={() => call('agents&only=cto')}>🔄 Cek Ulang</button>
-                <button className={BTNP} onClick={() => call('diag')}>🩺 Diagnostik</button>
-                <button className={BTNP} onClick={() => call('qa')}>🧪 Tes Semua Fitur (QA)</button>
-                <button className={BTNP} onClick={() => call('e2e')}>🤖 Tes Login + E2E</button>
+                <button className={BTN} onClick={() => call('agents&only=cto')}>Cek Ulang</button>
+                <button className={BTNP} onClick={() => call('diag')}>Diagnostik</button>
+                <button className={BTNP} onClick={() => call('qa')}>Tes Semua Fitur (QA)</button>
+                <button className={BTNP} onClick={() => call('e2e')}>Tes Login + E2E</button>
               </div>
               {data && data.total !== undefined && data.results && (
                 <div className={`mt-3 text-[11px] leading-relaxed ${SEP}`}>
-                  <b className="text-teal-200">🧪 QA {data.total} fitur — {data.fails && data.fails.length ? `${data.fails.length} MASALAH ⚠️` : 'SEMUA OK ✅'} · rata-rata {data.avgMs} ms</b>
+                  <b className="text-teal-200">QA {data.total} fitur — {data.fails && data.fails.length ? <span className="text-red-300">{data.fails.length} MASALAH</span> : <span className="text-emerald-300">SEMUA OK</span>} · rata-rata {data.avgMs} ms</b>
                   <div className="max-h-36 overflow-y-auto kscroll mt-1">
                     {(data.results || []).map((r: any) => (
-                      <div key={r.path}>{r.ok ? '✅' : '❌'} <b>{r.path}</b> — {r.label} · {r.status || 'timeout'} ({r.ms} ms){r.err ? <span className="text-red-300"> {r.err}</span> : null}</div>
+                      <div key={r.path}><span className={r.ok ? 'text-emerald-300' : 'text-red-300'}>{r.ok ? 'OK' : 'GAGAL'}</span> <b>{r.path}</b> — {r.label} · {r.status || 'timeout'} ({r.ms} ms){r.err ? <span className="text-red-300"> {noEmoji(r.err)}</span> : null}</div>
                     ))}
                   </div>
                   <div className="text-white/40 mt-1">QA jalan otomatis tiap briefing 08:00 WIB — hasilnya ikut laporan Discord.</div>
                 </div>)}
               {data && data.e2eSteps && data.e2eSteps.length > 0 && (
                 <div className={`mt-3 text-[11px] leading-relaxed ${SEP}`}>
-                  <b className="text-teal-200">🤖 E2E AUTO-TEST (LOGIN SUNGGUHAN) — {data.e2eFailed ? `${data.e2ePassed}/${data.e2eTotal} LOLOS ⚠️` : `LOGIN + ${data.e2eTotal} LANGKAH OK ✅`} · {((data.e2eDurMs || 0) / 1000).toFixed(1)}s</b>
+                  <b className="text-teal-200">E2E AUTO-TEST (LOGIN SUNGGUHAN) — {data.e2eFailed ? <span className="text-amber-300">{data.e2ePassed}/{data.e2eTotal} LOLOS</span> : <span className="text-emerald-300">LOGIN + {data.e2eTotal} LANGKAH OK</span>} · {((data.e2eDurMs || 0) / 1000).toFixed(1)}s</b>
                   <div className="max-h-36 overflow-y-auto kscroll mt-1">
                     {(data.e2eSteps || []).map((s: any) => (
-                      <div key={s.id}>{s.ok ? '✅' : '❌'} <b>{s.label}</b> · {s.ms} ms{s.detail ? <span className="text-white/65"> — {s.detail}</span> : null}</div>
+                      <div key={s.id}><span className={s.ok ? 'text-emerald-300' : 'text-red-300'}>{s.ok ? 'LOLOS' : 'GAGAL'}</span> <b>{s.label}</b> · {s.ms} ms{s.detail ? <span className="text-white/65"> — {noEmoji(s.detail)}</span> : null}</div>
                     ))}
                   </div>
                   <div className="text-white/40 mt-1">Akun tes: {data.e2eAccount || '—'} · trade tes dihapus otomatis · jalan otomatis tiap briefing 08:00 WIB.</div>
                 </div>)}
               {data && data.env && data.profiles && (
                 <div className={`mt-3 text-[11px] leading-relaxed ${SEP}`}>
-                  <b className="text-violet-200">🩺 Hasil Diagnostik</b><br />
+                  <b className="text-violet-200">Hasil Diagnostik</b><br />
                   {['profiles', 'trades', 'bug_reports', 'agent_kv'].map(k => { const r = data[k] || {}; return (
-                    <div key={k}>{r.ok ? '✅' : '❌'} <b>{k}</b>{r.ok ? '' : <span className="text-red-300"> — {String(r.error || '').slice(0, 90)}</span>}</div>) })}
-                  <div className="text-white/40 mt-1">{Object.entries(data.env).map(([k, v]: any) => `${k} ${v ? '✅' : OPTIONAL_ENV[k] ? '⚪ (opsional)' : '❌'}`).join(' · ')}</div>
-                  {(() => { const or = data.openrouter?.data || data.openrouter; if (!or) return null; const bad = or.ok === false || String(or.verdict || '').startsWith('❌') || or.keyCheck?.ok === false; return (
+                    <div key={k}><span className={r.ok ? 'text-emerald-300' : 'text-red-300'}>{r.ok ? 'OK' : 'GAGAL'}</span> <b>{k}</b>{r.ok ? '' : <span className="text-red-300"> — {noEmoji(r.error).slice(0, 90)}</span>}</div>) })}
+                  <div className="text-white/40 mt-1">{Object.entries(data.env).map(([k, v]: any) => `${k} ${v ? 'OK' : OPTIONAL_ENV[k] ? '(opsional)' : 'KOSONG'}`).join(' · ')}</div>
+                  {(() => { const or = data.openrouter?.data || data.openrouter; if (!or) return null; const bad = or.ok === false || or.keyCheck?.ok === false || (or.aliveCount !== undefined ? or.aliveCount === 0 : /SEMUA model gagal/.test(String(or.verdict || ''))); return (
                     <div className={`mt-2 rounded-lg border px-2 py-1.5 text-[10.5px] leading-relaxed ${bad ? 'bg-red-400/10 border-red-300/25 text-red-100/90' : 'bg-emerald-400/10 border-emerald-300/25 text-emerald-100/90'}`}>
-                      <b>🧠 Tes Otak Karyawan AI (OpenRouter) — {bad ? 'ADA MASALAH ⚠️' : 'HIDUP ✅'}</b>
+                      <b>Tes Otak Karyawan AI (OpenRouter) — {bad ? <span className="text-red-200">ADA MASALAH</span> : <span className="text-emerald-200">HIDUP</span>}</b>
                       {or.ok === false ? (
-                        <div className="mt-1">❌ {String(or.error || '').slice(0, 220)}</div>
+                        <div className="mt-1">{noEmoji(or.error).slice(0, 220)}</div>
                       ) : (<>
                         <div className="mt-1">
                           {or.keyCheck?.ok
-                            ? <>🔑 Key valid{or.keyCheck.label ? <b> ({String(or.keyCheck.label).slice(0, 30)})</b> : null} · terpakai ${Number(or.keyCheck.usage || 0).toFixed(3)}{or.keyCheck.limit != null ? <> / batas belanja key ${Number(or.keyCheck.limit).toFixed(2)}</> : ' · tanpa batas kredit'}{or.keyCheck.isFreeTier ? <span className="text-amber-200"> · ⚠️ free-tier (saldo kosong → 20 req/mnt · 50 req/hari)</span> : null}</>
-                            : <>🔑 <b>Key bermasalah:</b> {or.keyCheck?.hint || or.keyCheck?.error || `HTTP ${or.keyCheck?.status}`}</>}
+                            ? <>Key valid{or.keyCheck.label ? <b> ({String(or.keyCheck.label).slice(0, 30)})</b> : null} · terpakai ${Number(or.keyCheck.usage || 0).toFixed(3)}{or.keyCheck.limit != null ? <> / batas belanja key ${Number(or.keyCheck.limit).toFixed(2)}</> : ' · tanpa batas kredit'}{or.keyCheck.isFreeTier ? <span className="text-amber-200"> · free-tier (saldo kosong → 20 req/mnt · 50 req/hari)</span> : null}</>
+                            : <>Key bermasalah: {or.keyCheck?.hint || or.keyCheck?.error || `HTTP ${or.keyCheck?.status}`}</>}
                         </div>
-                        {or.keyCheck?.ok && or.keyCheck?.note ? <div className="mt-0.5 text-white/60">💡 {String(or.keyCheck.note)}</div> : null}
+                        {or.keyCheck?.ok && or.keyCheck?.note ? <div className="mt-0.5 text-white/60">Catatan: {String(or.keyCheck.note)}</div> : null}
                         <div className="mt-1 max-h-32 overflow-y-auto kscroll">
                           {(or.chain || []).map((m: any) => (
-                            <div key={m.model}>{m.ok ? '✅' : '❌'} <b>{m.model}</b> — {m.ok ? <>hidup ({m.ms} ms{m.reply ? ` · balas: "${m.reply}"` : ''})</> : <>HTTP {m.status ?? '—'} · {String(m.hint || m.error || m.body || '').slice(0, 150)}</>}</div>
+                            <div key={m.model}><span className={m.ok ? 'text-emerald-300' : 'text-red-300'}>{m.ok ? 'HIDUP' : 'GAGAL'}</span> <b>{m.model}</b> — {m.ok ? <>({m.ms} ms{m.reply ? ` · balas: "${noEmoji(m.reply)}"` : ''})</> : <>HTTP {m.status ?? '—'} · {noEmoji(m.hint || m.error || m.body).slice(0, 150)}</>}</div>
                           ))}
                         </div>
-                        <div className="mt-1 font-semibold">{or.verdict}</div>
+                        <div className="mt-1 font-semibold">{noEmoji(or.verdict)}</div>
                       </>)}
                     </div>) })()}
                   {data.setup && (
                     <div className="mt-2 rounded-lg bg-amber-400/10 border border-amber-300/20 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90 max-h-40 overflow-y-auto kscroll">
-                      <b>🔧 Cara memasang yang belum ada:</b>
-                      {/* Task 35f: yang WAJIB tampil duluan, yang OPSIONAL di bawah + label —
+                      <b>Cara memasang yang belum ada:</b>
+                      {/* Yang WAJIB tampil duluan, yang OPSIONAL di bawah + label —
                           dulu bot token opsional tampak se-wajib key utama, Bos bingung */}
                       {Object.entries(data.setup).map(([k, v]: any) => (!data.env?.[k] && !OPTIONAL_ENV[k]
                         ? <div key={k} className="mt-1">• <b className="text-amber-200">{k}</b> — {v}</div>
@@ -669,13 +812,13 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                         : null))}
                       {data.setupHint ? <div className="mt-1.5 text-white/60">{data.setupHint}</div> : null}
                     </div>)}
-                  <div className="text-white/40 mt-1">Tes kirim beneran: tombol 🧪 Tes Discord &amp; 🧪 Tes Email di Ruang Rapat.</div>
+                  <div className="text-white/40 mt-1">Tes kirim beneran: tombol Tes Discord &amp; Tes Email di Ruang Rapat.</div>
                 </div>)}
             </div>
           ) : room === 'CSO' ? (
             /* ============ RUANG CSO — Customer Success ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-pink-300 mb-0.5">👥 RUANG CSO</div>
+              <div className="text-[15px] font-bold text-pink-300 mb-0.5">RUANG CSO</div>
               <div className="text-white/50 text-[11px] mb-3">Customer Success · User, email retensi &amp; riset churn</div>
               {cso ? (
                 <div>
@@ -695,81 +838,81 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   </div>
                   {cso.churnRisk > 0 ? (
                     <div className="mt-1.5 rounded-xl bg-amber-400/10 border border-amber-300/20 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90">
-                      ⚠️ <b>{cso.churnRisk} user berisiko churn</b> — pernah upload dalam 30 hari tapi 3 hari terakhir diam. Kandidat email win-back Maya (ACC EMAIL / AUTO-ACC).
+                      <b>{cso.churnRisk} user berisiko churn</b> — pernah upload dalam 30 hari tapi 3 hari terakhir diam. Kandidat email win-back Maya (ACC EMAIL / AUTO-ACC).
                     </div>
                   ) : null}
-                  {cso.error ? <div className={ERR}>⚠️ {String(cso.error).slice(0, 130)}</div> : null}
+                  {cso.error ? <div className={ERR}>{noEmoji(cso.error).slice(0, 130)}</div> : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada data — klik tombol di bawah</div>}
               <div className={SEP}>
-                <b className="text-pink-200">📧 ACC EMAIL</b>
+                <b className="text-pink-200">ACC EMAIL</b>
                 <div className="text-white/60 text-[11px] mt-0.5">2 grup, draf beda: user vakum (pernah upload) &amp; belum pernah upload</div>
                 <button className={`${BTNR} w-full mt-1.5`} style={{ opacity: P.acc === 'busy' ? 0.5 : 1 }} disabled={P.acc === 'busy'}
                   onClick={async () => { P.setAcc('busy'); const r = await call('acc-email', 'POST'); P.setAcc(r) }}>
-                  {P.acc === 'busy' ? '⏳ Mengirim…' : '📧 ACC EMAIL ke 2 Grup User'}
+                  {P.acc === 'busy' ? 'Mengirim...' : 'ACC EMAIL ke 2 Grup User'}
                 </button>
                 {P.acc && P.acc !== 'busy' && (P.acc.dup
-                  ? <div className={OKS}>ℹ️ ACC EMAIL sudah dicatat hari ini — besok lagi.</div>
-                  : P.acc.ok ? <div className={OKS}>✅ ACC tercatat{typeof P.acc.emailsSent === 'number' && P.acc.emailsSent >= 0 ? ` — ${P.acc.emailsSent} email terkirim${typeof P.acc.sentDormant === 'number' ? ` (${P.acc.sentDormant} vakum + ${P.acc.sentNever} belum upload, draf beda)` : ' (Resend)'}` : ' — set RESEND_API_KEY utk kirim otomatis'}.</div>
-                  : <div className={ERR}>❌ {String(P.acc.error || 'gagal').slice(0, 140)}</div>)}
+                  ? <div className={OKS}>ACC EMAIL sudah dicatat hari ini — besok lagi.</div>
+                  : P.acc.ok ? <div className={OKS}>ACC tercatat{typeof P.acc.emailsSent === 'number' && P.acc.emailsSent >= 0 ? ` — ${P.acc.emailsSent} email terkirim${typeof P.acc.sentDormant === 'number' ? ` (${P.acc.sentDormant} vakum + ${P.acc.sentNever} belum upload, draf beda)` : ' (Resend)'}` : ' — set RESEND_API_KEY utk kirim otomatis'}.</div>
+                  : <div className={ERR}>{noEmoji(P.acc.error || 'gagal').slice(0, 140)}</div>)}
               </div>
               <div className={SEP}>
-                <b className="text-teal-200">🤖 Mode Otomatis (AUTO-ACC)</b>
+                <b className="text-teal-200">Mode Otomatis (AUTO-ACC)</b>
                 <div className="text-white/60 text-[11px] mt-0.5">
-                  {autoacc === undefined ? 'memuat status…' : autoacc
-                    ? 'AKTIF ✅ — CSO kirim email ke 2 grup user (vakum & belum upload) OTOMATIS tiap briefing 08:00. Kamu nggak perlu klik apa-apa.'
+                  {autoacc === undefined ? 'memuat status...' : autoacc
+                    ? 'AKTIF — CSO kirim email ke 2 grup user (vakum & belum upload) OTOMATIS tiap briefing 08:00. Kamu nggak perlu klik apa-apa.'
                     : 'OFF — kamu harus klik ACC EMAIL manual tiap hari. Nyalakan biar karyawan kerja sendiri.'}
                 </div>
                 <button className={`w-full mt-1.5 text-[12px] px-3 py-2 rounded-xl cursor-pointer border transition-colors ${autoacc ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/25' : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'}`} disabled={busy}
                   onClick={async () => { await call('auto-acc&on=' + (autoacc ? '0' : '1'), 'POST') }}>
-                  {autoacc ? '🔴 Matikan AUTO-ACC' : '🟢 Nyalakan AUTO-ACC (sekali klik, permanen)'}
+                  {autoacc ? 'Matikan AUTO-ACC' : 'Nyalakan AUTO-ACC (sekali klik, permanen)'}
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} onClick={() => call('agents&only=cso')}>🔄 Hitung Ulang</button>
+                <button className={BTN} onClick={() => call('agents&only=cso')}>Hitung Ulang</button>
               </div>
               <div className={SEP}>
-                <b className="text-pink-200">💬 Diskusi CSO × CMO</b>
+                <b className="text-pink-200">Diskusi CSO × CMO</b>
                 <div className="text-white/60 text-[11px] mt-0.5 leading-relaxed">
                   Maya ngobrol sama Sinta (CMO) bawa data nyata: kenapa user daftar tapi males upload jurnal → langsung jadi skrip konten TikTok.
                 </div>
                 <button className={`${BTNR} w-full mt-1.5`} disabled={busy}
-                  onClick={async () => { const r = await call('talk', 'POST'); if (r?.talkError) (window as any).__kceo?.toast?.('⚠️ ' + String(r.talkError).slice(0, 90)) }}>
-                  🗣️ Ngobrol sama CMO &amp; Bikin Skrip
+                  onClick={async () => { const r = await call('talk', 'POST'); if (r?.talkError) (window as any).__kceo?.toast?.(String(r.talkError).slice(0, 90)) }}>
+                  Ngobrol sama CMO &amp; Bikin Skrip
                 </button>
                 {talk && talk.diagnosis ? (
                   <div className="mt-2">
                     <div className="rounded-xl bg-pink-400/10 border border-pink-300/20 px-2 py-1.5 text-[11px] leading-relaxed">
-                      🔍 <b>Diagnosa:</b> {talk.diagnosis}
+                      <b>Diagnosa:</b> {noEmoji(talk.diagnosis)}
                     </div>
                     {talk.intel && (
                       <div className="mt-1 text-[10px] leading-relaxed text-white/70 bg-white/5 rounded-lg px-1.5 py-1">
-                        📊 <b>Data nyata yang Maya bawa ke meja rapat:</b> {talk.intel.total} pendaftar · {talk.intel.active7d} aktif 7 hr · {talk.intel.passive} pasif · <b className="text-pink-300">{talk.intel.baruTakAktif} pendaftar baru belum pernah upload</b>{(talk.intel.bug7d ?? -1) >= 0 ? <span> · {talk.intel.bug7d} bug 7 hr</span> : null}
+                        <b>Data nyata yang Maya bawa ke meja rapat:</b> {talk.intel.total} pendaftar · {talk.intel.active7d} aktif 7 hr · {talk.intel.passive} pasif · <b className="text-pink-300">{talk.intel.baruTakAktif} pendaftar baru belum pernah upload</b>{(talk.intel.bug7d ?? -1) >= 0 ? <span> · {talk.intel.bug7d} bug 7 hr</span> : null}
                       </div>)}
                     {talk.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">udah diskusi hari ini — ini hasil terakhir (briefing 08:00 juga jalanin otomatis)</div> : null}
                     {Array.isArray(talk.reasons) && talk.reasons.length > 0 && (
                       <div className="mt-1 text-[10.5px] leading-relaxed text-white/75">
                         <b>Alasan teratas user:</b>
-                        <ul className="m-0 mt-0.5 pl-4 list-disc">{talk.reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>
+                        <ul className="m-0 mt-0.5 pl-4 list-disc">{talk.reasons.map((r: string, i: number) => <li key={i}>{noEmoji(r)}</li>)}</ul>
                       </div>)}
                     <div className="mt-1.5 max-h-44 overflow-y-auto kscroll flex flex-col gap-1">
                       {(talk.dialog || []).map((d: any, i: number) => (
                         <div key={i} className={`max-w-[90%] rounded-lg px-2 py-1 text-[10.8px] leading-relaxed ${d.who === 'CSO' ? 'self-start bg-pink-400/10' : 'self-end bg-violet-400/10'}`}>
-                          <b className={`text-[9.5px] ${d.who === 'CSO' ? 'text-pink-300' : 'text-violet-300'}`}>{d.who === 'CSO' ? '👩‍💼 Maya · CSO' : '📣 Sinta · CMO'}</b><br />{d.text}
+                          <b className={`text-[9.5px] ${d.who === 'CSO' ? 'text-pink-300' : 'text-violet-300'}`}>{d.who === 'CSO' ? 'Maya · CSO' : 'Sinta · CMO'}</b><br />{d.text}
                         </div>))}
                     </div>
                     {talk.script?.hook && (
                       <div className="mt-1.5 border border-dashed border-violet-300/35 rounded-lg px-2 py-1.5 text-[10.8px] leading-relaxed">
-                        <b className="text-violet-300">🎬 Skrip Konten Hasil Rapat</b><br />
+                        <b className="text-violet-300">Skrip Konten Hasil Rapat</b><br />
                         <b>HOOK:</b> {talk.script.hook}<br />
                         <b>ISI:</b> {talk.script.body}<br />
                         <b>CTA:</b> {talk.script.cta}
                         <div className="mt-1 flex gap-1.5 items-center">
-                          <button className={`${BTN} text-[10px] px-2 py-1`} onClick={async () => { try { await navigator.clipboard.writeText(`HOOK: ${talk.script.hook}\n\nISI: ${talk.script.body}\n\nCTA: ${talk.script.cta}`); P.setTalkCopied(true); setTimeout(() => P.setTalkCopied(false), 1800) } catch { } }}>📋 Salin Skrip</button>
-                          {P.talkCopied ? <span className="text-emerald-300 text-[10px]">tersalin ✅</span> : null}
+                          <button className={`${BTN} text-[10px] px-2 py-1`} onClick={async () => { try { await navigator.clipboard.writeText(`HOOK: ${talk.script.hook}\n\nISI: ${talk.script.body}\n\nCTA: ${talk.script.cta}`); P.setTalkCopied(true); setTimeout(() => P.setTalkCopied(false), 1800) } catch { } }}>Salin Skrip</button>
+                          {P.talkCopied ? <span className="text-emerald-300 text-[10px]">tersalin</span> : null}
                         </div>
                       </div>)}
-                    {talk.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">⚡ via OpenRouter (model resmi Maya)</div> : talk.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">😔 Maaf Bos, server staf AI sedang sibuk. Laporan riil sudah ditarik, tapi AI gagal merangkai kata. Coba beberapa saat lagi.</div> : talk.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">✅ via Gemini (cadangan)</div> : null}
+                    {talk.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">via OpenRouter (model resmi Maya)</div> : talk.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">Maaf Bos, server staf AI sedang sibuk. Laporan riil sudah ditarik, tapi AI gagal merangkai kata. Coba beberapa saat lagi.</div> : talk.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">via Gemini (cadangan)</div> : null}
                   </div>
                 ) : <div className="text-white/45 text-[10.5px] mt-1.5">Belum ada diskusi — klik tombol di atas. Hasil juga otomatis dibuat tiap briefing 08:00 &amp; dikirim ke Discord.</div>}
               </div>
@@ -777,7 +920,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           ) : room === 'CMO' ? (
             /* ============ RUANG CMO — Marketing & Copywriter ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-violet-300 mb-0.5">📣 RUANG CMO</div>
+              <div className="text-[15px] font-bold text-violet-300 mb-0.5">RUANG CMO</div>
               <div className="text-white/50 text-[11px] mb-3">Marketing &amp; Copywriter AI · Draf TikTok</div>
               {cmo ? (
                 <div>
@@ -793,39 +936,39 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   ) : null}
                   <div className="rounded-xl bg-violet-400/10 border border-violet-300/20 p-2.5 whitespace-pre-wrap text-[12px] max-h-52 overflow-y-auto kscroll leading-relaxed text-white/90">{cmoCur || cmo.error || '—'}</div>
                   {cmo.usedFallback ? <div className="text-white/40 mt-1 text-[11px]">(server AI sedang sibuk — pakai draf cadangan dari data riil, mohon revisi manual)</div> : null}
-                  {cmo.provider === 'openrouter' ? <div className="text-amber-300 mt-1 text-[11px]">⚡ OpenRouter — model resmi Sinta{cmo.model ? `: ${cmo.model}` : ' (GLM-4.7-Flash)'}</div> : null}
-                  {cmo.provider === 'gemini' ? <div className="text-white/40 mt-0.5 text-[10.5px]">✅ Gemini (cadangan terakhir)</div> : null}
-                  {cmo.basedOn === 'tiktok' ? <div className="text-violet-300 text-[10.5px] mt-0.5">📚 Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div> : null}
+                  {cmo.provider === 'openrouter' ? <div className="text-amber-300 mt-1 text-[11px]">OpenRouter — model resmi Sinta{cmo.model ? `: ${cmo.model}` : ''}</div> : null}
+                  {cmo.provider === 'gemini' ? <div className="text-white/40 mt-0.5 text-[10.5px]">via Gemini (cadangan terakhir)</div> : null}
+                  {cmo.basedOn === 'tiktok' ? <div className="text-violet-300 text-[10.5px] mt-0.5">Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div> : null}
                   {cmo.posted ? (cmo.posted.posted
-                    ? <div className="text-emerald-300 text-[10.5px] mt-0.5">🚀 NYATA tayang di {cmo.posted.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API) ✅</div>
-                    : <div className="text-amber-300/80 text-[10.5px] mt-0.5" title="Set token di Cloudflare Secrets: INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID, atau FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID">🚀 Auto-post belum jalan: {String(cmo.posted.reason || '').slice(0, 80)}</div>) : null}
+                    ? <div className="text-emerald-300 text-[10.5px] mt-0.5">Tayang NYATA di {cmo.posted.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API)</div>
+                    : <div className="text-amber-300/80 text-[10.5px] mt-0.5" title="Set token di Cloudflare Secrets: INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID, atau FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID">Auto-post belum jalan: {String(cmo.posted.reason || '').slice(0, 80)}</div>) : null}
                 </div>
-              ) : <div className="text-white/50 mt-1">Belum ada draf — klik ✍️ untuk generate</div>}
+              ) : <div className="text-white/50 mt-1">Belum ada draf — klik tombol Buat Draf di bawah</div>}
               <div className="mt-3 flex flex-wrap gap-1.5 items-center">
-                <button className={BTNP} onClick={() => call('agents&only=cmo')}>✍️ Buat 3 Draf Baru</button>
-                <button className={BTN} disabled={!cmoCur} onClick={async () => { try { await navigator.clipboard.writeText(cmoCur); P.setCopied(true); setTimeout(() => P.setCopied(false), 1800) } catch { } }}>📋 Salin Draf Ini</button>
-                <button className={BTN} title="Posting NYATA draf utama hari ini ke Instagram/Facebook via Meta Graph API" onClick={() => call('cmo-post')}>🚀 Post IG/FB</button>
-                {P.copied ? <span className="text-emerald-300 text-[11px]">tersalin ✅</span> : null}
+                <button className={BTNP} onClick={() => call('agents&only=cmo')}>Buat 3 Draf Baru</button>
+                <button className={BTN} disabled={!cmoCur} onClick={async () => { try { await navigator.clipboard.writeText(cmoCur); P.setCopied(true); setTimeout(() => P.setCopied(false), 1800) } catch { } }}>Salin Draf Ini</button>
+                <button className={BTN} title="Posting NYATA draf utama hari ini ke Instagram/Facebook via Meta Graph API" onClick={() => call('cmo-post')}>Post IG/FB</button>
+                {P.copied ? <span className="text-emerald-300 text-[11px]">tersalin</span> : null}
               </div>
               <div className="mt-3 pt-3 border-t border-violet-300/15">
-                <b className="text-violet-200 text-[12px]">📚 Bahan Analisis TikTok ({P.tt.length})</b>
+                <b className="text-violet-200 text-[12px]">Bahan Analisis TikTok ({P.tt.length})</b>
                 <div className="text-white/50 text-[10.5px] mt-0.5 leading-relaxed">Paste link TikTok lo + views/likes — caption diambil OTOMATIS. CMO pelajari 5 konten terbaik tiap bikin draf: makin banyak bahan, makin pintar.</div>
                 <div className="flex gap-1.5 mt-1.5 flex-wrap">
                   <input value={P.ttUrl} onChange={e => P.setTtUrl(e.target.value)} placeholder="Link TikTok (vt.tiktok.com/… atau www.tiktok.com/@lo/video/…)" className={`${INPUT} flex-1 min-w-0`} style={{ flex: '1 1 150px' }} />
                   <input value={P.ttViews} onChange={e => P.setTtViews(e.target.value)} placeholder="views" inputMode="numeric" className={INPUT} style={{ width: 62 }} />
                   <input value={P.ttLikes} onChange={e => P.setTtLikes(e.target.value)} placeholder="likes" inputMode="numeric" className={INPUT} style={{ width: 62 }} />
-                  <button className={`${BTNP} text-[11.5px]`} style={{ opacity: P.ttBusy ? 0.5 : 1 }} disabled={P.ttBusy || !P.ttUrl.trim()} onClick={P.ttAdd}>{P.ttBusy ? '⏳' : '➕ Tambah'}</button>
+                  <button className={`${BTNP} text-[11.5px]`} style={{ opacity: P.ttBusy ? 0.5 : 1 }} disabled={P.ttBusy || !P.ttUrl.trim()} onClick={P.ttAdd}>{P.ttBusy ? '...' : 'Tambah'}</button>
                 </div>
-                {P.ttMsg ? <div className={`text-[10.5px] mt-1 ${P.ttMsg.startsWith('⚠️') ? 'text-red-300' : 'text-emerald-300'}`}>{P.ttMsg}</div> : null}
+                {P.ttMsg ? <div className={`text-[10.5px] mt-1 ${P.ttMsg.indexOf('gagal') >= 0 ? 'text-red-300' : 'text-emerald-300'}`}>{noEmoji(P.ttMsg)}</div> : null}
                 {P.tt.length ? (
                   <div className="mt-1.5 max-h-36 overflow-y-auto kscroll flex flex-col gap-1">
                     {P.tt.map((p) => (
                       <div key={p.id} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1">
                         <div className="flex-1 min-w-0">
                           <div className="text-[10.5px] text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">{p.caption || p.url}</div>
-                          <div className="text-[9.5px] text-white/45">👁 {Number(p.views || 0).toLocaleString('id-ID')} · ❤️ {Number(p.likes || 0).toLocaleString('id-ID')}</div>
+                          <div className="text-[9.5px] text-white/45">{Number(p.views || 0).toLocaleString('id-ID')} views · {Number(p.likes || 0).toLocaleString('id-ID')} likes</div>
                         </div>
-                        <button className={`${BTN} text-[10px] px-2 py-1`} disabled={P.ttBusy} onClick={() => P.ttDel(p.id)}>🗑</button>
+                        <button className="text-white/40 hover:text-red-300 transition-colors cursor-pointer p-1" aria-label="Hapus bahan" disabled={P.ttBusy} onClick={() => P.ttDel(p.id)}><Trash2 size={12} /></button>
                       </div>
                     ))}
                   </div>
@@ -834,13 +977,13 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className="text-white/40 text-[10.5px] mt-3 leading-relaxed">
                 3 draf pilihan/hari (1 panggilan model — Bos pilih yang paling pas) · Rotasi angle harian<br />
                 Histori 5 draf utama terakhir disimpan (anti repetisi)<br />
-                📚 Bahan TikTok lo = acuan utama — isi terus biar draf makin mirin konten yang FYP
+                Bahan TikTok lo = acuan utama — isi terus biar draf makin mirip konten yang FYP
               </div>
             </div>
           ) : room === 'CFO' ? (
             /* ============ RUANG CFO — API Quota Manager ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-amber-300 mb-0.5">💰 RUANG CFO</div>
+              <div className="text-[15px] font-bold text-amber-300 mb-0.5">RUANG CFO</div>
               <div className="text-white/50 text-[11px] mb-3">API Quota Manager · Anti-429 Gemini Vision</div>
               {cfo ? (
                 <div>
@@ -864,12 +1007,12 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     Email hari ini: <b className="text-white">{cfo.emailToday ?? '—'}/{cfo.emailLimit ?? 100}</b> (Resend)<br />
                     Status: <b className={cfo.status && String(cfo.status).indexOf('KRITIS') === 0 ? 'text-red-300' : cfo.status && String(cfo.status).indexOf('WASPADA') === 0 ? 'text-amber-300' : 'text-emerald-300'}>{cfo.status ?? ''}</b>
                   </div>
-                  {cfo.error ? <div className={ERR}>⚠️ {String(cfo.error).slice(0, 120)}</div> : null}
+                  {cfo.error ? <div className={ERR}>{noEmoji(cfo.error).slice(0, 120)}</div> : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada data — klik tombol di bawah</div>}
               {cfo?.proCount >= 0 && (
                 <div className="mt-2 rounded-xl bg-emerald-400/10 border border-emerald-300/20 p-2.5">
-                  <div className="text-[10px] text-white/50">💵 Estimasi pendapatan (Putri — hitung is_pro × harga, tanpa LLM)</div>
+                  <div className="text-[10px] text-white/50">Estimasi pendapatan (Putri — hitung is_pro × harga, tanpa LLM)</div>
                   <div className="text-[20px] font-bold text-emerald-200 leading-tight">Rp{fmtIdr(cfo.estMRR || 0)}<span className="text-[10px] font-normal text-white/45"> /bulan MRR</span></div>
                   <div className="text-[10.5px] text-white/60">{cfo.proCount} user PRO × Rp{fmtIdr(cfo.proPrice)} (paket bulanan)</div>
                   {cfo.mrrTarget > 0 ? (
@@ -883,26 +1026,26 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 </div>
               )}
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} onClick={() => call('quota')}>🔄 Refresh Kuota</button>
-                <button className={BTNO} onClick={() => call('agents&only=cfo')}>📊 Cek Ulang</button>
+                <button className={BTN} onClick={() => call('quota')}>Refresh Kuota</button>
+                <button className={BTNO} onClick={() => call('agents&only=cfo')}>Cek Ulang</button>
               </div>
             </div>
           ) : room === 'COO' ? (
             /* ============ RUANG COO — Jualan & Monetisasi ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-emerald-300 mb-0.5">💼 RUANG COO</div>
+              <div className="text-[15px] font-bold text-emerald-300 mb-0.5">RUANG COO</div>
               <div className="text-white/50 text-[11px] mb-2.5">Jualan &amp; Monetisasi · Hot lead → email tawaran PRO (ACC dulu, baru kirim)</div>
               <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
-                🎯 Target: free user paling aktif 7 hari (udah ketagihan, tinggal ditawarin upgrade)<br />
-                ⏰ Cron harian 08:00 WIB · 🛡️ Anti-spam: 1 lead maks 1× per 7 hari<br />
-                📬 Email terkirim via Resend SETELAH Bos ACC — human-in-the-loop<br />
-                🔄 FOLLOW-UP: lead yang BUKA email (webhook Resend) tapi belum PRO → otomatis dapat draf follow-up + kupon diskon terkontrol
+                <b>Target:</b> free user paling aktif 7 hari (udah ketagihan, tinggal ditawarin upgrade)<br />
+                <b>Cron</b> harian 08:00 WIB · <b>Anti-spam:</b> 1 lead maks 1x per 7 hari<br />
+                <b>Email</b> terkirim via Resend SETELAH Bos ACC — human-in-the-loop<br />
+                <b>FOLLOW-UP:</b> lead yang BUKA email (webhook Resend) tapi belum PRO → otomatis dapat draf follow-up + kupon diskon terkontrol
               </div>
               {P.cooLoading && P.cooTasks.length === 0 ? (
-                <div className="text-white/55 mt-2.5 text-[11.5px]">⏳ Memuat antrean jualan…</div>
+                <div className="text-white/55 mt-2.5 text-[11.5px]">Memuat antrean jualan...</div>
               ) : P.cooTasks.length === 0 ? (
                 <div className="mt-2.5 text-white/65 text-[11.5px] leading-relaxed">
-                  ✅ Tidak ada draf yang menunggu ACC.<br />
+                  Tidak ada draf yang menunggu ACC.<br />
                   Bagas buru lead baru lagi besok pagi 08:00 — nggak ada yang perlu kamu proses sekarang.
                 </div>
               ) : (
@@ -922,8 +1065,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                           </div>
                           <span className="text-[9.5px] bg-emerald-400/15 text-emerald-200 rounded-full px-1.5 py-0.5 whitespace-nowrap shrink-0">
                             {t.context_data?.followup
-                              ? `🔄 FOLLOW-UP · buka email${t.context_data?.coupon ? ` · ${t.context_data.coupon}` : ''}`
-                              : `🔥 ${t.context_data?.totalTrades ?? '?'} trades/7hr`}
+                              ? `FOLLOW-UP · buka email${t.context_data?.coupon ? ` · ${t.context_data.coupon}` : ''}`
+                              : `${t.context_data?.totalTrades ?? '?'} trades/7 hr`}
                           </span>
                         </div>
                         <input value={draft.subject} onChange={e => P.setCooDrafts(p => ({ ...p, [t.id]: { ...draft, subject: e.target.value } }))}
@@ -935,9 +1078,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                         <div className="text-white/35 text-[9.5px] text-right mt-0.5">{draft.body.length} karakter · bisa diedit sebelum ACC</div>
                         <div className="flex gap-1.5 mt-1.5">
                           <button className={`${BTN} flex-1 bg-emerald-400/20 font-semibold`} disabled={acting} onClick={() => P.cooAct(t, 'approve')}>
-                            {acting ? '⏳ Mengirim…' : '💸 ACC & Kirim Email'}
+                            {acting ? 'Mengirim...' : 'ACC & Kirim Email'}
                           </button>
-                          <button className={BTNR} disabled={acting} onClick={() => P.cooAct(t, 'reject')}>✖ Tolak</button>
+                          <button className={BTNR} disabled={acting} onClick={() => P.cooAct(t, 'reject')}>Tolak</button>
                         </div>
                       </div>
                     )
@@ -945,8 +1088,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 </div>
               )}
               <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
-                <button className={BTN} onClick={() => P.cooLoad()}>🔄 Muat Ulang Antrean</button>
-                {P.cooLoading ? <span className="text-[10px] text-white/50">memuat…</span> : null}
+                <button className={BTN} onClick={() => P.cooLoad()}>Muat Ulang Antrean</button>
+                {P.cooLoading ? <span className="text-[10px] text-white/50">memuat...</span> : null}
               </div>
               <div className="text-white/40 text-[10px] mt-2.5 leading-relaxed">
                 Draf dibuat otomatis oleh Bagas (cron 08:00 WIB) — Bos bisa revisi dulu sebelum ACC.<br />
@@ -956,8 +1099,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           ) : room === 'DA' ? (
             /* ============ RUANG DATA ANALYST — Dewi ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-cyan-300 mb-0.5">📊 RUANG DATA ANALYST</div>
-              <div className="text-white/50 text-[11px] mb-3">Dewi · Pola trading user → insight &amp; rekomendasi mingguan</div>
+              <div className="text-[15px] font-bold text-cyan-300 mb-0.5">RUANG DATA ANALYST</div>
+              <div className="text-white/50 text-[11px] mb-3">Dewi · Pola trading user → insight &amp; rekomendasi</div>
               {da ? (
                 <div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -973,33 +1116,33 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     </div>
                   </div>
                   <div className="text-white/65 text-[10.5px] mt-1.5 leading-relaxed">
-                    🥇 Pair favorit: <b className="text-white">{da.stats?.topSymbol || '—'}</b> · Sesi: <b className="text-white">{da.stats?.topSession || '—'}</b> · Puncak jam: <b className="text-white">{da.stats?.bestHour || '—'}</b>
+                    Pair favorit: <b className="text-white">{da.stats?.topSymbol || '—'}</b> · Sesi: <b className="text-white">{da.stats?.topSession || '—'}</b> · Puncak jam: <b className="text-white">{da.stats?.bestHour || '—'}</b>
                   </div>
                   {da.stats?.emotion ? (
                     <div className="text-white/65 text-[10.5px] mt-1 leading-relaxed">
-                      😤 Emosi (self-report user): <b className="text-emerald-300">"{da.stats.emotion.best}" WR {da.stats.emotion.bestWr}%</b> paling profit · <b className="text-red-300">"{da.stats.emotion.worst}" WR {da.stats.emotion.worstWr}%</b> paling rugi
+                      Emosi (self-report user): <b className="text-emerald-300">"{da.stats.emotion.best}" WR {da.stats.emotion.bestWr}%</b> paling profit · <b className="text-red-300">"{da.stats.emotion.worst}" WR {da.stats.emotion.worstWr}%</b> paling rugi
                     </div>
                   ) : null}
                   <div className="mt-2 rounded-xl bg-cyan-400/10 border border-cyan-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
-                    🔍 {da.insight}
+                    {noEmoji(da.insight)}
                   </div>
                   {Array.isArray(da.patterns) && da.patterns.length > 0 && (
                     <div className="mt-1.5 text-[10.5px] leading-relaxed text-white/75">
                       <b>Pola yang Dewi temukan:</b>
-                      <ul className="m-0 mt-0.5 pl-4 list-disc">{da.patterns.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul>
+                      <ul className="m-0 mt-0.5 pl-4 list-disc">{da.patterns.map((p: string, i: number) => <li key={i}>{noEmoji(p)}</li>)}</ul>
                     </div>)}
                   {Array.isArray(da.recommendations) && da.recommendations.length > 0 && (
                     <div className="mt-1.5 border border-dashed border-cyan-300/40 rounded-lg px-2 py-1.5 text-[10.8px] leading-relaxed">
-                      <b className="text-cyan-200">💡 Rekomendasi minggu ini:</b>
-                      <ol className="m-0 mt-0.5 pl-4 list-decimal">{da.recommendations.map((r: string, i: number) => <li key={i} className="mb-0.5">{r}</li>)}</ol>
+                      <b className="text-cyan-200">Rekomendasi minggu ini:</b>
+                      <ol className="m-0 mt-0.5 pl-4 list-decimal">{da.recommendations.map((r: string, i: number) => <li key={i} className="mb-0.5">{noEmoji(r)}</li>)}</ol>
                     </div>)}
-                  {da.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">sudah dianalisis hari ini — ini hasil terakhir (Senin 10:00 jalan otomatis)</div> : null}
-                  {da.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">⚡ via OpenRouter (model resmi Dewi)</div> : da.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">📦 rangkuman dari angka nyata (LLM gagal)</div> : da.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">✅ via Gemini (cadangan)</div> : null}
+                  {da.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">sudah dianalisis hari ini — ini hasil terakhir (jalan otomatis 08:00)</div> : null}
+                  {da.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">via OpenRouter (model resmi Dewi)</div> : da.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">rangkuman dari angka nyata (LLM gagal)</div> : da.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">via Gemini (cadangan)</div> : null}
                 </div>
-              ) : <div className="text-white/50 mt-1 text-[11px]">Belum ada analisis — klik tombol di bawah. Jalan otomatis tiap Senin 10:00 WIB.</div>}
-              {daError ? <div className={ERR}>⚠️ {String(daError).slice(0, 140)}</div> : null}
+              ) : <div className="text-white/50 mt-1 text-[11px]">Belum ada analisis — klik tombol di bawah. Jalan otomatis tiap hari 08:00 WIB.</div>}
+              {daError ? <div className={ERR}>{noEmoji(daError).slice(0, 140)}</div> : null}
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} disabled={busy} onClick={() => call('analyst', 'POST')}>🔍 Analisis Data Sekarang</button>
+                <button className={BTN} disabled={busy} onClick={() => call('analyst', 'POST')}>Analisis Data Sekarang</button>
               </div>
               <div className="text-white/40 text-[10px] mt-2.5 leading-relaxed">
                 Sumber: tabel trades 30 hari terakhir (maks 1.000 trade terbaru) — win rate, pair, sesi, jam ramai.<br />
@@ -1009,8 +1152,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           ) : room === 'GH' ? (
             /* ============ RUANG GROWTH — Farhan ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-orange-300 mb-0.5">🚀 RUANG GROWTH</div>
-              <div className="text-white/50 text-[11px] mb-3">Farhan · Funnel nyata → 3 eksperimen pertumbuhan / minggu</div>
+              <div className="text-[15px] font-bold text-orange-300 mb-0.5">RUANG GROWTH</div>
+              <div className="text-white/50 text-[11px] mb-3">Farhan · Funnel nyata → 3 eksperimen pertumbuhan</div>
               {gh ? (
                 <div>
                   {gh.funnel && (
@@ -1034,30 +1177,30 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     </div>)}
                   {gh.ab && (
                     <div className="mt-2 rounded-xl bg-orange-400/10 border border-orange-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed">
-                      <b className="text-orange-200">🧪 A/B CTA Landing — eksperimen otomatis (7 hari):</b><br />
+                      <b className="text-orange-200">A/B CTA Landing — eksperimen otomatis (7 hari):</b><br />
                       A: {gh.ab.A?.views ?? 0} lihat · {gh.ab.A?.clicks ?? 0} klik ({gh.ab.A?.cr ?? 0}%) · B: {gh.ab.B?.views ?? 0} lihat · {gh.ab.B?.clicks ?? 0} klik ({gh.ab.B?.cr ?? 0}%)<br />
-                      🏆 Pemenang sementara: <b>{gh.ab.winner}</b>
+                      Pemenang sementara: <b>{gh.ab.winner}</b>
                     </div>)}
                   <div className="mt-2 rounded-xl bg-orange-400/10 border border-orange-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
-                    🔍 {gh.insight}
+                    {noEmoji(gh.insight)}
                   </div>
                   {Array.isArray(gh.experiments) && gh.experiments.length > 0 && (
                     <div className="mt-1.5 flex flex-col gap-1.5">
                       {gh.experiments.map((x: any, i: number) => (
                         <div key={i} className="border border-dashed border-orange-300/35 rounded-lg px-2 py-1.5 text-[10.8px] leading-relaxed">
-                          <b className="text-orange-200">🧪 {i + 1}. {x.name}</b>
+                          <b className="text-orange-200">{i + 1}. {noEmoji(x.name)}</b>
                           <span className="text-[9px] bg-orange-400/15 text-orange-200 rounded-full px-1.5 py-0.5 ml-1.5 whitespace-nowrap">effort {x.effort || 'sedang'}</span><br />
-                          {x.how}<br />
-                          <span className="text-white/50">📏 Ukur: {x.metric}</span>
+                          {noEmoji(x.how)}<br />
+                          <span className="text-white/50">Ukur: {noEmoji(x.metric)}</span>
                         </div>))}
                     </div>)}
-                  {gh.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">sudah dirancang hari ini — ini hasil terakhir (Senin 10:00 jalan otomatis)</div> : null}
-                  {gh.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">⚡ via OpenRouter (model resmi Farhan)</div> : gh.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">📦 templat dari funnel nyata (LLM gagal)</div> : gh.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">✅ via Gemini (cadangan)</div> : null}
+                  {gh.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">sudah dirancang hari ini — ini hasil terakhir (jalan otomatis 08:00)</div> : null}
+                  {gh.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">via OpenRouter (model resmi Farhan)</div> : gh.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">templat dari funnel nyata (LLM gagal)</div> : gh.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">via Gemini (cadangan)</div> : null}
                 </div>
-              ) : <div className="text-white/50 mt-1 text-[11px]">Belum ada eksperimen — klik tombol di bawah. Jalan otomatis tiap Senin 10:00 WIB.</div>}
-              {ghError ? <div className={ERR}>⚠️ {String(ghError).slice(0, 140)}</div> : null}
+              ) : <div className="text-white/50 mt-1 text-[11px]">Belum ada eksperimen — klik tombol di bawah. Jalan otomatis tiap hari 08:00 WIB.</div>}
+              {ghError ? <div className={ERR}>{noEmoji(ghError).slice(0, 140)}</div> : null}
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} disabled={busy} onClick={() => call('growth', 'POST')}>🚀 Rancang Eksperimen Sekarang</button>
+                <button className={BTN} disabled={busy} onClick={() => call('growth', 'POST')}>Rancang Eksperimen Sekarang</button>
               </div>
               <div className="text-white/40 text-[10px] mt-2.5 leading-relaxed">
                 Sumber: funnel profiles (pendaftar, PRO, referral, onboarding, aktivasi) + insight Dewi.<br />
@@ -1067,9 +1210,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           ) : room === 'struktur' ? (
             /* ============ RUANG STRUKTUR — Jabatan & Pekerjaan Tiap Karyawan ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-white mb-0.5">📋 STRUKTUR TIM AI</div>
+              <div className="text-[15px] font-bold text-white mb-0.5">STRUKTUR TIM AI</div>
               <div className="text-white/50 text-[11px] mb-3 leading-relaxed">
-                Jabatan, pekerjaan &amp; jadwal tiap karyawan — plus <b className="text-amber-300">batas kemampuan yang jujur</b>, biar Bos bisa menilai apa yang kurang dan layak ditambah.
+                Jabatan, pekerjaan &amp; jadwal tiap karyawan — plus <b className="text-amber-300">batas kemampuan yang jujur</b>, biar Bos bisa menilai apa yang kurang dan layak ditambah. Klik karyawan untuk status kerja live, detail tugas &amp; memori kerjanya.
               </div>
               <div className="max-h-[34vh] overflow-y-auto kscroll pr-0.5">
                 {TEAM_DETAIL.map(m => (
@@ -1078,15 +1221,16 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     m={m}
                     open={openStaff === m.id}
                     onToggle={() => setOpenStaff(openStaff === m.id ? null : m.id)}
+                    live={liveOf(m.id)}
                   />
                 ))}
                 <div className="rounded-2xl border border-dashed border-amber-300/40 bg-amber-400/5 px-3 py-2.5 text-[10.5px] leading-relaxed mb-1">
-                  <b className="text-amber-300">🧩 Sisa kursi kosong (opini jujur):</b>
+                  <b className="text-amber-300">Sisa kursi kosong (opini jujur):</b>
                   <ul className="m-0 mt-1 p-0 list-none flex flex-col gap-1">
                     <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Support Closer</b> — CS bot chat (/api/chat) sudah jawab pertanyaan user, tapi belum ada yang follow-up penyelesaian bug ke user pelapor sampai tuntas</span></li>
-                    <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Eksekusi A/B test otomatis</b> — Farhan sudah merancang eksperimen tiap Senin, tapi pelaksanaannya masih tangan Bos (belum ada mesin A/B otomatis)</span></li>
+                    <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Eksekusi A/B test otomatis</b> — Farhan sudah merancang eksperimen tiap hari, tapi pelaksanaannya masih tangan Bos (belum ada mesin A/B otomatis)</span></li>
                   </ul>
-                  <div className="mt-1.5 text-white/70">✅ Kursi <b>Data Analyst</b> (Dewi) &amp; <b>Growth Hacker</b> (Farhan) yang dulu kosong — kini SUDAH DIISI. Promosi affiliate masuk ke eksperimen mingguan Farhan.</div>
+                  <div className="mt-1.5 text-white/70">Kursi <b>Data Analyst</b> (Dewi) &amp; <b>Growth Hacker</b> (Farhan) yang dulu kosong — kini SUDAH DIISI. Promosi affiliate masuk ke eksperimen mingguan Farhan.</div>
                 </div>
                 <div className="text-white/40 text-[10px] leading-relaxed">
                   Semua jadwal jalan otomatis via Cloudflare Cron bawaan — tanpa cron-job.org.<br />
@@ -1110,7 +1254,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 className={`min-w-[80%] sm:min-w-[340px] snap-center bg-white/5 border rounded-2xl p-4 flex flex-col gap-2 text-left cursor-pointer transition-all duration-200 ${active ? 'border-white/40 bg-white/10 shadow-[0_0_0_1px_rgba(255,255,255,.18),0_10px_34px_rgba(0,0,0,.45)]' : 'border-white/10 hover:bg-white/10 hover:border-white/20'}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 grid place-items-center text-xl shrink-0">{a.emoji}</div>
+                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 grid place-items-center text-[17px] font-bold text-white/85 shrink-0" aria-hidden="true">{a.name.charAt(0)}</div>
                   <div className="min-w-0 flex-1">
                     <div className="text-white text-sm font-semibold leading-tight truncate">{a.name}</div>
                     <div className="text-white/50 text-[11px] leading-tight truncate">{a.role}</div>
@@ -1119,7 +1263,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 </div>
                 <div className="text-white/70 text-xs leading-relaxed">{a.live}</div>
                 <div className={`text-[11px] flex items-center gap-1 ${active ? 'text-white' : 'text-white/40'}`}>
-                  {active ? '✓ Ruangan ini terbuka' : <>Masuk Ruangan <span aria-hidden="true">→</span></>}
+                  {active ? 'Ruangan ini terbuka' : <>Masuk Ruangan <span aria-hidden="true">→</span></>}
                 </div>
               </button>
             )

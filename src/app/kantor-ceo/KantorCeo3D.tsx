@@ -140,11 +140,11 @@ export default function KantorCeo3D() {
       jobs.forEach(j => { delete busyRef.current[j]; doneRef.current[j] = Date.now() })
     }
     if (action === 'acc-email') { // ditangani khusus di Ruang CSO
-      window.__kceo?.toast?.(r?.dup ? '📧 ACC EMAIL sudah dicatat hari ini' : r?.ok ? '📧 ACC EMAIL dicatat — CSO tuntas!' : '⚠️ ACC EMAIL gagal — cek Ruang CSO')
+      window.__kceo?.toast?.(r?.dup ? 'ACC EMAIL sudah dicatat hari ini' : r?.ok ? 'ACC EMAIL dicatat — CSO tuntas!' : 'ACC EMAIL gagal — cek Ruang CSO')
       return r
     }
     if (action === 'talk') { // diskusi CSO × CMO — hasilnya tampil di Ruang CSO
-      window.__kceo?.toast?.(r?.talk?.diagnosis ? '💬 Diskusi selesai — Maya & Sinta nemu akar masalah + skrip konten!' : r?.talkError ? '⚠️ Diskusi gagal — ' + String(r.talkError).slice(0, 60) : '⚠️ Diskusi gagal — cek koneksi/kuota AI')
+      window.__kceo?.toast?.(r?.talk?.diagnosis ? 'Diskusi selesai — Maya & Sinta nemu akar masalah + skrip konten!' : r?.talkError ? 'Diskusi gagal — ' + String(r.talkError).slice(0, 60) : 'Diskusi gagal — cek koneksi/kuota AI')
       setData((d: any) => ({ ...(d || {}), ...r })) // langsung tampil di panel — tanpa perlu pindah ruangan
       return r
     }
@@ -154,19 +154,19 @@ export default function KantorCeo3D() {
         ? (action === 'analyst' ? { daError: String(r.error).slice(0, 160) } : { ghError: String(r.error).slice(0, 160) })
         : r
       const o = action === 'analyst' ? rr?.da : rr?.gh
-      window.__kceo?.toast?.(o?.dupToday ? (action === 'analyst' ? '📊 Sudah dianalisis hari ini — hasil terakhir ditampilkan' : '🚀 Sudah dirancang hari ini — hasil terakhir ditampilkan') : o && !rr?.daError && !rr?.ghError ? (action === 'analyst' ? '📊 Dewi beres — insight baru siap!' : '🚀 Farhan beres — eksperimen baru dirancang!') : '⚠️ Gagal — cek panel ruangannya')
+      window.__kceo?.toast?.(o?.dupToday ? (action === 'analyst' ? 'Sudah dianalisis hari ini — hasil terakhir ditampilkan' : 'Sudah dirancang hari ini — hasil terakhir ditampilkan') : o && !rr?.daError && !rr?.ghError ? (action === 'analyst' ? 'Dewi beres — insight baru siap!' : 'Farhan beres — eksperimen baru dirancang!') : 'Gagal — cek panel ruangannya')
       setData((d: any) => ({ ...(d || {}), ...rr }))
       return rr
     }
     if (action === 'e2e') { // Raka E2E — login beneran + tes fitur satu-satu, hasilnya tampil di Ruang CTO
-      window.__kceo?.toast?.(r?.e2eSkip ? '🤖 E2E dilewati — ' + String(r.e2eSkip).slice(0, 60)
-        : r?.e2eFailed ? `🤖 E2E: ${r.e2ePassed}/${r.e2eTotal} lolos — ${r.e2eFailed} masalah ⚠️`
-        : r?.e2eTotal ? `🤖 E2E lolos semua — login + ${r.e2eTotal} langkah fitur jalan mulus ✅`
-        : '⚠️ E2E gagal — cek panel Ruang CTO')
+      window.__kceo?.toast?.(r?.e2eSkip ? 'E2E dilewati — ' + String(r.e2eSkip).slice(0, 60)
+        : r?.e2eFailed ? `E2E: ${r.e2ePassed}/${r.e2eTotal} lolos — ${r.e2eFailed} masalah`
+        : r?.e2eTotal ? `E2E lolos semua — login + ${r.e2eTotal} langkah fitur jalan mulus`
+        : 'E2E gagal — cek panel Ruang CTO')
     }
     if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
     if (action === 'briefing' && r?.text)
-      window.__kceo?.toast?.(r.notifySent ? '🌅 Briefing terkirim ke Discord! ✅' : '⚠️ Briefing jalan — Discord gagal kirim')
+      window.__kceo?.toast?.(r.notifySent ? 'Briefing terkirim ke Discord!' : 'Briefing jalan — Discord gagal kirim')
     setData((d: any) => ({ ...(d || {}), ...r }))
     return r
   }, [token, sbKey])
@@ -185,8 +185,8 @@ export default function KantorCeo3D() {
       const res = await fetch('/api/ceo-agent?action=tiktok-list', { headers: ttH })
       const r = await res.json()
       setTt(r?.posts || [])
-      if (r?.error) setTtMsg('⚠️ ' + r.error)
-    } catch (e) { setTtMsg('⚠️ ' + String(e)) }
+      if (r?.error) setTtMsg(r.error)
+    } catch (e) { setTtMsg(String(e)) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, sbKey])
   const ttAdd = async () => {
@@ -199,14 +199,14 @@ export default function KantorCeo3D() {
         body: JSON.stringify({ url: ttUrl.trim(), views: Number(ttViews) || 0, likes: Number(ttLikes) || 0 }),
       })
       const r = await res.json()
-      if (r?.error) setTtMsg('⚠️ ' + r.error)
+      if (r?.error) setTtMsg(r.error)
       else {
-        setTtMsg(r?.captionAuto ? '✅ Tersimpan — caption diambil otomatis dari TikTok' : '✅ Tersimpan')
+        setTtMsg(r?.captionAuto ? 'Tersimpan — caption diambil otomatis dari TikTok' : 'Tersimpan')
         setTtUrl(''); setTtViews(''); setTtLikes('')
-        window.__kceo?.toast?.('📚 CMO dapat bahan analisis baru!')
+        window.__kceo?.toast?.('CMO dapat bahan analisis baru!')
         await ttLoad()
       }
-    } catch (e) { setTtMsg('⚠️ ' + String(e)) } finally { setTtBusy(false) }
+    } catch (e) { setTtMsg(String(e)) } finally { setTtBusy(false) }
   }
   const ttDel = async (id: string) => {
     setTtBusy(true)
@@ -237,9 +237,9 @@ export default function KantorCeo3D() {
           return next
         })
       } else if (!silent) {
-        window.__kceo?.toast?.('⚠️ ' + String(r?.error || 'Gagal memuat antrean COO').slice(0, 90))
+        window.__kceo?.toast?.(String(r?.error || 'Gagal memuat antrean COO').slice(0, 90))
       }
-    } catch { if (!silent) window.__kceo?.toast?.('⚠️ Jaringan gagal — antrean COO tidak termuat') }
+    } catch { if (!silent) window.__kceo?.toast?.('Jaringan gagal — antrean COO tidak termuat') }
     finally { if (!silent) setCooLoading(false) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
@@ -256,14 +256,14 @@ export default function KantorCeo3D() {
       })
       const r = await res.json()
       if (res.ok && r?.success) {
-        window.__kceo?.toast?.(action === 'approve' ? `💸 Email penawaran terkirim ke ${t.context_data?.email || 'lead'}!` : '🗑️ Draf ditolak — keluar antrean')
+        window.__kceo?.toast?.(action === 'approve' ? `Email penawaran terkirim ke ${t.context_data?.email || 'lead'}!` : 'Draf ditolak — keluar antrean')
         doneRef.current['COO'] = Date.now()
         await cooLoad(true)
         call('agents&only=coo')
       } else {
-        window.__kceo?.toast?.('⚠️ ' + String(r?.error || 'Gagal memproses task').slice(0, 110))
+        window.__kceo?.toast?.(String(r?.error || 'Gagal memproses task').slice(0, 110))
       }
-    } catch { window.__kceo?.toast?.('⚠️ Jaringan gagal — coba lagi') }
+    } catch { window.__kceo?.toast?.('Jaringan gagal — coba lagi') }
     finally { setCooActing(null) }
   }
 
@@ -353,7 +353,7 @@ export default function KantorCeo3D() {
         DA:{deep:['Hitung win rate 30 hari dari trades','Klaster pair & sesi paling produktif','Susun insight mingguan buat Bos'],phone:['Cek spreadsheet angka mingguan'],chat:['Bahas pola data sama Sinta']},
         GH:{deep:['Rancang eksperimen growth minggu ini','Ukur funnel pendaftar → aktif → PRO','Cari angle promo referral/affiliate'],phone:['Pantau metrik aktivasi'],chat:['Pilih eksperimen prioritas bareng CEO']},
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
-      const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu ☕'}
+      const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu'}
       let tNow=0
       /* ---- STATUS NYATA dari API (bukan panggung) ----
          Kalau data live ada, karakter lapor hasil kerja ASLI, bukan kalimat tempelan. */
@@ -363,62 +363,62 @@ export default function KantorCeo3D() {
         try{
           if(job==='CTO'&&live.cto&&!live.cto.error&&!live.cto.err)
             return live.cto.siteOk
-              ? `📊 LIVE: web ${live.cto.status} OK (${live.cto.latencyMs} ms) · bug 24j: ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`
-              : '📊 LIVE: web lagi DOWN — aku pantau terus'
+              ? `LIVE: web ${live.cto.status} OK (${live.cto.latencyMs} ms) · bug 24j: ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`
+              : 'LIVE: web lagi DOWN — aku pantau terus'
           if(job==='CSO'&&live.cso&&!live.cso.error)
-            return `📊 LIVE: ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`
+            return `LIVE: ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`
           if(job==='CMO'&&live.cmo)
-            return live.cmo.draft?'📊 LIVE: draf TikTok hari ini sudah siap ✅':null
+            return live.cmo.draft?'LIVE: draf TikTok hari ini sudah siap':null
           if(job==='CFO'&&live.cfo&&!live.cfo.error)
-            return `📊 LIVE: kuota ${live.cfo.usedToday}/${live.cfo.limit} hari ini · ${String(live.cfo.status||'').trim()}`
+            return `LIVE: kuota ${live.cfo.usedToday}/${live.cfo.limit} hari ini · ${String(live.cfo.status||'').trim()}`
           if(job==='COO'&&live.coo&&!live.coo.error)
-            return live.coo.pending>0?`📊 LIVE: ${live.coo.pending} draf penawaran nunggu ACC Bos`:'📊 LIVE: antrean jualan bersih ✅'
+            return live.coo.pending>0?`LIVE: ${live.coo.pending} draf penawaran nunggu ACC Bos`:'LIVE: antrean jualan bersih'
           if(job==='DA'&&live.da)
-            return `📊 LIVE: ${live.da.stats?.uploads30??'—'} upload 30 hr · win rate ${live.da.stats?.winRate??'—'}% · ${live.da.stats?.traders30??'—'} trader`
+            return `LIVE: ${live.da.stats?.uploads30??'—'} upload 30 hr · win rate ${live.da.stats?.winRate??'—'}% · ${live.da.stats?.traders30??'—'} trader`
           if(job==='GH'&&live.gh)
-            return `📊 LIVE: aktivasi baru ${live.gh.funnel?.baru7?Math.round((live.gh.funnel.activated7/live.gh.funnel.baru7)*100):'—'}% · ${live.gh.experiments?.length??0} eksperimen siap`
+            return `LIVE: aktivasi baru ${live.gh.funnel?.baru7?Math.round((live.gh.funnel.activated7/live.gh.funnel.baru7)*100):'—'}% · ${live.gh.experiments?.length??0} eksperimen siap`
           if(job==='CEO'&&live.text)
-            return live.notifySent?'📊 LIVE: briefing terakhir sudah terkirim ✅':'📊 LIVE: briefing siap — tinggal kirim'
+            return live.notifySent?'LIVE: briefing terakhir sudah terkirim':'LIVE: briefing siap — tinggal kirim'
         }catch{ }
         return null}
       const thought2=(c,S)=>{
         /* PRIORITAS 1 — sedang KERJA BENERAN (API call in-flight)? */
         if(busyRef.current[c.job]){
-          const W={CTO:'⏳ Lagi ping situs & hitung bug — kerja beneran, bukan main-main!',
-            CSO:'⏳ Lagi hitung user dari database Supabase — kerja beneran!',
-            CMO:'⏳ Lagi nulis draf TikTok via OpenRouter — kerja beneran!',
-            CFO:'⏳ Lagi audit kuota API — kerja beneran!',
-            COO:'⏳ Lagi buru hot lead & susun draf penawaran — kerja beneran!',
-            DA:'⏳ Lagi olah data trades di Supabase — kerja beneran!',
-            GH:'⏳ Lagi ngukur funnel & rancang eksperimen — kerja beneran!',
-            CEO:'⏳ Lagi susun briefing & kirim ke Discord…'}
-          return W[c.job]||'⏳ Lagi kerja beneran…'}
+          const W={CTO:'Lagi ping situs & hitung bug — kerja beneran, bukan main-main!',
+            CSO:'Lagi hitung user dari database Supabase — kerja beneran!',
+            CMO:'Lagi nulis draf TikTok via OpenRouter — kerja beneran!',
+            CFO:'Lagi audit kuota API — kerja beneran!',
+            COO:'Lagi buru hot lead & susun draf penawaran — kerja beneran!',
+            DA:'Lagi olah data trades di Supabase — kerja beneran!',
+            GH:'Lagi ngukur funnel & rancang eksperimen — kerja beneran!',
+            CEO:'Lagi susun briefing & kirim ke Discord…'}
+          return W[c.job]||'Lagi kerja beneran…'}
         /* PRIORITAS 2 — baru selesai (≤9 dtk): rayakan dgn HASIL ASLI */
         const D=doneRef.current
         if(D[c.job]&&Date.now()-D[c.job]<9000){
           const live=liveRef.current
           const R: any={
-            CTO:()=>live&&live.cto&&!live.cto.error&&!live.cto.err?`✅ Beres! Web ${live.cto.siteOk?live.cto.status+' OK · '+live.cto.latencyMs+' ms':'DOWN'} · bug ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`:'✅ Tugas selesai!',
-            CSO:()=>live&&live.cso&&!live.cso.error?`✅ Beres! ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`:'✅ Tugas selesai!',
-            CMO:()=>live&&live.cmo?(live.cmo.draft?'✅ Draf TikTok baru siap — cek panel kanan!':'⚠️ Gagal bikin draf — cek panel'):'✅ Tugas selesai!',
-            CFO:()=>live&&live.cfo&&!live.cfo.error?`✅ Kuota ${live.cfo.usedToday}/${live.cfo.limit} · ${String(live.cfo.status||'').trim()}`:'✅ Tugas selesai!',
-            COO:()=>live&&live.coo&&!live.coo.error?(live.coo.pending>0?`✅ Beres! ${live.coo.pending} draf nunggu ACC Bos di Ruang COO`:'✅ Beres! Antrean jualan bersih — lead besok lagi'):'✅ Tugas selesai!',
-            DA:()=>live&&live.da?`✅ Insight baru: ${String(live.da.insight||'').slice(0,80)}…`:'✅ Tugas selesai!',
-            GH:()=>live&&live.gh?`✅ ${live.gh.experiments?.length||3} eksperimen siap di Ruang Growth`:'✅ Tugas selesai!',
-            CEO:()=>live&&live.text?(live.notifySent?'✅ Briefing terkirim ke Discord!':'⚠️ Briefing jalan — Discord gagal'):'✅ Tugas selesai!'}
-          return (R[c.job]||(()=>'✅ Tugas selesai!'))()}
+            CTO:()=>live&&live.cto&&!live.cto.error&&!live.cto.err?`Beres! Web ${live.cto.siteOk?live.cto.status+' OK · '+live.cto.latencyMs+' ms':'DOWN'} · bug ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`:'Tugas selesai!',
+            CSO:()=>live&&live.cso&&!live.cso.error?`Beres! ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`:'Tugas selesai!',
+            CMO:()=>live&&live.cmo?(live.cmo.draft?'Draf TikTok baru siap — cek panel kanan!':'Gagal bikin draf — cek panel'):'Tugas selesai!',
+            CFO:()=>live&&live.cfo&&!live.cfo.error?`Kuota ${live.cfo.usedToday}/${live.cfo.limit} · ${String(live.cfo.status||'').trim()}`:'Tugas selesai!',
+            COO:()=>live&&live.coo&&!live.coo.error?(live.coo.pending>0?`Beres! ${live.coo.pending} draf nunggu ACC Bos di Ruang COO`:'Beres! Antrean jualan bersih — lead besok lagi'):'Tugas selesai!',
+            DA:()=>live&&live.da?`Insight baru: ${String(live.da.insight||'').slice(0,80)}…`:'Tugas selesai!',
+            GH:()=>live&&live.gh?`${live.gh.experiments?.length||3} eksperimen siap di Ruang Growth`:'Tugas selesai!',
+            CEO:()=>live&&live.text?(live.notifySent?'Briefing terkirim ke Discord!':'Briefing jalan — Discord gagal'):'Tugas selesai!'}
+          return (R[c.job]||(()=>'Tugas selesai!'))()}
         if(INC.active){if(c.job==='CEO')return 'Mendengar laporan insiden dari CTO…'
-          if(c.job==='CTO')return S.stage==='report'?'Bug di live site! Lapor CEO dulu 🐞':'Cari akar masalah bug checkout'
+          if(c.job==='CTO')return S.stage==='report'?'Bug di live site! Lapor CEO dulu':'Cari akar masalah bug checkout'
           if(c.job==='CSO')return 'Semoga cepat beres, user komplain nih'
           return 'Tim hotfix, aku fokus kerjaanku'}
-        if(INC.boostT>tNow){if(c.job==='CTO')return 'Hotfix jalan — deploy sebentar lagi 🔧'
+        if(INC.boostT>tNow){if(c.job==='CTO')return 'Hotfix jalan — deploy sebentar lagi'
           if(c.job==='CSO')return 'Siapkan email sapaan kalau di-ACC'
           return 'Tim lagi hotfix, aku fokus kerjaanku'}
-        if(S.leaving)return 'Beres-beres, mau pulang 👋'
-        if(S.arriving)return 'Selamat pagi! Baru sampai ☀️'
+        if(S.leaving)return 'Beres-beres, mau pulang'
+        if(S.arriving)return 'Selamat pagi! Baru sampai'
         if(S.stage==='rising')return S.goal?'Waktunya istirahat! Geser kursi':'Istirahat selesai…'
         if(S.stage==='walking')return S.goal?'Jalan ke pantry':'Kembali ke meja'
-        if(S.stage==='lounge')return S.sub==='chat'?'Ngobrol sambil ngopi ☕':S.coffee?'Ngopi dulu ☕':'Istirahat sejenak ☕'
+        if(S.stage==='lounge')return S.sub==='chat'?'Ngobrol sambil ngopi':S.coffee?'Ngopi dulu':'Istirahat sejenak'
         if(S.stage==='sitting')return 'Duduk lagi…'
         if(S.stage==='seated'&&S.sub==='deep'){
           if(c.job===PHASE_JOB[PROJ.ph])return PHASE_TASK[c.job]+' · '+Math.round(PROJ.prog)+'%'
@@ -427,7 +427,7 @@ export default function KantorCeo3D() {
           const real=realStatus(c.job)
           if(real&&Math.floor(tNow/7+c.i)%3!==2)return real
           const a=T2[c.job].deep;return a[Math.floor(tNow/7+c.i)%a.length]}
-        if(S.stage==='seated'&&C.min>=840&&S.sub!=='chat')return 'Briefing besok tinggal review 😌'
+        if(S.stage==='seated'&&C.min>=840&&S.sub!=='chat')return 'Briefing besok tinggal review'
         const a=T2[c.job][S.sub]||GEN2[S.sub];return Array.isArray(a)?a[Math.floor(tNow/8+c.i)%a.length]:a}
 
       /* ---------- renderer / scene ---------- */
@@ -572,7 +572,7 @@ export default function KantorCeo3D() {
         g.strokeStyle='#0b3b2a';g.lineWidth=1;for(let i=1;i<8;i++){g.beginPath();g.moveTo(0,i*20);g.lineTo(256,i*20);g.stroke()}
         g.strokeStyle=EM;g.lineWidth=2.5;g.beginPath();gh.forEach((v,i)=>{const x=8+i*(240/39),y=140-(v-2300)/100*110;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()
         g.fillStyle=EM;g.font='bold 15px monospace';g.fillText('XAUUSD  '+gold.toFixed(2),8,16)
-        g.fillStyle=INC.active?'#ef4444':'#9fb3ad';g.font='11px monospace';g.fillText(INC.active?'⚠ INSIDEN — HOTFIX':'LUXTRADE · LIVE',8,150);lapTex.needsUpdate=true}
+        g.fillStyle=INC.active?'#ef4444':'#9fb3ad';g.font='11px monospace';g.fillText(INC.active?'! INSIDEN — HOTFIX':'LUXTRADE · LIVE',8,150);lapTex.needsUpdate=true}
       const pc=document.createElement('canvas');pc.width=512;pc.height=340;const pg=pc.getContext('2d'),pt2=new THREE.CanvasTexture(pc);pt2.colorSpace=THREE.SRGBColorSpace
       box(3.7,2.5,.06,M('#0a0a0f'),10.8,2.2,-9.92,scene,false)
       const projScr=new THREE.Mesh(new THREE.PlaneGeometry(3.5,2.34),new THREE.MeshBasicMaterial({map:pt2}));projScr.position.set(10.8,2.2,-9.88);scene.add(projScr)
@@ -584,7 +584,7 @@ export default function KantorCeo3D() {
         const pulse=.6+.4*Math.sin(tNow*4)
         g.fillStyle=`rgba(16,245,160,${.15+pulse*.2})`;g.fillRect(430,6,72,20)
         g.fillStyle='#10f5a0';g.beginPath();g.arc(441,16,4,0,7);g.fill();g.font='bold 11px monospace';g.fillText('LIVE',450,20)
-        if(INC.active){g.fillStyle='rgba(239,68,68,.9)';g.fillRect(0,32,512,22);g.fillStyle='#fff';g.font='bold 11px monospace';g.fillText('⚠ INSIDEN LIVE: bug checkout — hotfix jalan',18,47)}
+        if(INC.active){g.fillStyle='rgba(239,68,68,.9)';g.fillRect(0,32,512,22);g.fillStyle='#fff';g.font='bold 11px monospace';g.fillText('! INSIDEN LIVE: bug checkout — hotfix jalan',18,47)}
         g.fillStyle='#e8fff6';g.font='bold 15px system-ui';g.fillText('LUXTRADE',20,64)
         g.fillStyle='rgba(255,255,255,.4)';g.font='12px system-ui';g.fillText('Produk   Harga   Blog   Tentang',330,64)
         g.fillStyle='#9fb3ad';g.font='11px monospace';g.fillText('v'+SITE.ver.toFixed(1),440,64)
@@ -603,7 +603,7 @@ export default function KantorCeo3D() {
         const tgt=38+PROJ.done*2+(C.brk?-9:0)+(INC.active?-14:0)+Math.sin(C.min/230)*7
         SITE.vis+=(tgt-SITE.vis)*.06+rnd(-1.1,1.1);SITE.vis=clamp(SITE.vis,3,240)
         SITE.day=Math.max(0,SITE.day+rnd(.2,.9)+(INC.active?-1:0))
-        const g=bg,m=C.min,st=INC.active?'⚠ Insiden live — hotfix':(m<420||m>=960?'Di luar jam kerja':C.brk?'Istirahat siang':m>=840?'Santai':'Jam kerja'),tot=projTot()
+        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m<420||m>=960?'Di luar jam kerja':C.brk?'Istirahat siang':m>=840?'Santai':'Jam kerja'),tot=projTot()
         g.fillStyle='#04120c';g.fillRect(0,0,1024,512);g.fillStyle='#0a2a1d';g.fillRect(0,0,1024,84)
         g.fillStyle='#10f5a0';g.font='bold 40px system-ui,sans-serif';g.fillText('PAPAN KINERJA KANTOR LUXTRADE',32,56)
         g.fillStyle='#9fb3ad';g.font='32px system-ui,sans-serif';g.fillText('Harga Emas (XAUUSD)',32,140)
@@ -753,7 +753,7 @@ export default function KantorCeo3D() {
           if(t>INC.endT){S.report=false;S.chatWith=null;S.ret=true;S.until=0;S.stage='rising'
             E[4].chatWith=null;E[4].reportT=0;E[4].until=0
             INC.active=false;INC.boostT=t+45;INC.next=C.min+rnd(140,260)
-            showToast('🔧 Hotfix dikerjakan — CTO & tim mode serius')}}
+            showToast('Hotfix dikerjakan — CTO & tim mode serius')}}
         else if(S.stage==='sitting'){yawT=PI;S.x=dm(S.x,d[0],3,dt);S.z=dm(S.z,seatZ,3,dt);if(S.sit>.96&&Math.hypot(S.x-d[0],S.z-seatZ)<.03){S.stage='seated';S.arriving=false;S.until=0}}
         else if(S.stage==='lounge'){if(S.coffee&&t>S.coffee){S.coffee=0;S.goal=false;S.stage='rising'}const q=S.spot;sitT=q.sit;pose=S.sub;S.x=dm(S.x,q.p[0],3,dt);S.z=dm(S.z,q.p[1],3,dt);yawT=q.sit?q.y:(best<99?Math.atan2(bx,bz):q.y)}
         if(S.stage==='walking'&&S.wp.length>1)for(const o of OBST){const dx=S.x-o.x,dz=S.z-o.z,px=o.hw+.3-Math.abs(dx),pz=o.hd+.3-Math.abs(dz);if(px>0&&pz>0){if(px<pz)S.x+=Math.sign(dx||1)*px*Math.min(1,dt*8);else S.z+=Math.sign(dz||1)*pz*Math.min(1,dt*8)}}
@@ -840,14 +840,14 @@ export default function KantorCeo3D() {
         if(C.live){const w=new Date(Date.now()+25200000);C.min=w.getUTCHours()*60+w.getUTCMinutes()+w.getUTCSeconds()/60}else{C.min+=dt*C.speed;if(C.min>=960)C.min=420}
         const b=C.min>=660&&C.min<780
         if(b!==C.brk){C.brk=b;C.at=performance.now()
-          showToast(b?'☕ 11:00 — Istirahat siang, tim ke pantry satu per satu':'13:00 — Istirahat selesai, kembali kerja')}
+          showToast(b?' 11:00 — Istirahat siang, tim ke pantry satu per satu':'13:00 — Istirahat selesai, kembali kerja')}
         if(!INC.active&&C.min>INC.next){
           if(C.min>=430&&C.min<830&&!C.brk&&E[0].stage==='seated'&&E[4].stage==='seated'){
             INC.active=true;const R0=E[0]
             R0.report=true;R0.goal=false;R0.coffee=0;R0.until=1e9;R0.stage='rising'
             E[4].reportT=t+19;E[4].until=1e9
             INC.endT=t+14
-            showToast('🐞 Insiden live: bug checkout — CTO lapor ke CEO')}
+            showToast('Insiden live: bug checkout — CTO lapor ke CEO')}
           else INC.next=C.min+12}
         if(INC.active&&t>INC.endT+4){
           const R0=E[0]
@@ -862,8 +862,8 @@ export default function KantorCeo3D() {
           const fin=CHLOG[PROJ.ph];PROJ.ph++
           if(PROJ.ph>=PHASES.length){PROJ.ph=0;PROJ.sprint++
             SITE.ver=Math.round((SITE.ver+.1)*10)/10
-            showToast('🚀 Briefing & rilis v'+SITE.ver.toFixed(1)+' terkirim!')}
-          else showToast('✅ '+fin+' → '+PHASES[PROJ.ph])}
+            showToast('Briefing & rilis v'+SITE.ver.toFixed(1)+' terkirim!')}
+          else showToast(fin+' → '+PHASES[PROJ.ph])}
         E.forEach((S,i)=>update(S,i,dt,t))
         drawBoard2(dt);liveTick(dt);lightTick(dt)
         rackLeds.forEach((m,k)=>m.emissiveIntensity=Math.sin(t*(2+k%5)+k*1.7)>.2?2.2:.12)
@@ -878,7 +878,7 @@ export default function KantorCeo3D() {
           hov=(o&&o.userData.emp!==undefined)?o.userData.emp:null}
         uiT-=dt
         if(uiT<=0){uiT=.15;$t('#ktime').textContent=fmt(C.min)+' WIB';drawWall()
-          const ph=$t('#kphase');ph.textContent=C.brk?'Waktu istirahat ☕':(INC.active?'🐞 Insiden — hotfix!':(C.min<420||C.min>=960?'Di luar jam kerja 🌙':'Jam kerja'));ph.style.color=INC.active?'#ef4444':(C.brk?'#fbbf24':EM)
+          const ph=$t('#kphase');ph.textContent=C.brk?'Waktu istirahat ':(INC.active?' Insiden — hotfix!':(C.min<420||C.min>=960?'Di luar jam kerja ':'Jam kerja'));ph.style.color=INC.active?'#ef4444':(C.brk?'#fbbf24':EM)
           $t('#kfill').style.width=clamp((C.min-420)/540*100,0,100)+'%'}
         if(sel!==null){const S=E[sel];v.set(S.x,2,S.z).project(camera);tip.style.opacity=1
           tip.style.transform=`translate(${(v.x*.5+.5)*innerWidth-110}px,${(-v.y*.5+.5)*innerHeight-135}px)`
@@ -890,10 +890,10 @@ export default function KantorCeo3D() {
         frame++})
 
       setLoaded(true)
-      setTimeout(()=>showToast('🌐 luxtradee.web.id LIVE — 7 AI Karyawan + CEO siap kerja'),1500)
+      setTimeout(()=>showToast('luxtradee.web.id LIVE — 7 AI Karyawan + CEO siap kerja'),1500)
       const wibMin=wibNow()
       if(wibMin<435||wibMin>=885)
-        setTimeout(()=>showToast('🌙 '+fmt(wibMin)+' WIB — kantor tutup, karyawan pulang. Karyawan AI tetap kerja otomatis (cron 24/7). Klik "Cepat 1×" untuk simulasi jam kerja.'),4200)
+        setTimeout(()=>showToast(fmt(wibMin)+' WIB — kantor tutup, karyawan pulang. Karyawan AI tetap kerja otomatis (cron 24/7). Klik "Cepat 1×" untuk simulasi jam kerja.'),4200)
 
       /* ---------- cleanup ---------- */
       cleanup=()=>{
@@ -925,18 +925,18 @@ export default function KantorCeo3D() {
       {gate==='denied'&&!devOpen&&(
         <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',zIndex:50,padding:16}}>
           <div style={{...CARD,maxWidth:340,textAlign:'center'}}>
-            <div style={{fontSize:40,marginBottom:8}}>🔒</div>
+            <div style={{fontSize:40,marginBottom:8}}></div>
             <b style={{color:'#0f766e',fontSize:15}}>Ruang CEO Terkunci</b>
             <div style={{marginTop:10,opacity:.85,lineHeight:1.6}}>
               Ruangan ini khusus untuk<br/><b style={{color:'#0f766e'}}>luxtradee@gmail.com</b><br/>
               Login dulu di situs dengan email tersebut, lalu buka halaman ini lagi.
             </div>
-            <a href="/auth/login" style={{display:'inline-block',marginTop:14,...BTN,textDecoration:'none'}}>🔑 Ke Halaman Login</a>
+            <a href="/auth/login" style={{display:'inline-block',marginTop:14,...BTN,textDecoration:'none'}}> Ke Halaman Login</a>
           </div>
         </div>)}
       {gate==='denied'&&devOpen&&(
         <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',zIndex:40,...CARD,fontSize:11.5,color:'#b45309',borderColor:'rgba(217,119,6,.4)'}}>
-          ⚠️ Mode dev — scene terbuka tanpa login. Data API tetap butuh login owner.
+           Mode dev — scene terbuka tanpa login. Data API tetap butuh login owner.
         </div>)}
 
       <div ref={mountRef} style={{position:'absolute',inset:0,overflow:'hidden'}}/>
@@ -947,7 +947,7 @@ export default function KantorCeo3D() {
         </div>)}
       {sceneErr&&(
         <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',...CARD,maxWidth:300}}>
-          ⚠️ Gagal memuat scene 3D: {sceneErr.slice(0,160)}
+           Gagal memuat scene 3D: {sceneErr.slice(0,160)}
         </div>)}
 
       {/* ===== UI SPATIAL — floating pill + glass bottom sheet (RuangCeoDashboard) ===== */}
