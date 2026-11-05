@@ -280,20 +280,51 @@ function pnlLine(p: PnlStats | null | undefined): string {
    Setiap karyawan yang baru menarik kesimpulan MENULISnya di sini;
    prompt karyawan lain memuat catatan terbaru → tim belajar
    bersama (CMO tahu temuan Dewi, COO tahu hasil email CSO, dst).
+
+   MEMORI PRIBADI (baru) — selain memori kantor bersama, SETIAP
+   karyawan punya memori sendiri `mem:agent:<key>` (maks 20 catatan,
+   teks lebih panjang). Prompt tiap karyawan menyuntikkan memori
+   pribadinya → karyawan INGET kerjaan, keputusan & hasilnya sendiri
+   di hari-hari sebelumnya (tidak mulai kerja dari nol setiap cron).
    ============================================================ */
 interface MemEntry { at: string; who: string; text: string }
 
+/* Map penulis → kunci memori pribadi karyawan */
+const WHO_AGENT_KEY: Record<string, string> = {
+  'CMO Sinta': 'cmo', 'CEO Alexander': 'ceo', 'CSO Maya': 'cso', 'CTO Raka': 'cto',
+  'DA Dewi': 'da', 'GH Farhan': 'gh', 'CFO Putri': 'cfo', 'COO Bagas': 'coo',
+  'Maya × Sinta': 'cso',
+}
+const AGENT_MEM_KEYS = ['coo', 'cto', 'cso', 'cmo', 'cfo', 'ceo', 'da', 'gh']
+const AGENT_MEM_MAX = 20
+
 async function memAdd(e: Env, who: string, text: string): Promise<void> {
   try {
+    const clean = String(text).replace(/\s+/g, ' ').trim().slice(0, 190)
     let list: MemEntry[] = []
     try { list = JSON.parse((await kvGet(e, 'mem:list')) || '[]') } catch { /* reset kalau korup */ }
-    list.unshift({ at: new Date().toISOString(), who, text: String(text).replace(/\s+/g, ' ').trim().slice(0, 190) })
+    const entry: MemEntry = { at: new Date().toISOString(), who, text: clean }
+    list.unshift(entry)
     await kvSet(e, 'mem:list', JSON.stringify(list.slice(0, 24))).catch(() => {})
+    /* Dual-write ke memori pribadi karyawan penulis — karyawan ingat kerjaannya sendiri */
+    const ak = WHO_AGENT_KEY[who]
+    if (ak) {
+      const personal: MemEntry = { ...entry, text: String(text).replace(/\s+/g, ' ').trim().slice(0, 240) }
+      let own: MemEntry[] = []
+      try { own = JSON.parse((await kvGet(e, `mem:agent:${ak}`)) || '[]') } catch { /* reset */ }
+      own.unshift(personal)
+      await kvSet(e, `mem:agent:${ak}`, JSON.stringify(own.slice(0, AGENT_MEM_MAX))).catch(() => {})
+    }
   } catch { /* memori opsional — jangan ganggu alur utama */ }
 }
 
 async function memList(e: Env): Promise<MemEntry[]> {
   try { return JSON.parse((await kvGet(e, 'mem:list')) || '[]') as MemEntry[] } catch { return [] }
+}
+
+/* Memori pribadi per karyawan (dipakai kartu detail karyawan & prompt LLM) */
+async function agentMemList(e: Env, agent: string): Promise<MemEntry[]> {
+  try { return JSON.parse((await kvGet(e, `mem:agent:${agent}`)) || '[]') as MemEntry[] } catch { return [] }
 }
 
 /* Blok teks buat prompt LLM — karyawan jadi tahu temuan rekan kerja */
@@ -302,6 +333,15 @@ async function memBlock(e: Env, max = 8): Promise<string> {
   if (!list.length) return ''
   return '\nMEMORI KANTOR (catatan terbaru dari rekan kerja — pertimbangkan ini, JANGAN ulangi kesimpulan yang sama persis):\n' +
     list.slice(0, max).map((m) => `- [${(m.at || '').slice(5, 10)} ${m.who}] ${m.text}`).join('\n')
+}
+
+/* Blok MEMORI PRIBADI buat prompt LLM — karyawan ingat hasil kerjanya
+   sendiri sebelumnya → output baru mengembangkan, bukan mengulang. */
+async function agentMemBlock(e: Env, agent: string, max = 6): Promise<string> {
+  const list = await agentMemList(e, agent)
+  if (!list.length) return ''
+  return `\nMEMORI PRIBADIMU (hasil kerjamu sendiri sebelumnya — JANGAN ulangi output lama; kembangkan, perbaiki, atau bandingkan hasilnya):\n` +
+    list.slice(0, max).map((m) => `- [${(m.at || '').slice(5, 10)}] ${m.text}`).join('\n')
 }
 
 /* ============================================================
@@ -813,6 +853,7 @@ async function cmoAgent(e: Env) {
       : '') +
     (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
     (await memBlock(e)) +
+    (await agentMemBlock(e, 'cmo')) +
     `\nOutput: TEPAT 3 naskah TikTok (hook 3 detik pertama → body → CTA, durasi 30–45 detik per naskah), dipisah baris persis "===DRAF-2===" dan "===DRAF-3===" antar naskah, tanpa penjelasan tambahan.`
 
   /* ═══════ Rantai model SINTA (SOP Multi-Agent) ═══════
@@ -2097,7 +2138,7 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
       prevTalk = `\nHASIL DISKUSI KALIAN SEBELUMNYA (${String(p.at || '').slice(0, 10)}): diagnosis "${String(p.diagnosis).slice(0, 200)}"${Array.isArray(p.reasons) && p.reasons.length ? ' — alasan: ' + p.reasons.slice(0, 3).join('; ') : ''}`
   } catch { /* ignore */ }
 
-  const userPrompt = `${intelText}${prevTalk}${await memBlock(e)}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
+  const userPrompt = `${intelText}${prevTalk}${await memBlock(e)}${await agentMemBlock(e, 'cso')}\nTanggal: ${wibNow()}. Buat dialog + skrip sekarang.`
 
   let provider: CsoCmoTalk['provider'] = 'fallback'
   let parsed: Omit<CsoCmoTalk, 'at' | 'provider' | 'intel' | 'raw'> | null = null
@@ -2300,7 +2341,7 @@ async function analystAgent(e: Env): Promise<DaInsight> {
   let raw = ''
   try {
     /* SOP Multi-Agent — DEWI (DA) analisis pakai modelnya sendiri → Gemini cadangan */
-    const brain = await agentBrain(e, 'da', systemPrompt, dataText + prev + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.5)
+    const brain = await agentBrain(e, 'da', systemPrompt, dataText + prev + (await memBlock(e)) + (await agentMemBlock(e, 'da')) + `\nTanggal: ${wibNow()}`, 1024, 0.5)
     raw = brain.text
     provider = brain.provider
   } catch { raw = '' }
@@ -2440,7 +2481,7 @@ async function growthAgent(e: Env): Promise<GhInsight> {
   let raw = ''
   try {
     /* SOP Multi-Agent — FARHAN (GH) rancang eksperimen pakai modelnya sendiri → Gemini cadangan */
-    const brain = await agentBrain(e, 'gh', systemPrompt, funnelText + abLine + daLine + (await memBlock(e)) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
+    const brain = await agentBrain(e, 'gh', systemPrompt, funnelText + abLine + daLine + (await memBlock(e)) + (await agentMemBlock(e, 'gh')) + `\nTanggal: ${wibNow()}`, 1024, 0.6)
     raw = brain.text
     provider = brain.provider
   } catch { raw = '' }
@@ -2497,7 +2538,7 @@ async function nextBestAction(e: Env, briefingText: string): Promise<string> {
     const brain = await agentBrain(
       e, 'ceo',
       'Kamu wakil CEO Luxtradee (jurnal trading XAUUSD). Dari briefing pagi di bawah, tentukan SATU aksi prioritas tertinggi yang Bos harus kerjakan HARI INI — yang paling berdampak ke pertumbuhan atau paling urgent, dan HANYA Bos yang bisa (bukan yang bisa dikerjakan karyawan AI). LIHAT MEMORI KANTOR: jangan pilih prioritas yang mirip dengan yang sudah dipilih hari-hari sebelumnya kecuali benar-benar masih paling penting. Format jawaban HANYA: "🎯 <aksi konkret> — <alasan 1 kalimat>". Maks 200 karakter, bahasa Indonesia.',
-      briefingText.slice(0, 1600) + (await memBlock(e, 5)), 200, 0.4,
+      briefingText.slice(0, 1600) + (await memBlock(e, 5)) + (await agentMemBlock(e, 'ceo', 5)), 200, 0.4,
     )
     const nba = brain.text
     const text = nba.split('\n').filter((s) => s.trim()).slice(0, 2).join(' ').trim().slice(0, 300)
@@ -2629,7 +2670,7 @@ async function handle(req: Request): Promise<Response> {
   if (action !== 'info' && !(isCron || isAdmin || isOwner || noSecrets))
     return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
-  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'mem-last' && action !== 'analyst-last' && action !== 'growth-last') {
+  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'mem-last' && action !== 'mem-agent' && action !== 'analyst-last' && action !== 'growth-last') {
     const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(k => (k === 'SUPABASE_URL' && !sbUrl(e)) || (k === 'SUPABASE_ANON_KEY' && !sbAnonKey(e)))
     if (missing.length) return j({ error: 'ENV belum diset: ' + missing.join(', ') }, 500)
   }
@@ -2717,8 +2758,19 @@ async function handle(req: Request): Promise<Response> {
       await t('openrouter', async () => orDiag(e))
       return j(out)
     }
-    case 'quota':
-      return j(await cfoAgent(e))
+    case 'quota': {
+      const q = await cfoAgent(e)
+      /* Memori pribadi CFO — sekali per WIB-day (bukan tiap refresh panel):
+         Putri ingat angka kuota & pendapatan yang terakhir dia laporkan. */
+      try {
+        const mk = `cfo:mem:${wibDay()}`
+        if (!(await kvGet(e, mk))) {
+          await kvSet(e, mk, new Date().toISOString()).catch(() => {})
+          await memAdd(e, 'CFO Putri', `Kuota hari ini ${Number(q?.usedToday ?? 0)}/${Number(q?.limit ?? 0)} vision, email ${Number(q?.emailToday ?? 0)}/${Number(q?.emailLimit ?? 0)}, status ${String(q?.status || '-').slice(0, 24)}, est MRR Rp${Number(q?.estMRR || 0).toLocaleString('id-ID')} (${Number(q?.proCount ?? 0)} user PRO)`)
+        }
+      } catch { /* memori opsional */ }
+      return j(q)
+    }
     case 'quota-track': {
       const limit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
       const k = `quota:${wibDay()}`
@@ -3001,9 +3053,17 @@ async function handle(req: Request): Promise<Response> {
       } catch { return j({ talk: null }) }
     }
     case 'mem-last': {
-      // 🧠 Memori Kantor — catatan kesimpulan bersama semua karyawan AI
+      // Memori Kantor — catatan kesimpulan bersama semua karyawan AI
       // (Ruang Rapat). Tanpa ENV check — memori opsional, selalu aman.
       try { return j({ mem: await memList(e) }) } catch { return j({ mem: [] }) }
+    }
+    case 'mem-agent': {
+      // Memori PRIBADI per karyawan — kartu detail karyawan (Ruang Struktur)
+      // membaca riwayat kerja si karyawan. Tanpa ENV check — opsional, aman.
+      const raw = String(url.searchParams.get('agent') || '').toLowerCase().trim()
+      if (!AGENT_MEM_KEYS.includes(raw))
+        return j({ error: 'parameter agent wajib salah satu dari: ' + AGENT_MEM_KEYS.join(', ') }, 400)
+      try { return j({ agent: raw, mem: await agentMemList(e, raw) }) } catch { return j({ agent: raw, mem: [] }) }
     }
     case 'analyst': {
       // Dewi (Data Analyst) — analisis trades 30 hari → insight + rekomendasi.

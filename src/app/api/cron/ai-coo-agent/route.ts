@@ -528,6 +528,23 @@ async function handleRequest(request: NextRequest) {
     console.error('[ai-coo-agent] Follow-up pass gagal (non-fatal):', err?.message)
   }
 
+  // 5c. Memori pribadi Bagas — COO ingat lead yang dia buru & draf yang dia
+  //     buat hari ini (dibaca lagi di run berikutnya → tidak buru lead sama).
+  try {
+    const memKey = 'mem:agent:coo'
+    let own: Array<{ at: string; who: string; text: string }> = []
+    try { own = JSON.parse((await kvAgentGet(admin, memKey)) || '[]') } catch { /* reset */ }
+    const provSet = [...new Set(drafts.map(d => d.draft.provider))].join(', ') || 'template'
+    own.unshift({
+      at: new Date().toISOString(),
+      who: 'COO Bagas',
+      text: `Buru ${drafts.length} hot lead (maks ${MAX_LEADS_PER_RUN}/run, anti-spam 7 hari): ${drafts.map(d => `${d.lead.fullName || d.lead.email} (${d.lead.trades7d} trades/7hr)`).slice(0, 5).join(', ')}${drafts.length > 5 ? `, +${drafts.length - 5} lain` : ''} — draf via ${provSet}${followups.length ? `; ${followups.length} follow-up lead buka-email` : ''}`,
+    })
+    await kvAgentSet(admin, memKey, JSON.stringify(own.slice(0, 20)))
+  } catch (err: unknown) {
+    console.error('[ai-coo-agent] Memori Bagas gagal (non-fatal):', err instanceof Error ? err.message : err)
+  }
+
   // 6. Notif admin ke Bos (Discord) — draf jualan + follow-up nunggu ACC
   const draftList = drafts
     .map(d => `• ${d.lead.fullName || d.lead.email} (${d.lead.trades7d} trades/7hr) → "${d.draft.subject}"`)
