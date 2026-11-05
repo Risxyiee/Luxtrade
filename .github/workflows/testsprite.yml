@@ -44,7 +44,7 @@ jobs:
           npx -y @anthropic-ai/claude-code@latest \
             -p "Use the TestSprite MCP tool to run a full visual test on $TEST_URL. Report all errors, broken elements, and visual issues found." \
             --mcp-config mcp_config.json \
-            --output-format json 2>&1 | tee testsprite-results.json || true
+            --output-format json 2>&1 | tee testsprite-results.json
 
           echo ""
           echo "========================================"
