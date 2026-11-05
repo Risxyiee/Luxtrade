@@ -23,8 +23,6 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
 import { pushToUser } from '@/lib/push-notify'
-import { ensureDefaultScript, DEFAULT_PINE_SOURCE } from '@/lib/pine-default-script'
-import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME } from '@/lib/pine-default-meta'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -50,43 +48,32 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 2) BODY — scriptId boleh UUID skrip ATAU slug default
-       "impulsive-breakout-xauusd" (fix: chip default dengan id slug
-       sebelumnya ditolak 400 → tes alert Pine tidak pernah sampai
-       ke notifikasi bila daftar skrip dari DB gagal). */
+    /* 2) BODY — scriptId = UUID. scriptKind memilih sumber skrip:
+       'protected' (default) / 'pine' (Pine milik user sendiri).
+       FIX 2026-11-05: Pine default dihapus — slug default tidak
+       lagi diterima; tiap user pakai Pine buatannya sendiri. */
     const body = await request.json().catch(() => null) as
-      { scriptId?: string; symbol?: string; timeframe?: string; interval?: string } | null
+      { scriptId?: string; scriptKind?: string; symbol?: string; timeframe?: string; interval?: string } | null
     const scriptIdRaw = String(body?.scriptId || '').trim()
-    const isDefaultSlug = scriptIdRaw === DEFAULT_PINE_SLUG
-    if (!UUID_RE.test(scriptIdRaw) && !isDefaultSlug) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
+    const kind = body?.scriptKind === 'pine' ? 'pine' : 'protected'
+    if (!UUID_RE.test(scriptIdRaw)) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
     const symbol = sanitizeSymbol(String(body?.symbol || ''))
     if (symbol.length < 3) return NextResponse.json({ error: 'Simbol tidak valid — contoh: XAUUSD, BTCUSDT, US100' }, { status: 400 })
     const interval = normalizePineInterval(String(body?.timeframe || body?.interval || '1h'))
 
-    /* 3) MUAT SKRIP (service role — source tetap di server)
-       Slug default → ensureDefaultScript() (auto-seed, dapat UUID);
-       bila Supabase sedang tidak terjangkau, pakai baris sintetis
-       dari kode — replika TS default TIDAK butuh DB untuk jalan. */
+    /* 3) MUAT SKRIP (service role — source tetap di server) */
     const supabase = getSupabaseAdmin()
     if (!supabase) return NextResponse.json({ error: 'Server belum terhubung Supabase (service role)' }, { status: 500 })
     let script: RunnerScript | null = null
-    if (isDefaultSlug) {
-      const seeded = await ensureDefaultScript().catch(() => null)
-      if (seeded?.id) {
-        const { data } = await supabase
-          .from('protected_scripts')
-          .select('id, slug, name, source, alert_rules')
-          .eq('id', seeded.id)
-          .eq('is_active', true)
-          .maybeSingle()
-        if (data) script = data as RunnerScript
-      }
-      if (!script) {
-        script = {
-          id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG, name: DEFAULT_PINE_NAME,
-          source: DEFAULT_PINE_SOURCE, alert_rules: [],
-        }
-      }
+    if (kind === 'pine') {
+      const { data, error: pErr } = await supabase
+        .from('pine_scripts')
+        .select('id, name, source')
+        .eq('id', scriptIdRaw)
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (pErr || !data) return NextResponse.json({ error: 'Skrip Pine tidak ditemukan / bukan milikmu' }, { status: 404 })
+      script = { id: data.id, name: data.name, source: data.source, alert_rules: null }
     } else {
       const { data, error: sErr } = await supabase
         .from('protected_scripts')

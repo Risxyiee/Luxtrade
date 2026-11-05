@@ -20,8 +20,6 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
 import { normalizePineInterval, sanitizeSymbol } from '@/lib/pine-alert-runner'
-import { ensureDefaultScript } from '@/lib/pine-default-script'
-import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +46,7 @@ export async function GET(request: NextRequest) {
     const [subsRes, isPro] = await Promise.all([
       supabase
         .from('pine_alert_subscriptions')
-        .select('id, script_id, symbol, timeframe, enabled, created_at, protected_scripts(name)')
+        .select('id, script_id, script_kind, symbol, timeframe, enabled, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50),
@@ -62,10 +60,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 500 })
     }
 
-    const subscriptions = (subsRes.data || []).map((r: any) => ({
+    /* Nama skrip di-resolve dari DUA tabel (kind 'protected' →
+       protected_scripts, kind 'pine' → pine_scripts milik user).
+       FIX 2026-11-05: sebelumnya hanya join protected_scripts →
+       langganan Pine buatan sendiri tampil tanpa nama. */
+    const rows = subsRes.data || []
+    const protectedIds = rows.filter((r: any) => (r.script_kind || 'protected') === 'protected').map((r: any) => r.script_id)
+    const pineIds = rows.filter((r: any) => r.script_kind === 'pine').map((r: any) => r.script_id)
+    const nameMaps = await Promise.all([
+      protectedIds.length
+        ? supabase.from('protected_scripts').select('id, name').in('id', protectedIds)
+        : Promise.resolve({ data: [] as any[] | null }),
+      pineIds.length
+        ? supabase.from('pine_scripts').select('id, name').in('id', pineIds)
+        : Promise.resolve({ data: [] as any[] | null }),
+    ])
+    const nameOf = new Map<string, string>()
+    for (const res of nameMaps) for (const r of (res.data || []) as any[]) nameOf.set(r.id, r.name)
+
+    const subscriptions = rows.map((r: any) => ({
       id: r.id,
       scriptId: r.script_id,
-      scriptName: r.protected_scripts?.name || 'Script',
+      scriptKind: r.script_kind || 'protected',
+      scriptName: nameOf.get(r.script_id) || 'Script',
       symbol: r.symbol,
       interval: r.timeframe,
       enabled: r.enabled === true,
@@ -98,13 +115,16 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    /* 2) BODY — scriptId boleh UUID ATAU slug default (auto-resolve ke
-       UUID via ensureDefaultScript — kolom script_id butuh baris skrip). */
+    /* 2) BODY — scriptId harus UUID. scriptKind memilih tabel sumber:
+       'protected' (default) → protected_scripts (skrip eksklusif),
+       'pine' → pine_scripts MILIK USER SENDIRI (cek ownership!).
+       FIX 2026-11-05: Pine default dihapus — slug default tidak
+       lagi di-seed/di-resolve; tiap user pakai Pine buatannya. */
     const body = await request.json().catch(() => null) as
-      { scriptId?: string; symbol?: string; timeframe?: string; interval?: string; enabled?: boolean } | null
-    let scriptId = String(body?.scriptId || '').trim()
-    const isDefaultSlug = scriptId === DEFAULT_PINE_SLUG
-    if (!UUID_RE.test(scriptId) && !isDefaultSlug) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
+      { scriptId?: string; scriptKind?: string; symbol?: string; timeframe?: string; interval?: string; enabled?: boolean } | null
+    const scriptId = String(body?.scriptId || '').trim()
+    const kind = body?.scriptKind === 'pine' ? 'pine' : 'protected'
+    if (!UUID_RE.test(scriptId)) return NextResponse.json({ error: 'scriptId tidak valid' }, { status: 400 })
 
     const symbol = sanitizeSymbol(String(body?.symbol || ''))
     if (symbol.length < 3) return NextResponse.json({ error: 'Simbol tidak valid — contoh: XAUUSD, BTCUSDT, US100' }, { status: 400 })
@@ -112,27 +132,37 @@ export async function POST(request: NextRequest) {
     const timeframe = normalizePineInterval(String(body?.timeframe || body?.interval || '1h'))
     const enabled = body?.enabled !== false // default aktif
 
-    /* 3) SKRIP HARUS ADA & AKTIF (source tak pernah dikirim ke client)
-       Slug default → auto-seed dulu supaya FK script_id valid. */
+    /* 3) SKRIP HARUS ADA & MILIK USER (utk kind 'pine') / AKTIF (protected).
+       Source tak pernah dikirim ke client. */
     const supabase = admin()
-    if (isDefaultSlug) {
-      const seeded = await ensureDefaultScript().catch(() => null)
-      if (seeded?.id) scriptId = seeded.id
-      else return NextResponse.json({ error: 'Skrip default belum ter-seed di database — coba lagi sebentar (Supabase sedang tidak terjangkau).' }, { status: 503 })
+    let scriptName = 'Script'
+    if (kind === 'pine') {
+      const { data: pineRow, error: pineErr } = await supabase
+        .from('pine_scripts')
+        .select('id, name')
+        .eq('id', scriptId)
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (pineErr || !pineRow) return NextResponse.json({ error: 'Skrip Pine tidak ditemukan / bukan milikmu' }, { status: 404 })
+      scriptName = pineRow.name
+    } else {
+      const { data: script, error: sErr } = await supabase
+        .from('protected_scripts')
+        .select('id, name')
+        .eq('id', scriptId)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (sErr || !script) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
+      scriptName = script.name
     }
-    const { data: script, error: sErr } = await supabase
-      .from('protected_scripts')
-      .select('id, name')
-      .eq('id', scriptId)
-      .eq('is_active', true)
-      .maybeSingle()
-    if (sErr || !script) return NextResponse.json({ error: 'Skrip terproteksi tidak ditemukan / tidak aktif' }, { status: 404 })
 
-    /* 4) UPSERT — toggle = update baris yang sama (unique index) */
+    /* 4) UPSERT — toggle = update baris yang sama (unique index).
+       FK lama script_id → protected_scripts sudah dilepas oleh
+       docs/PINE_ALERT_PINE_SCRIPTS.sql supaya UUID pine_scripts lolos. */
     const { data, error } = await supabase
       .from('pine_alert_subscriptions')
       .upsert(
-        { user_id: userId, script_id: scriptId, symbol, timeframe, enabled, updated_at: new Date().toISOString() },
+        { user_id: userId, script_id: scriptId, script_kind: kind, symbol, timeframe, enabled, updated_at: new Date().toISOString() },
         { onConflict: 'user_id,script_id,symbol,timeframe' },
       )
       .select('id, symbol, timeframe, enabled')
@@ -140,13 +170,16 @@ export async function POST(request: NextRequest) {
     if (error) {
       const msg = /pine_alert_subscriptions/i.test(error.message)
         ? 'Tabel pine_alert_subscriptions belum ada — jalankan docs/PINE_ALERT_SUBSCRIPTIONS.sql di Supabase SQL Editor'
-        : error.message.slice(0, 140)
+        : error.code === '23503'
+          ? 'Migrasi database belum dijalankan — jalankan docs/PINE_ALERT_PINE_SCRIPTS.sql di Supabase SQL Editor (sekitar 10 detik)'
+          : error.message.slice(0, 140)
       return NextResponse.json({ error: msg }, { status: 500 })
     }
 
     return NextResponse.json({
       ok: true,
-      scriptName: script.name,
+      scriptName,
+      scriptKind: kind,
       subscription: { id: data.id, scriptId, symbol: data.symbol, interval: data.timeframe, enabled: data.enabled },
     })
   } catch (x: any) {
