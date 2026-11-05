@@ -56,13 +56,29 @@ const HEADER_KEYWORDS = [
 ]
 
 // ==================== HELPER: ANGKA ====================
-// Toleran format Eropa (1.234,56) & US (1,234.56)
+// Toleran format Eropa (1.234,56) & US (1,234.56) + grup ribuan
+// ber-spasi/nbsp/apostrof (1 234,56 / 1'234.56) + multi-titik
+// ribuan (1.234.567). FIX 2026-11-05 (laporan Bos: profit $40
+// terbaca $4000): dulu titik-ganda & spasi di-strip buta —
+// "1.234.567" jadi 1.234 dan "40 000" jadi 40000 salah arah.
 export function parseNum(raw: string | undefined | null): number | null {
   if (!raw) return null
-  const cleaned = raw.replace(/[^0-9.,+\-]/g, '').trim()
-  if (!cleaned || cleaned === '-' || cleaned === '+') return null
+  // NBSP/thin-space/apostrof = pemisah ribuan gaya lokal → spasi biasa
+  let s = String(raw).replace(/[\u00A0\u202F\u2009']/g, ' ')
+  s = s.replace(/[^0-9.,+\- ]/g, '').trim()
+  if (!s || s === '-' || s === '+') return null
+  if (!/\d/.test(s)) return null
+
+  /* Grup ribuan ber-spasi: "1 234 567,89" / "40 000" — kelompok
+     PAS 3 digit setelah digit pertama; kalau polanya cocok, spasi
+     adalah separator ribuan (bukan sampah) → buang semua spasi. */
+  if (/^\+?\d{1,3}( \d{3})+(?=[.,]|$)/.test(s)) s = s.replace(/ /g, '')
+  else s = s.replace(/ /g, '') // spasi bukan pola ribuan → sampah
+
+  const cleaned = s
   let normalized = cleaned
   if (cleaned.includes(',') && cleaned.includes('.')) {
+    // Ada koma DAN titik → yang paling kanan = desimal
     normalized = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
       ? cleaned.replace(/\./g, '').replace(',', '.')
       : cleaned.replace(/,/g, '')
@@ -72,6 +88,9 @@ export function parseNum(raw: string | undefined | null): number | null {
     normalized = parts.length === 2 && parts[1].length === 3
       ? cleaned.replace(/,/g, '')
       : cleaned.replace(/,/g, '.')
+  } else if ((cleaned.match(/\./g) || []).length >= 2) {
+    // FIX: multi-titik tanpa koma = separator ribuan ("1.234.567" → 1234567)
+    normalized = cleaned.replace(/\./g, '')
   }
   const n = parseFloat(normalized)
   return isNaN(n) ? null : n

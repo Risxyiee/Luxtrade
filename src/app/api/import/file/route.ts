@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import pdf from 'pdf-parse-fixed'
 import { edgeCrypto } from '@/lib/edge-crypto'
-import { parseTradesFromCsv } from '@/lib/trade-csv-parser'
+import { parseTradesFromCsv, parseNum } from '@/lib/trade-csv-parser'
 
 // ==================== TYPES ====================
 interface ParsedTrade {
@@ -194,33 +194,55 @@ function parseTradeRow(cells: string[]): ParsedTrade | null {
     type = 'SELL'
   }
   
-  // Extract numbers
+  // Extract numbers — FIX 2026-11-05 (laporan Bos: profit $40 terbaca
+  // $4000): dulu regex `/\d{1,3}[.,]\d{0,5}/` + `replace(',','.')` buta
+  // format ("4000.00" terpotong, "1.234,56" salah). Sekarang per-SEL
+  // pakai parseNum bersama: sel berisi angka murni → parse utuh; sel
+  // campuran → scan per-token lalu parseNum.
   const numbers: { value: number; raw: string }[] = []
   for (const cell of cells) {
-    const numMatches = cell.matchAll(/[-+]?\d{1,3}[.,]\d{0,5}/g)
-    for (const match of numMatches) {
-      const raw = match[0]
-      const value = parseFloat(raw.replace(',', '.'))
-      if (!isNaN(value) && value !== 0) {
-        numbers.push({ value, raw })
-      }
+    const t = cell.trim()
+    if (/^[^A-Za-z]{1,24}$/.test(t) && /\d/.test(t)) {
+      const whole = parseNum(t)
+      if (whole !== null && whole !== 0) { numbers.push({ value: whole, raw: t }); continue }
+    }
+    for (const match of t.matchAll(/[-+]?\d[\d.,\u00A0\u202F' ]*/g)) {
+      const value = parseNum(match[0])
+      if (value !== null && value !== 0) numbers.push({ value, raw: match[0].trim() })
     }
   }
   
   if (numbers.length < 2) return null
   
-  // Find profit (usually last or with sign)
+  // Find profit — FIX 2026-11-05: dulu "angka TERAKHIR = profit" →
+  // profit positif (tanpa tanda) bikin yang keambil BALANCE ($4000
+  // bukan $40). Urutan baru:
+  //   1. Sel berlabel "profit / p/l / pnl" (nilai di sel tetangganya)
+  //   2. Angka bertanda +/- (export MT5 selalu bertanda utk loss)
+  //   3. Angka terakhir (fallback terakhir)
   let profitLoss = 0
-  for (let i = numbers.length - 1; i >= 0; i--) {
-    const num = numbers[i]
-    if (num.raw.startsWith('-') || num.raw.startsWith('+')) {
-      profitLoss = num.value
-      break
+  const isProfitLabel = (t: string) => /profit|p\/l|pnl/i.test(t)
+  for (let i = 0; i < cells.length; i++) {
+    if (!isProfitLabel(cells[i])) continue
+    for (const off of [1, -1, 2]) {
+      const c = String(cells[i + off] ?? '').trim()
+      if (!c || /[A-Za-z]{3,}/.test(c)) continue // sel bukan angka
+      const v = parseNum(c)
+      if (v !== null && v !== 0 && Math.abs(v) < 1e7) { profitLoss = v; break }
+    }
+    if (profitLoss !== 0) break
+  }
+  if (profitLoss === 0) {
+    for (let i = numbers.length - 1; i >= 0; i--) {
+      const num = numbers[i]
+      if (/^[-+]/.test(num.raw)) {
+        profitLoss = num.value
+        break
+      }
     }
   }
   
   if (profitLoss === 0) {
-    // Use last number as profit
     profitLoss = numbers[numbers.length - 1]?.value || 0
   }
   
@@ -291,23 +313,24 @@ function parseTextTrades(text: string): ParsedTrade[] {
     // Find type
     const type: 'BUY' | 'SELL' = upperLine.includes('SELL') ? 'SELL' : 'BUY'
     
-    // Extract numbers
-    const numMatches = line.matchAll(/[-+]?\d{1,3}[.,]\d{0,5}/g)
-    const numbers: number[] = []
-    for (const match of numMatches) {
-      const value = parseFloat(match[0].replace(',', '.'))
-      if (!isNaN(value)) {
-        numbers.push(value)
-      }
+    // Extract numbers — FIX 2026-11-05: parseNum bersama (anti salah format)
+    const numbers: { value: number; raw: string }[] = []
+    for (const match of line.matchAll(/[-+]?\d[\d.,\u00A0\u202F' ]*/g)) {
+      const value = parseNum(match[0])
+      if (value !== null && value !== 0) numbers.push({ value, raw: match[0].trim() })
     }
     
     if (numbers.length < 2) continue
     
-    // Simple assignment
-    const lotSize = numbers.find(n => n > 0 && n < 100) || 0.1
-    const profitLoss = numbers[numbers.length - 1] || 0
-    const openPrice = numbers.find(n => n > 100) || numbers[0] || 0
-    const closePrice = numbers.find(n => n > 100 && n !== openPrice) || openPrice
+    // Simple assignment (profit: tanda dulu, baru angka terakhir)
+    let profitLoss = 0
+    for (let i = numbers.length - 1; i >= 0; i--) {
+      if (/^[-+]/.test(numbers[i].raw)) { profitLoss = numbers[i].value; break }
+    }
+    if (profitLoss === 0) profitLoss = numbers[numbers.length - 1]?.value || 0
+    const lotSize = numbers.find(n => n.value > 0 && n.value < 100)?.value || 0.1
+    const openPrice = numbers.find(n => n.value > 100)?.value || numbers[0]?.value || 0
+    const closePrice = numbers.find(n => n.value > 100 && n.value !== openPrice)?.value || openPrice
     
     trades.push({
       symbol,
