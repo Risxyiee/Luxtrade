@@ -84,7 +84,7 @@ const FREE_INDICATOR_LIMIT = 1
 const PROTECTED_TYPE = 'luxtradee-protected'
 
 interface ProtectedPlot { key: string; title: string; color: string; data: Array<{ time: number; value: number | null }> }
-interface ProtectedScriptMeta { id: string; slug: string; name: string; description: string | null }
+interface ProtectedScriptMeta { id: string; slug?: string; name: string; description: string | null; kind?: 'protected' | 'pine' }
 /* Trade strategy (server) — bahan visual chart ala line.new/label.new
    Pine Bos: garis entry→exit dotted hijau/merah + label TP/SL + panah
    entry ala Strategy Tester TradingView. time dalam ms. */
@@ -432,7 +432,7 @@ interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
 
 /* ---------- Alert otomatis Pine (Task 44 — klik 🔔 aktif 24 jam) ---------- */
-interface AlertSubRow { id: string; scriptId: string; scriptName: string; symbol: string; interval: string; enabled: boolean }
+interface AlertSubRow { id: string; scriptId: string; scriptName: string; scriptKind?: 'protected' | 'pine'; symbol: string; interval: string; enabled: boolean }
 const ALERT_TFS: Array<{ v: string; label: string }> = [
   { v: '5m', label: '5 Menit' }, { v: '15m', label: '15 Menit' }, { v: '30m', label: '30 Menit' },
   { v: '1h', label: '1 Jam' }, { v: '2h', label: '2 Jam' }, { v: '4h', label: '4 Jam' },
@@ -655,7 +655,7 @@ export default function VelaChartTerminal({
       const r = await fetch('/api/pine/alerts', { cache: 'no-store' })
       if (!r.ok) return
       const j: any = await r.json()
-      setAlertSubs(Array.isArray(j?.subscriptions) ? j.subscriptions : [])
+      setAlertSubs((Array.isArray(j?.subscriptions) ? j.subscriptions : []).map((x: any) => ({ ...x, scriptKind: x.scriptKind === 'pine' ? 'pine' : 'protected' })))
       if (typeof j?.isPro === 'boolean') setProtectedIsPro(j.isPro)
     } catch { /* belum login — dot bell cukup kosong */ }
   }, [])
@@ -751,18 +751,18 @@ export default function VelaChartTerminal({
              pasang dobel: satu saja cukup */
           const defMeta = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG)
           const defKeys = new Set<string>([DEFAULT_PINE_SLUG, ...(defMeta ? [defMeta.id] : [])])
-          /* kunci = id ATAU slug (default auto-load pakai slug).
-             Bila daftar skrip TIDAK tersedia (belum login / API gagal),
-             id UUID lain JANGAN di-restore — tanpa daftar kita tak bisa
-             membedakan UUID default sesi lama dari skrip Pro sungguhan
-             (dahulu menghasilkan instance "LTX Pro" dobel di legend). */
-          const keys = new Set<string>([DEFAULT_PINE_SLUG])
+          /* kunci = id skrip yang tersimpan saja. FIX 2026-11-05: Pine
+             DEFAULT TIDAK di-auto-load lagi (dihapus dari UI) — restore
+             hanya skrip eksklusif yang dulu diaktifkan user. */
+          const keys = new Set<string>()
           for (const id of stored?.protected || []) {
-            if (!defMeta && String(id) !== DEFAULT_PINE_SLUG) continue
+            if (defKeys.has(String(id))) continue // jangan restore default
+            if (!defMeta) continue // tanpa daftar API, UUID lama tak terverifikasi → skip
             keys.add(String(id))
           }
           for (const s of protectedScripts) {
-            if ((stored?.protected || []).includes(s.id) || s.slug === DEFAULT_PINE_SLUG) keys.add(s.id)
+            if (defKeys.has(s.id) || s.slug === DEFAULT_PINE_SLUG) continue
+            if ((stored?.protected || []).includes(s.id)) keys.add(s.id)
           }
           /* baca scriptId instance yang SUDAH ada di chart (persist Vela) */
           const have = new Set<string>()
@@ -995,14 +995,14 @@ export default function VelaChartTerminal({
     loadAlertSubs()
   }, [loadAlertSubs])
 
-  const saveAlertSub = useCallback(async (opts: { scriptId: string; symbol: string; interval: string; enabled: boolean; withTest?: boolean }) => {
+  const saveAlertSub = useCallback(async (opts: { scriptId: string; symbol: string; interval: string; enabled: boolean; withTest?: boolean; scriptKind?: 'protected' | 'pine' }) => {
     setAlertSaving(true)
     setAlertDlgMsg(null)
     try {
       const res = await fetch('/api/pine/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptId: opts.scriptId, symbol: opts.symbol.trim(), timeframe: opts.interval, enabled: opts.enabled }),
+        body: JSON.stringify({ scriptId: opts.scriptId, scriptKind: opts.scriptKind || 'protected', symbol: opts.symbol.trim(), timeframe: opts.interval, enabled: opts.enabled }),
       })
       const j: any = await res.json().catch(() => null)
       if (res.status === 403) { setAlertDialog(null); setUpgradeMsg(String(j?.error || 'Alert otomatis khusus member Pro.')); return }
@@ -1017,7 +1017,7 @@ export default function VelaChartTerminal({
       const t = await fetch('/api/pine/alerts/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptId: opts.scriptId, symbol: opts.symbol.trim(), timeframe: opts.interval }),
+        body: JSON.stringify({ scriptId: opts.scriptId, scriptKind: opts.scriptKind || 'protected', symbol: opts.symbol.trim(), timeframe: opts.interval }),
       })
       const tj: any = await t.json().catch(() => null)
       if (!t.ok) {
@@ -1043,7 +1043,7 @@ export default function VelaChartTerminal({
       const t = await fetch('/api/pine/alerts/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptId: sub.scriptId, symbol: sub.symbol, timeframe: sub.interval }),
+        body: JSON.stringify({ scriptId: sub.scriptId, scriptKind: sub.scriptKind || 'protected', symbol: sub.symbol, timeframe: sub.interval }),
       })
       const tj: any = await t.json().catch(() => null)
       if (!t.ok) { setAlertDlgMsg({ kind: 'err', text: String(tj?.error || `HTTP ${t.status}`) }); return }
@@ -1149,15 +1149,11 @@ export default function VelaChartTerminal({
      disertakan — bila daftar API belum datang/gagal, fallback meta
      dari kode dipakai (id = slug; server compile-pine menerima dua-duanya). */
   const visibleProtected = useMemo<ProtectedScriptMeta[]>(() => {
-    const rest = protectedScripts.filter((s) => s.slug !== DEFAULT_PINE_SLUG && s.id !== DEFAULT_PINE_SLUG)
-    /* Chip default SELALU ada di urutan pertama — pakai baris DB (id
-       UUID) bila tersedia; kalau belum, fallback meta dari kode
-       (id = slug — server compile-pine & alerts menerima dua-duanya). */
-    const dbDefault = protectedScripts.find((s) => s.slug === DEFAULT_PINE_SLUG || s.id === DEFAULT_PINE_SLUG)
-    const def: ProtectedScriptMeta = dbDefault || {
-      id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG, name: DEFAULT_PINE_NAME, description: DEFAULT_PINE_DESCRIPTION,
-    }
-    return [def, ...rest]
+    /* FIX 2026-11-05 (permintaan Bos): Pine DEFAULT DIHAPUS dari daftar
+       — tidak ada lagi chip "Luxtradee Candle Impulsif". Tiap user
+       menambahkan Pine miliknya sendiri via editor (bell 🔔 di daftar
+       "Skrip tersimpan"). Skrip eksklusif lain tetap tampil. */
+    return protectedScripts.filter((s) => s.slug !== DEFAULT_PINE_SLUG && s.id !== DEFAULT_PINE_SLUG)
   }, [protectedScripts])
 
   const addProtected = useCallback(async (s: ProtectedScriptMeta) => {
@@ -1406,21 +1402,38 @@ export default function VelaChartTerminal({
                 <div className="min-h-0 overflow-y-auto kscroll space-y-1">
                   <div className="text-[10px] text-white/40 uppercase tracking-wider">Skrip tersimpan</div>
                   {pineScripts.map((s) => (
-                    <button key={s.id} onClick={async () => {
-                      /* KLIK = LANGSUNG JALAN di chart (fix Bos: "kalau
-                         user klik pineku keluar di chart") — dulu hanya
-                         mengisi editor, user harus klik Save lagi. */
-                      setPineName(s.name); setPineSource(s.source)
-                      const err = await runOnChart(s.source)
-                      setPineMsg(err
-                        ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }
-                        : { kind: 'ok', text: `▶ ${s.name} tampil di chart.` })
-                    }}
-                      className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate"
-                      title={`Klik untuk menjalankan "${s.name}" di chart`}
-                      aria-label={`Jalankan ${s.name} di chart`}>
-                      ▶ {s.name}
-                    </button>
+                    <div key={s.id} className="flex items-stretch gap-1">
+                      <button onClick={async () => {
+                        /* ▶ kecil = jalankan di chart (perilaku lama dipindah
+                           ke tombol ini supaya klik NAMA kini membuka alert —
+                           permintaan Bos 2026-11-05: "klik nama pinenya ada
+                           tambahkan alert". */
+                        setPineName(s.name); setPineSource(s.source)
+                        const err = await runOnChart(s.source)
+                        setPineMsg(err
+                          ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }
+                          : { kind: 'ok', text: `▶ ${s.name} tampil di chart.` })
+                      }}
+                        className="px-2 rounded-l-lg border border-r-0 border-white/5 bg-white/5 hover:bg-white/10 text-white/50"
+                        title={`Jalankan "${s.name}" di chart`}
+                        aria-label={`Jalankan ${s.name} di chart`}>
+                        ▶
+                      </button>
+                      <button onClick={() => {
+                        /* KLIK NAMA = TAMBAH ALERT (permintaan Bos):
+                           alert otomatis = Pro → free lihat paywall. */
+                        if (!protectedIsPro) {
+                          setUpgradeMsg(`🔔 Alert otomatis sinyal "${s.name}" ke layar HP (push notification) adalah fitur PRO. Skrip kamu tetap bisa dijalankan di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
+                          return
+                        }
+                        openAlertDialog({ id: s.id, name: s.name, description: null, kind: 'pine' })
+                      }}
+                        className="flex-1 min-w-0 text-left text-[11px] px-2 py-1.5 rounded-r-lg border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate"
+                        title={`Klik untuk pasang ALERT otomatis untuk "${s.name}"`}
+                        aria-label={`Tambah alert untuk ${s.name}`}>
+                        🔔 {s.name}
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -1485,7 +1498,7 @@ export default function VelaChartTerminal({
               size="sm"
               className="w-full bg-sky-500 hover:bg-sky-400 text-black font-semibold"
               disabled={alertSaving || !alertDlg || alertSymbol.trim().length < 3}
-              onClick={() => alertDlg && saveAlertSub({ scriptId: alertDlg.id, symbol: alertSymbol.trim(), interval: alertInterval, enabled: true, withTest: true })}
+              onClick={() => alertDlg && saveAlertSub({ scriptId: alertDlg.id, scriptKind: alertDlg.kind, symbol: alertSymbol.trim(), interval: alertInterval, enabled: true, withTest: true })}
             >
               {alertSaving
                 ? <Loader2 className="w-4 h-4 animate-spin" />
