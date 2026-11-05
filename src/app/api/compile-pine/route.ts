@@ -29,7 +29,7 @@ import {
   fetchServerCandles,
   type AlertRule, type PlotSeries,
 } from '@/lib/pine-protected'
-import { ensureDefaultScript, DEFAULT_PINE_SOURCE, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-script'
+import { DEFAULT_PINE_SOURCE, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-script'
 import { pushToUser, signalEmoji } from '@/lib/push-notify'
 import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
@@ -118,23 +118,19 @@ export async function GET(request: NextRequest) {
     const isPro = await readIsPro(auth.user.id)
 
     const supabase = getSupabaseAdmin()
-    /* Auto-seed skrip default (Luxtradee Candle Impulsif v5) —
-       tanpa SQL manual: user free pun langsung melihat chip-nya. */
-    try { await ensureDefaultScript() } catch { /* best-effort */ }
+    /* FIX 2026-11-05 (permintaan Bos): Pine DEFAULT DIHAPUS — tidak
+       di-seed lagi, tidak ditampilkan. Tiap user pakai Pine buatannya
+       sendiri (pine_scripts) dan chip eksklusif lain tetap dari DB. */
     let scripts: Array<{ id: string; slug: string; name: string; description: string | null }> = []
     if (supabase) {
       const { data, error } = await supabase
         .from('protected_scripts')
         .select('id, slug, name, description')
         .eq('is_active', true)
+        .neq('slug', DEFAULT_PINE_SLUG)
         .order('sort_order', { ascending: true })
       if (!error && Array.isArray(data)) scripts = data
       else if (error) console.error('[compile-pine] list gagal:', error.message)
-    }
-    /* TANPA DB → tetap tampilkan skrip default (meta dari kode,
-       source tidak pernah keluar server) — chip & auto-load tetap hidup. */
-    if (!scripts.length) {
-      scripts = [{ id: DEFAULT_PINE_SLUG, slug: DEFAULT_PINE_SLUG, name: DEFAULT_PINE_NAME, description: DEFAULT_PINE_DESCRIPTION }]
     }
     return NextResponse.json({ isPro, scripts })
   } catch (x: any) {

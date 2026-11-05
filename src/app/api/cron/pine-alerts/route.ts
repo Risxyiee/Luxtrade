@@ -28,6 +28,7 @@ import {
   runAlertGroup, sanitizeSymbol,
   type RunnerScript, type RunnerUser,
 } from '@/lib/pine-alert-runner'
+import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,10 +78,11 @@ async function handle(request: NextRequest) {
     if (!supabase) return NextResponse.json({ error: 'Supabase service role tidak tersedia' }, { status: 503 })
 
     /* 2) LANGGANAN AKTIF — created_at = watermark anti-replay sinyal
-       historis utk langganan baru */
+       historis utk langganan baru. script_kind: 'protected' | 'pine'
+       (pine = Pine milik user sendiri — docs/PINE_ALERT_PINE_SCRIPTS.sql). */
     const { data: subs, error: subErr } = await supabase
       .from('pine_alert_subscriptions')
-      .select('id, user_id, script_id, symbol, timeframe, created_at')
+      .select('id, user_id, script_id, script_kind, symbol, timeframe, created_at')
       .eq('enabled', true)
       .limit(200)
     if (subErr) {
@@ -92,21 +94,38 @@ async function handle(request: NextRequest) {
     }
 
     const userIds = [...new Set(subs.map((s: any) => s.user_id))]
-    const scriptIds = [...new Set(subs.map((s: any) => s.script_id))]
+    /* Pisah sumber skrip per script_kind (FIX 2026-11-05). Pine
+       DEFAULT dihapus — langganan lama ke default dilewati saja. */
+    const protectedIds = [...new Set(subs.filter((s: any) => (s.script_kind || 'protected') === 'protected').map((s: any) => s.script_id))]
+    const pineIds = [...new Set(subs.filter((s: any) => s.script_kind === 'pine').map((s: any) => s.script_id))]
 
-    /* 3) SKRIP AKTIF + PROFIL (pro) — sekali query per run */
-    const [scriptsRes, profRes] = await Promise.all([
-      supabase.from('protected_scripts')
-        .select('id, slug, name, source, alert_rules')
-        .eq('is_active', true)
-        .in('id', scriptIds),
+    /* 3) SKRIP AKTIF + PROFIL (pro) — sekali query per run.
+       Sumber 'pine' diambil dari pine_scripts (source milik user). */
+    const [scriptsRes, pineScriptsRes, profRes] = await Promise.all([
+      protectedIds.length
+        ? supabase.from('protected_scripts')
+            .select('id, slug, name, source, alert_rules')
+            .eq('is_active', true)
+            .in('id', protectedIds)
+        : Promise.resolve({ data: [] as any[] | null }),
+      pineIds.length
+        ? supabase.from('pine_scripts')
+            .select('id, name, source')
+            .in('id', pineIds)
+        : Promise.resolve({ data: [] as any[] | null }),
       supabase.from('profiles')
         .select('id, is_pro, subscription_until, pro_expiry')
         .in('id', userIds),
     ])
 
     const scripts = new Map<string, RunnerScript>()
-    for (const r of scriptsRes.data || []) scripts.set(r.id, r as RunnerScript)
+    for (const r of scriptsRes.data || []) {
+      if ((r as any).slug === DEFAULT_PINE_SLUG) continue // default dihapus — skip
+      scripts.set(r.id, r as RunnerScript)
+    }
+    for (const r of pineScriptsRes.data || []) {
+      scripts.set(r.id, { id: r.id, name: r.name, source: r.source, alert_rules: null })
+    }
 
     const users = new Map<string, RunnerUser>()
     for (const p of profRes.data || []) {
