@@ -140,3 +140,32 @@ export async function commitPineQuota(userId: string): Promise<void> {
 export function pineQuotaExceededMessage(): string {
   return 'Batas edit skrip gratis bulan ini habis (2x/bulan). Upgrade ke Pro (Rp49rb/bulan) untuk edit sepuasnya!'
 }
+
+/* ============================================================
+   ALERT — free 2×/hari
+   ============================================================
+   CATATAN FIX (2026-11-05): tiga fungsi ini LUPA dibuat —
+   /api/send-alert import checkAlertQuota / commitAlertQuota /
+   alertQuotaExceededMessage sejak 2026-10-30, tapi belum pernah
+   ada di file ini → webpack warning "Attempted import error" saat
+   build dan 500 (TypeError) di production setiap /api/send-alert
+   dipanggil. Implementasi mirror persis trio pine di atas. */
+
+export async function checkAlertQuota(userId: string): Promise<QuotaRow & { isPro: boolean }> {
+  const [row, isPro] = await Promise.all([getQuotaRow(userId), readIsPro(userId)])
+  return { ...row, isPro }
+}
+
+export async function commitAlertQuota(userId: string): Promise<void> {
+  const supabase = admin()
+  const row = await getQuotaRow(userId)
+  const { error } = await supabase
+    .from('user_quotas')
+    .update({ alerts_today_count: row.alerts_today_count + 1, alerts_reset_date: wibDay(), updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+  if (error) throw new Error(`user_quotas update gagal: ${error.message}`)
+}
+
+export function alertQuotaExceededMessage(): string {
+  return 'Batas kirim alert gratis hari ini habis (2x/hari). Upgrade ke Pro (Rp49rb/bulan) untuk kirim alert sepuasnya!'
+}
