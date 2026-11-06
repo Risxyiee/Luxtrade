@@ -397,7 +397,7 @@ plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
 const INDICATOR_STORE_KEY = 'luxtradee_active_indicators'
 const PINE_DRAFT_KEY = 'luxtradee_pine_draft'
 
-interface StoredIndicatorState { v: 1; presets: number[]; protected: string[]; savedAt: number }
+interface StoredIndicatorState { v: 1; presets: number[]; protected: string[]; pines: string[]; savedAt: number }
 
 function loadStoredIndicators(): StoredIndicatorState | null {
   try {
@@ -409,14 +409,17 @@ function loadStoredIndicators(): StoredIndicatorState | null {
       v: 1,
       presets: j.presets.filter((n: any) => Number.isInteger(n) && n >= 0 && n < PINE_PRESETS.length).slice(0, PINE_PRESETS.length),
       protected: j.protected.filter((s: any) => typeof s === 'string' && s).slice(0, 12),
+      /* FIX "masukin pine keluar ga aktif, harus masukin lagi":
+         skrip Pine milik user yang aktif di chart ikut tersimpan. */
+      pines: Array.isArray(j.pines) ? j.pines.filter((s: any) => typeof s === 'string' && s).slice(0, 12) : [],
       savedAt: Number(j.savedAt) || 0,
     }
   } catch { return null }
 }
 
-function saveStoredIndicators(state: { presets: number[]; protected: string[] }) {
+function saveStoredIndicators(state: { presets: number[]; protected: string[]; pines: string[] }) {
   try {
-    localStorage.setItem(INDICATOR_STORE_KEY, JSON.stringify({ v: 1, presets: state.presets, protected: state.protected, savedAt: Date.now() }))
+    localStorage.setItem(INDICATOR_STORE_KEY, JSON.stringify({ v: 1, presets: state.presets, protected: state.protected, pines: state.pines, savedAt: Date.now() }))
   } catch { /* storage penuh / private mode — diam */ }
 }
 
@@ -432,7 +435,7 @@ interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
 
 /* ---------- Alert otomatis Pine (Task 44 — klik 🔔 aktif 24 jam) ---------- */
-interface AlertSubRow { id: string; scriptId: string; scriptName: string; scriptKind?: 'protected' | 'pine'; symbol: string; interval: string; enabled: boolean }
+interface AlertSubRow { id: string; scriptId: string; scriptName: string; scriptKind?: 'protected' | 'pine'; symbol: string; interval: string; enabled: boolean; orphan?: boolean }
 const ALERT_TFS: Array<{ v: string; label: string }> = [
   { v: '5m', label: '5 Menit' }, { v: '15m', label: '15 Menit' }, { v: '30m', label: '30 Menit' },
   { v: '1h', label: '1 Jam' }, { v: '2h', label: '2 Jam' }, { v: '4h', label: '4 Jam' },
@@ -583,6 +586,21 @@ export default function VelaChartTerminal({
   const [alertInterval, setAlertInterval] = useState('1h')
   const [alertSaving, setAlertSaving] = useState(false)
   const [alertDlgMsg, setAlertDlgMsg] = useState<{ kind: 'ok' | 'err' | 'warn'; text: string } | null>(null)
+
+  /* ---------- Pusat Notifikasi (tombol 🔔 di toolbar chart) ----------
+     Permintaan Bos: "ga ada tombol aktifin notif untuk chart dan
+     pine" → satu tombol jelas di toolbar yang membuka dialog untuk
+     MENGAKTIFKAN alert (pilih skrip + simbol + TF ikut chart) DAN
+     melihat/mengelola semua langganan (termasuk yatim). */
+  const [notifDlg, setNotifDlg] = useState(false)
+  const [notifScript, setNotifScript] = useState('') // "protected:<id>" | "pine:<id>"
+
+  /* ---------- Pine milik user: status aktif di chart ----------
+     FIX "setiap masukin pine keluarnya ga aktif, harus masukin
+     lagi": skrip yang di-▶-kan ditandai aktif → di-restore otomatis
+     setiap terminal dibuka + badge ✓ pada daftar Skrip tersimpan. */
+  const [activePines, setActivePines] = useState<Record<string, boolean>>({})
+  const restoredPinesRef = useRef(false)
 
   /* ---------- Tabel performa skrip default (ala strategy Bos) ----------
      Server compile-pine mengirim meta.stats saat indikator default
@@ -847,8 +865,9 @@ export default function VelaChartTerminal({
     if (!restoredRef.current) return
     const presets = Object.entries(activePresets).filter(([, v]) => v).map(([k]) => Number(k))
     const prot = Object.entries(activeProtected).filter(([, v]) => v).map(([k]) => k)
-    saveStoredIndicators({ presets, protected: prot })
-  }, [activePresets, activeProtected])
+    const pines = Object.entries(activePines).filter(([, v]) => v).map(([k]) => k)
+    saveStoredIndicators({ presets, protected: prot, pines })
+  }, [activePresets, activeProtected, activePines])
 
   /* ---------- Draft editor Pine ikut tersimpan (tak hilang saat pindah menu) ---------- */
   useEffect(() => {
@@ -867,6 +886,40 @@ export default function VelaChartTerminal({
     }, 600)
     return () => clearTimeout(t)
   }, [pineName, pineSource])
+
+  /* ---------- RESTORE Pine milik user (Skrip tersimpan aktif) ----------
+     FIX "setiap masukin pine terus keluar pine nya ga aktif, harus
+     masukin lagi": id skrip yang pernah aktif di chart disimpan di
+     localStorage; setiap terminal dibuka, source-nya diambil dari
+     /api/pine/save (GET) lalu dijalankan ulang ke chart otomatis —
+     user TIDAK perlu memasukkan ulang pinenya. */
+  useEffect(() => {
+    if (booting) return
+    if (restoredPinesRef.current) return
+    if (pineScripts.length === 0) return // daftar belum datang dari API
+    restoredPinesRef.current = true
+    const ids = (loadStoredIndicators()?.pines || []).filter((id) => pineScripts.some((s) => s.id === id))
+    if (!ids.length) return
+    ;(async () => {
+      /* tunggu chart siap (maks ±20 detik) */
+      for (let i = 0; i < 20; i++) {
+        const chart: any = (wsRef.current as any)?.chart
+        if (chart && typeof chart.runIndicator === 'function') break
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      const chart: any = (wsRef.current as any)?.chart
+      if (!chart || typeof chart.runIndicator !== 'function') return
+      for (const id of ids) {
+        const s = pineScripts.find((x) => x.id === id)
+        if (!s) continue
+        try {
+          const err = await runOnChart(s.source)
+          if (!err) setActivePines((m) => ({ ...m, [id]: true }))
+        } catch { /* satu gagal → lanjut yang lain */ }
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booting, pineScripts])
 
   /* ---------- Status protected → pesan UI (error tidak diam lagi:
      sebelumnya POST gagal = tidak ada garis TANPA penjelasan) ---------- */
@@ -1075,7 +1128,10 @@ export default function VelaChartTerminal({
     }
   }, [])
 
-  /* ---------- Save/Compile Pine (kuota 2×/bulan untuk free) ---------- */
+  /* ---------- Save/Compile Pine (kuota 2×/bulan untuk free) ----------
+     FIX "harus masukin lagi": API sekarang UPSERT per nama — nama
+     sama = update baris yang sama (UUID tetap → langganan alert
+     tidak jadi yatim) DAN tidak menghabiskan kuota free. */
   const pineSave = useCallback(async () => {
     setPineBusy(true); setPineMsg(null)
     try {
@@ -1090,12 +1146,21 @@ export default function VelaChartTerminal({
         return
       }
       if (!res.ok) { setPineMsg({ kind: 'err', text: String(r?.error || `HTTP ${res.status}`) }); return }
-      /* Sukses simpan → compile langsung ke chart */
+      /* Sukses simpan → compile langsung ke chart + tandai AKTIF */
       const err = await runOnChart(pineSource)
+      if (r?.script) {
+        const sid = String(r.script.id)
+        /* upsert: ganti entri lama dgn id sama (hindari dobel di daftar) */
+        setPineScripts((l) => [r.script, ...l.filter((x) => x.id !== sid)].slice(0, 30))
+        if (!err) setActivePines((m) => ({ ...m, [sid]: true }))
+      }
       if (err) { setPineMsg({ kind: 'err', text: `Tersimpan, tapi gagal tampil di chart: ${err}` }) }
-      else { setPineMsg({ kind: 'ok', text: `✅ "${r?.script?.name || pineName}" tersimpan & tampil di chart.` }) }
+      else {
+        setPineMsg({ kind: 'ok', text: r?.reused
+          ? `✅ "${r?.script?.name || pineName}" diperbarui & tampil di chart — langganan alert tetap aman.`
+          : `✅ "${r?.script?.name || pineName}" tersimpan & tampil di chart. Klik 🔔 di daftar untuk aktifkan alert.` })
+      }
       if (r?.quota) setPineQuota(r.quota)
-      if (r?.script) setPineScripts((l) => [r.script, ...l].slice(0, 30))
     } catch (x: any) {
       setPineMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
     } finally { setPineBusy(false) }
@@ -1104,11 +1169,73 @@ export default function VelaChartTerminal({
   const quotaLabel = (q: QuotaBadge | null, unit: string) =>
     !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
 
+  /* ---------- Indikator Eksklusif (Protected Pine — Pro) ----------
+     Source tidak pernah keluar dari server: chip ini hanya menambah
+     NATIVE indicator yang menggambar hasil plot dari /api/compile-pine.
+     Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403.
+
+     visibleProtected: chip DEFAULT (Luxtradee Candle Impulsif) SELALU
+     disertakan — bila daftar API belum datang/gagal, fallback meta
+     dari kode dipakai (id = slug; server compile-pine menerima dua-duanya).
+     (Definisi di sini — SEBELUM notifScriptMeta/openNotifCenter yang
+     memakainya di deps — supaya render bebas TDZ.) */
+  const visibleProtected = useMemo<ProtectedScriptMeta[]>(() => {
+    /* FIX 2026-11-05 (permintaan Bos): Pine DEFAULT DIHAPUS dari daftar
+       — tidak ada lagi chip "Luxtradee Candle Impulsif". Tiap user
+       menambahkan Pine miliknya sendiri via editor (bell 🔔 di daftar
+       "Skrip tersimpan"). Skrip eksklusif lain tetap tampil. */
+    return protectedScripts.filter((s) => s.slug !== DEFAULT_PINE_SLUG && s.id !== DEFAULT_PINE_SLUG)
+  }, [protectedScripts])
+
+  /* ---------- Derivasi notifikasi & hak akses ---------- */
+  const isProUser = protectedIsPro || pineQuota?.isPro === true
+  const anySubActive = alertSubs.some((x) => x.enabled)
+  const notifScriptMeta = useMemo(() => {
+    const [kind, id] = String(notifScript).split(':')
+    if (!id) return null
+    if (kind === 'pine') {
+      const s = pineScripts.find((x) => x.id === id)
+      return s ? { id: s.id, name: s.name, kind: 'pine' as const } : null
+    }
+    const s = visibleProtected.find((x) => x.id === id)
+    return s ? { id: s.id, name: s.name, kind: 'protected' as const } : null
+  }, [notifScript, pineScripts, visibleProtected])
+
+  /* ---------- Pusat Notifikasi: buka dialog (toolbar 🔔) ----------
+     Simbol & timeframe default ikut chart yang sedang dibuka;
+     pilihan skrip default = Pine user terbaru, kalau belum ada →
+     skrip eksklusif pertama. */
+  const openNotifCenter = useCallback(() => {
+    let sym = 'XAUUSD'
+    let tf = '1h'
+    try {
+      const c: any = (wsRef.current as any)?.chart
+      const cs = String(c?.symbol || '').split(':').pop()?.toUpperCase()
+      if (cs) sym = cs
+      if (c?.timeframe) tf = tfToAlert(String(c.timeframe))
+    } catch { /* default tetap dipakai */ }
+    setAlertSymbol(sym)
+    setAlertInterval(tf)
+    setAlertDlgMsg(null)
+    setNotifScript((prev) => prev || (pineScripts[0] ? `pine:${pineScripts[0].id}` : visibleProtected[0] ? `protected:${visibleProtected[0].id}` : ''))
+    setNotifDlg(true)
+    loadAlertSubs()
+  }, [loadAlertSubs, pineScripts, visibleProtected])
+
+  /* ---------- Hapus skrip Pine milik sendiri (bersih-bersih daftar) ---------- */
+  const deletePineScript = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/pine/save?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!res.ok) return
+      setPineScripts((l) => l.filter((x) => x.id !== id))
+      setActivePines((m) => { if (!m[id]) return m; const n = { ...m }; delete n[id]; return n })
+    } catch { /* diam */ }
+  }, [])
+
   /* ---------- Preset chip: tambah/lepas indikator Luxtradee ----------
      Free: 1 indikator (EMA 20/50). Pro: semua terbuka. Kuota nyata
      (Pine edit) tetap dijaga server-side di API.
      Klik chip AKTIF → indikator dilepas dari chart (state ikut). */
-  const isProUser = protectedIsPro || pineQuota?.isPro === true
   const runPreset = useCallback(async (i: number) => {
     if (presetBusy !== null) return
     /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart --- */
@@ -1140,22 +1267,7 @@ export default function VelaChartTerminal({
     return `Paket gratis hanya ${FREE_INDICATOR_LIMIT} indikator (${PINE_PRESETS[0].name.replace('Luxtradee — ', '')}). Upgrade ke Pro (Rp49rb/bulan) untuk membuka ${names.join(' + ')} dan pasang indikator sepuasnya!`
   }
 
-  /* ---------- Indikator Eksklusif (Protected Pine — Pro) ----------
-     Source tidak pernah keluar dari server: chip ini hanya menambah
-     NATIVE indicator yang menggambar hasil plot dari /api/compile-pine.
-     Free → dialog upgrade. Pro kadaluarsa di tengah sesi → server 403.
-
-     visibleProtected: chip DEFAULT (Luxtradee Candle Impulsif) SELALU
-     disertakan — bila daftar API belum datang/gagal, fallback meta
-     dari kode dipakai (id = slug; server compile-pine menerima dua-duanya). */
-  const visibleProtected = useMemo<ProtectedScriptMeta[]>(() => {
-    /* FIX 2026-11-05 (permintaan Bos): Pine DEFAULT DIHAPUS dari daftar
-       — tidak ada lagi chip "Luxtradee Candle Impulsif". Tiap user
-       menambahkan Pine miliknya sendiri via editor (bell 🔔 di daftar
-       "Skrip tersimpan"). Skrip eksklusif lain tetap tampil. */
-    return protectedScripts.filter((s) => s.slug !== DEFAULT_PINE_SLUG && s.id !== DEFAULT_PINE_SLUG)
-  }, [protectedScripts])
-
+  /* ---------- Indikator Eksklusif: tambah/lepas ke chart ---------- */
   const addProtected = useCallback(async (s: ProtectedScriptMeta) => {
     if (protectedBusy) return
     const isDef = s.slug === DEFAULT_PINE_SLUG
@@ -1208,6 +1320,13 @@ export default function VelaChartTerminal({
               📐 {quotaLabel(pineQuota, 'edit')}
             </span>
           )}
+          {/* ---------- TOMBOL AKTIFKAN NOTIFIKASI (permintaan Bos:
+             "ga ada tombol aktifin notif untuk chart dan pine") —
+             hijau melambat bila ada langganan alert aktif ---------- */}
+          <Button size="sm" variant="outline" className="text-xs h-8 relative border-emerald-400/30 text-emerald-200 hover:bg-emerald-400/10 hover:text-emerald-100" onClick={openNotifCenter}>
+            <Bell className="w-3.5 h-3.5 mr-1" /> Notifikasi
+            {anySubActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />}
+          </Button>
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setPineOpen((v) => !v)}>
             <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
           </Button>
@@ -1401,40 +1520,53 @@ export default function VelaChartTerminal({
               {pineScripts.length > 0 && (
                 <div className="min-h-0 overflow-y-auto kscroll space-y-1">
                   <div className="text-[10px] text-white/40 uppercase tracking-wider">Skrip tersimpan</div>
-                  {pineScripts.map((s) => (
-                    <div key={s.id} className="flex items-stretch gap-1">
-                      <button onClick={async () => {
-                        /* ▶ kecil = jalankan di chart (perilaku lama dipindah
-                           ke tombol ini supaya klik NAMA kini membuka alert —
-                           permintaan Bos 2026-11-05: "klik nama pinenya ada
-                           tambahkan alert". */
-                        setPineName(s.name); setPineSource(s.source)
-                        const err = await runOnChart(s.source)
-                        setPineMsg(err
-                          ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }
-                          : { kind: 'ok', text: `▶ ${s.name} tampil di chart.` })
-                      }}
-                        className="px-2 rounded-l-lg border border-r-0 border-white/5 bg-white/5 hover:bg-white/10 text-white/50"
-                        title={`Jalankan "${s.name}" di chart`}
-                        aria-label={`Jalankan ${s.name} di chart`}>
-                        ▶
-                      </button>
-                      <button onClick={() => {
-                        /* KLIK NAMA = TAMBAH ALERT (permintaan Bos):
-                           alert otomatis = Pro → free lihat paywall. */
-                        if (!protectedIsPro) {
-                          setUpgradeMsg(`🔔 Alert otomatis sinyal "${s.name}" ke layar HP (push notification) adalah fitur PRO. Skrip kamu tetap bisa dijalankan di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
-                          return
-                        }
-                        openAlertDialog({ id: s.id, name: s.name, description: null, kind: 'pine' })
-                      }}
-                        className="flex-1 min-w-0 text-left text-[11px] px-2 py-1.5 rounded-r-lg border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate"
-                        title={`Klik untuk pasang ALERT otomatis untuk "${s.name}"`}
-                        aria-label={`Tambah alert untuk ${s.name}`}>
-                        🔔 {s.name}
-                      </button>
-                    </div>
-                  ))}
+                  {pineScripts.map((s) => {
+                    const active = !!activePines[s.id]
+                    const hasSub = alertSubs.some((x) => x.scriptId === s.id && x.enabled)
+                    return (
+                      <div key={s.id} className="flex items-stretch gap-1">
+                        <button onClick={async () => {
+                          /* ▶ kecil = jalankan di chart (perilaku lama dipindah
+                             ke tombol ini supaya klik NAMA kini membuka alert —
+                             permintaan Bos 2026-11-05: "klik nama pinenya ada
+                             tambahkan alert". */
+                          setPineName(s.name); setPineSource(s.source)
+                          const err = await runOnChart(s.source)
+                          if (!err) setActivePines((m) => ({ ...m, [s.id]: true }))
+                          setPineMsg(err
+                            ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }
+                            : { kind: 'ok', text: `▶ ${s.name} tampil di chart${active ? ' (sudah aktif)' : ' — otomatis aktif tiap buka terminal'}.` })
+                        }}
+                          className={`px-2 rounded-l-lg border border-r-0 bg-white/5 hover:bg-white/10 ${active ? 'border-emerald-400/30 text-emerald-300' : 'border-white/5 text-white/50'}`}
+                          title={`Jalankan "${s.name}" di chart${active ? ' (sedang aktif)' : ''}`}
+                          aria-label={`Jalankan ${s.name} di chart`}>
+                          {active ? '✓' : '▶'}
+                        </button>
+                        <button onClick={() => {
+                          /* KLIK NAMA = TAMBAH ALERT (permintaan Bos):
+                             alert otomatis = Pro → free lihat paywall. */
+                          if (!protectedIsPro) {
+                            setUpgradeMsg(`🔔 Alert otomatis sinyal "${s.name}" ke layar HP (push notification) adalah fitur PRO. Skrip kamu tetap bisa dijalankan di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
+                            return
+                          }
+                          openAlertDialog({ id: s.id, name: s.name, description: null, kind: 'pine' })
+                        }}
+                          className="relative flex-1 min-w-0 text-left text-[11px] px-2 py-1.5 border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate"
+                          title={`Klik untuk pasang ALERT otomatis untuk "${s.name}"`}
+                          aria-label={`Tambah alert untuk ${s.name}`}>
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${hasSub ? 'bg-emerald-400' : 'bg-white/25'}`} aria-hidden="true" />
+                          🔔 {s.name}
+                          {active && <span className="ml-1.5 text-[9px] px-1 py-px rounded bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 align-middle">AKTIF</span>}
+                        </button>
+                        <button onClick={() => deletePineScript(s.id)}
+                          className="px-1.5 rounded-r-lg border border-l-0 border-white/5 bg-white/5 hover:bg-red-400/15 text-white/35 hover:text-red-300"
+                          title={`Hapus "${s.name}"`}
+                          aria-label={`Hapus skrip ${s.name}`}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -1531,6 +1663,134 @@ export default function VelaChartTerminal({
                       className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-white/60 hover:text-white disabled:opacity-50"
                     >{s.enabled ? 'Matikan' : 'Nyalakan'}</button>
                     <button onClick={() => deleteAlertSub(s.id)} disabled={alertSaving} aria-label={`Hapus langganan ${s.symbol} ${s.interval}`} className="text-white/35 hover:text-red-300 disabled:opacity-50">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- PUSAT NOTIFIKASI (tombol 🔔 Notifikasi di toolbar) ----------
+          Permintaan Bos: "ga ada tombol aktifin notif untuk chart dan
+          pine" → satu dialog untuk: (1) mengaktifkan alert utk skrip
+          mana pun (Pine milik sendiri ATAU skrip eksklusif) dengan
+          simbol/TF ikut chart yang sedang dibuka, dan (2) melihat
+          semua langganan — termasuk langganan YATIM (skrip sudah
+          dihapus) yang selama ini "dilewati diam-diam" oleh engine
+          (run GHA #42) → bisa dibersihkan di sini. */}
+      <Dialog open={notifDlg} onOpenChange={(v) => !v && setNotifDlg(false)}>
+        <DialogContent className="max-w-sm bg-[#0a0f16] border-white/10 max-h-[85vh] overflow-y-auto kscroll">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-300 text-base">
+              <Bell className="w-4 h-4" /> Notifikasi Sinyal
+            </DialogTitle>
+            <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
+              Pilih sinyal + simbol + timeframe, lalu aktifkan — Entry/SL/TP dikirim ke layar HP otomatis tiap 5 menit, 24 jam.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {/* Pilih sumber sinyal: Pine milik user / skrip eksklusif */}
+            <div>
+              <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Sumber sinyal</div>
+              <select
+                value={notifScript}
+                onChange={(e) => setNotifScript(e.target.value)}
+                aria-label="Pilih skrip sumber sinyal"
+                className="w-full text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+              >
+                {(pineScripts.length === 0 && visibleProtected.length === 0) && (
+                  <option value="" className="bg-[#0a0f16]">— Belum ada skrip tersedia —</option>
+                )}
+                {pineScripts.length > 0 && (
+                  <optgroup label="📐 Pine Script kamu">
+                    {pineScripts.map((s) => (
+                      <option key={`pine:${s.id}`} value={`pine:${s.id}`} className="bg-[#0a0f16]">{s.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {visibleProtected.length > 0 && (
+                  <optgroup label="🛡️ Skrip Eksklusif Pro">
+                    {visibleProtected.map((s) => (
+                      <option key={`protected:${s.id}`} value={`protected:${s.id}`} className="bg-[#0a0f16]">{s.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              {pineScripts.length === 0 && visibleProtected.length === 0 && (
+                <div className="text-[10.5px] text-amber-200/80 mt-1">Belum ada skrip — buka <b>Pine Script</b> editor, simpan skripmu dulu, lalu aktifkan notifikasinya di sini.</div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                value={alertSymbol}
+                onChange={(e) => setAlertSymbol(e.target.value.toUpperCase())}
+                placeholder="SIMBOL (mis. XAUUSD)"
+                aria-label="Simbol alert"
+                className="flex-1 min-w-0 text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+              />
+              <select
+                value={alertInterval}
+                onChange={(e) => setAlertInterval(e.target.value)}
+                aria-label="Timeframe alert"
+                className="text-xs bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+              >
+                {ALERT_TFS.map((t) => (
+                  <option key={t.v} value={t.v} className="bg-[#0a0f16]">{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <Button
+              size="sm"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold"
+              disabled={alertSaving || !notifScriptMeta || alertSymbol.trim().length < 3}
+              onClick={() => notifScriptMeta && saveAlertSub({ scriptId: notifScriptMeta.id, scriptKind: notifScriptMeta.kind, symbol: alertSymbol.trim(), interval: alertInterval, enabled: true, withTest: true })}
+            >
+              {alertSaving
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <>🔔 Aktifkan {alertSymbol.trim() || 'Alert'} · {ALERT_TFS.find((t) => t.v === alertInterval)?.label}</>}
+            </Button>
+            {!protectedIsPro && (
+              <div className="text-[10.5px] text-amber-200/80 leading-relaxed">Notifikasi otomatis = fitur Pro. Kalau belum Pro, tombol akan membuka penawaran upgrade.</div>
+            )}
+            {alertDlgMsg && (
+              <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertDlgMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : alertDlgMsg.kind === 'warn' ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+                {alertDlgMsg.text}
+              </div>
+            )}
+          </div>
+
+          {alertSubs.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[10px] text-white/40 uppercase tracking-wider">Semua langganan ({alertSubs.length})</div>
+              <div className="max-h-44 overflow-y-auto kscroll space-y-1 pr-0.5">
+                {alertSubs.map((s) => (
+                  <div key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-emerald-400' : 'bg-white/20'}`} aria-hidden="true" />
+                    <span className="text-[11px] text-white/80 flex-1 min-w-0 truncate">
+                      {s.orphan ? <span className="text-red-300/90">⚠️ {s.scriptName} (skrip terhapus)</span> : s.scriptName}
+                      <span className="text-white/45"> · {s.symbol} · {s.interval}</span>
+                    </span>
+                    {!s.orphan && (
+                      <>
+                        <button
+                          onClick={() => testAlertSub(s)}
+                          disabled={alertSaving}
+                          className="text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-200/90 hover:bg-sky-400/15 disabled:opacity-50"
+                          title="Jalankan pengecekan sinyal sekarang"
+                        >⚡</button>
+                        <button
+                          onClick={() => saveAlertSub({ scriptId: s.scriptId, scriptKind: s.scriptKind, symbol: s.symbol, interval: s.interval, enabled: !s.enabled })}
+                          disabled={alertSaving}
+                          className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-white/60 hover:text-white disabled:opacity-50"
+                        >{s.enabled ? 'Off' : 'On'}</button>
+                      </>
+                    )}
+                    <button onClick={() => deleteAlertSub(s.id)} disabled={alertSaving} aria-label={`Hapus langganan ${s.symbol} ${s.interval}`} className="text-white/35 hover:text-red-300 disabled:opacity-50 shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>

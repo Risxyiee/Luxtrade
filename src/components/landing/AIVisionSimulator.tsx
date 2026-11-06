@@ -114,7 +114,7 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               {Object.keys(simData).map((key) => (
                 <button
                   key={key}

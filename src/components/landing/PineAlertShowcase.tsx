@@ -5,28 +5,39 @@
  * PineAlertShowcase — "video" animasi fitur Pine Script® + Alert
  * ============================================================
  * Storyboard 11 detik (loop = remount panel tiap 11s):
- *   0.3–1.6s  chart menyala — candle + volume muncul bergiliran
+ *   0.0–5.6s  candle TERBENTUK LIVE tick-demi-tick (random-walk,
+ *             wick memanjang, volume tumbuh, harga axis ikut) —
+ *             FIX Bos: "dilandingpage gerakan candle nya kurang
+ *             realistis" → dulu candle statis muncul bergiliran,
+ *             sekarang bergerak seperti chart sungguhan. Tiap
+ *             loop = data BARU (seed acak per siklus).
  *   2.0–5.0s  editor Pine — kode ngetik sendiri (typewriter)
  *   4.95s     tombol Compile "ditekan"
  *   5.3–7.0s  garis indikator MENGGAMBAR DIRINYA (+ komet biru
  *             mengikuti ujung garis, SMIL animateMotion)
- *   5.6s      candle breakout menembus resistance → garis flash biru
- *   6.9s      crosshair + label harga + push notif terbang masuk
+ *   5.6–5.9s  candle BREAKOUT terbentuk live menembus resistance
+ *             → garis flash biru
+ *   6.9s      crosshair + push notif terbang masuk
  *   10.3s     fadeout → 11s remount
  *
  * TEKNIS (penting — ini bukan file video):
- *   - Murni CSS keyframes + SVG. Tajam di retina/4K, ~0 KB asset.
- *   - Chart didesain manual (bukan random) → cerita uptrend jelas:
- *     naik bertahap dengan pullback → konsolidasi → BREAKOUT.
- *   - Detail ala TradingView: sumbu harga, label waktu, bar volume,
- *     watermark, crosshair + tag harga di axis kanan.
- *   - Semua teks & aksen = tema biru landing page (blue/cyan family).
+ *   - Murni SVG + JS interval (setInterval 76ms) — tanpa canvas,
+ *     tajam di retina/4K, ~0 KB asset.
+ *   - Candle di-GENERASI (random walk ber-drift dengan pullback +
+ *     mean-reversion di resistance) bukan array statis → gerakan
+ *     berbeda tiap loop, terasa "live" seperti data sungguhan.
+ *   - Cerita tetap terkontrol: uptrend → konsolidasi → BREAKOUT
+ *     (posisi & timing breakout dipatok supaya sinkron dengan
+ *     flash/indikator/push).
+ *   - Tag harga di axis kanan UPDAT SETIAP TICK mengikuti harga
+ *     terakhir (hijau/merah mengikuti arah candle) + garis
+ *     last-price putus-putus bergerak.
  *   - IntersectionObserver → animasi hanya saat terlihat; pause
  *     otomatis saat keluar viewport (hemat CPU/baterai).
- *   - prefers-reduced-motion → animasi dimatikan (aksesibilitas).
+ *   - prefers-reduced-motion → langsung state akhir (aksesibilitas).
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const CYCLE_MS = 11_000
 
@@ -40,22 +51,23 @@ const PINE_LINES = [
 
 const ID = {
   badge: 'BARU · FITUR PRO',
-  title: 'Pine Script® + Alert Otomatis,',
-  titleAccent: 'Langsung dari Chart Kamu',
-  sub: 'Tulis indikator kamu sendiri, compile dalam sekejap, dan biarkan sinyal Entry/SL/TP datang ke layar HP — walau app lagi ditutup.',
+  title: 'Pine Script® + Auto Alerts,',
+  titleAccent: 'Right on Your Chart',
+  sub: 'Tulis indikatormu sendiri, compile dalam sekejap, dan biarkan sinyal Entry/SL/TP mendarat di HP kamu — bahkan saat aplikasi tertutup.',
   compile: 'Compile',
   pushTitle: '🚀 ENTRY_LONG — XAUUSD · 1h',
-  pushBody: 'Luxtradee Breakout · Harga ~2.406,0',
-  pushApp: 'LuxTradee · sekarang',
+  pushBody: 'Luxtradee Breakout · Price ~2,406.0',
+  pushApp: 'LuxTradee · now',
   cta: 'Coba Gratis Sekarang',
   ctaNote: 'Gratis — tanpa kartu kredit',
   scene: [
-    'Chart hidup, data real-time',
-    'Tulis Pine Script® kamu',
+    'Chart live, data real-time',
+    'Tulis Pine Script®-mu',
     'Compile → indikator muncul',
-    'Alert otomatis ke layar HP',
+    'Alert langsung ke HP kamu',
   ],
 }
+
 const EN = {
   badge: 'NEW · PRO FEATURE',
   title: 'Pine Script® + Auto Alerts,',
@@ -99,6 +111,58 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
     return () => clearInterval(id)
   }, [inView])
 
+  /* ============================================================
+     MESIN CANDLE LIVE (random-walk + tick realistis)
+     - seed acak per siklus (remount) → gerakan beda tiap loop.
+     - seed=0 saat SSR/hidrasi → deterministik, bebas mismatch.
+     ============================================================ */
+  const [seed, setSeed] = useState(0)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    /* sesi browser: randomize seed + hormati reduced-motion */
+    setSeed(Math.floor(Math.random() * 2 ** 30))
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) setTick(TOTAL_TICKS)
+    } catch { /* diam */ }
+  }, [])
+
+  useEffect(() => {
+    if (!inView) return
+    if (tick >= TOTAL_TICKS) return
+    const id = setInterval(() => setTick((v) => Math.min(v + 1, TOTAL_TICKS)), TICK_MS)
+    return () => clearInterval(id)
+  }, [inView, tick >= TOTAL_TICKS])
+
+  const candles = useMemo(() => genCandles(mulberry32(seed)), [seed])
+
+  /* indikator EMA "lagging" dari closes yang digenerate — selalu
+     nyambung dengan candle (dulu: path statis manual) */
+  const ind = useMemo(() => {
+    const ema: number[] = []
+    let e = candles[0].c
+    for (const c of candles) {
+      e = e * 0.72 + c.c * 0.28
+      ema.push(e)
+    }
+    const pts: [number, number][] = [0, 2, 4, 6, 8, 10, 12, 14].map((i) => [candles[i].x + BW / 2, ema[i]])
+    const path = smoothPath(pts)
+    const len = Math.round(
+      pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0) * 1.06,
+    )
+    return { path, len, last: pts[pts.length - 1] }
+  }, [candles])
+
+  /* state live: candle selesai + candle yang sedang terbentuk */
+  const done = Math.min(Math.floor(tick / TICKS_PER_CANDLE), candles.length)
+  const prog = ((tick % TICKS_PER_CANDLE) + 1) / TICKS_PER_CANDLE
+  const view: Array<Candle & { live?: boolean }> = candles.slice(0, done).map((c) => ({ ...c }))
+  if (done < candles.length) view.push({ ...liveCandle(candles[done], prog), live: true })
+  const last = view[view.length - 1]
+  const lpBull = last ? last.c < last.o : true // y kecil = harga tinggi → bullish
+  const lpY = last ? last.c : RES_Y
+  const lpText = priceFromY(lpY)
+
   return (
     <section className="relative py-16 md:py-24 px-4 overflow-hidden" aria-label="Demo fitur Pine Script dan alert otomatis">
       {/* Glow latar lembut */}
@@ -141,7 +205,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
             </div>
 
             <div className="relative grid md:grid-cols-[1fr_260px]">
-              {/* ---- CHART (SVG candle hidup ala TradingView) ---- */}
+              {/* ---- CHART (SVG candle HIDUP — random walk tick-per-tick) ---- */}
               <div className="relative aspect-[16/10] md:h-[420px]">
                 <svg viewBox="0 0 720 400" className="absolute inset-0 w-full h-full" aria-hidden="true">
                   <defs>
@@ -175,9 +239,6 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                     LUXTRADEE
                   </text>
 
-                  {/* area di bawah indikator (fade-in setelah garis selesai) */}
-                  <path className="lxs-ind-area" d={`${INDICATOR_PATH} L 633 372 L 33 372 Z`} fill="url(#lxs-ind-area)" />
-
                   {/* level resistance (garis putus biru) */}
                   <line className="lxs-level" x1="0" x2="648" y1={RES_Y} y2={RES_Y} stroke="rgba(147,197,253,0.45)" strokeWidth="1.5" strokeDasharray="7 6" />
                   <text x="8" y={RES_Y - 8} fill="rgba(147,197,253,0.55)" fontSize="11">Resistance 2.400</text>
@@ -191,60 +252,67 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                   ))}
                   <line x1="0" x2="648" y1="372" y2="372" stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
 
-                  {/* bar volume — warna mengikuti arah candle */}
-                  {CANDLES.map((c, i) => {
-                    const isBreak = i === CANDLES.length - 1
-                    return (
+                  {/* ===== CANDLE + VOLUME + HARGA LIVE (tick realistis) ===== */}
+                  <g className="lxs-live-wrap">
+                    {/* bar volume — tumbuh bareng candle */}
+                    {view.map((c, i) => (
                       <rect
                         key={`vol${i}`}
-                        className={isBreak ? 'lxs-vol lxs-vol-break' : 'lxs-vol'}
                         x={c.x} width={BW}
                         y={VOL_BASE - c.vol} height={c.vol} rx="2"
-                        fill={candleColor(c)} fillOpacity={isBreak ? 0.6 : 0.22}
-                        style={isBreak ? undefined : { animationDelay: `${0.3 + i * 0.085}s` }}
+                        fill={candleColor(c)} fillOpacity={i === candles.length - 1 ? 0.55 : 0.22}
                       />
-                    )
-                  })}
+                    ))}
 
-                  {/* candles — uptrend dengan pullback, terakhir = breakout */}
-                  {CANDLES.map((c, i) => {
-                    const isBreak = i === CANDLES.length - 1
-                    return (
-                      <g
-                        key={`cd${i}`}
-                        className={isBreak ? 'lxs-candle lxs-candle-break' : 'lxs-candle'}
-                        style={isBreak ? undefined : { animationDelay: `${0.3 + i * 0.085}s` }}
-                      >
-                        <line x1={c.x + BW / 2} x2={c.x + BW / 2} y1={c.wt} y2={c.wb} stroke={isBreak ? '#4ade80' : candleColor(c)} strokeWidth="1.6" />
-                        <rect
-                          x={c.x} width={BW}
-                          y={Math.min(c.o, c.c)}
-                          height={Math.max(6, Math.abs(c.c - c.o))}
-                          rx="2"
-                          fill={isBreak ? '#4ade80' : candleColor(c)}
-                        />
-                      </g>
-                    )
-                  })}
+                    {/* candles — wick memanjang & body tumbuh tiap tick */}
+                    {view.map((c, i) => {
+                      const isBreak = i === candles.length - 1
+                      const bull = c.c < c.o
+                      return (
+                        <g key={`cd${i}`}>
+                          <line x1={c.x + BW / 2} x2={c.x + BW / 2} y1={c.wt} y2={c.wb} stroke={isBreak ? '#4ade80' : candleColor(c)} strokeWidth="1.6" />
+                          <rect
+                            x={c.x} width={BW}
+                            y={Math.min(c.o, c.c)}
+                            height={Math.max(2, Math.abs(c.c - c.o))}
+                            rx="2"
+                            fill={isBreak ? '#4ade80' : candleColor(c)}
+                            style={c.live
+                              ? { filter: bull ? 'drop-shadow(0 0 6px rgba(74,222,128,0.6))' : 'drop-shadow(0 0 6px rgba(248,113,113,0.6))' }
+                              : undefined}
+                          />
+                        </g>
+                      )
+                    })}
+
+                    {/* garis last-price putus-putus + tag harga axis kanan
+                        (UPDAT SETIAP TICK — ala TradingView sungguhan) */}
+                    <line x1="0" x2="648" y1={lpY} y2={lpY} stroke="rgba(147,197,253,0.3)" strokeWidth="1" strokeDasharray="3 4" />
+                    <rect x="652" y={lpY - 9} width="56" height="18" rx="4" fill={lpBull ? '#10b981' : '#ef4444'} />
+                    <text x="680" y={lpY + 3.5} textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#ffffff">{lpText}</text>
+                  </g>
+
+                  {/* area di bawah indikator (fade-in setelah garis selesai) */}
+                  <path className="lxs-ind-area" d={`${ind.path} L ${ind.last[0]} 372 L ${candles[0].x + BW / 2} 372 Z`} fill="url(#lxs-ind-area)" />
 
                   {/* garis indikator — menggambar dirinya setelah "compile" */}
                   <path
                     className="lxs-indicator"
-                    d={INDICATOR_PATH}
+                    d={ind.path}
                     fill="none"
                     stroke="url(#lxs-ind-line)"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     style={{
-                      strokeDasharray: INDICATOR_LEN,
-                      strokeDashoffset: INDICATOR_LEN,
-                      '--lxs-ind-len': INDICATOR_LEN,
+                      strokeDasharray: ind.len,
+                      strokeDashoffset: ind.len,
+                      '--lxs-ind-len': ind.len,
                     } as React.CSSProperties}
                   />
 
                   {/* titik ujung garis (nyala setelah gambar selesai) */}
-                  <circle className="lxs-end-dot" cx="633" cy="128" r="8" fill="rgba(96,165,250,0.25)" />
-                  <circle className="lxs-end-dot" cx="633" cy="128" r="3.5" fill="#93c5fd" />
+                  <circle className="lxs-end-dot" cx={ind.last[0]} cy={ind.last[1]} r="8" fill="rgba(96,165,250,0.25)" />
+                  <circle className="lxs-end-dot" cx={ind.last[0]} cy={ind.last[1]} r="3.5" fill="#93c5fd" />
 
                   {/* komet biru mengikuti ujung garis saat menggambar (SMIL) */}
                   {inView && (
@@ -254,20 +322,16 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                       <animateMotion
                         dur="1.7s" begin="5.3s" fill="freeze"
                         calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1"
-                        path={INDICATOR_PATH}
+                        path={ind.path}
                       />
                     </g>
                   )}
 
-                  {/* flash glow saat breakout (5.7s) */}
-                  <circle className="lxs-break-glow" cx="633" cy="92" r="26" fill="url(#lxs-break-glow)" />
+                  {/* flash glow saat breakout (5.7s — pas candle breakout live) */}
+                  <circle className="lxs-break-glow" cx={candles[candles.length - 1].x + BW / 2} cy={candles[candles.length - 1].c} r="26" fill="url(#lxs-break-glow)" />
 
-                  {/* crosshair + tag harga di axis kanan (ala TradingView) */}
-                  <line className="lxs-cross" x1="633" x2="633" y1="14" y2="372" stroke="rgba(96,165,250,0.35)" strokeWidth="1" strokeDasharray="4 4" />
-                  <g className="lxs-price-tag">
-                    <rect x="652" y="83" width="56" height="18" rx="4" fill="#3b82f6" />
-                    <text x="680" y="96" textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#ffffff">2.406</text>
-                  </g>
+                  {/* crosshair vertikal (ala TradingView, 7.0s) */}
+                  <line className="lxs-cross" x1={candles[candles.length - 1].x + BW / 2} x2={candles[candles.length - 1].x + BW / 2} y1="14" y2="372" stroke="rgba(96,165,250,0.35)" strokeWidth="1" strokeDasharray="4 4" />
                 </svg>
 
                 {/* caption scene — baris subtitle di bawah chart */}
@@ -348,40 +412,80 @@ function TypeWriter({ text }: { text: string }) {
 }
 
 /* ============================================================
-   DATA CHART — didesain manual (bukan random) supaya cerita
-   uptrend → konsolidasi → BREAKOUT terbaca jelas.
+   MESIN DATA CHART — random-walk REALISTIS (bukan array statis)
    KOORDINAT SVG: y KECIL = harga LEBIH TINGGI.
    Bullish = close di atas open = c.c < c.o (angka y) → HIJAU.
+   Harga ↔ y: 1 USD = 10px; resistance 2400 = y 122.
    ============================================================ */
 const RES_Y = 122      // y garis resistance (= harga 2.400)
 const X0 = 24          // x candle pertama
-const DX = 40          // jarak antar candle
+const DX = 42          // jarak antar candle
 const BW = 18          // lebar badan candle
 const VOL_BASE = 372   // garis dasar bar volume
 
+/* Live tick engine: 5 tick per candle × 15 candle, mulai 0.3s.
+   14 candle × 0.38s ≈ 5.6s → candle breakout terbentuk pas timing
+   flash/glow (5.6–5.9s) lalu push notif (6.9s). */
+const TICK_MS = 76
+const TICKS_PER_CANDLE = 5
+const PRE_COUNT = 14
+const CANDLE_COUNT = PRE_COUNT + 1 // + breakout
+const TOTAL_TICKS = CANDLE_COUNT * TICKS_PER_CANDLE
+
 type Candle = { x: number; o: number; c: number; wt: number; wb: number; vol: number }
 
-/* [open, close, wickTop, wickBot, volume] — 15 candle pembentuk uptrend */
-const RAW: [number, number, number, number, number][] = [
-  [272, 282, 264, 290, 20],
-  [282, 258, 252, 288, 30],
-  [258, 270, 251, 277, 16],
-  [270, 244, 237, 276, 34],
-  [244, 256, 237, 263, 18],
-  [256, 230, 223, 262, 38],
-  [230, 244, 223, 251, 21],
-  [244, 216, 209, 250, 43],
-  [216, 230, 209, 237, 24],
-  [230, 200, 193, 236, 47],
-  [200, 214, 193, 221, 26],
-  [214, 186, 179, 220, 51],
-  [186, 198, 179, 205, 27],
-  [198, 166, 159, 204, 55],
-  [166, 148, 141, 172, 38],
-]
-const CANDLES: Candle[] = RAW.map(([o, c, wt, wb, vol], i) => ({ x: X0 + i * DX, o, c, wt, wb, vol }))
-/* candle breakout terakhir — menembus resistance (122) sampai 92 */
-CANDLES.push({ x: X0 + 15 * DX, o: 148, c: 92, wt: 82, wb: 154, vol: 70 })
+/* RNG deterministik (mulberry32) — seed per siklus */
+function mulberry32(seed: number) {
+  let a = seed >>> 0
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const priceToY = (p: number) => RES_Y - (p - 2400) * 10
+const priceFromY = (y: number) => (2400 + (RES_Y - y) / 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/* Generate 15 candle: uptrend dengan pullback + mean-reversion di
+   resistance, ditutup candle BREAKOUT besar menembus 2400. */
+function genCandles(rnd: () => number): Candle[] {
+  const cs: Candle[] = []
+  let p = 2377 + rnd() * 9 // mulai 2377–2386 (y 292–217)
+  for (let i = 0; i < PRE_COUNT; i++) {
+    /* pullback tiap candle ke-4 (i%5===3) — ritme naik-turun natural */
+    let drift = i % 5 === 3 ? -(1.6 + rnd() * 2.2) : 0.9 + rnd() * 2.1
+    if (p > 2393.5) drift = -(1.5 + rnd() * 3) // mentok resistance → tertolak
+    if (p < 2372) drift = 1.2 + rnd() * 2 // lantai — jangan jatuh terlalu dalam
+    const o = p
+    const c = Math.min(2395.5, Math.max(2369, o + drift + (rnd() - 0.5) * 1.6))
+    const hi = Math.max(o, c) + rnd() * 1.7
+    const lo = Math.min(o, c) - rnd() * 1.7
+    const vol = 13 + Math.abs(c - o) * 2.4 + rnd() * 9
+    cs.push({ x: X0 + i * DX, o: priceToY(o), c: priceToY(c), wt: priceToY(hi), wb: priceToY(lo), vol })
+    p = c
+  }
+  /* BREAKOUT: open dari harga terakhir, menembus resistance sampai
+     ±2.406–2.408, volume raksasa (timing live: tick ke-70..74 ≈ 5.6s) */
+  const o = p
+  const c = 2406.2 + rnd() * 1.4
+  const hi = c + 1.2 + rnd() * 1.3
+  const lo = o - 0.8 - rnd() * 1.2
+  cs.push({ x: X0 + PRE_COUNT * DX, o: priceToY(o), c: priceToY(c), wt: priceToY(hi), wb: priceToY(lo), vol: 62 + rnd() * 12 })
+  return cs
+}
+
+/* Candle yang sedang TERBENTUK: body tumbuh dari open ke close,
+   wick memanjang bertahap, volume menumpuk — interpolasi per tick. */
+function liveCandle(c: Candle, prog: number): Candle {
+  const cur = c.o + (c.c - c.o) * prog
+  const topMin = Math.min(c.o, cur)
+  const wt = topMin - (topMin - c.wt) * prog
+  const botMax = Math.max(c.o, cur)
+  const wb = botMax + (c.wb - botMax) * prog
+  return { x: c.x, o: c.o, c: cur, wt, wb, vol: c.vol * prog }
+}
 
 const BULL = '#34d399'
 const BEAR = '#f87171'
@@ -395,13 +499,14 @@ const PRICE_LEVELS = [
   { label: '2.380', y: 222 },
   { label: '2.370', y: 272 },
 ]
+/* label waktu di candle ke-0,3,6,9,12,14 (x = center candle) */
 const TIME_LABELS = [
-  { label: '08:00', x: 33 },
-  { label: '09:00', x: 153 },
-  { label: '10:00', x: 273 },
-  { label: '11:00', x: 393 },
-  { label: '12:00', x: 513 },
-  { label: '13:00', x: 633 },
+  { label: '08:00', x: X0 + 0 * DX + BW / 2 },
+  { label: '09:00', x: X0 + 3 * DX + BW / 2 },
+  { label: '10:00', x: X0 + 6 * DX + BW / 2 },
+  { label: '11:00', x: X0 + 9 * DX + BW / 2 },
+  { label: '12:00', x: X0 + 12 * DX + BW / 2 },
+  { label: '13:00', x: X0 + 14 * DX + BW / 2 },
 ]
 
 /* ---------- Indikator EMA mulus (Catmull-Rom → bezier) ---------- */
@@ -421,17 +526,6 @@ function smoothPath(pts: [number, number][]): string {
   return d
 }
 
-/* EMA "lagging" — mengikuti candle tapi lebih halus & terlambat */
-const IND_PTS: [number, number][] = [
-  [33, 286], [113, 272], [193, 254], [273, 238],
-  [353, 224], [433, 208], [513, 190], [593, 162], [633, 128],
-]
-const INDICATOR_PATH = smoothPath(IND_PTS)
-/* Panjang aproksimasi (polyline × faktor kelengkungan) → dasharray */
-const INDICATOR_LEN = Math.round(
-  IND_PTS.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - IND_PTS[i][0], p[1] - IND_PTS[i][1]), 0) * 1.05,
-)
-
 /* ---------- CSS (scoped prefix lxs-) — semua ONE-SHOT, loop via remount ---------- */
 const LXS_CSS = `
 /* karakter kode muncul (delay per karakter di style inline) */
@@ -444,25 +538,10 @@ const LXS_CSS = `
 .lxs-run .lxs-caret { animation: lxs-caret-blink 0.9s steps(2, jump-none) infinite; }
 @keyframes lxs-caret-blink { 0%, 100% { opacity: 1 } 50% { opacity: 0.15 } }
 
-/* candle muncul bergiliran */
-.lxs .lxs-candle { opacity: 0; }
-.lxs-run .lxs-candle { animation: lxs-candle-in 0.45s ease-out both; }
-@keyframes lxs-candle-in { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: translateY(0) } }
-
-/* candle breakout — pop dramatis menembus resistance (5.6s) */
-.lxs .lxs-candle-break { transform-box: fill-box; transform-origin: 50% 100%; filter: drop-shadow(0 0 7px rgba(74, 222, 128, 0.75)); }
-.lxs-run .lxs-candle-break { animation: lxs-break-pop 0.55s cubic-bezier(0.34, 1.56, 0.5, 1) 5.6s both, lxs-fadeout 0.6s ease-in 10.2s both; }
-@keyframes lxs-break-pop {
-  0% { opacity: 0; transform: translateY(18px) scale(0.6) }
-  60% { opacity: 1; transform: translateY(0) scale(1.12) }
-  100% { opacity: 1; transform: translateY(0) scale(1) }
-}
-
-/* bar volume mengikuti candle-nya */
-.lxs .lxs-vol { opacity: 0; }
-.lxs-run .lxs-vol { animation: lxs-vol-in 0.5s ease-out both; }
-@keyframes lxs-vol-in { from { opacity: 0 } to { opacity: 1 } }
-.lxs-run .lxs-vol-break { animation: lxs-vol-in 0.5s ease-out 5.6s both, lxs-fadeout 0.6s ease-in 10.2s both; }
+/* candle + volume + tag harga LIVE — fadeout di akhir siklus
+   (gerakannya dari JS tick, bukan CSS stagger — FIX "kurang realistis") */
+.lxs-run .lxs-live-wrap { animation: lxs-fadeout 0.6s ease-in 10.2s both; }
+@keyframes lxs-fadeout { to { opacity: 0 } }
 
 /* flash glow saat harga menembus resistance (5.7s) */
 .lxs .lxs-break-glow { opacity: 0; transform-box: fill-box; transform-origin: center; }
@@ -512,12 +591,9 @@ const LXS_CSS = `
 .lxs .lxs-end-dot { opacity: 0; }
 .lxs-run .lxs-end-dot { animation: lxs-char-in 0.01s linear 7s both, lxs-fadeout 0.5s ease-in 10.3s both; }
 
-/* crosshair vertikal + tag harga di axis (7.0s) */
+/* crosshair vertikal (7.0s) */
 .lxs .lxs-cross { opacity: 0; }
 .lxs-run .lxs-cross { animation: lxs-char-in 0.01s linear 7s both, lxs-fadeout 0.5s ease-in 10.3s both; }
-.lxs .lxs-price-tag { opacity: 0; transform-box: fill-box; }
-.lxs-run .lxs-price-tag { animation: lxs-tag-in 0.45s cubic-bezier(0.34, 1.4, 0.5, 1) 7s both, lxs-fadeout 0.5s ease-in 10.3s both; }
-@keyframes lxs-tag-in { from { opacity: 0; transform: translateX(12px) } to { opacity: 1; transform: translateX(0) } }
 
 /* push notif terbang masuk (6.9s) + hilang (10.35s) */
 .lxs .lxs-push { opacity: 0; }
@@ -544,11 +620,11 @@ const LXS_CSS = `
 /* pause saat keluar viewport */
 .lxs-paused, .lxs-paused * { animation-play-state: paused !important; }
 
-/* aksesibilitas: hormati reduce-motion (tampilkan state akhir) */
+/* aksesibilitas: hormati reduce-motion (tampilkan state akhir —
+   tick juga di-skip via JS di atas) */
 @media (prefers-reduced-motion: reduce) {
   .lxs *, .lxs-run * { animation: none !important; }
-  .lxs .lxs-ch, .lxs .lxs-candle, .lxs .lxs-vol, .lxs .lxs-ind-area,
-  .lxs .lxs-cross, .lxs .lxs-price-tag, .lxs .lxs-end-dot { opacity: 1; }
+  .lxs .lxs-ch, .lxs .lxs-ind-area, .lxs .lxs-cross, .lxs .lxs-end-dot { opacity: 1; }
   .lxs .lxs-indicator { stroke-dashoffset: 0 !important; }
   .lxs .lxs-push, .lxs .lxs-break-glow, .lxs .lxs-comet { display: none; }
   .lxs .lxs-scene { opacity: 0.85; }

@@ -88,40 +88,78 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Skrip terlalu panjang (maks ${MAX_SOURCE_LEN} karakter)` }, { status: 413 })
     }
 
-    /* 1) KUOTA — hanya FREE (Pro lewati) */
+    /* 1) CARI SKRIP NAMA SAMA (case-insensitive) — FIX akar masalah
+       "masukin pine keluar ga aktif, harus masukin lagi" (run GHA
+       #42: langganan yatim "skrip tidak ketemu"). Dulu tiap save
+       selalu INSERT baris baru dgn UUID baru → langganan alert lama
+       menunjuk skrip mati. Sekarang: nama sama = UPDATE baris yang
+       sama, UUID TETAP → langganan alert tetap hidup. Edit ulang
+       skrip yang sama TIDAK menghabiskan kuota free. */
+    const supabase = admin()
+    const safeName = name.replace(/[\\%_]/g, (m) => `\\${m}`) // escape wildcard ilike
+    const existingRes = await supabase
+      .from('pine_scripts')
+      .select('id, name, source, created_at, updated_at')
+      .eq('user_id', userId)
+      .ilike('name', safeName)
+      .limit(1)
+    const existing = (existingRes.data || [])[0] as
+      | { id: string; name: string; source: string; created_at: string; updated_at: string }
+      | undefined
+
+    /* 2) KUOTA — hanya FREE & hanya SKRIP BARU (update nama sama bebas) */
     const q = await checkPineQuota(userId)
-    if (!q.isPro && q.pine_edits_month_count >= FREE_PINE_EDITS_PER_MONTH) {
+    if (!existing && !q.isPro && q.pine_edits_month_count >= FREE_PINE_EDITS_PER_MONTH) {
       return NextResponse.json(
         { error: pineQuotaExceededMessage(), used: q.pine_edits_month_count, limit: FREE_PINE_EDITS_PER_MONTH },
         { status: 403 },
       )
     }
 
-    /* 2) SIMPAN ke pine_scripts */
-    const supabase = admin()
-    const { data, error } = await supabase
-      .from('pine_scripts')
-      .insert({ user_id: userId, name, source })
-      .select('id, name, source, created_at, updated_at')
-      .single()
-    if (error) {
-      const msg = error.message.includes('pine_scripts')
+    /* 3) SIMPAN — insert baru / update yang sudah ada */
+    let data: { id: string; name: string; source: string; created_at: string; updated_at: string } | null
+    let error: { message: string } | null
+    let reused = false
+    if (existing) {
+      reused = true
+      const r = await supabase
+        .from('pine_scripts')
+        .update({ source, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .eq('user_id', userId)
+        .select('id, name, source, created_at, updated_at')
+        .single()
+      data = r.data
+      error = r.error
+    } else {
+      const r = await supabase
+        .from('pine_scripts')
+        .insert({ user_id: userId, name, source })
+        .select('id, name, source, created_at, updated_at')
+        .single()
+      data = r.data
+      error = r.error
+    }
+    if (error || !data) {
+      const raw = String((error as any)?.message || 'gagal simpan')
+      const msg = raw.includes('pine_scripts')
         ? 'Tabel pine_scripts belum ada — jalankan docs/SUPABASE_QUOTA_TABLES.sql di Supabase SQL Editor dulu'
-        : error.message
+        : raw
       return NextResponse.json({ error: msg.slice(0, 160) }, { status: 500 })
     }
 
-    /* 3) KUOTA CONSUME — hanya FREE */
-    if (!q.isPro) await commitPineQuota(userId)
+    /* 4) KUOTA CONSUME — hanya FREE & hanya SKRIP BARU */
+    if (!existing && !q.isPro) await commitPineQuota(userId)
 
     return NextResponse.json({
       ok: true,
       script: data,
+      reused,
       quota: {
         isPro: q.isPro,
-        used: q.isPro ? 0 : q.pine_edits_month_count + 1,
+        used: q.isPro || reused ? 0 : q.pine_edits_month_count + 1,
         limit: q.isPro ? null : FREE_PINE_EDITS_PER_MONTH,
-        remaining: q.isPro ? null : Math.max(0, FREE_PINE_EDITS_PER_MONTH - (q.pine_edits_month_count + 1)),
+        remaining: q.isPro || reused ? null : Math.max(0, FREE_PINE_EDITS_PER_MONTH - (q.pine_edits_month_count + 1)),
       },
     })
   } catch (x: any) {

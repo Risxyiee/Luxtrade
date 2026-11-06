@@ -202,8 +202,11 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
           transition={{ duration: 0.5, delay: 0.1 }}
           className="rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-xl overflow-hidden"
         >
+          {/* RESPONSIVE (fix mobile): tabel 3 kolom digeser horizontal
+              di layar sempit, bukan diperas hingga teks terpotong */}
+          <div className="overflow-x-auto kscroll -mx-px">
           {/* Table Header */}
-          <div className="grid grid-cols-3 border-b border-white/[0.08]">
+          <div className="grid grid-cols-3 border-b border-white/[0.08] min-w-[520px]">
             {/* Feature column header */}
             <div className="px-4 sm:px-6 py-4 flex items-center">
               <span className="text-sm font-semibold text-white/60 uppercase tracking-wider">
@@ -235,7 +238,7 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.35, delay: index * 0.04 }}
-              className={`grid grid-cols-3 border-b border-white/[0.04] last:border-b-0 ${
+              className={`grid grid-cols-3 border-b border-white/[0.04] last:border-b-0 min-w-[520px] ${
                 index % 2 === 1 ? 'bg-white/[0.01]' : ''
               }`}
             >
@@ -255,6 +258,7 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
               </div>
             </motion.div>
           ))}
+          </div>
         </motion.div>
 
         {/* Mobile scroll hint */}

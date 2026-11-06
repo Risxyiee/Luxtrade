@@ -83,6 +83,11 @@ export async function GET(request: NextRequest) {
       scriptId: r.script_id,
       scriptKind: r.script_kind || 'protected',
       scriptName: nameOf.get(r.script_id) || 'Script',
+      /* FIX run GHA #42: langganan yang menunjuk skrip sudah dihapus
+         (yatim) ditandai orphan → UI Notifikasi bisa menampilkannya
+         dengan label "(skrip terhapus)" + tombol hapus, tidak lagi
+         tersembunyi dan "dilewati diam-diam" oleh engine. */
+      orphan: !nameOf.has(r.script_id),
       symbol: r.symbol,
       interval: r.timeframe,
       enabled: r.enabled === true,
