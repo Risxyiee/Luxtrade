@@ -490,17 +490,23 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
 
 /* ============================================================
    ALOKASI MODEL MULTI-AGENT (SOP Bos) — tiap karyawan punya model
-   OpenRouter masing-masing sesuai keahliannya (Task 35 — model lama
-   dipensiunkan OpenRouter, diganti katalog hidup):
+   OpenRouter masing-masing sesuai keahliannya. Update Tahap T:
+   ALEXANDER (CEO) dipindah dari google/gemma-4-31b-it:free ke
+   nvidia/nemotron-3.5-lightning:free — alasan: 3 karyawan (Sinta
+   CMO, Dewi DA, Alexander CEO) pakai gemma-4-31b yang sama di cron
+   pagi 08:00 → berebut kuota :free 20 req/menit (OpenRouter shared
+   capacity) → sering 429 → briefing jatuh ke templat "OTAK
+   ALEXANDER OFFLINE". Nemotron Lightning lebih cepat (1M ctx, latensi
+   ~333ms di diag Bos) & tidak tumpang tindih dengan CMO/DA.
    • Bagas  (COO)  → google/gemma-4-26b-a4b-it:free (route ai-coo-agent)
    • Raka   (CTO)  → nvidia/nemotron-3.5-lightning:free
    • Maya   (CSO)  → google/gemma-4-26b-a4b-it:free
    • Sinta  (CMO)  → google/gemma-4-31b-it:free (kreatif konten)
    • Putri  (CFO)  → TANPA LLM — murni matematika hardcoded
-   • Alexander (CEO) → google/gemma-4-31b-it:free
+   • Alexander (CEO) → nvidia/nemotron-3.5-lightning:free (anti-429)
    • Dewi   (DA)   → google/gemma-4-31b-it:free (analisis data)
    • Farhan (GH)   → nvidia/nemotron-3.5-lightning:free
-   Cadangan tim: Nemotron Ultra 550B → Inkling → Xing 4.0.
+   Cadangan tim: Nemotron Ultra 550B → Xing 4.0.
    Override per karyawan tanpa ubah kode: env OR_MODEL_CTO (contoh).
    ============================================================ */
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -515,7 +521,7 @@ const AGENT_MODELS: Record<AgentKey, string> = {
   cto: 'nvidia/nemotron-3.5-lightning:free',
   cso: 'google/gemma-4-26b-a4b-it:free',
   cmo: 'google/gemma-4-31b-it:free',
-  ceo: 'google/gemma-4-31b-it:free',
+  ceo: 'nvidia/nemotron-3.5-lightning:free',
   da: 'google/gemma-4-31b-it:free',
   gh: 'nvidia/nemotron-3.5-lightning:free',
 }
@@ -897,6 +903,119 @@ async function cmoAgent(e: Env) {
 }
 
 /* ============================================================
+   AGEN 3b — CMO INSTAGRAM (Tahap T): Sinta bikin CAPTION INSTAGRAM
+   terpisah dari draf TikTok. Bukan copy-paste naskah TikTok ke IG
+   (formatnya beda — IG butuh caption lebih pendek + hashtag +
+   insight analisis trading yang educational). Caption diambil dari
+   data REAL: win rate agregat, pair favorit, sesi terbaik komunitas
+   24 jam — bukan teks generik.
+
+   Auto-post: dipanggil di FASE 2 cron CEO agent. Dedup harian
+   `cmo:ig-posted:${day}` (terpisah dari `cmo:posted:${day}` TikTok).
+   Token Meta wajib di-set di Cloudflare Secrets
+   (INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID). Tanpa token →
+   status JUJUR "belum diset", tidak ada simulasi sukses.
+   ============================================================ */
+async function cmoInstagramCaption(e: Env) {
+  const day = wibDay()
+  const dayKey = `cmo:ig:${day}`
+  /* Cache: kalau caption hari ini sudah dibuat, return dari KV (hemat LLM) */
+  try {
+    const cached = JSON.parse((await kvGet(e, dayKey)) || 'null')
+    if (cached?.caption) return cached
+  } catch { /* ignore */ }
+
+  /* Ambil data REAL komunitas 24 jam untuk konten analisis */
+  let winRate = 0, totalTrades = 0, topPair = 'XAUUSD'
+  try {
+    const since = isoAgo(24)
+    const url = `${sbUrl(e)}/rest/v1/trades?select=symbol,profit_loss&created_at=gte.${encodeURIComponent(since)}&limit=500`
+    const res = await fetch(url, { headers: sbHPriv(e), signal: timeoutSignal(10_000) })
+    if (res.ok) {
+      const rows = (await res.json()) as { symbol?: string; profit_loss?: number }[]
+      totalTrades = rows.length
+      const wins = rows.filter((r) => Number(r.profit_loss) > 0).length
+      winRate = totalTrades ? Math.round((wins / totalTrades) * 100) : 0
+      /* Pair favorit (count group by symbol) */
+      const counts: Record<string, number> = {}
+      for (const r of rows) {
+        const s = String(r.symbol || '').trim().toUpperCase()
+        if (s) counts[s] = (counts[s] || 0) + 1
+      }
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+      if (top) topPair = top[0]
+    }
+  } catch { /* data opsional — fallback ke default */ }
+
+  const angle = wibDay() % 2 === 0
+    ? 'win rate komunitas + pair favorit hari ini'
+    : 'sesi trading terbaik & pola yang paling sering muncul'
+
+  const systemPrompt =
+    'Kamu Sinta, CMO Luxtradee (aplikasi jurnal trading XAUUSD Indonesia). ' +
+    'Tugasmu: bikin 1 CAPTION Instagram (bukan naskah TikTok) yang educational & analitis — ' +
+    'membagikan insight trading XAUUSD nyata dari data komunitas Luxtradee. ' +
+    'Gaya: profesional tapi santai, bahasa Indonesia, trader-friendly. ' +
+    'STRUKTUR: hook 1 baris menarik → insight data 2-3 baris → 1 pelajaran konkret → CTA ke luxtradee.web.id. ' +
+    'WAJIB sertakan 5-8 hashtag relevan di akhir (pisah spasi). ' +
+    'Maksimal 1800 karakter (Instagram batas 2200, sisakan margin). ' +
+    REAL_DATA_RULE
+
+  const userPrompt =
+    `Tanggal: ${wibNow()} WIB.\n` +
+    `ANGLE HARI INI: ${angle}\n` +
+    `DATA NYATA Luxtradee 24 jam:\n` +
+    `- Total trade: ${fmtN(totalTrades)}\n` +
+    `- Win rate komunitas: ${winRate}%\n` +
+    `- Pair teratas: ${topPair}\n\n` +
+    (totalTrades < 5
+      ? 'Catatan: data komunitas 24 jam sedang sepi (transaksi belum ramai). Tetap buat caption yang relevan — fokus ke edukasi XAUUSD umum dengan angle "data komunitas sedang dalam fase konsolidasi, ini pelajaran sabar yang bisa diambil".\n\n'
+      : '') +
+    (await memBlock(e)) +
+    (await agentMemBlock(e, 'cmo')) +
+    `\nOutput: HANYA caption Instagram (1 post), tanpa penjelasan tambahan, tanpa label "Caption:".`
+
+  let caption = ''
+  let provider: 'openrouter' | 'gemini' | 'fallback' = 'fallback'
+  let model = ''
+  let usedFallback = false
+  let fallbackError = ''
+
+  try {
+    const brain = await agentBrain(e, 'cmo', systemPrompt, userPrompt, 1200, 0.8)
+    caption = brain.text.trim().slice(0, 2200)
+    provider = brain.provider
+    model = brain.model
+  } catch (brainErr: any) {
+    fallbackError = String(brainErr?.message || brainErr).slice(0, 160)
+  }
+
+  /* Fallback caption: tetap educational walau LLM gagal */
+  if (!caption || caption.length < 80) {
+    caption = [
+      `Trader XAUUSD, baca ini sebelum buka posisi hari ini.`,
+      ``,
+      `Data komunitas Luxtradee 24 jam terakhir:`,
+      `- ${fmtN(totalTrades)} trade tercatat`,
+      `- Win rate agregat: ${winRate}%`,
+      `- Pair teratas: ${topPair}`,
+      ``,
+      `Pelajaran hari ini: konsistensi lebih penting daripada 1 big win. ` +
+      `Trader yang jurnal setiap trade-nya punya data buat evaluasi — yang cuma hafal di kepala, nggak.`,
+      ``,
+      `Mulai jurnal visual gratis di luxtradee.web.id`,
+      `#xauusd #goldtrading #tradingjournal #tradingindonesia #luxtradee #propfirm #scalping`,
+    ].join('\n')
+    usedFallback = true
+  }
+
+  await memAdd(e, 'CMO Sinta', `Caption IG (${angle}, ${model || provider}): ${caption.replace(/\s+/g, ' ').slice(0, 130)}`)
+  const out = { caption, angle, usedFallback, provider, model, totalTrades, winRate, topPair, ...(fallbackError ? { fallbackError } : {}) }
+  await kvSet(e, dayKey, JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+/* ============================================================
    AGEN 4 — CFO (API Quota Manager, anti-429 Gemini Vision gratis)
    ============================================================ */
 async function cfoAgent(e: Env) {
@@ -1123,13 +1242,15 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   const autoOn = (await kvGet(e, 'autoacc').catch(() => null)) !== 'off'
   const templateText = buildBriefing(cto, cso, cmo, cfo, '', autoOn, null, cooLine, nbaLine, null)
 
-  /* ALEXANDER (CEO) merangkai — dibatasi keras 30 dtk (dulu LLM lambat ikut
-     mendorong total briefing melewati timeout cron 120 dtk). Gagal/lewat
-     waktu → templat buildBriefing tetap dipakai (sistem tidak pernah tanpa
-     laporan). */
+  /* ALEXANDER (CEO) merangkai — Tahap T: timeout dinaikkan dari 30s → 45s
+     karena model lama (gemma-4-31b) sering lambat & berebut kuota dengan
+     Sinta/Dewi. Sekarang pakai nemotron-3.5-lightning (lebih cepat, 1M ctx),
+     tapi timeout 45s memberi margin aman untuk kasus cold-start tetap
+     berhasil tanpa jatuh ke templat "OTAK ALEXANDER OFFLINE". Cron total
+     tetap aman di bawah 120s. Gagal → templat buildBriefing tetap dipakai. */
   let text = templateText
   try {
-    const composed = await withTimeout(ceoComposeBriefing(e, templateText), 30_000, null)
+    const composed = await withTimeout(ceoComposeBriefing(e, templateText), 45_000, null)
     if (composed?.text) {
       text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
       cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))
@@ -1295,6 +1416,30 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
       }
     }
   } catch { /* auto-post opsional — jangan ganggu fase 2 lain */ }
+
+  /* AUTO-POSTING INSTAGRAM ANALISIS (Tahap T) — Caption IG terpisah
+     dari draf TikTok. Sinta bikin caption educational berbasis data
+     REAL komunitas 24 jam (win rate, pair favorit) → diposting ke IG
+     via Meta Graph API. Dedup `cmo:ig-posted:${day}` terpisah dari
+     `cmo:posted:${day}` (TikTok) supaya keduanya bisa jalan hari yang
+     sama. Sengaja di FASE 2 supaya Fase 1 briefing tetap cepat. */
+  try {
+    if (runStep('talk') && !(await kvGet(e, `cmo:ig-posted:${day}`)) && (await kvGet(e, 'cmo:autopost')) !== 'off') {
+      const ig = await cmoInstagramCaption(e)
+      if (ig?.caption) {
+        const post: MetaPostResult = await metaAutoPost(ig.caption)
+        summary.igPost = { ...ig, post }
+        if (post.posted) {
+          await kvSet(e, `cmo:ig-posted:${day}`, JSON.stringify(post)).catch(() => {})
+          await memAdd(e, 'CMO Sinta', `Caption IG analisis NYATA diposting ke ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (id ${String(post.id).slice(0, 18)})`).catch(() => {})
+        }
+        const line = post.posted
+          ? `AUTO-POST IG ANALISIS: caption IG analisis trading NYATA tayang di ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API)`
+          : `AUTO-POST IG ANALISIS belum jalan: ${String(post.reason || '').slice(0, 140)}`
+        try { await sendDiscord(e, line) } catch { /* ignore */ }
+      }
+    }
+  } catch { /* IG auto-post opsional — jangan ganggu fase 2 lain */ }
 
   /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
      (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */

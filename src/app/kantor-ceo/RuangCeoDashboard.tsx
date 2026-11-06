@@ -103,6 +103,7 @@ const TEAM_DETAIL = [
       'LAPORAN RISET TIKTOK/hari (analisis pasar, bukan cuma bahan konten): pola hook yang works, topik berpeluang FYP, jadwal posting terbaik, risiko — dibagikan ke SELURUH kantor (briefing Alexander, bahan artikel Farhan, angle email Bagas, panel Memori Kantor)',
       'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
       '3 DRAF PILIHAN/hari via 1 panggilan model resminya (Gemma 4 31B via OpenRouter) — 3 pendekatan berbeda, WAJIB selaras hasil risetnya sendiri; Bos tinggal pilih yang paling pas di Ruang CMO',
+      'INSTAGRAM ANALISIS (Tahap T): bikin 1 caption IG educational berbasis data REAL komunitas 24 jam (win rate agregat, pair favorit, total trade) — terpisah dari draf TikTok. Caption otomatis diposting ke Instagram via Meta Graph API (token INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID di Cloudflare Secrets). Tanpa token → status jujur "belum diset", tidak ada simulasi sukses.',
       'Draf wajib menjawab alasan churn dari rapat Maya (bukan sekadar ikut angle rotasi)',
       'Rantai model: Gemma 4 31B → Nemotron Lightning → Gemma 4 26B → Gemini → templat statis (draf tidak pernah kosong)',
       'Ikut rapat harian sama Maya: ubah akar masalah churn jadi skrip konten anti-churn',
@@ -178,11 +179,11 @@ const TEAM_DETAIL = [
   },
   {
     id: 'CEO', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
-    model: 'Gemma 4 31B (OpenRouter)',
+    model: 'Nemotron 3.5 Lightning (OpenRouter)',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
     baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + Memori Kantor',
     tugas: [
-      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Gemma 4 31B via OpenRouter) → kirim ke Discord 08:00',
+      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Nemotron 3.5 Lightning via OpenRouter, anti-429 — tidak berebut kuota dengan Sinta & Dewi) → kirim ke Discord 08:00',
       'Pilih 1 NEXT BEST ACTION tiap pagi pakai modelnya sendiri — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
       'Ingatkan PRIORITAS KEMARIN di briefing — akuntabilitas: dilakukan, atau ganti dengan alasan jelas',
       'NBA OKE/NOT OKE: Bos jawab prioritas hari ini via tombol Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not → dicatat ke memori & briefing besok menghormati jawaban itu',

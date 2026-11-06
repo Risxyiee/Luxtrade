@@ -30,6 +30,7 @@ const TestimonialsSection = dynamic(() => import('@/components/landing/Testimoni
 const ContentArticles = dynamic(() => import('@/components/landing/ContentArticles').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const PineAlertShowcase = dynamic(() => import('@/components/landing/PineAlertShowcase').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const LiveChartPineDemo = dynamic(() => import('@/components/landing/LiveChartPineDemo').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { loading: () => loadingDiv })
@@ -146,6 +147,9 @@ export default function LuxTradeLanding() {
           <CaraKerjaSection language={language} />
           {/* Video animasi fitur Pine Script® + Alert (Konsep 1 — disetujui Bos) */}
           <PineAlertShowcase language={language} />
+          <LazySection minHeight={520} rootMargin={250} anchorId="live-chart-demo" aria-label="Live chart pine demo">
+            <LiveChartPineDemo language={language} />
+          </LazySection>
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}
