@@ -84,6 +84,8 @@ async function main() {
     const skipPro = data.skippedNoPro || 0
     if ((data.checked || 0) > 0 && (skipScript + skipPro) > 0) {
       console.log(`⚠️ ${data.checked} langganan ada tapi 0 grup jalan — DILEWATI: skrip tidak ketemu/nonaktif=${skipScript}, user bukan Pro/expired=${skipPro}. Cek langganan di UI (ikon 🔔) dan status Pro user.`)
+    } else if ((data.checked || 0) > 0) {
+      console.log(`⚠️ ${data.checked} langganan ada tapi 0 grup jalan tanpa alasan skip tercatat — kemungkinan simbol/timeframe tidak valid pada baris langganan. Cek isi tabel pine_alert_subscriptions.`)
     } else {
       console.log('✅ Tidak ada langganan aktif — selesai.')
     }
