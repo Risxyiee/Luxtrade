@@ -1,11 +1,25 @@
 name: Pine Alerts Runner
 
 # ============================================================
-# Alert Pine otomatis 24 jam (Task 44)
+# Alert Pine otomatis 24 jam (Task 44) — ARSITEKTUR BARU
 # ------------------------------------------------------------
-# Tiap 5 menit server mengecek sinyal Entry/SL/TP dari skrip
-# terproteksi untuk SEMUA langganan aktif → Telegram user Pro.
-# User tak perlu buka chart — alert tetap jalan.
+# FIX "alert pine user tidak jalan di produksi": engine PineTS
+# memakai `new Function` (code generation) yang DILARANG runtime
+# Cloudflare Workers (workerd) → EvalError → semua grup alert
+# gagal senyap di produksi. Solusi: engine dieksekusi DI SINI
+# (GitHub Actions runner = Node penuh, eval diizinkan).
+#
+# Tiap 5 menit:
+#   1. GET  {PROD_URL}/api/cron/pine-alerts/payload  → paket grup
+#      (sumber skrip + candle server + users + watermark)
+#   2. scripts/pine-alerts-engine.ts menjalankan engine PineTS
+#      + collectTriggers (jendela catch-up)
+#   3. POST {PROD_URL}/api/cron/pine-alerts/report → server
+#      melakukan dedupe per-bar + push layar HP user Pro
+#
+# Cron Cloudflare */15 (worker-entry.ts → /api/cron/pine-alerts)
+# tetap jalan sebagai BACKUP (grup ditandai engineDeferred di
+# workerd — dedupe pine_alert_log mencegah kirim ganda).
 #
 # SETUP SEKALI (wajib, oleh Bos):
 #   GitHub repo → Settings → Secrets and variables → Actions:
@@ -30,25 +44,21 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
-      - name: Panggil /api/cron/pine-alerts
-        run: |
-          # HARDENING: secret PROD_URL lama berisi trailing slash → URL
-          # //api/... → Cloudflare 308 → endpoint TIDAK tereksekusi tapi
-          # workflow dulu tetap "hijau" (silent fail). Sekarang: strip slash,
-          # follow redirect (-L), dan 308/4xx/5xx = GAGAL keras.
-          PROD_URL="${{ secrets.PROD_URL }}"
-          PROD_URL="${PROD_URL%/}"
-          code=$(curl -sS -L -o /tmp/pine-alerts.json -w '%{http_code}' -X POST \
-            -H "x-cron-secret: ${{ secrets.PINE_ALERT_CRON_SECRET }}" \
-            -H "User-Agent: luxtradee-pine-alerts-cron" \
-            --max-time 280 \
-            "${PROD_URL}/api/cron/pine-alerts") || code=000
-          echo "HTTP $code"
-          head -c 2000 /tmp/pine-alerts.json 2>/dev/null || true
-          echo ""
-          case "$code" in
-            2*) echo "✅ Pine alerts tereksekusi (HTTP $code)" ;;
-            *) echo "::error::Pine alerts GAGAL (HTTP $code) — endpoint tidak tereksekusi, dicek ulang 5 menit berikutnya"; exit 1 ;;
-          esac
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install engine deps (vela-pinets + tsx)
+        run: npm install --no-save --no-audit --no-fund @luxalgo/vela-pinets@^0.3.0 tsx@^4
+
+      - name: Run Pine engine & report triggers
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          PINE_ALERT_CRON_SECRET: ${{ secrets.PINE_ALERT_CRON_SECRET }}
+        run: npx tsx scripts/pine-alerts-engine.ts
