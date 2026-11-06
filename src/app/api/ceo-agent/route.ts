@@ -195,11 +195,15 @@ async function kvGet(e: Env, key: string): Promise<string | null> {
   const rows = (await res.json()) as { value?: string }[]
   return rows[0]?.value ?? null
 }
-async function kvSet(e: Env, key: string, value: string): Promise<void> {
+async function kvSet(e: Env, key: string, value: string): Promise<boolean> {
   /* TULIS agent_kv WAJIB service_role. Bukti produksi (CF observability
      2026-11-06): POST /rest/v1/agent_kv → 401 "new row violates row-level
      security policy" — upsert dulu pakai anon. Migrasi 027 me-REVOKE semua
-     grant client ke agent_kv; hanya service_role (BYPASSRLS) yang boleh. */
+     grant client ke agent_kv; hanya service_role (BYPASSRLS) yang boleh.
+     FIX ANTI-FLOOD (Bos 6 Nov: "kenapa masih dapet alert?"): return boolean
+     sukses/gagal — dulu kegagalan tulis DISENYAPIKAN (cuma console.error),
+     watchdog mengira counter heal & briefing:done sudah tersimpan → briefing
+     dipicu ulang tanpa batas tiap 15 menit. Caller kritis WAJIB cek return. */
   const res = await fetch(`${sbUrl(e)}/rest/v1/agent_kv?on_conflict=key`, {
     method: 'POST',
     headers: { ...sbHPriv(e), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
@@ -209,11 +213,16 @@ async function kvSet(e: Env, key: string, value: string): Promise<void> {
   if (!res.ok) {
     console.error(`[kvSet] upsert agent_kv "${key.slice(0, 48)}" → HTTP ${res.status}` +
       (res.status === 401 ? ' — set/cek SUPABASE_SERVICE_ROLE_KEY di Cloudflare Secrets (anon diblokir sejak migrasi 027)' : ''))
+    return false
   }
+  return true
 }
 async function kvIncr(e: Env, key: string): Promise<number> {
   const cur = parseInt((await kvGet(e, key)) || '0', 10)
-  await kvSet(e, key, String(cur + 1))
+  const ok = await kvSet(e, key, String(cur + 1))
+  /* ANTI-FLOOD: tulisan gagal → THROW. Caller kritis (self-heal briefing)
+     pakai ini sebagai syarat mutlak; caller opsional pakai .catch(() => {}). */
+  if (!ok) throw new Error(`agent_kv write gagal "${key.slice(0, 48)}" — counter/dedup tidak persist`)
   return cur + 1
 }
 /* Hapus kunci kv (service_role — RLS anon biasanya tidak punya DELETE).
@@ -534,7 +543,7 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
     },
   )
   if (res.status === 429) {
-    await kvIncr(e, `quota429:${wibDay()}`)
+    await kvIncr(e, `quota429:${wibDay()}`).catch(() => {}) // counter opsional — jangan timpa error 429 asli
     const x: any = new Error('Gemini 429 (rate limit)'); x.status = 429
     throw x
   }
@@ -1786,10 +1795,15 @@ async function watchdog(e: Env, req: Request, cronKey: string) {
   const cto = await ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) }))
   await kvIncr(e, `${cto.siteOk ? 'up' : 'down'}:${day}`).catch(() => {}) // riwayat uptime
 
-  /* site DOWN → alarm (dedup 30 menit biar nggak spam) */
+  /* site DOWN → alarm (dedup 30 menit biar nggak spam).
+     FIX ANTI-FLOOD: dedup LAPIS DUA — KV + fallback memori isolate.
+     Dulu kalau agent_kv gagal (key dirotasi → 401), lastDown selalu terbaca 0
+     dan kvSet gagal senyap → alarm DOWN terulang TIAP 15 MENIT. Kini fallback
+     memori menahan alarm walau KV mati. */
   let lastDown = 0
   try { lastDown = parseInt((await kvGet(e, 'wd:down:last')) || '0', 10) } catch { /* ignore */ }
-  if (!cto.siteOk && Date.now() - lastDown > 30 * 60_000) {
+  if (!cto.siteOk && Date.now() - Math.max(lastDown, _memDownAlertAt) > 30 * 60_000) {
+    _memDownAlertAt = Date.now()
     await kvSet(e, 'wd:down:last', String(Date.now()))
     const msg = `🚨 **CTO WATCHDOG — WEBSITE DOWN!**\n• Status: ${cto.status || 'timeout'}\n• ${String(cto.err || '').slice(0, 150)}\nCek sekarang: https://luxtradee.web.id`
     try { await sendDiscord(e, msg); alerts.push('situs-down') } catch { /* ignore */ }
@@ -1844,7 +1858,10 @@ async function watchdog(e: Env, req: Request, cronKey: string) {
     const pct = Math.round((cfo.usedToday / cfo.limit) * 100)
     let flagged = ''
     try { flagged = (await kvGet(e, `wd:quota:${day}`)) || '' } catch { /* ignore */ }
-    if (pct >= 80 && flagged !== 'sent') {
+    /* FIX ANTI-FLOOD: lapis dedup memori isolate — kalau KV gagal, alarm kuota
+       tetap MAKS 1×/hari (dulu bisa tiap 15 menit saat agent_kv 401). */
+    if (pct >= 80 && flagged !== 'sent' && _memQuotaAlertDay !== day) {
+      _memQuotaAlertDay = day
       await kvSet(e, `wd:quota:${day}`, 'sent')
       const msg = `💰 **CFO WATCHDOG — KUOTA ${pct}% TERPAKAI**\n• ${cfo.usedToday}/${cfo.limit} request hari ini\n• Status: ${cfo.status}`
       try { await sendDiscord(e, msg); alerts.push('kuota-80') } catch { /* ignore */ }
@@ -1861,8 +1878,19 @@ async function watchdog(e: Env, req: Request, cronKey: string) {
       const hm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
       const hh = parseInt(hm.slice(0, 2), 10)
       const mm = parseInt(hm.slice(3, 5), 10)
-      if ((hh > 8 || (hh === 8 && mm >= 20)) && parseInt((await kvGet(e, `briefing:heal:${day}`)) || '0', 10) < 2) {
-        await kvIncr(e, `briefing:heal:${day}`).catch(() => {})
+      if (hh > 8 || (hh === 8 && mm >= 20)) {
+        /* FIX ANTI-FLOOD (Bos 6 Nov: "kenapa masih dapet pesan alert di Discord?"):
+           dulu: kvGet(briefing:heal) gagal → dianggap 0 → heal JALAN, lalu
+           kvIncr-nya .catch(() => {}) → counter GAGAL PERSIST → run berikutnya
+           tetap "0 < 2" → BRIEFING DIPICU ULANG TIAP 15 MENIT SEHARI PANJANG
+           (flood briefing 401 ke Discord ±08:20–12:38 WIB 6 Nov).
+           Kini FAIL-CLOSED: heal hanya boleh jalan kalau counter BENAR-BENAR
+           TERTULIS di agent_kv (hasil kvIncr = 1 atau 2). KV mati → TANPA heal
+           — briefing bolong sehari lebih baik daripada spam tanpa batas; cron
+           08:00 tetap jalur utama, dan status tetap terpantau di cron_runs. */
+        let heal = -1
+        try { heal = await kvIncr(e, `briefing:heal:${day}`) } catch { heal = -1 }
+        if (heal >= 1 && heal <= 2) {
         /* FIX "Too many subrequests by single Worker invocation" (log produksi):
            dulu briefing dijalankan DALAM invokasi watchdog yang sama — gabungan
            watchdog (ping + KV + Supabase) + briefing (4 agen, masing-masing KV
@@ -1887,6 +1915,9 @@ async function watchdog(e: Env, req: Request, cronKey: string) {
           console.warn('[watchdog] self-heal gagal menyusun URL self-call:', String(x?.message || x))
           alerts.push('briefing-heal-gagal')
         }
+        } else if (heal === -1) {
+          console.warn('[watchdog] self-heal DILEWATI — counter heal gagal ditulis ke agent_kv (anti-flood fail-closed)')
+        }
       }
     }
   } catch { /* self-heal opsional */ }
@@ -1894,10 +1925,13 @@ async function watchdog(e: Env, req: Request, cronKey: string) {
   return { watch: true, at: new Date().toISOString(), siteOk: cto.siteOk, status: cto.status, bugs24h: cto.bugs24h, quota, alerts }
 }
 
-/* ============================================================
-   LAPORAN MINGGUAN — CEO rekap 7 hari ke Discord
-   (dipanggil cron Minggu malam, mis. 20:00 WIB)
-   ============================================================ */
+/* FIX ANTI-FLOOD (6 Nov): fallback dedup DALAM ISOLATE — kalau agent_kv tidak
+   bisa ditulis (key dirotasi/401), alarm tetap ditahan: DOWN maks 1×/30 mnt,
+   kuota maks 1×/hari — TANPA bergantung KV. Isolate recycle → fallback reset,
+   worst case alarm berulang SEKALI, bukan tiap 15 menit seharian. */
+let _memDownAlertAt = 0
+let _memQuotaAlertDay = ''
+
 async function weeklyReport(e: Env) {
   const L: string[] = []
   L.push('📊 **LAPORAN MINGGUAN — LUXTRADE SUPER AI**')
