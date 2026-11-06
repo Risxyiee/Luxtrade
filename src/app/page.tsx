@@ -134,6 +134,11 @@ export default function LuxTradeLanding() {
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
           <SocialProofBar language={language} />
+          {/* Video animasi fitur Pine Script® + Alert (Konsep 1 — disetujui Bos).
+              DINAikkan ke posisi ke-2 (tepat setelah hero) supaya "video" chart
+              terlihat begitu user scroll sekali — sebelumnya tertutup di y≈5000px
+              di bawah Cara Kerja dan sering gak kelihatannya. */}
+          <PineAlertShowcase language={language} />
           {/* TrustStats removed — fake data */}
           <PartnerBanner language={language} />
           {/* PERF: 2 widget berat (ssr:false) kini baru fetch chunk saat user
@@ -145,8 +150,6 @@ export default function LuxTradeLanding() {
             <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           </LazySection>
           <CaraKerjaSection language={language} />
-          {/* Video animasi fitur Pine Script® + Alert (Konsep 1 — disetujui Bos) */}
-          <PineAlertShowcase language={language} />
           <LazySection minHeight={520} rootMargin={250} anchorId="live-chart-demo" aria-label="Live chart pine demo">
             <LiveChartPineDemo language={language} />
           </LazySection>
