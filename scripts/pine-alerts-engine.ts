@@ -69,11 +69,24 @@ async function main() {
     console.error('::error::payload gagal — ' + (await res.text().catch(() => '')).slice(0, 400))
     process.exit(1)
   }
-  const data = await res.json() as { groups?: PayloadGroup[]; groupsTotal?: number; checked?: number; groupsCapped?: boolean }
+  const data = await res.json() as {
+    groups?: PayloadGroup[]; groupsTotal?: number; checked?: number; groupsCapped?: boolean;
+    skippedNoScript?: number; skippedNoPro?: number;
+  }
   const groups = Array.isArray(data.groups) ? data.groups : []
   console.log(`grup: ${groups.length}${data.groupsCapped ? ` (dari total ${data.groupsTotal}, dipotong 30)` : ''} · langganan: ${data.checked ?? '?'} · generatedAt: ${(data as any).generatedAt}`)
   if (!groups.length) {
-    console.log('✅ Tidak ada langganan aktif — selesai.')
+    /* JUJUR (fix log "✅ Tidak ada langganan aktif" yang menyesatkan):
+       bila ada langganan tapi 0 grup terbentuk, tunjukkan ALASAN skip
+       (skrip tidak ketemu/nonaktif vs user bukan Pro/expired) —
+       dulu skip terjadi diam-diam dan Bos menyangka alert rusak. */
+    const skipScript = data.skippedNoScript || 0
+    const skipPro = data.skippedNoPro || 0
+    if ((data.checked || 0) > 0 && (skipScript + skipPro) > 0) {
+      console.log(`⚠️ ${data.checked} langganan ada tapi 0 grup jalan — DILEWATI: skrip tidak ketemu/nonaktif=${skipScript}, user bukan Pro/expired=${skipPro}. Cek langganan di UI (ikon 🔔) dan status Pro user.`)
+    } else {
+      console.log('✅ Tidak ada langganan aktif — selesai.')
+    }
     return
   }
 

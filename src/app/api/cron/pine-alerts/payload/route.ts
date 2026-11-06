@@ -87,6 +87,11 @@ async function handle(request: NextRequest) {
     generatedAt: new Date().toISOString(),
     checked: built.checked,
     groupsTotal: built.groups.length,
+    // DIAGNOSTIK (fix "grup: 0 · langganan: 1" misterius): sebelumnya
+    // alasan langganan di-skip tidak pernah keluar ke mana pun — log
+    // engine malah bilang "tidak ada langganan aktif" padahal ada 1.
+    skippedNoScript: built.skippedNoScript,
+    skippedNoPro: built.skippedNoPro,
     groupsCapped: built.groups.length > MAX_GROUPS,
     groups,
     durationMs: Date.now() - started,
