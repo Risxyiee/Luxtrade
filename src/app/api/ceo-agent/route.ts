@@ -85,6 +85,42 @@ function cfWaitUntil(p: Promise<unknown>): boolean {
   return false
 }
 
+/* ── SELF-FETCH — panggil worker INI sendiri tanpa lewat edge/DNS publik ──
+   Bukti produksi (CF observability 2026-11-06): fetch dari DALAM worker ke
+   https://luxtradee.web.id/... dibalas 522 oleh edge CF (loop-back gagal) —
+   cron briefing & fase-2 briefing-extras pernah mati karena ini.
+   Service binding SELF (wrangler.jsonc "services") memanggil handler worker
+   yang sama secara LANGSUNG — respons identik dengan request publik
+   (200/401/404), tanpa 522, tanpa latensi internet.
+   Fallback fetch publik hanya saat binding tak tersedia (dev lokal). */
+let _selfFetchFn: ((u: string, init?: RequestInit) => Promise<Response>) | null | undefined
+async function selfFetch(u: string, init?: RequestInit): Promise<Response> {
+  if (_selfFetchFn === undefined) {
+    _selfFetchFn = null
+    try {
+      /* 1) Context worker-entry.ts — dipasang sebelum OpenNext (paling andal) */
+      const sym = Symbol.for('__cloudflare-context__')
+      const c = (globalThis as Record<symbol, unknown>)[sym] as
+        | { env?: { SELF?: { fetch: (inp: RequestInfo | URL, i?: RequestInit) => Promise<Response> } } }
+        | undefined
+      if (c?.env?.SELF && typeof c.env.SELF.fetch === 'function') {
+        _selfFetchFn = c.env.SELF.fetch.bind(c.env.SELF)
+      }
+    } catch { /* coba cara 2 */ }
+    if (!_selfFetchFn) {
+      try {
+        /* 2) getSelfFetch() — getCloudflareContext via OpenNext */
+        const { getSelfFetch } = await import('@/lib/cloudflare-bindings')
+        _selfFetchFn = await getSelfFetch()
+      } catch { /* tetap null → fallback fetch publik */ }
+    }
+    if (!_selfFetchFn) {
+      console.warn('[selfFetch] binding SELF tidak tersedia — fallback fetch publik (produksi berisiko 522)')
+    }
+  }
+  return _selfFetchFn ? _selfFetchFn(u, init) : fetch(u, init)
+}
+
 /* Batas waktu keras 1 langkah via Promise.race — langkah yang lambat tidak
    lagi ditunggu (dipakai compose Alexander biar briefing tidak menumpuk
    timeout cron 120 dtk). */
@@ -142,23 +178,38 @@ async function verifyOwnerToken(e: Env, token: string): Promise<boolean> {
 
 /* ---------- KV berbasis tabel Supabase "agent_kv" ----------
    (jalankan SQL create table agent_kv sekali di Supabase — lihat
-    supabase-migrations/012_create_agent_kv.sql) */
+    supabase-migrations/012_create_agent_kv.sql)
+   Akses WAJIB service_role sejak migrasi 027 (lockdown client): grant
+   anon/authenticated ke agent_kv dicabut TOTAL — baca & tulis anon
+   dibalas 401 (bukti: CF observability 2026-11-06). */
 async function kvGet(e: Env, key: string): Promise<string | null> {
   const res = await fetch(
     `${sbUrl(e)}/rest/v1/agent_kv?select=value&key=eq.${encodeURIComponent(key)}`,
-    { headers: sbH(e), signal: timeoutSignal(10_000) },
+    { headers: sbHPriv(e), signal: timeoutSignal(10_000) },
   )
-  if (!res.ok) return null
+  if (!res.ok) {
+    console.warn(`[kvGet] baca agent_kv "${key.slice(0, 48)}" → HTTP ${res.status}` +
+      (res.status === 401 ? ' — set/cek SUPABASE_SERVICE_ROLE_KEY di Cloudflare Secrets (anon diblokir sejak migrasi 027)' : ''))
+    return null
+  }
   const rows = (await res.json()) as { value?: string }[]
   return rows[0]?.value ?? null
 }
 async function kvSet(e: Env, key: string, value: string): Promise<void> {
-  await fetch(`${sbUrl(e)}/rest/v1/agent_kv?on_conflict=key`, {
+  /* TULIS agent_kv WAJIB service_role. Bukti produksi (CF observability
+     2026-11-06): POST /rest/v1/agent_kv → 401 "new row violates row-level
+     security policy" — upsert dulu pakai anon. Migrasi 027 me-REVOKE semua
+     grant client ke agent_kv; hanya service_role (BYPASSRLS) yang boleh. */
+  const res = await fetch(`${sbUrl(e)}/rest/v1/agent_kv?on_conflict=key`, {
     method: 'POST',
-    headers: { ...sbH(e), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+    headers: { ...sbHPriv(e), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({ key, value }),
     signal: timeoutSignal(10_000),
   })
+  if (!res.ok) {
+    console.error(`[kvSet] upsert agent_kv "${key.slice(0, 48)}" → HTTP ${res.status}` +
+      (res.status === 401 ? ' — set/cek SUPABASE_SERVICE_ROLE_KEY di Cloudflare Secrets (anon diblokir sejak migrasi 027)' : ''))
+  }
 }
 async function kvIncr(e: Env, key: string): Promise<number> {
   const cur = parseInt((await kvGet(e, key)) || '0', 10)
@@ -181,7 +232,9 @@ async function kvDel(e: Env, key: string): Promise<number> {
 }
 
 /* ---------- Supabase headers ---------- */
-/* sbH = anon key — untuk tabel yang punya RLS policy SELECT untuk anon (agent_kv, dll) */
+/* sbH = anon key — hanya untuk endpoint publik Supabase (auth/v1, tabel yang
+   memang ber-policy anon). agent_kv TIDAK bisa anon lagi (REVOKE migrasi
+   027) — aksesnya wajib sbHPriv. */
 function sbH(e: Env) {
   return { apikey: sbAnonKey(e), Authorization: `Bearer ${sbAnonKey(e)}` }
 }
@@ -193,7 +246,7 @@ function sbHPriv(e: Env) {
 async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
   const url = `${sbUrl(e)}/rest/v1/${table}?select=*&limit=1${filters ? '&' + filters : ''}`
   /* Gunakan service_role key untuk tabel yang butuh bypass RLS.
-     agent_kv punya RLS policy SELECT untuk anon → pakai sbH saja.
+     agent_kv juga wajib service_role sejak migrasi 027 (REVOKE client).
      profiles/trades/bug_reports + ai_pending_actions (tabel sistem,
      TANPA policy anon) → wajib service_role.
      Task 35-e pelajaran dari Bos: reset-work dulu COUNT ai_pending_actions
@@ -356,7 +409,7 @@ async function ctoAgent(e: Env) {
   const ping = async () => {
     const t0 = Date.now()
     try {
-      const res = await fetch(SITE_URL, { method: 'GET', redirect: 'follow', signal: timeoutSignal(15_000) })
+      const res = await selfFetch(SITE_URL, { method: 'GET', redirect: 'follow', signal: timeoutSignal(15_000) })
       return { status: res.status, siteOk: res.ok, latencyMs: Date.now() - t0, err: '' }
     } catch (x: any) {
       return { status: 0, siteOk: false, latencyMs: Date.now() - t0, err: String(x?.message || x) }
@@ -1305,7 +1358,7 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
       u2.searchParams.set('step', step)
       if (cronKey) u2.searchParams.set('key', cronKey)
       cfWaitUntil(
-        fetch(u2.toString(), {
+        selfFetch(u2.toString(), {
           method: 'GET',
           /* Briefing manual dari browser Bos tidak bawa CRON_SECRET →
              forward sesi owner supaya invokasi anak lolos email-gate. */
@@ -1821,7 +1874,7 @@ async function watchdog(e: Env, req: Request, cronKey: string) {
           u2.searchParams.set('action', 'briefing')
           if (cronKey) u2.searchParams.set('key', cronKey)
           cfWaitUntil(
-            fetch(u2.toString(), { method: 'GET', signal: timeoutSignal(115_000) })
+            selfFetch(u2.toString(), { method: 'GET', signal: timeoutSignal(115_000) })
               .then((r) => console.log(`[watchdog] self-heal briefing (invokasi terpisah) → HTTP ${r.status}`))
               .catch((x: any) => console.warn('[watchdog] self-heal briefing gagal dipicu:', String(x?.message || x)))
           )
@@ -1961,7 +2014,7 @@ async function qaAgent(e: Env) {
   const results = await Promise.all(QA_ROUTES.map(async (r) => {
     const t0 = Date.now()
     try {
-      const res = await fetch(SITE_URL + r.path, { redirect: 'follow', signal: timeoutSignal(12_000) })
+      const res = await selfFetch(SITE_URL + r.path, { redirect: 'follow', signal: timeoutSignal(12_000) })
       const cfFalse = CF_FALSE.includes(res.status)
       return { path: r.path, label: r.label, status: cfFalse ? 200 : res.status, ok: r.expect.includes(res.status) || cfFalse, ms: Date.now() - t0 }
     } catch (x: any) {
@@ -2070,7 +2123,7 @@ async function e2eAgent(e: Env) {
 
     /* --- 4. Halaman dashboard terbuka --- */
     await run('dashboard', 'Halaman dashboard terbuka', async () => {
-      const res = await fetch(`${SITE_URL}/dashboard`, { redirect: 'follow', signal: timeoutSignal(15_000) })
+      const res = await selfFetch(`${SITE_URL}/dashboard`, { redirect: 'follow', signal: timeoutSignal(15_000) })
       if ([521, 522, 523, 524].includes(res.status)) return `HTTP ${res.status} (self-ping CF diabaikan — Worker aktif)`
       if (!res.ok) throw Object.assign(new Error(`dashboard HTTP ${res.status}`), { status: res.status })
       return 'HTTP 200 OK'

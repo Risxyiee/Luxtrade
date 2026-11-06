@@ -26,7 +26,15 @@ function sbUrl() {
   return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
 }
 function sbKey() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const fromProc = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  if (fromProc) return fromProc
+  /* Fallback binding CF Workers (secret kadang tak masuk process.env).
+     agent_kv terkunci client sejak migrasi 027 — tulis butuh service_role. */
+  try {
+    const sym = Symbol.for('__cloudflare-context__')
+    const ctx = (globalThis as Record<symbol, unknown>)[sym] as { env?: Record<string, string> } | undefined
+    return (ctx?.env?.SUPABASE_SERVICE_ROLE_KEY || ctx?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim()
+  } catch { return '' }
 }
 function sbH(): Record<string, string> {
   const key = sbKey()

@@ -93,6 +93,22 @@ export default {
     }
 
     const siteUrl = (env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id').replace(/\/+$/, '')
+
+    /* FIX 522 (CF observability 2026-11-06: GET /api/ceo-agent → 522):
+       fetch dari DALAM worker ke custom domain sendiri dibalas 522 oleh
+       edge CF (loop-back gagal) — briefing/analyst/growth + seluruh route
+       cron jadi undian ("Otak Alexander sering off"). Service binding SELF
+       (wrangler.jsonc "services") memanggil worker ini LANGSUNG tanpa lewat
+       edge/DNS publik — andal, tanpa 522. */
+    const selfFetcher = env.SELF && typeof env.SELF.fetch === 'function'
+      ? env.SELF.fetch.bind(env.SELF)
+      : null
+    if (!selfFetcher) {
+      console.warn('[cron] binding SELF tidak ada — fallback fetch URL publik (berisiko 522). Pastikan wrangler.jsonc terbaru (services: SELF) sudah ter-deploy.')
+    }
+    const doFetch = (url: string, init?: RequestInit): Promise<Response> =>
+      selfFetcher ? selfFetcher(url, init) : fetch(url, init)
+
     // SECURITY (audit #17): VAPID_PRIVATE_KEY TIDAK lagi dipakai sebagai
     // auth cron — satu kunci satu fungsi (VAPID = tanda tangan web push).
     // Cron auth: CRON_SECRET / PINE_ALERT_CRON_SECRET saja. If neither is
@@ -126,7 +142,7 @@ export default {
             headers['x-cron-secret'] = cronSecret
           }
 
-          const res = await fetch(`${siteUrl}${path}`, {
+          const res = await doFetch(`${siteUrl}${path}`, {
             method: 'GET',
             headers,
             signal: AbortSignal.timeout(timeoutFor(route)),
@@ -151,7 +167,7 @@ export default {
       // failures > 0 = push + email ke admin (throttle 30 menit di route).
       // Dulu: route gagal cuma muncul di log CF (sering tidak dilihat).
       try {
-        const haRes = await fetch(`${siteUrl}/api/cron/health-alert`, {
+        const haRes = await doFetch(`${siteUrl}/api/cron/health-alert`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

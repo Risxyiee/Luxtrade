@@ -368,11 +368,14 @@ export async function POST(request: NextRequest) {
     // → free user ditolak sopan DI SINI (efek nyata), PRO tetap jalan penuh.
     try {
       const sbUrl2 = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
-      const anon2 = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      if (sbUrl2 && anon2 && !pro) {
+      /* agent_kv dikunci dari client sejak migrasi 027 (REVOKE anon) — baca
+         flag wajib service_role; pakai anon dibalas 401 → flag tak pernah
+         terbaca (fail-open diam-diam). */
+      const srvKey2 = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      if (sbUrl2 && srvKey2 && !pro) {
         const fRes = await fetch(
           `${sbUrl2}/rest/v1/agent_kv?select=value&key=eq.${encodeURIComponent('feature:auto_journal:disabled')}&limit=1`,
-          { headers: { apikey: anon2, Authorization: `Bearer ${anon2}` }, signal: AbortSignal.timeout(5000) }
+          { headers: { apikey: srvKey2, Authorization: `Bearer ${srvKey2}` }, signal: AbortSignal.timeout(5000) }
         )
         if (fRes.ok) {
           const fRows = (await fRes.json()) as { value?: string }[]

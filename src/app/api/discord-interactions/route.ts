@@ -45,7 +45,9 @@ function envGet(name: string): string {
 
 /* ---------- KV kecil (tabel agent_kv sama dengan ceo-agent) ---------- */
 function sbUrl() { return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '') }
-function sbKey() { return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '' }
+/* agent_kv terkunci client sejak migrasi 027 — tulis wajib service_role.
+   envGet: process.env → fallback binding CF Workers. */
+function sbKey() { return envGet('SUPABASE_SERVICE_ROLE_KEY') || envGet('NEXT_PUBLIC_SUPABASE_ANON_KEY') }
 function sbH(): Record<string, string> {
   const k = sbKey()
   return { apikey: k, Authorization: `Bearer ${k}`, 'Content-Type': 'application/json' }
