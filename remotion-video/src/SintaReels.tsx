@@ -13,7 +13,7 @@ import {
 import { Backdrop } from "./components/Backdrop";
 import { BackgroundMusic } from "./components/Music";
 import { CandleChart, ChartPanel } from "./components/Chart";
-import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, clamp01, pop, rise, SceneShell } from "./components/Ui";
+import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, SPRING_SOFT, clamp01, pop, rise, SceneShell } from "./components/Ui";
 import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
 
 /* ============================================================
