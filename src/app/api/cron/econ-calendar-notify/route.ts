@@ -62,9 +62,15 @@ export async function GET(request: NextRequest) {
     // sendiri tanpa keluar edge), fallback ke fetch publik di non-CF (dev).
     const calUrl = `${siteUrl}/api/economic-calendar?impact=high`
     const selfFetch = await getSelfFetch()
+    // FIX 6 Nov (health alert 11:31 & 11:45 UTC): timeout 15s LEBIH PENDEK
+    // dari deadline internal economic-calendar (cascade 12s + fallback +
+    // KV last-good rescue) → cron abort duluan ("operation was aborted due
+    // to timeout") → 500 → email health alert. Naikkan ke 25s supaya cron
+    // SELALU menerima respons (data live / last-good / fallback schedule —
+    // economic-calendar dijamin selalu 200) dan tidak pernah abort.
     const calRes = selfFetch
-      ? await selfFetch(calUrl, { signal: AbortSignal.timeout(15000) })
-      : await fetch(calUrl, { signal: AbortSignal.timeout(15000) })
+      ? await selfFetch(calUrl, { signal: AbortSignal.timeout(25000) })
+      : await fetch(calUrl, { signal: AbortSignal.timeout(25000) })
     if (!calRes.ok) {
       return NextResponse.json({ success: false, error: 'Calendar API failed: ' + calRes.status })
     }

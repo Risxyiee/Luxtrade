@@ -95,11 +95,17 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
   ];
   const events: CalendarEvent[] = [];
 
-  // Three attempts with increasing delay — the rate limiter is often a
-  // per-second burst limit, so retries after a pause rescue transient hits.
+  // FIX 6 Nov (cron notify timeout → 500): retry HANYA untuk error
+  // jaringan (fetch throw). Retry saat 429/404 JELAS BURUK:
+  // rate-limiter faireconomy justru makin marah (6 request sia-sia
+  // per cascade) dan 404 nextweek tidak akan berubah jadi 200.
+  // Bukti log produksi 11:45 UTC: thisweek 429 + nextweek 404 di
+  // SEMUA attempt → 3 attempt + backoff 2s/3s = ~5 detik terbuang.
   const maxAttempts = 3;
+  let statusFail = false; // 429/404 = kegagalan status → JANGAN retry
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (events.length > 0) break;
+    if (statusFail) break;
     if (attempt > 1) {
       await new Promise(r => setTimeout(r, attempt * 1000)); // 2s, 3s backoff
       console.log('[EconCalendar] Faireconomy retry attempt ' + attempt);
@@ -113,10 +119,13 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': 'https://www.forexfactory.com/',
           },
-          signal: AbortSignal.timeout(12000),
+          signal: AbortSignal.timeout(8000),
         });
         if (!res.ok) {
           console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status} ${res.statusText} (attempt ${attempt})`);
+          // 429 = rate-limited (IP egress CF dipakai bersama) dan
+          // 404 = file tidak ada → retry tidak akan mengubah hasil.
+          if (res.status === 429 || res.status === 404) statusFail = true;
           continue;
         }
         const data = await res.json();
@@ -735,7 +744,10 @@ async function fetchGeminiCalendar(): Promise<CalendarEvent[]> {
           maxOutputTokens: 8192,
         },
       }),
-      signal: AbortSignal.timeout(25000),
+      // FIX 6 Nov: 25s → 8s. Cron notify memberi 25s total; cascade
+      // harus selesai jauh di bawahnya. Gemini grounding dengan
+      // googleSearch umumnya jawab 2-5 detik — 8s sudah longgar.
+      signal: AbortSignal.timeout(8000),
     }
   );
 
@@ -1244,11 +1256,15 @@ export async function GET(request: NextRequest) {
         fetchCalendarEvents(),
         new Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }>((resolve) =>
           setTimeout(() => {
-            console.warn('[EconCalendar] Cascade timed out after 20s, using fallback');
+            // FIX 6 Nov: 20s → 12s. Cron notify self-fetch pakai timeout
+            // 25s — cascade harus selesai + KV last-good rescue masih
+            // dalam anggaran itu, bukan persis di garis (dulu 20s vs
+            // cron 15s = cron ABORT duluan → 500 → health alert email).
+            console.warn('[EconCalendar] Cascade timed out after 12s, using fallback');
             fetchFallbackCalendar().then(events =>
               resolve({ events, source: 'Fallback Schedule (timeout)', unavailable: true })
             );
-          }, 20000)
+          }, 12000)
         ),
       ]);
     } catch (err: any) {
