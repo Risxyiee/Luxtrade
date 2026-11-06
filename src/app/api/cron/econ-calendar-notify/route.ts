@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCronAdmin, fetchAllRows } from '@/lib/cron-supabase'
-import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { getEnvVar, getSelfFetch } from '@/lib/cloudflare-bindings'
 import { pushToUsers } from '@/lib/push-notify'
 
 /**
@@ -56,9 +56,15 @@ export async function GET(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
     // 1. Fetch upcoming high-impact events
-    const calRes = await fetch(`${siteUrl}/api/economic-calendar?impact=high`, {
-      signal: AbortSignal.timeout(15000),
-    })
+    // FIX Bos 6 Nov (cron calendar notif gagal): self-fetch via URL publik di
+    // Workers rawan 522/loop edge — sama penyakitnya dgn cron lain yang sudah
+    // di-patch commit 840759dd. Pakai SELF binding dulu (panggil worker ini
+    // sendiri tanpa keluar edge), fallback ke fetch publik di non-CF (dev).
+    const calUrl = `${siteUrl}/api/economic-calendar?impact=high`
+    const selfFetch = await getSelfFetch()
+    const calRes = selfFetch
+      ? await selfFetch(calUrl, { signal: AbortSignal.timeout(15000) })
+      : await fetch(calUrl, { signal: AbortSignal.timeout(15000) })
     if (!calRes.ok) {
       return NextResponse.json({ success: false, error: 'Calendar API failed: ' + calRes.status })
     }

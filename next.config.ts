@@ -72,11 +72,16 @@ const nextConfig: NextConfig = {
   //    dilaporkan ke /api/security/csp-report (log → CF Observability).
   //    Datanya dipakai untuk menyusun CSP ENFORCE tanpa merusak fitur.
   async headers() {
-    // DEV-ONLY 'unsafe-eval': React/Next dev runtime (Fast Refresh) memakai
-    // eval di main-app.js — tanpa ini CSP enforce memblokirnya → hydration
-    // gagal → animasi framer-motion macet di state awal (teks hero opacity 0).
-    // Production TETAP ketat tanpa eval (build produksi Next tidak pakai eval).
-    const isDevCsp = process.env.NODE_ENV === 'development';
+    // 'unsafe-eval' WAJIB di SEMUA environment (dev + produksi):
+    //  1) Dev: React/Next runtime (Fast Refresh) memakai eval di main-app.js.
+    //  2) Produksi: fitur inti Pine Script® di VelaChartTerminal memakai
+    //     engine @luxalgo/vela-pinets yang meng-compile kode Pine user →
+    //     JS via new Function() — di browser. Tanpa 'unsafe-eval' CSP
+    //     memblokirnya → error "[c1] Refused to evaluate a string as
+    //     JavaScript" → Bos tidak bisa masang skrip di Pine editor
+    //     (bug report 6 Nov 2026, screenshot IMG_9419).
+    //     Skrip default di SISI SERVER tetap pakai runner native
+    //     (pine-default-native.ts, tanpa eval) untuk Cloudflare Workers.
     const securityHeaders = [
       { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
       { key: 'X-Frame-Options', value: 'DENY' },
@@ -95,8 +100,7 @@ const nextConfig: NextConfig = {
           // static.cloudflareinsights.com = beacon Cloudflare Web Analytics yang
           // diinjeksi otomatis CF pada domain ter-proxy (log csp-report Bos:
           // script-src-elem blocked). Tanpa ini, analytics keblock diam-diam.
-          "script-src 'self' 'unsafe-inline' " +
-            (isDevCsp ? "'unsafe-eval' " : "") +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' " +
             "https://app.midtrans.com https://app.sandbox.midtrans.com https://static.cloudflareinsights.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",

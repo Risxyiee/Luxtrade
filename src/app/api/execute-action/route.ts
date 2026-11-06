@@ -97,7 +97,9 @@ async function executePayload(actionType: string, payload: Record<string, any>):
         const cfg = sbConfig()
         const res = await fetch(`${cfg.url}/rest/v1/blog_posts`, {
           method: 'POST',
-          headers: { apikey: cfg.anon, Authorization: `Bearer ${cfg.service}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          /* FIX Bos 6 Nov: apikey = service key (dulu apikey=anon) — anon yang
+             dirotasi bikin request admin 401 padahal service_role sehat. */
+          headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
           body: JSON.stringify({ title: title || 'Update Market', content_body: body, media_url: String(payload.media_url || '') || null, author: 'Sinta (CMO — AI Agent)', status: 'published' }),
           signal: AbortSignal.timeout(15_000),
         })

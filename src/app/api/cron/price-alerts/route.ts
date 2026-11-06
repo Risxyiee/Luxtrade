@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { pushToUser } from '@/lib/push-notify'
+import { getSelfFetch } from '@/lib/cloudflare-bindings'
 
 /**
  * GET/POST /api/cron/price-alerts
@@ -82,10 +83,13 @@ interface Quote {
 
 async function fetchQuote(symbol: string): Promise<Quote | null> {
   try {
-    const res = await fetch(
-      `${SITE_URL}/api/candles?symbol=${encodeURIComponent(symbol)}&interval=5m&limit=2`,
-      { signal: AbortSignal.timeout(12_000) }
-    )
+    /* FIX Bos 6 Nov: SELF binding dulu (anti 522/loop edge di Workers —
+       pola sama dgn cron lain commit 840759dd), fallback fetch publik di dev. */
+    const quoteUrl = `${SITE_URL}/api/candles?symbol=${encodeURIComponent(symbol)}&interval=5m&limit=2`
+    const selfFetch = await getSelfFetch()
+    const res = selfFetch
+      ? await selfFetch(quoteUrl, { signal: AbortSignal.timeout(12_000) })
+      : await fetch(quoteUrl, { signal: AbortSignal.timeout(12_000) })
     if (!res.ok) return null
     const json = await res.json()
     const bars = Array.isArray(json?.data) ? json.data : []

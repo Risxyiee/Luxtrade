@@ -238,10 +238,14 @@ async function kvDel(e: Env, key: string): Promise<number> {
 function sbH(e: Env) {
   return { apikey: sbAnonKey(e), Authorization: `Bearer ${sbAnonKey(e)}` }
 }
-/* sbHPriv = service_role key — bypass RLS, untuk CEO agent baca profiles/trades/bug_reports */
+/* sbHPriv = service_role key — bypass RLS, untuk CEO agent baca profiles/trades/bug_reports.
+   FIX Bos 6 Nov: apikey WAJIB service_role juga (dulu apikey=anon) — kalau anon key
+   dirotasi/dihapus di dashboard Supabase, request admin ikutan HTTP 401 "Invalid API
+   key" padahal service_role sehat (persis gejala briefing: bug_reports & trades 401).
+   supabase-js admin client juga begitu: apikey = Authorization = service key. */
 function sbHPriv(e: Env) {
   const sk = sbServiceKey(e)
-  return { apikey: sbAnonKey(e), Authorization: `Bearer ${sk}` }
+  return { apikey: sk, Authorization: `Bearer ${sk}` }
 }
 async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
   const url = `${sbUrl(e)}/rest/v1/${table}?select=*&limit=1${filters ? '&' + filters : ''}`

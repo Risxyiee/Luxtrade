@@ -30,7 +30,6 @@ const TestimonialsSection = dynamic(() => import('@/components/landing/Testimoni
 const ContentArticles = dynamic(() => import('@/components/landing/ContentArticles').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const PineAlertShowcase = dynamic(() => import('@/components/landing/PineAlertShowcase').then(m => ({ default: m.default })), { loading: () => loadingDiv })
-const LiveChartPineDemo = dynamic(() => import('@/components/landing/LiveChartPineDemo').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { loading: () => loadingDiv })
@@ -150,9 +149,8 @@ export default function LuxTradeLanding() {
             <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           </LazySection>
           <CaraKerjaSection language={language} />
-          <LazySection minHeight={520} rootMargin={250} anchorId="live-chart-demo" aria-label="Live chart pine demo">
-            <LiveChartPineDemo language={language} />
-          </LazySection>
+          {/* FIX Bos 6 Nov: chart+pine demo dobel bikin bingung → cukup SATU
+              (PineAlertShowcase di atas). LiveChartPineDemo dihapus dari landing. */}
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}

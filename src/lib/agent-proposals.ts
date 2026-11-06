@@ -60,7 +60,9 @@ export function ownerEmail(): string {
 const SB_TIMEOUT = 10_000
 
 function sbHeadersPriv(cfg: SbConfig): Record<string, string> {
-  return { apikey: cfg.anon, Authorization: `Bearer ${cfg.service}` }
+  /* FIX Bos 6 Nov: apikey = service key (dulu apikey=anon) — anon yang
+     dirotasi bikin seluruh request admin 401 padahal service_role sehat. */
+  return { apikey: cfg.service, Authorization: `Bearer ${cfg.service}` }
 }
 
 /* ================= WAKTU ================= */
