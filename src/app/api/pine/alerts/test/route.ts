@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: false,
         error: out.error || 'Evaluasi alert gagal',
+        engineDeferred: !!out.engineDeferred,
         candleSource: out.candleSource,
         evaluatedAt: new Date().toISOString(),
       }, { status: 502 })

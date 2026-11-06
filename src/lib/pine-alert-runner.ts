@@ -2,19 +2,21 @@
  * ============================================================
  * pine-alert-runner — Mesin alert otomatis 24 jam (Task 44)
  * ============================================================
- * Dipakai DUA route (logika identik, tidak ada duplikasi):
- *   - /api/cron/pine-alerts   → GitHub Actions tiap 5 menit (batch
- *     semua langganan aktif — alert jalan walau chart tidak dibuka)
- *   - /api/pine/alerts/test   → tombol "Aktifkan + test" di UI
+ * Dipakai TIGA jalur (logika identik, tidak ada duplikasi):
+ *   - /api/cron/pine-alerts       → cron Cloudflare 15 menit (BACKUP;
+ *     engine PineTS TIDAK bisa jalan di workerd — grup Pine
+ *     ditandai engineDeferred, bukan error)
+ *   - /api/cron/pine-alerts/payload + /report → GitHub Actions
+ *     runner Node penuh (JALUR UTAMA — engine PineTS jalan normal,
+ *     eval diizinkan di runner; lihat scripts/pine-alerts-engine.ts)
+ *   - /api/pine/alerts/test       → tombol "Aktifkan + test" di UI
  *     (evaluasi langsung 1 grup untuk 1 user)
  *
  * Alur per grup (script, symbol, timeframe):
  *   1. fetchServerCandles (TradingView → TwelveData → Yahoo, keyless)
  *   2. runPineHeadless    (source TIDAK pernah keluar dari server)
  *   3. Kumpulkan pemicu: event engine alert() + alert_rules declaratif
- *      pada JENDELA CATCH-UP (beberapa bar terakhir — cron bisa telat;
- *      FIX "ada sinyal tapi diem aja": dulu HANYA bar terakhir, sinyal
- *      yang terjadi 1 bar saja sebelum cron tick tidak pernah terkirim)
+ *      pada JENDELA CATCH-UP (beberapa bar terakhir — cron bisa telat)
  *   4. Dedupe per-bar via pine_alert_log (unique index) + mem map
  *   5. PUSH layar HP gaya WhatsApp (push-notify.ts) — sinyal muncul
  *      otomatis di tray notifikasi HP walau app tertutup.
@@ -24,13 +26,16 @@
  */
 
 import {
-  runPineHeadless, runDefaultStrategyPine, evaluateAlertRules,
-  fetchServerCandles,
-  type AlertRule, type PlotSeries,
-} from '@/lib/pine-protected'
+  runPineHeadless, collectTriggers, ALERT_LOOKBACK_BARS,
+  type AlertRule, type PlotSeries, type AlertTrigger,
+} from '@/lib/pine-engine-core'
+import { fetchServerCandles } from '@/lib/market/server-candles'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { pushToUser, signalEmoji } from '@/lib/push-notify'
-import { DEFAULT_PINE_SLUG } from '@/lib/pine-default-meta'
+
+/* Kompatibilitas API lama (modul lain impor dari runner) */
+export { collectTriggers, evaluateAlertRules, ALERT_LOOKBACK_BARS } from '@/lib/pine-engine-core'
+export type { AlertTrigger } from '@/lib/pine-engine-core'
 
 export interface RunnerScript {
   id: string
@@ -48,12 +53,8 @@ export interface RunnerUser {
   sinceSec?: number
 }
 
-export interface AlertTrigger {
-  signal: string
-  message: string
-  time: number // epoch detik (open time bar pemicu)
-  price: number
-}
+/* AlertTrigger dipakai lintas modul — dari core */
+export type { AlertTrigger }
 
 export interface RunnerOutcome {
   ok: boolean
@@ -61,6 +62,9 @@ export interface RunnerOutcome {
   candleSource?: string
   triggers: AlertTrigger[]
   sent: number
+  /** true = grup butuh engine PineTS yang tidak bisa jalan di runtime
+      ini (workerd melarang codegen) — DITANGANI GHA RUNNER, bukan error */
+  engineDeferred?: boolean
   perUser?: Array<{ userId: string; ok: boolean; reason?: string }>
 }
 
@@ -89,6 +93,9 @@ export function sanitizeSymbol(raw: string): string {
   return String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9=/.\-]/g, '').slice(0, 16)
 }
 
+/* Error khas runtime tanpa codegen (workerd/CF produksi) */
+const CODEGEN_ERROR_RE = /code generation|disallowed for this context|evalerror/i
+
 /* ============================================================
    Dedupe lapis-1 in-memory (per isolat) — cadangan bila tabel
    pine_alert_log belum ada / error. Sama pola dengan compile-pine.
@@ -106,101 +113,29 @@ function memDedupeOk(key: string): boolean {
 }
 
 /* ============================================================
-   Kumpulkan pemicu — JENDELA CATCH-UP (default 6 bar terakhir).
-   Dulu HANYA bar terakhir → sinyal yang muncul sesaat sebelum cron
-   tick (atau saat candle source belum memuat bar berjalan) hilang
-   senyap selamanya. Sekarang event (alert()/entry/SL/TP/cross)
-   dicari dalam jendela; kirim-ganda dicegah dedupe DB per-bar
-   (pine_alert_log unique) + memDedupe 5 menit.
+   KIRIM SINYAL ke daftar user — dipakai cron CF, report GHA,
+   dan tombol tes. (Diekstrak dari runAlertGroup supaya jalur
+   GHA report tidak duplikasi logika dedupe+push.)
    ============================================================ */
-export const ALERT_LOOKBACK_BARS = 6
-
-export function collectTriggers(opts: {
-  engineAlerts: Array<{ message: string; time: number; barIndex: number }>
-  rules: AlertRule[] | null | undefined
-  plots: PlotSeries[]
-  bars: Array<{ time: number; close: number }>
-  lookbackBars?: number
-}): AlertTrigger[] {
-  const { engineAlerts, rules, plots, bars } = opts
-  const lookback = Math.max(1, opts.lookbackBars ?? ALERT_LOOKBACK_BARS)
-  const triggers: AlertTrigger[] = []
-  if (!bars.length) return triggers
-  const lastBar = bars[bars.length - 1]
-  const cutoffSec = bars[Math.max(0, bars.length - lookback)].time
-
-  /* a) Sinyal dari event engine (alert() / trade entry-exit) —
-     semua event dalam jendela catch-up */
-  for (const a of engineAlerts) {
-    const barSec = Number(a.barIndex) >= 0 && bars[a.barIndex] ? bars[a.barIndex].time : Math.floor(a.time / 1000)
-    if (barSec < cutoffSec) continue // di luar jendela → abaikan
-    const msg = String(a.message || 'Sinyal indikator')
-    const sig = /TP|TAKE.?PROFIT/i.test(msg) ? 'TAKE_PROFIT'
-      : /SL|STOP.?LOSS/i.test(msg) ? 'STOP_LOSS'
-      : /BUY|LONG|BULL/i.test(msg) ? 'ENTRY_LONG'
-      : /SELL|SHORT|BEAR/i.test(msg) ? 'ENTRY_SHORT' : 'SIGNAL'
-    triggers.push({ signal: sig, message: msg, time: barSec, price: bars[a.barIndex]?.close ?? lastBar.close })
-  }
-
-  /* b) Sinyal dari alert_rules declaratif (skrip tanpa alert()) —
-     cross = event (jendela), above/below = state (bar terakhir) */
-  triggers.push(...evaluateAlertRules(rules, plots, bars, lookback))
-  return triggers
-}
-
-/* ============================================================
-   Jalankan satu grup (script, symbol, timeframe) untuk N user
-   ============================================================ */
-export async function runAlertGroup(
-  script: RunnerScript,
+export async function sendAlertTriggers(
+  script: { id: string; name: string },
   symbol: string,
   interval: string,
   users: RunnerUser[],
-  opts?: { send?: boolean; writeLog?: boolean },
-): Promise<RunnerOutcome> {
-  const send = opts?.send !== false
+  triggers: AlertTrigger[],
+  opts?: { writeLog?: boolean },
+): Promise<{ sent: number; perUser: Array<{ userId: string; ok: boolean; reason?: string }> }> {
   const writeLog = opts?.writeLog !== false
-  const outcome: RunnerOutcome = { ok: false, triggers: [], sent: 0 }
-
-  if (!users.length) { outcome.ok = true; return outcome }
-
-  /* 1) Candle server (TradingView → TwelveData → Yahoo — keyless) */
-  const cd = await fetchServerCandles(symbol, interval, 300)
-  if (!cd || !cd.bars.length) {
-    outcome.error = `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server`
-    return outcome
-  }
-  outcome.candleSource = cd.source
-
-  /* 2) Headless run — source tetap di server.
-     Skrip DEFAULT (Luxtradee Candle Impulsif) dieksekusi lewat
-     REPLIKA TypeScript (tanpa eval — Cloudflare Workers melarang
-     kodegen; engine PineTS selalu 422 di produksi). */
-  const run = script.slug === DEFAULT_PINE_SLUG
-    ? await runDefaultStrategyPine(symbol, interval, cd.bars)
-    : await runPineHeadless(script.source, symbol, interval, cd.bars)
-  if (!run.ok || !run.plots?.length) {
-    outcome.error = run.error || 'Skrip tidak menghasilkan plot'
-    return outcome
-  }
-  outcome.ok = true
-
-  /* 3) Pemicu bar terakhir */
-  outcome.triggers = collectTriggers({
-    engineAlerts: run.engineAlerts || [],
-    rules: script.alert_rules,
-    plots: run.plots,
-    bars: cd.bars,
-  })
-  if (!outcome.triggers.length || !send) return outcome
-
-  /* 4+5) Dedupe per-bar → push layar HP */
   const supabase = getSupabaseAdmin()
-  outcome.perUser = []
+  const perUser: Array<{ userId: string; ok: boolean; reason?: string }> = []
+  let sent = 0
+
+  if (!triggers.length || !users.length) return { sent, perUser }
+
   for (const u of users) {
     let sentThis = false
     let reason = 'server belum terhubung'
-    for (const t of outcome.triggers) {
+    for (const t of triggers) {
       /* Watermark langganan: jangan replay sinyal sebelum user aktifasi
          (cron memakai created_at langganan; tes manual tanpa watermark) */
       if (u.sinceSec && t.time < u.sinceSec) { reason = 'sinyal sebelum langganan aktif'; continue }
@@ -208,6 +143,7 @@ export async function runAlertGroup(
       if (!memDedupeOk(memKey)) { reason = 'dedupe 5 menit'; continue }
 
       let isNew = true
+      let claimedRowId: string | null = null
       if (supabase && writeLog) {
         const { data: ins, error: logErr } = await supabase
           .from('pine_alert_log')
@@ -232,6 +168,8 @@ export async function runAlertGroup(
           /* index unique belum ada → tetap kirim, hanya 1× per 5 menit (memDedupe) */
         } else if (Array.isArray(ins) && ins.length === 0) {
           isNew = false // sudah terkirim utk bar ini (dedupe DB beneran)
+        } else if (Array.isArray(ins) && ins.length > 0) {
+          claimedRowId = String((ins[0] as any)?.id || '') || null
         }
       }
       if (!isNew) { reason = 'sudah terkirim di bar ini'; continue }
@@ -249,15 +187,79 @@ export async function runAlertGroup(
         }, { dedupe: false })
         /* Sukses = push layar HP gaya WA terkirim ke minimal 1 device. */
         if (push.sent > 0) {
-          outcome.sent++; sentThis = true; reason = ''
+          sent++; sentThis = true; reason = ''
         } else if (push.skipped === 'no-subs') {
           reason = 'notifikasi belum diaktifkan (izinkan notifikasi di dashboard)'
         } else {
           reason = push.error || (push.skipped === 'dedupe' ? 'dedupe' : 'push gagal')
         }
+        /* FIX "sinyal hilang permanen": dulu baris log di-INSERT SEBELUM
+           push — push gagal (device belum izinkan notif, dsb.) → bar ini
+           selamanya dianggap "sudah terkirim". Sekarang: claim dibatalkan
+           agar run berikutnya retry. */
+        if (!sentThis && claimedRowId) {
+          try { await supabase.from('pine_alert_log').delete().eq('id', claimedRowId) } catch { /* best effort */ }
+        }
       }
     }
-    outcome.perUser.push({ userId: u.userId, ok: sentThis, reason: sentThis ? undefined : reason })
+    perUser.push({ userId: u.userId, ok: sentThis, reason: sentThis ? undefined : reason })
   }
+  return { sent, perUser }
+}
+
+/* ============================================================
+   Jalankan satu grup (script, symbol, timeframe) untuk N user
+   ============================================================ */
+export async function runAlertGroup(
+  script: RunnerScript,
+  symbol: string,
+  interval: string,
+  users: RunnerUser[],
+  opts?: { send?: boolean; writeLog?: boolean },
+): Promise<RunnerOutcome> {
+  const send = opts?.send !== false
+  const outcome: RunnerOutcome = { ok: false, triggers: [], sent: 0 }
+
+  if (!users.length) { outcome.ok = true; return outcome }
+
+  /* 1) Candle server (TradingView → TwelveData → Yahoo — keyless) */
+  const cd = await fetchServerCandles(symbol, interval, 300)
+  if (!cd || !cd.bars.length) {
+    outcome.error = `Data candle ${symbol} ${interval} tidak tersedia dari semua sumber server`
+    return outcome
+  }
+  outcome.candleSource = cd.source
+
+  /* 2) Headless run — source tetap di server.
+     CATATAN RUNTIME: engine PineTS memakai `new Function` (codegen)
+     — DILARANG di Cloudflare Workers produksi (EvalError). Skrip
+     yang butuh engine ditandai engineDeferred → ditangani GHA
+     runner (scripts/pine-alerts-engine.ts, Node penuh). */
+  const run = await runPineHeadless(script.source, symbol, interval, cd.bars)
+  if (!run.ok || !run.plots?.length) {
+    const raw = run.error || 'Skrip tidak menghasilkan plot'
+    if (CODEGEN_ERROR_RE.test(raw)) {
+      outcome.engineDeferred = true
+      outcome.error = 'Engine Pine tidak bisa berjalan di runtime server produksi (batasan Cloudflare Workers: code generation dinonaktifkan). Alert kamu TETAP AKTIF — runner eksternal mengevaluasi skrip tiap ±5 menit dan push otomatis masuk layar HP begitu ada sinyal.'
+    } else {
+      outcome.error = raw
+    }
+    return outcome
+  }
+  outcome.ok = true
+
+  /* 3) Pemicu bar terakhir (jendela catch-up 6 bar) */
+  outcome.triggers = collectTriggers({
+    engineAlerts: run.engineAlerts || [],
+    rules: script.alert_rules,
+    plots: run.plots,
+    bars: cd.bars,
+  })
+  if (!outcome.triggers.length || !send) return outcome
+
+  /* 4+5) Dedupe per-bar → push layar HP */
+  const res = await sendAlertTriggers(script, symbol, interval, users, outcome.triggers, { writeLog: opts?.writeLog })
+  outcome.sent = res.sent
+  outcome.perUser = res.perUser
   return outcome
 }
