@@ -457,6 +457,14 @@ function tfToAlert(tf: string): string {
     apa adanya (jujur), baru pesan sukses. Notifikasi dikirim lewat
     WEB PUSH (layar HP) — jalur Telegram dihapus (riwayat git). */
 function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
+  /* Engine Pine memang TIDAK bisa jalan di runtime produksi (Cloudflare
+     Workers melarang code generation) — ini BUKAN kegagalan: alert tetap
+     terdaftar & dievaluasi runner eksternal (GitHub Actions, Node penuh)
+     tiap ±5 menit. Dulu tampil "⚠️ Pengecekan GAGAL" → Bos kira alertnya
+     error/padahal normal (foto Bos 2026-11-07). Sekarang: pesan ramah. */
+  if (tj?.engineDeferred) {
+    return { kind: 'ok', text: '✅ Alert AKTIF 24 jam! Pengecekan langsung memang tidak tersedia di server produksi — skrip kamu dievaluasi runner eksternal tiap ±5 menit, dan notifikasi Entry/SL/TP otomatis masuk ke layar HP begitu ada sinyal. Tidak perlu lakukan apa-apa lagi.' }
+  }
   if (tj?.ok === false || tj?.error) {
     return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi otomatis.` }
   }
@@ -1099,7 +1107,12 @@ export default function VelaChartTerminal({
         body: JSON.stringify({ scriptId: sub.scriptId, scriptKind: sub.scriptKind || 'protected', symbol: sub.symbol, timeframe: sub.interval }),
       })
       const tj: any = await t.json().catch(() => null)
-      if (!t.ok) { setAlertDlgMsg({ kind: 'err', text: String(tj?.error || `HTTP ${t.status}`) }); return }
+      if (!t.ok) {
+        /* 502 engineDeferred = bukan gagal beneran → pesan ramah yang
+           sama dengan tombol Aktifkan (dulu: error mentah merah) */
+        if (t.status === 502 && tj?.error) { setAlertDlgMsg(alertTestMsg(tj)); return }
+        setAlertDlgMsg({ kind: 'err', text: String(tj?.error || `HTTP ${t.status}`) }); return
+      }
       setAlertDlgMsg(alertTestMsg(tj))
     } catch (x: any) {
       setAlertDlgMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
@@ -1323,9 +1336,9 @@ export default function VelaChartTerminal({
           {/* ---------- TOMBOL AKTIFKAN NOTIFIKASI (permintaan Bos:
              "ga ada tombol aktifin notif untuk chart dan pine") —
              hijau melambat bila ada langganan alert aktif ---------- */}
-          <Button size="sm" variant="outline" className="text-xs h-8 relative border-emerald-400/30 text-emerald-200 hover:bg-emerald-400/10 hover:text-emerald-100" onClick={openNotifCenter}>
+          <Button size="sm" variant="outline" className="text-xs h-8 relative border-sky-400/30 text-sky-200 hover:bg-sky-400/10 hover:text-sky-100" onClick={openNotifCenter}>
             <Bell className="w-3.5 h-3.5 mr-1" /> Notifikasi
-            {anySubActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />}
+            {anySubActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" aria-hidden="true" />}
           </Button>
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setPineOpen((v) => !v)}>
             <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
@@ -1359,7 +1372,7 @@ export default function VelaChartTerminal({
           )
         })}
         {presetMsg && (
-          <span className={`text-[10.5px] ${presetMsg.startsWith('✅') ? 'text-emerald-300/80' : 'text-red-300/80'}`}>{presetMsg}</span>
+          <span className={`text-[10.5px] ${presetMsg.startsWith('✅') ? 'text-sky-300/80' : 'text-red-300/80'}`}>{presetMsg}</span>
         )}
       </div>
 
@@ -1410,13 +1423,13 @@ export default function VelaChartTerminal({
                   aria-label={`Alert otomatis 24 jam untuk ${s.name} — klik untuk mengaktifkan`}
                   title="Alert otomatis 24 jam — sinyal Entry/SL/TP ke layar HP">
                   <Bell className="w-3 h-3" />
-                  {hasSub && <span className="absolute top-1 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true" />}
+                  {hasSub && <span className="absolute top-1 right-0.5 w-1.5 h-1.5 rounded-full bg-sky-400" aria-hidden="true" />}
                 </button>
               </span>
             )
           })}
           {protectedMsg && (
-            <span className={`text-[10.5px] ${protectedMsg.startsWith('🛡️') || protectedMsg.startsWith('✅') ? 'text-emerald-300/80' : 'text-red-300/80'}`}>{protectedMsg}</span>
+            <span className={`text-[10.5px] ${protectedMsg.startsWith('🛡️') || protectedMsg.startsWith('✅') ? 'text-sky-300/80' : 'text-red-300/80'}`}>{protectedMsg}</span>
           )}
         </div>
       )}
@@ -1505,7 +1518,7 @@ export default function VelaChartTerminal({
                 className="w-full flex-1 min-h-[160px] text-[11.5px] leading-relaxed font-mono bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-purple-100/90 outline-none focus:border-purple-400/40 resize-none kscroll"
               />
               {pineMsg && (
-                <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${pineMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+                <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${pineMsg.kind === 'ok' ? 'border-sky-400/30 bg-sky-400/10 text-sky-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
                   {pineMsg.text}
                 </div>
               )}
@@ -1537,7 +1550,7 @@ export default function VelaChartTerminal({
                             ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }
                             : { kind: 'ok', text: `▶ ${s.name} tampil di chart${active ? ' (sudah aktif)' : ' — otomatis aktif tiap buka terminal'}.` })
                         }}
-                          className={`px-2 rounded-l-lg border border-r-0 bg-white/5 hover:bg-white/10 ${active ? 'border-emerald-400/30 text-emerald-300' : 'border-white/5 text-white/50'}`}
+                          className={`px-2 rounded-l-lg border border-r-0 bg-white/5 hover:bg-white/10 ${active ? 'border-sky-400/30 text-sky-300' : 'border-white/5 text-white/50'}`}
                           title={`Jalankan "${s.name}" di chart${active ? ' (sedang aktif)' : ''}`}
                           aria-label={`Jalankan ${s.name} di chart`}>
                           {active ? '✓' : '▶'}
@@ -1554,9 +1567,9 @@ export default function VelaChartTerminal({
                           className="relative flex-1 min-w-0 text-left text-[11px] px-2 py-1.5 border border-white/5 bg-white/5 hover:bg-white/10 text-white/70 truncate"
                           title={`Klik untuk pasang ALERT otomatis untuk "${s.name}"`}
                           aria-label={`Tambah alert untuk ${s.name}`}>
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${hasSub ? 'bg-emerald-400' : 'bg-white/25'}`} aria-hidden="true" />
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${hasSub ? 'bg-sky-400' : 'bg-white/25'}`} aria-hidden="true" />
                           🔔 {s.name}
-                          {active && <span className="ml-1.5 text-[9px] px-1 py-px rounded bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 align-middle">AKTIF</span>}
+                          {active && <span className="ml-1.5 text-[9px] px-1 py-px rounded bg-sky-400/15 text-sky-300 border border-sky-400/25 align-middle">AKTIF</span>}
                         </button>
                         <button onClick={() => deletePineScript(s.id)}
                           className="px-1.5 rounded-r-lg border border-l-0 border-white/5 bg-white/5 hover:bg-red-400/15 text-white/35 hover:text-red-300"
@@ -1637,7 +1650,7 @@ export default function VelaChartTerminal({
                 : <>Aktifkan {alertSymbol.trim() || 'Alert'} · {ALERT_TFS.find((t) => t.v === alertInterval)?.label}</>}
             </Button>
             {alertDlgMsg && (
-              <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertDlgMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : alertDlgMsg.kind === 'warn' ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+              <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertDlgMsg.kind === 'ok' ? 'border-sky-400/30 bg-sky-400/10 text-sky-200' : alertDlgMsg.kind === 'warn' ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
                 {alertDlgMsg.text}
               </div>
             )}
@@ -1649,7 +1662,7 @@ export default function VelaChartTerminal({
               <div className="max-h-40 overflow-y-auto kscroll space-y-1 pr-0.5">
                 {alertSubs.filter((s) => s.scriptId === alertDlg.id).map((s) => (
                   <div key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-emerald-400' : 'bg-white/20'}`} aria-hidden="true" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-sky-400' : 'bg-white/20'}`} aria-hidden="true" />
                     <span className="text-[11px] text-white/80 flex-1 truncate">{s.symbol} · {s.interval}</span>
                     <button
                       onClick={() => testAlertSub(s)}
@@ -1684,7 +1697,7 @@ export default function VelaChartTerminal({
       <Dialog open={notifDlg} onOpenChange={(v) => !v && setNotifDlg(false)}>
         <DialogContent className="max-w-sm bg-[#0a0f16] border-white/10 max-h-[85vh] overflow-y-auto kscroll">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-300 text-base">
+            <DialogTitle className="flex items-center gap-2 text-sky-300 text-base">
               <Bell className="w-4 h-4" /> Notifikasi Sinyal
             </DialogTitle>
             <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
@@ -1700,7 +1713,7 @@ export default function VelaChartTerminal({
                 value={notifScript}
                 onChange={(e) => setNotifScript(e.target.value)}
                 aria-label="Pilih skrip sumber sinyal"
-                className="w-full text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+                className="w-full text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-sky-400/40"
               >
                 {(pineScripts.length === 0 && visibleProtected.length === 0) && (
                   <option value="" className="bg-[#0a0f16]">— Belum ada skrip tersedia —</option>
@@ -1731,13 +1744,13 @@ export default function VelaChartTerminal({
                 onChange={(e) => setAlertSymbol(e.target.value.toUpperCase())}
                 placeholder="SIMBOL (mis. XAUUSD)"
                 aria-label="Simbol alert"
-                className="flex-1 min-w-0 text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+                className="flex-1 min-w-0 text-xs bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-white/90 outline-none focus:border-sky-400/40"
               />
               <select
                 value={alertInterval}
                 onChange={(e) => setAlertInterval(e.target.value)}
                 aria-label="Timeframe alert"
-                className="text-xs bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-white/90 outline-none focus:border-emerald-400/40"
+                className="text-xs bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-white/90 outline-none focus:border-sky-400/40"
               >
                 {ALERT_TFS.map((t) => (
                   <option key={t.v} value={t.v} className="bg-[#0a0f16]">{t.label}</option>
@@ -1746,7 +1759,7 @@ export default function VelaChartTerminal({
             </div>
             <Button
               size="sm"
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold"
+              className="w-full bg-sky-500 hover:bg-sky-400 text-black font-semibold"
               disabled={alertSaving || !notifScriptMeta || alertSymbol.trim().length < 3}
               onClick={() => notifScriptMeta && saveAlertSub({ scriptId: notifScriptMeta.id, scriptKind: notifScriptMeta.kind, symbol: alertSymbol.trim(), interval: alertInterval, enabled: true, withTest: true })}
             >
@@ -1758,7 +1771,7 @@ export default function VelaChartTerminal({
               <div className="text-[10.5px] text-amber-200/80 leading-relaxed">Notifikasi otomatis = fitur Pro. Kalau belum Pro, tombol akan membuka penawaran upgrade.</div>
             )}
             {alertDlgMsg && (
-              <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertDlgMsg.kind === 'ok' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : alertDlgMsg.kind === 'warn' ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+              <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${alertDlgMsg.kind === 'ok' ? 'border-sky-400/30 bg-sky-400/10 text-sky-200' : alertDlgMsg.kind === 'warn' ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
                 {alertDlgMsg.text}
               </div>
             )}
@@ -1770,7 +1783,7 @@ export default function VelaChartTerminal({
               <div className="max-h-44 overflow-y-auto kscroll space-y-1 pr-0.5">
                 {alertSubs.map((s) => (
                   <div key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-emerald-400' : 'bg-white/20'}`} aria-hidden="true" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-sky-400' : 'bg-white/20'}`} aria-hidden="true" />
                     <span className="text-[11px] text-white/80 flex-1 min-w-0 truncate">
                       {s.orphan ? <span className="text-red-300/90">⚠️ {s.scriptName} (skrip terhapus)</span> : s.scriptName}
                       <span className="text-white/45"> · {s.symbol} · {s.interval}</span>

@@ -32,15 +32,26 @@ import {
  *     Sel/Kam → TikTok (kalau TikTok gagal/belum approved → fallback IG)
  *   ?force=true → lewati window + cadence (TIDAK melewati ACC)
  *
+ * FIX 2026-11-07 "auto post IG error": GitHub Actions sering MENUNDA
+ * scheduled runs berjam-jam (run nyata: jadwal 12:10 UTC = 19:10 WIB
+ * dieksekusi 19:18 UTC = 02:18 WIB). Dulu: window check di paling atas
+ * → video hasil render DIBUANG → antrean kosong terus ("Antrean
+ * kosong" di ig-auto-post) → IG tak pernah kebagian konten.
+ * Sekarang: window + cadence HANYA membatasi mode AUTO (publish
+ * langsung). Mode APPROVAL selalu menyimpan draft — timing ditentukan
+ * momen ACC Bos, bukan momen runner jalan.
+ *
  * Flow:
  *   1. Auth CRON_SECRET (fail-closed produksi)
- *   2. Window + cadence check → skipped (honest, bukan error)
- *   3. ensureFreshToken (token > 55 hari → refresh otomatis 60 hari)
- *   4. Validasi videoUrl (https .mp4, caption ≤ 2200)
- *   5. Enqueue instagram_posts (media_type REELS, source sinta-video)
- *   6. Publish inline (poll sampai 6 menit). Timeout → row 'publishing'
+ *   2. Validasi input
+ *   3. Mode APPROVAL: draft selalu disimpan (window/cadence tidak
+ *      membuang konten lagi — catatan lateRunNote bila telat)
+ *   4. Mode AUTO: window 19–21 WIB + cadence 20 jam → skipped (honest)
+ *   5. ensureFreshToken (token > 55 hari → refresh otomatis 60 hari)
+ *   6. Enqueue instagram_posts (media_type REELS, source sinta-video)
+ *   7. Publish inline (poll sampai 6 menit). Timeout → row 'publishing'
  *      di-reclaim ig-auto-post (09:00/19:00/20:30 WIB) — tidak hilang.
- *   7. Sukses/gagal → Discord admin (dengan permalink).
+ *   8. Sukses/gagal → Discord admin (dengan permalink).
  *
  * GET → status cepat: kredensial, Reels terakhir, jadwal berikutnya.
  */
@@ -112,16 +123,7 @@ export async function POST(request: NextRequest) {
   const videoUrl = String(body?.videoUrl || '').trim()
   const caption = String(body?.caption || '').trim().slice(0, 2200)
 
-  /* ── 1) Window 19–20 WIB (kecuali force/dry) ── */
-  const hour = wibHourNow()
-  if (!force && !dry && !WINDOW_HOURS_WIB.includes(hour)) {
-    return NextResponse.json({
-      ok: true,
-      skipped: `di luar window posting (${hour}:00 WIB — jadwal 19:00–20:59 WIB)`,
-    })
-  }
-
-  /* ── 2) Validasi input ── */
+  /* ── 1) Validasi input (paling awal — input jejak ditolak sebelum apa pun) ── */
   const invalid = validateIgPostInput({ mediaType: 'REELS', videoUrl, caption })
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 })
 
@@ -132,33 +134,17 @@ export async function POST(request: NextRequest) {
   const admin = await getCronAdmin()
   if (!admin) return NextResponse.json({ error: 'Database not available' }, { status: 503 })
 
-  /* ── 3) Cadence 2 hari sekali (kecuali force) ── */
-  if (!force) {
-    const { data: recent } = await admin
-      .from('instagram_posts')
-      .select('id, published_at')
-      .eq('media_type', 'REELS')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
-      .limit(1)
-    const lastMs = recent?.[0]?.published_at ? Date.parse(recent[0].published_at) : null
-    if (lastMs && Date.now() - lastMs < MIN_GAP_MS) {
-      const jamLalu = ((Date.now() - lastMs) / 3_600_000).toFixed(1)
-      return NextResponse.json({
-        ok: true,
-        skipped: `cadence 1x/hari (jeda 20 jam) — Reels terakhir baru ${jamLalu} jam lalu`,
-        nextEligibleAt: new Date(lastMs + MIN_GAP_MS).toISOString(),
-      })
-    }
-  }
-
-  /* ── 3b) MODE APPROVAL (default — permintaan Bos: "nunggu saya acc") ──
-     Draft disimpan di ai_pending_actions (PUBLISH_IG_REEL). Bos ACC via
-     Kantor CEO → Antrean Eksekusi → /api/execute-action yang mem-publish.
-     Set env IG_AUTO_POST="true" di Cloudflare utk balik ke mode otomatis. */
+  /* ── 2) MODE APPROVAL (default — permintaan Bos: "nunggu saya acc") ──
+     Draft SELALU disimpan walau runner jalan di luar window / cadence
+     (GHA sering telat berjam-jam — dulu video dibuang sia-sia).
+     ACC Bos = gerbang timing sesungguhnya. Draft disimpan di
+     ai_pending_actions (PUBLISH_IG_REEL), dipublish oleh
+     /api/execute-action setelah ACC. */
   const autoPost = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'true'
     || process.env.IG_AUTO_POST === 'true'
   if (!autoPost) {
+    const hour = wibHourNow()
+    const offWindow = !force && !WINDOW_HOURS_WIB.includes(hour)
     /* Cap harian tetap dihormati */
     const since24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { count: pub24 } = await admin
@@ -199,6 +185,7 @@ export async function POST(request: NextRequest) {
           hook: body?.hook || '',
           renderNote: 'remotion 9:16 + musik latar — ACC Bos → publish REELS',
           requestedWib: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+          ...(offWindow ? { lateRunNote: `Runner jalan di luar window (${hour}:00 WIB, jadwal 19–21 WIB — kemungkinan delay antrean GitHub Actions). Draft tetap disimpan — ACC Bos menentukan momen tayang.` } : {}),
         },
         status: 'pending',
       })
@@ -223,8 +210,36 @@ export async function POST(request: NextRequest) {
       awaitingApproval: true,
       mode: 'approval',
       actionId: (action as { id: string }).id,
-      note: 'Konten TIDAK diposting sampai Bos ACC (Kantor CEO → Antrean Eksekusi). Set env IG_AUTO_POST=true untuk mode otomatis.',
+      ...(offWindow ? { note: `Draft tersimpan walau runner telat (${hour}:00 WIB) — konten tidak hangus. ACC Bos di Kantor CEO → Antrean Eksekusi.` } : {}),
+      note2: 'Konten TIDAK diposting sampai Bos ACC (Kantor CEO → Antrean Eksekusi). Set env IG_AUTO_POST=true untuk mode otomatis.',
     })
+  }
+
+  /* ── 3) MODE AUTO: window 19–20 WIB + cadence 1x/hari (kecuali force) ── */
+  const hourAuto = wibHourNow()
+  if (!force && !WINDOW_HOURS_WIB.includes(hourAuto)) {
+    return NextResponse.json({
+      ok: true,
+      skipped: `di luar window posting (${hourAuto}:00 WIB — jadwal 19:00–20:59 WIB)`,
+    })
+  }
+  if (!force) {
+    const { data: recent } = await admin
+      .from('instagram_posts')
+      .select('id, published_at')
+      .eq('media_type', 'REELS')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(1)
+    const lastMs = recent?.[0]?.published_at ? Date.parse(recent[0].published_at) : null
+    if (lastMs && Date.now() - lastMs < MIN_GAP_MS) {
+      const jamLalu = ((Date.now() - lastMs) / 3_600_000).toFixed(1)
+      return NextResponse.json({
+        ok: true,
+        skipped: `cadence 1x/hari (jeda 20 jam) — Reels terakhir baru ${jamLalu} jam lalu`,
+        nextEligibleAt: new Date(lastMs + MIN_GAP_MS).toISOString(),
+      })
+    }
   }
 
   try {

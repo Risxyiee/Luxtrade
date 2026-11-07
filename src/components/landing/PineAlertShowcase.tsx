@@ -118,14 +118,28 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
      ============================================================ */
   const [seed, setSeed] = useState(0)
   const [tick, setTick] = useState(0)
+  const reduceRef = useRef(false)
 
   useEffect(() => {
     /* sesi browser: randomize seed + hormati reduced-motion */
     setSeed(Math.floor(Math.random() * 2 ** 30))
     try {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) setTick(TOTAL_TICKS)
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        reduceRef.current = true
+        setTick(TOTAL_TICKS)
+      }
     } catch { /* diam */ }
   }, [])
+
+  /* FIX "gerakannya kurang": dulu tick TIDAK PERNAH direset saat siklus
+     baru mulai → setelah putaran pertama candle BEKU di frame akhir dan
+     hanya efek CSS yang replay. Sekarang: tiap siklus = data baru +
+     animasi candle jalan lagi dari nol. */
+  useEffect(() => {
+    if (cycle === 0) return
+    setSeed(Math.floor(Math.random() * 2 ** 30))
+    setTick(reduceRef.current ? TOTAL_TICKS : 0)
+  }, [cycle])
 
   useEffect(() => {
     if (!inView) return
@@ -156,8 +170,12 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
   /* state live: candle selesai + candle yang sedang terbentuk */
   const done = Math.min(Math.floor(tick / TICKS_PER_CANDLE), candles.length)
   const prog = ((tick % TICKS_PER_CANDLE) + 1) / TICKS_PER_CANDLE
+  /* wobble deterministik per tick (seed+tick) — harga "berdenyut" live */
+  const wobY = tick > 0 && done < candles.length
+    ? (mulberry32((seed ^ Math.imul(tick, 2654435761)) >>> 0)() - 0.5) * 7
+    : 0
   const view: Array<Candle & { live?: boolean }> = candles.slice(0, done).map((c) => ({ ...c }))
-  if (done < candles.length) view.push({ ...liveCandle(candles[done], prog), live: true })
+  if (done < candles.length) view.push({ ...liveCandle(candles[done], prog, wobY), live: true })
   const last = view[view.length - 1]
   const lpBull = last ? last.c < last.o : true // y kecil = harga tinggi → bullish
   const lpY = last ? last.c : RES_Y
@@ -423,11 +441,12 @@ const DX = 42          // jarak antar candle
 const BW = 18          // lebar badan candle
 const VOL_BASE = 372   // garis dasar bar volume
 
-/* Live tick engine: 5 tick per candle × 15 candle, mulai 0.3s.
-   14 candle × 0.38s ≈ 5.6s → candle breakout terbentuk pas timing
-   flash/glow (5.6–5.9s) lalu push notif (6.9s). */
-const TICK_MS = 76
-const TICKS_PER_CANDLE = 5
+/* Live tick engine: 6 tick per candle × 15 candle. 15×6×63ms ≈ 5.7s →
+   timing flash breakout (5.7s), indikator (5.3s) & push notif (6.9s)
+   tetap sinkron — tapi tiap candle terbentuk lebih halus (6 langkah
+   vs 5) dan total durasi sama persis dgn sebelumnya. */
+const TICK_MS = 63
+const TICKS_PER_CANDLE = 6
 const PRE_COUNT = 14
 const CANDLE_COUNT = PRE_COUNT + 1 // + breakout
 const TOTAL_TICKS = CANDLE_COUNT * TICKS_PER_CANDLE
@@ -448,22 +467,33 @@ function mulberry32(seed: number) {
 const priceToY = (p: number) => RES_Y - (p - 2400) * 10
 const priceFromY = (y: number) => (2400 + (RES_Y - y) / 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
-/* Generate 15 candle: uptrend dengan pullback + mean-reversion di
-   resistance, ditutup candle BREAKOUT besar menembus 2400. */
+/* Generate 15 candle: uptrend dengan pullback BERANTAI (momentum:
+   kadang 2 merah berturut) + doji konsolidasi sesekali + wick
+   ASIMETRIS (kadang sumbu panjang — rejection ala chart asli),
+   ditutup candle BREAKOUT besar menembus 2400. */
 function genCandles(rnd: () => number): Candle[] {
   const cs: Candle[] = []
   let p = 2377 + rnd() * 9 // mulai 2377–2386 (y 292–217)
+  let redRun = 0 // rantai candle turun — momentum pullback natural
   for (let i = 0; i < PRE_COUNT; i++) {
-    /* pullback tiap candle ke-4 (i%5===3) — ritme naik-turun natural */
-    let drift = i % 5 === 3 ? -(1.6 + rnd() * 2.2) : 0.9 + rnd() * 2.1
+    let drift: number
     if (p > 2393.5) drift = -(1.5 + rnd() * 3) // mentok resistance → tertolak
-    if (p < 2372) drift = 1.2 + rnd() * 2 // lantai — jangan jatuh terlalu dalam
+    else if (p < 2372) drift = 1.2 + rnd() * 2 // lantai — jangan jatuh terlalu dalam
+    else if (i % 5 === 3 || (redRun > 0 && rnd() < 0.38)) drift = -(1.6 + rnd() * 2.2) // pullback / lanjut turun
+    else drift = 0.9 + rnd() * 2.1
     const o = p
-    const c = Math.min(2395.5, Math.max(2369, o + drift + (rnd() - 0.5) * 1.6))
-    const hi = Math.max(o, c) + rnd() * 1.7
-    const lo = Math.min(o, c) - rnd() * 1.7
+    /* kadang doji — harga ragu (body nyaris nol) */
+    const doji = drift > 0 && rnd() < 0.14
+    const cRaw = doji ? o + (rnd() - 0.5) * 0.4 : o + drift + (rnd() - 0.5) * 1.6
+    const c = Math.min(2395.5, Math.max(2369, cRaw))
+    /* wick ASIMETRIS — 16% kemungkinan sumbu panjang (rejection) */
+    const upW = rnd() < 0.16 ? 1.1 + rnd() * 2.1 : rnd() * 1.2
+    const dnW = rnd() < 0.16 ? 1.1 + rnd() * 2.1 : rnd() * 1.2
+    const hi = Math.max(o, c) + upW
+    const lo = Math.min(o, c) - dnW
     const vol = 13 + Math.abs(c - o) * 2.4 + rnd() * 9
     cs.push({ x: X0 + i * DX, o: priceToY(o), c: priceToY(c), wt: priceToY(hi), wb: priceToY(lo), vol })
+    redRun = c < o ? redRun + 1 : 0 // harga turun = candle merah
     p = c
   }
   /* BREAKOUT: open dari harga terakhir, menembus resistance sampai
@@ -476,14 +506,17 @@ function genCandles(rnd: () => number): Candle[] {
   return cs
 }
 
-/* Candle yang sedang TERBENTUK: body tumbuh dari open ke close,
-   wick memanjang bertahap, volume menumpuk — interpolasi per tick. */
-function liveCandle(c: Candle, prog: number): Candle {
-  const cur = c.o + (c.c - c.o) * prog
-  const topMin = Math.min(c.o, cur)
-  const wt = topMin - (topMin - c.wt) * prog
-  const botMax = Math.max(c.o, cur)
-  const wb = botMax + (c.wb - botMax) * prog
+/* Candle yang sedang TERBENTUK: body tumbuh open→close dengan EASE-OUT
+   (cepat lalu menurun — dulu linear = kaku), wick memanjang bertahap,
+   volume menumpuk, plus WOBBLE — getaran harga naik-turun kecil khas
+   tick sungguhan (memudar mendekati close supaya hasil akhir akurat). */
+function liveCandle(c: Candle, prog: number, wobY = 0): Candle {
+  const pe = 1 - (1 - prog) * (1 - prog) // ease-out
+  const env = Math.sin(Math.PI * prog) // 0 di ujung → wobble hilang saat close
+  const base = c.o + (c.c - c.o) * pe
+  const wt = Math.min(c.o, base) - (Math.min(c.o, base) - c.wt) * pe
+  const wb = Math.max(c.o, base) + (c.wb - Math.max(c.o, base)) * pe
+  const cur = Math.min(wb, Math.max(wt, base + wobY * env))
   return { x: c.x, o: c.o, c: cur, wt, wb, vol: c.vol * prog }
 }
 
