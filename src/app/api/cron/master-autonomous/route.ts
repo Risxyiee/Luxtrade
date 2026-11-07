@@ -22,17 +22,27 @@ import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@
  *               AUTO-TERBIT di blog_posts → TAMPIL di /blog via API publik
  *               /api/blog/posts (halaman blog baca tabel, bukan hard-code)
  *   📣 SINTA    (CMO)          — RISET TikTok: LAPORAN ANALISIS pasar
- *               niche trading (pola hook works, topik FYP, jadwal
- *               posting, insight lintas divisi) → dibagikan ke briefing
- *               Alexander, prompt Farhan & Bagas, panel Memori Kantor.
- *               + 3 draf skrip provokatif (Actor-Critic, selaras riset)
- *               → nunggu ACC Bos. Shift SORE dia (20.00 WIB, job
- *               "sinta-video"): produksi & posting VIDEO TikTok harian
- *               otomatis (studio /api/cron/video-bot → render Remotion
- *               → Content Posting API).
- *   🖥️ RAKA     (CTO)          — security sweep black-box: ping route
- *               kritis (jurnal trades, AI vision, CS chat, debug, cron) →
- *               P1 = alarm darurat → Alexander kirim @here ke Discord
+ *               niche trading — BERBASIS DATA RIIL (top-5 konten TikTok
+ *               sendiri + TREN SEARCH GOOGLE INDONESIA hari ini) →
+ *               dibagikan ke briefing Alexander, prompt Farhan & Bagas,
+ *               panel Memori Kantor. + 3 draf skrip provokatif (Actor-
+ *               Critic, selaras riset) → nunggu ACC Bos. LINGKARAN ACC
+ *               KINI UTUH: skrip yang Bos ACC pagi disetor ke studio
+ *               video & jadi INTI video sore (bukan pajangan lagi) +
+ *               selera Bos masuk memori. Shift SORE dia (19.10 WIB, job
+ *               "sinta-video"): produksi & posting VIDEO TikTok + IG
+ *               Reels otomatis (studio /api/cron/video-bot → render
+ *               Remotion → Content Posting API) → katalog tiktok_posts
+ *               terisi otomatis via /api/tiktok/report dari runner.
+ *   🖥️ RAKA     (CTO)          — security sweep black-box v2: 19 probe
+ *               (route kritis, canary P0, JALUR REVENUE /auth/signup,
+ *               SEO infra sitemap/robots, API publik blog) + latency &
+ *               CONTENT SANITY (deploy white-screen HTTP 200 tidak lolos)
+ *               + cek security headers landing + TREN antar-run
+ *               (membaik/sama/memburuk, P1 molor naik eskalasi) →
+ *               P1 = ALARM @here LANGSUNG dari Raka ke Discord (dulu
+ *               cuma lewat wave Alexander — run solo tidak menyalakan
+ *               sirene). Alexander tetap backup kalau alarm gagal terkirim.
  *   👥 MAYA     (CSO)          — rasio aktif vs pasif (data riil) →
  *               email win-back (Actor-Critic) → draf nunggu ACC Bos
  *   💼 BAGAS    (COO)          — hot leads (free user teraktif 7 hari) →
@@ -79,7 +89,7 @@ export const dynamic = 'force-dynamic'
 
 /* ═══════════════════════ KONFIGURASI & HELPERS DASAR ═══════════════════════ */
 
-const RUN_VERSION = 'master-autonomous@1'
+const RUN_VERSION = 'master-autonomous@2'
 const DEFAULT_MIN_INTERVAL_MIN = 30
 
 /** Env resolver: CF Workers binding → process.env (pola cron lama). */
@@ -845,9 +855,14 @@ Susun LAPORAN RISET TikTok niche trading Indonesia (XAUUSD) untuk SELURUH KANTOR
 - Farhan (artikel SEO) & Bagas (email jualan) membaca insight-nya besok
 - Bos membacanya di panel Memori Kantor untuk strategi marketing minggu ini
 
+DASAR ANALISIS (bahan nyata disuntik di pesan user):
+- DATA RIIL konten TikTok sendiri (views/likes/komentar) — pola yang TERBUKTI works
+- DATA RIIL tren search Google Indonesia hari ini — topik yang SEDANG dicari publik; kaitkan ke XAUUSD/trading bila relevan (atau tandai eksplisit kalau tidak relevan)
+- Kalau data tidak tersedia untuk suatu klaim, katakan eksplisit "asumsi/intuisi" (JANGAN karang angka)
+
 ANALISIS WAJIB:
-- Pola hook/format yang terbukti menarik — DASARKAN pada DATA RIIL kalau disediakan; kalau tidak ada data, katakan eksplisit "asumsi/intuisi" (JANGAN karang angka)
-- Topik/angle berpeluang FYP minggu ini + rekomendasi jadwal posting
+- Pola hook/format yang terbukti menarik — DASARKAN pada DATA RIIL di atas
+- Topik/angle berpeluang FYP minggu ini (selaraskan dgn tren search) + rekomendasi jadwal posting
 - Insight lintas divisi (untuk: Farhan | Bagas | Maya | Bos)
 - Risiko: hal yang harus dihindari (klaim profit, kata sensitif, dll)
 
@@ -889,14 +904,28 @@ async function agentSinta(admin: SupabaseClient, dry: boolean): Promise<AgentRes
     }
   } catch { /* tabel opsional — Sinta tetap jalan */ }
 
+  /* FIX kekurangan Sinta (7 Nov): riset dulu murni intuisi LLM. Kini dia
+     juga membaca TREN SEARCH GOOGLE INDONESIA hari ini (sumber yang sama
+     dengan Farhan — Google Trends RSS, data riil tanpa API key) supaya
+     laporan risetnya berpijak pada apa yang LAGI dicari orang, bukan
+     karangan model. Gagal fetch → jalan tanpa blok ini. */
+  const trends = await fetchGoogleTrendsId()
+  const trendsBlockSinta = trends.length
+    ? `DATA RIIL — TREN SEARCH GOOGLE INDONESIA HARI INI (topik yang sedang dicari publik — kaitkan ke XAUUSD/trading bila relevan):
+${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+    : ''
+
   if (dry) {
-    return skipResult('Sinta', `dry-run — LLM & simpan draf dilewati (${topRefs.length} referensi TikTok terbaca)`, { topRefs })
+    return skipResult('Sinta', `dry-run — LLM & simpan draf dilewati (${topRefs.length} referensi TikTok terbaca${trends.length ? `, ${trends.length} tren Google terbaca` : ''})`, { topRefs, trendsCount: trends.length })
   }
 
   const lessons = await officeRecallLessons(admin, 'Sinta')
-  const refBlock = topRefs.length
-    ? `DATA RIIL — 5 KONTEN TIKTOK VIEWS TERTINGGI (pelajari polanya, tiru yang works):\n${topRefs.map((r, i) => `${i + 1}. [${r.views.toLocaleString('id-ID')} views · ${r.likes.toLocaleString('id-ID')} likes · ${r.comments.toLocaleString('id-ID')} komentar] ${r.caption}`).join('\n')}`
-    : '(belum ada referensi TikTok tersimpan — andalkan intuisi pasar, TANDAI sebagai asumsi)'
+  const refBlock = [
+    topRefs.length
+      ? `DATA RIIL — 5 KONTEN TIKTOK VIEWS TERTINGGI (pelajari polanya, tiru yang works):\n${topRefs.map((r, i) => `${i + 1}. [${r.views.toLocaleString('id-ID')} views · ${r.likes.toLocaleString('id-ID')} likes · ${r.comments.toLocaleString('id-ID')} komentar] ${r.caption}`).join('\n')}`
+      : '(belum ada referensi TikTok tersimpan — andalkan intuisi pasar, TANDAI sebagai asumsi)',
+    trendsBlockSinta,
+  ].filter(Boolean).join('\n\n')
 
   /* ══ TUGAS 1 — LAPORAN RISET TIKTOK (analisis utk SELURUH kantor) ══
      Bukan cuma bahan konten: Alexander pakai di briefing, Farhan & Bagas
@@ -1000,18 +1029,33 @@ Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi tradin
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * 🖥️ AGEN 3 — RAKA (CTO · Security Sweep & Uptime Watchdog)
- * 100% deterministik (TANPA LLM): ping route kritis → klasifikasi P1/P2 →
- * alarm darurat disiapkan untuk Alexander (Discord @here).
+ * 🖥️ AGEN 3 — RAKA (CTO · Security Sweep & Uptime Watchdog) — v2
+ * 100% deterministik (TANPA LLM):
+ *   • 19 probe: route kritis + CANARY P0 + Jalur revenue (/auth/signup) +
+ *     SEO infra (sitemap/robots) + API publik artikel blog (Farhan)
+ *   • Latency per probe + CONTENT SANITY (deploy white-screen yang balas
+ *     HTTP 200 tidak lolos lagi — landing/blog/signup dicek isinya)
+ *   • Security headers landing dicek (HSTS/XCTO/XFO/Referrer-Policy)
+ *   • TREN ANTAR-RUN: bandingkan dgn sweep kemarin → membaik/sama/memburuk;
+ *     P1 yang sama molor 2 run → ditesaskan di pesan alarm
+ *   • ALARM LANGSUNG dari Raka ke Discord (@here) — dulu alarm hanya
+ *     dikirim Alexander di wave terakhir; run `?agents=raka` solo tidak
+ *     pernah menyalakan sirene. Alexander skip alarm duplikat.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 type ProbeClass = 'public' | 'protected' | 'sensitive' | 'cron'
 interface ProbeDef { path: string; method: 'GET' | 'POST'; cls: ProbeClass; label: string }
-interface ProbeFinding { path: string; method: string; label: string; status: number | null; verdict: 'ok' | 'P1' | 'P2' | 'info'; note: string }
+interface ProbeFinding { path: string; method: string; label: string; status: number | null; verdict: 'ok' | 'P1' | 'P2' | 'info'; note: string; latencyMs?: number }
 
 const RAKA_PROBES: ProbeDef[] = [
-  { path: '/', method: 'GET', cls: 'public', label: 'Landing page (uptime)' },
+  { path: '/', method: 'GET', cls: 'public', label: 'Landing page (uptime + isi + security headers)' },
   { path: '/blog', method: 'GET', cls: 'public', label: 'Blog (uptime + SEO)' },
+  { path: '/api/blog/posts', method: 'GET', cls: 'public', label: 'API publik artikel blog (Farhan)' },
+  { path: '/auth/signup', method: 'GET', cls: 'public', label: 'Halaman signup (JALUR REVENUE)' },
+  { path: '/kantor-ceo', method: 'GET', cls: 'public', label: 'Dashboard Bos (uptime)' },
+  { path: '/api/health', method: 'GET', cls: 'public', label: 'Canary /api/health' },
+  { path: '/sitemap.xml', method: 'GET', cls: 'public', label: 'Sitemap (SEO infra)' },
+  { path: '/robots.txt', method: 'GET', cls: 'public', label: 'Robots.txt (SEO infra)' },
   { path: '/api/trades', method: 'GET', cls: 'protected', label: 'API jurnal trades' },
   { path: '/api/profile/me', method: 'GET', cls: 'protected', label: 'API profil user' },
   { path: '/api/analyze-screenshot', method: 'POST', cls: 'protected', label: 'AI vision (analisa screenshot)' },
@@ -1027,6 +1071,47 @@ const RAKA_PROBES: ProbeDef[] = [
   { path: '/api/cron/pine-alerts', method: 'GET', cls: 'cron', label: 'Cron pine-alerts (harus ber-auth)' },
 ]
 
+/** Content sanity per probe publik — return '' kalau wajar, atau alasan "isi tidak wajar".
+ *  Hanya BOOLEAN/pola sederhana — ISI body tidak pernah di-log (keamanan). */
+function contentSanity(path: string, body: string): string {
+  if (!body || body.length < 40) return 'isi kosong/terlalu pendek (white-screen?)'
+  const lower = body.slice(0, 400).toLowerCase()
+  if (path === '/sitemap.xml') {
+    return (lower.includes('<urlset') || lower.includes('<sitemapindex')) ? '' : 'bukan XML sitemap'
+  }
+  if (path === '/robots.txt') {
+    return /user-agent|sitemap|disallow/i.test(body.slice(0, 800)) ? '' : 'isi robots.txt tidak wajar'
+  }
+  if (path.startsWith('/api/')) {
+    try { return JSON.parse(body) ? '' : 'bukan JSON valid' } catch { return 'bukan JSON valid' }
+  }
+  // halaman HTML (/, /blog, /auth/signup, /kantor-ceo)
+  return lower.includes('<html') || lower.includes('<!doctype html') ? '' : 'bukan dokumen HTML'
+}
+
+/** Header keamanan wajib untuk halaman publik — return daftar yang TIDAK ADA. */
+function missingSecurityHeaders(headers: Headers): string[] {
+  const need = ['strict-transport-security', 'x-content-type-options', 'x-frame-options', 'referrer-policy']
+  return need.filter(h => !headers.has(h))
+}
+
+/** Baca sweep terakhir Raka dari office_memory → untuk TREN antar-run. */
+async function officeRecallSecurityLast(admin: SupabaseClient): Promise<{ p1Count?: number; p2Count?: number; runDate?: string } | null> {
+  try {
+    const { data, error } = await admin
+      .from('office_memory')
+      .select('content, run_date')
+      .eq('agent_name', 'Raka')
+      .eq('memory_type', 'security')
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (error || !data?.length) return null
+    const c = (data[0] as { content?: { p1Count?: number; p2Count?: number }; run_date?: string }).content
+    if (!c || typeof c.p1Count !== 'number') return null
+    return { p1Count: c.p1Count, p2Count: c.p2Count, runDate: (data[0] as { run_date?: string }).run_date }
+  } catch { return null }
+}
+
 async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): Promise<AgentResult> {
   const base = baseUrl.replace(/\/+$/, '')
   // Self service binding (kalau sudah di-deploy): fetch ke worker ini sendiri
@@ -1041,6 +1126,9 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
     const baseF: ProbeFinding = { path: p.path, method: p.method, label: p.label, status: null, verdict: 'info', note: '' }
     let status: number | null = null
     let netErr = ''
+    let bodyText = ''
+    let headers: Headers | null = null
+    const t0 = Date.now()
     try {
       const res = await doFetch(`${base}${p.path}`, {
         method: p.method,
@@ -1050,34 +1138,61 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
         signal: AbortSignal.timeout(10_000),
       })
       status = res.status
-      // Status cukup — body TIDAK di-log (jangan bocorkan isi env/secret ke log)
-      await res.text().catch(() => '')
+      headers = res.headers
+      // Body dibaca untuk sanity check POLA SAJA — TIDAK pernah di-log
+      // (jangan bocorkan isi env/secret ke log/memori).
+      bodyText = (await res.text().catch(() => '')).slice(0, 20_000)
     } catch (e: unknown) {
       netErr = clip(e instanceof Error ? e.message : String(e), 80)
     }
+    const latencyMs = Date.now() - t0
 
     // Catatan khusus 52x — Cloudflare edge tidak tembus ke origin (infra, bukan error aplikasi)
     const cfEdge = (s: number) => (s >= 521 && s <= 527) ? ' — Cloudflare edge tidak tembus ke origin (infra)' : ''
+    const latNote = latencyMs > 5000 ? ` · lambat ${latencyMs}ms` : ''
 
     if (status === null) {
-      return { ...baseF, verdict: p.cls === 'public' ? 'P1' : 'info', note: netErr || 'tidak terjangkau' }
+      return { ...baseF, verdict: p.cls === 'public' ? 'P1' : 'info', note: netErr || 'tidak terjangkau', latencyMs }
     }
     if (p.cls === 'public') {
-      if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — endpoint publik error` }
-      if (status < 400) return { ...baseF, status, verdict: 'ok', note: `HTTP ${status}` }
-      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — endpoint publik tidak sehat` }
+      if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — endpoint publik error${latNote}`, latencyMs }
+      // 3xx (redirect, mis. /kantor-ceo → login): endpoint HIDUP — sanity
+      // isi tidak relevan utk redirect (body memang kecil).
+      if (status >= 300 && status < 400) return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — redirect (hidup)${latNote}`, latencyMs }
+      if (status < 400) {
+        // FIX kekurangan Raka: HTTP 200 tidak otomatis sehat — deploy
+        // white-screen (blank page / JSON rusak) dulu lolos begitu saja.
+        const sanity = contentSanity(p.path, bodyText)
+        if (sanity) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status} tapi ${sanity}${latNote}`, latencyMs }
+        // Security headers hanya relevan utk halaman (bukan API cron dsb)
+        let hdrNote = ''
+        let hdrP2 = false
+        if (p.path === '/') {
+          const missing = missingSecurityHeaders(headers || new Headers())
+          if (missing.length >= 3) { hdrP2 = true; hdrNote = ` · header keamanan hilang: ${missing.join(', ')}` }
+          else if (missing.length) hdrNote = ` · header kurang: ${missing.join(', ')}`
+        }
+        const latP2 = latencyMs > 15_000
+        return {
+          ...baseF, status,
+          verdict: hdrP2 || latP2 ? 'P2' : 'ok',
+          note: `HTTP ${status}${hdrP2 ? '' : ' — isi wajar'}${hdrNote}${latP2 ? ` · sangat lambat ${latencyMs}ms` : latNote}`,
+          latencyMs,
+        }
+      }
+      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — endpoint publik tidak sehat${latNote}`, latencyMs }
     }
     if (p.cls === 'cron') {
-      if (status === 401 || status === 403) return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — terlindungi secret` }
-      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — route cron TIDAK ber-auth (set CRON_SECRET!)` }
+      if (status === 401 || status === 403) return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — terlindungi secret${latNote}`, latencyMs }
+      return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — route cron TIDAK ber-auth (set CRON_SECRET!)${latNote}`, latencyMs }
     }
     // protected & sensitive: 2xx TANPA auth = celah terbuka
     if (status >= 200 && status < 300) {
-      return { ...baseF, status, verdict: 'P1', note: `HTTP 2xx TANPA auth — ${p.cls === 'sensitive' ? 'route sensitif TERBUKA' : 'route user TERBUKA'}!` }
+      return { ...baseF, status, verdict: 'P1', note: `HTTP 2xx TANPA auth — ${p.cls === 'sensitive' ? 'route sensitif TERBUKA' : 'route user TERBUKA'}!${latNote}`, latencyMs }
     }
-    if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — server error` }
+    if (status >= 500) return { ...baseF, status, verdict: 'P2', note: `HTTP ${status}${cfEdge(status)} — server error${latNote}`, latencyMs }
     // 400/401/403/404/405/429 = tertutup / validasi jalan
-    return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — tertutup` }
+    return { ...baseF, status, verdict: 'ok', note: `HTTP ${status} — tertutup${latNote}`, latencyMs }
   }
 
   // Dry-run tetap boleh probe (read-only & murah) — Bos bisa uji sweep kapan pun
@@ -1089,6 +1204,17 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
   const p2 = findings.filter(x => x.verdict === 'P2')
   const alarm = p1.length > 0
 
+  /* ── TREN ANTAR-RUN (FIX kekurangan Raka: dulu tiap sweep amnesiak —
+     P1/P2 yang sama berulang tidak pernah naik kelas & tidak terlihat
+     apakah keamanan membaik atau memburuk) ── */
+  const prev = await officeRecallSecurityLast(admin)
+  let trend: 'membaik' | 'sama' | 'memburuk' | null = null
+  if (prev) {
+    const d1 = p1.length - prev.p1Count!
+    const d2 = p2.length - (prev.p2Count ?? 0)
+    trend = (d1 > 0 || d2 > 0) ? 'memburuk' : (d1 < 0 || d2 < 0) ? 'membaik' : 'sama'
+  }
+
   const data = {
     baseUrl: base,
     probeVia: viaSelf,
@@ -1098,21 +1224,44 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
     p2,
     findings,
     alarm,
+    trend,
+    prevRun: prev ? { p1Count: prev.p1Count, p2Count: prev.p2Count, runDate: prev.runDate } : null,
     alarmMessage: alarm ? `🚨 P1: ${p1.map(x => `${x.method} ${x.path} (${x.note})`).join(' ; ')}` : '',
+    alarmSentByRaka: null as boolean | null,
+    alarmError: '' as string,
   }
 
   if (!dry) {
     await officeRemember(admin, 'Raka', 'security', {
       lesson: alarm
-        ? `P1 BELUM DIPASTIKAN BERES: ${p1.map(x => x.path).join(', ')} — cek ulang run berikutnya`
-        : `Sweep bersih (${findings.length} probe, P2: ${p2.length})`,
+        ? `P1 BELUM DIPASTIKAN BERES: ${p1.map(x => x.path).join(', ')}${trend && trend !== 'membaik' ? ` (tren ${trend} vs run sebelumnya — eskalasi ke Bos!)` : ' — cek ulang run berikutnya'}`
+        : `Sweep bersih (${findings.length} probe, P2: ${p2.length}${trend ? `, tren ${trend}` : ''})`,
       p1Count: p1.length, p2Count: p2.length, baseUrl: base,
+      trend, prevP1: prev?.p1Count, prevP2: prev?.p2Count,
     })
+
+    /* ── ALARM LANGSUNG dari Raka (FIX kekurangan: dulu alarm hanya lewat
+       Alexander di wave terakhir — run solo ?agents=raka tidak pernah
+       menyalakan sirene Discord). Alexander akan skip kalau sudah terkirim
+       di sini (dedupe via data.alarmSentByRaka). ── */
+    if (alarm) {
+      const trendNote = trend && trend !== 'membaik' ? `\n⚠️ TREN ${trend.toUpperCase()} vs sweep sebelumnya (${prev?.p1Count ?? '?'} P1 → ${p1.length} P1).` : ''
+      const alarmMsg = `@here 🚨 **ALARM DARURAT (P1) — RAKA/CTO**\n${clip(data.alarmMessage || 'Celah keamanan terdeteksi', 500)}${trendNote}\n\n👉 Tutup route / set CRON_SECRET sekarang. Detail: Panel Memori Kantor /kantor-ceo.`
+      try {
+        const sent = await sendDiscordNotification(alarmMsg)
+        data.alarmSentByRaka = sent.ok
+        if (!sent.ok) data.alarmError = sent.error || 'unknown'
+      } catch (e: unknown) {
+        data.alarmSentByRaka = false
+        data.alarmError = clip(e instanceof Error ? e.message : String(e), 100)
+      }
+    }
   }
 
+  const trendSuffix = trend ? `, tren ${trend} vs kemarin` : ''
   const summary = alarm
-    ? `ALARM P1! ${p1.length} celah terbuka: ${p1.map(x => x.path).join(', ')}`
-    : `sweep selesai — ${findings.length} route dicek, 0 P1, ${p2.length} peringatan`
+    ? `ALARM P1! ${p1.length} celah terbuka: ${p1.map(x => x.path).join(', ')}${trendSuffix}${dry ? ' (dry-run — alarm Discord tidak dikirim)' : ''}`
+    : `sweep selesai — ${findings.length} route dicek, 0 P1, ${p2.length} peringatan${trendSuffix}`
 
   return okResult('Raka', summary, data)
 }
@@ -1574,12 +1723,20 @@ async function agentAlexander(
   discordSent = sent.ok
   if (!sent.ok) discordError = sent.error || 'unknown'
 
-  // Alarm P1 dikirim terpisah biar mencolok di channel
+  // Alarm P1 dikirim terpisah biar mencolok di channel.
+  // FIX dedupe (7 Nov): Raka kini mengirim alarm LANGSUNG di sweep-nya —
+  // Alexander hanya mengirim ulang kalau Raka BELUM kirim (false = Raka
+  // coba tapi gagal, Alexander jadi backup; null = Raka belum sempat kirim).
   let alarmSent: boolean | null = null
   if (p1Alarm) {
-    const alarmMsg = `@here 🚨 **ALARM DARURAT (P1) — RAKA/CTO**\n${clip((raka!.data as { alarmMessage?: string }).alarmMessage || 'Celah keamanan terdeteksi', 500)}\n\n👉 Tutup route / set CRON_SECRET sekarang. Detail: run ${runMeta.runId}.`
-    const sentAlarm = await sendDiscordNotification(alarmMsg)
-    alarmSent = sentAlarm.ok
+    const rakaAlarm = (raka!.data as { alarmSentByRaka?: boolean | null; alarmMessage?: string }) || {}
+    if (rakaAlarm.alarmSentByRaka === true) {
+      alarmSent = null // sudah disiulkan Raka — jangan spam dobel
+    } else {
+      const alarmMsg = `@here 🚨 **ALARM DARURAT (P1) — RAKA/CTO**\n${clip(rakaAlarm.alarmMessage || 'Celah keamanan terdeteksi', 500)}\n\n👉 Tutup route / set CRON_SECRET sekarang. Detail: run ${runMeta.runId}.`
+      const sentAlarm = await sendDiscordNotification(alarmMsg)
+      alarmSent = sentAlarm.ok
+    }
   }
 
   return okResult('Alexander', `briefing ${discordSent ? 'terkirim ke Discord' : `GAGAL terkirim (${discordError})`} — mood ${briefing.mood}, NBA: ${briefing.next_best_action.judul}`,

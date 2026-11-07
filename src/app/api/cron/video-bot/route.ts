@@ -345,12 +345,23 @@ function buildUserPrompt(opts: {
   angle: Angle | null
   topic: TopicEntry | null
   perf: PerfSnapshot | null
+  approved: { hook: string; script: string; caption: string; cta: string } | null
 }): string {
-  const { template, signal, topTikToks, recentIg, recentHooks, lessons, angle, topic, perf } = opts
+  const { template, signal, topTikToks, recentIg, recentHooks, lessons, angle, topic, perf, approved } = opts
   const lines: string[] = []
 
   lines.push(`Template terpilih: ${template.toUpperCase()}${template === 'signal' ? ' — recap sinyal ASLI (pakai data persis di bawah)' : ''}.`)
   lines.push('')
+
+  if (approved) {
+    lines.push('— SKRIP PILIHAN BOS (draf yang Bos ACC pagi ini di Kantor CEO) —')
+    lines.push('INILAH INTI VIDEO HARI INI. Hook, alur masalah→refleksi→CTA, dan caption DIBAWA DARI SKRIP BOS DI BAWAH — ubah hanya penyesuaian kecil ke format scene (panjang teks/vo), JANGAN ganti tema/hook/angle. Angle & topik dari sistem diabaikan bila bertabrakan.')
+    lines.push(`Hook   : ${approved.hook}`)
+    lines.push(`Skrip  : ${approved.script}`)
+    if (approved.caption) lines.push(`Caption: ${approved.caption}`)
+    if (approved.cta) lines.push(`CTA    : ${approved.cta}`)
+    lines.push('')
+  }
 
   if (angle && topic) {
     lines.push('— ANGLE & TOPIK HARI INI (tugasan sistem — WAJIB diikuti) —')
@@ -575,6 +586,72 @@ async function writeSintaMemory(admin: Awaited<ReturnType<typeof getCronAdmin>>,
   } catch { /* fail-open — pembelajaran tidak boleh menggagalkan produksi konten */ }
 }
 
+/* ── SKRIP PILIHAN BOS (agent_kv `sinta:approved_script`) ───────────
+   FIX kekurangan Sinta (7 Nov): draf skrip yang Bos ACC pagi ini di
+   /kantor-ceo dulu CUMA jadi pajangan — studio sore bikin skrip sendiri.
+   Kini: kalau Bos sudah ACC skrip hari ini (atau kemarin), video-bot
+   WAJIB menjadikannya inti video (hook, alur, CTA dari Bos). One-shot:
+   sekali dipakai ditandai `sinta:approved_script_used` supaya skrip lama
+   tidak disuntik berulang minggu depan. Fail-open: KV gagal → jalan
+   normal tanpa skrip Bos. */
+interface ApprovedScript {
+  approvedAt?: string
+  approvedDay?: string
+  actionId?: string
+  title?: string
+  analysis?: string
+  drafts?: Array<{ hook?: string; script?: string; caption?: string; cta?: string }>
+}
+
+const APPROVED_SCRIPT_KEY = 'sinta:approved_script'
+const APPROVED_SCRIPT_USED_KEY = 'sinta:approved_script_used'
+
+async function fetchApprovedScript(
+  admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>,
+): Promise<{ hook: string; script: string; caption: string; cta: string; approvedDay: string; idOrAt: string } | null> {
+  try {
+    const { data } = await admin.from('agent_kv').select('value').eq('key', APPROVED_SCRIPT_KEY).maybeSingle()
+    const raw = (data as { value?: string } | null)?.value
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as ApprovedScript
+    const draft = parsed?.drafts?.find((d) => d?.hook && d?.script)
+    if (!draft) return null
+    // Segar? Hanya ACC hari ini / kemarin WIB — skrip lama tidak disuntik lagi.
+    const day = parsed.approvedDay || String(parsed.approvedAt || '').slice(0, 10)
+    const today = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() + 7 * 3600_000 - 86400_000).toISOString().slice(0, 10)
+    if (day !== today && day !== yesterday) return null
+    // One-shot: tanda pakai = `hariWIB|actionId|approvedAt` — cocok persis dgn
+    // ACC yang sama; kalau Bos ACC skrip BARU di hari sama, tetap bisa dipakai.
+    const idOrAt = String(parsed.actionId || parsed.approvedAt || day)
+    const { data: used } = await admin.from('agent_kv').select('value').eq('key', APPROVED_SCRIPT_USED_KEY).maybeSingle()
+    const usedRaw = (used as { value?: string } | null)?.value || ''
+    if (usedRaw.split('\n').some((line) => line.includes(day) && line.includes(idOrAt))) return null
+    return {
+      hook: String(draft.hook).slice(0, 200),
+      script: String(draft.script).slice(0, 2200),
+      caption: String(draft.caption || '').slice(0, 400),
+      cta: String(draft.cta || '').slice(0, 200),
+      approvedDay: day,
+      idOrAt,
+    }
+  } catch { return null }
+}
+
+async function markApprovedScriptUsed(
+  admin: NonNullable<Awaited<ReturnType<typeof getCronAdmin>>>,
+  s: { approvedDay: string; idOrAt: string } | null,
+): Promise<void> {
+  if (!s) return
+  try {
+    const { data } = await admin.from('agent_kv').select('value').eq('key', APPROVED_SCRIPT_USED_KEY).maybeSingle()
+    const prev = (data as { value?: string } | null)?.value || ''
+    const stamp = `${s.approvedDay}|${s.idOrAt}|${new Date().toISOString()}`
+    const next = `${prev ? `${prev}\n` : ''}${stamp}`.slice(-1500) // simpan ±15 entri terakhir
+    await admin.from('agent_kv').upsert({ key: APPROVED_SCRIPT_USED_KEY, value: next }, { onConflict: 'key' })
+  } catch { /* non-kritis */ }
+}
+
 async function handle(request: NextRequest) {
   if (!(await isAuthorized(request))) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -591,6 +668,9 @@ async function handle(request: NextRequest) {
   const lessons = admin ? await fetchSintaLessons(admin) : []
   const recentRuns = admin ? await fetchSintaRecentRuns(admin) : []
   const perf = admin ? await fetchSintaPerf(admin) : null
+  /* FIX kekurangan Sinta: skrip yang Bos ACC pagi ini (agent_kv) dipakai
+     WAJIB sebagai inti video sore — draf Bos bukan pajangan lagi. */
+  const approvedScript = admin ? await fetchApprovedScript(admin) : null
 
   /* ── 2) SINTA BRAIN v4: template + ANGLE + TOPIK hari ini ──
      Anti "itu-itu mulu": tiap hari dapat angle & topik beda yang belum
@@ -631,7 +711,14 @@ async function handle(request: NextRequest) {
       angle: assignment?.angle ?? null,
       topic: assignment?.topic ?? null,
       perf,
+      approved: approvedScript
+        ? { hook: approvedScript.hook, script: approvedScript.script, caption: approvedScript.caption, cta: approvedScript.cta }
+        : null,
     }) + (topicHint ? `\nSudut/tema khusus dari Bos: ${topicHint}` : '')
+
+  // Tandai skrip Bos sudah dipakai (one-shot — dibaca & ditandai sebelum LLM
+  // supaya retry runner tidak menyuntik skrip yang sama dua kali).
+  if (admin) await markApprovedScriptUsed(admin, approvedScript)
 
   let spec: VideoSpec | null = null
   let source = 'default'
@@ -673,7 +760,7 @@ async function handle(request: NextRequest) {
   await writeSintaMemory(admin, {
     lesson:
       source === 'llm'
-        ? `Run ini: template ${spec.template} (${templateReason}), angle "${assignment?.angle.label ?? 'recap sinyal'}", hook "${spec.scenes[0]?.title || '?'}", topik "${String(spec.topic || '').slice(0, 60)}". LLM: ${llmMeta.provider}/${llmMeta.model}${Array.isArray(llmMeta.notes) && llmMeta.notes.length ? ` (catatan: ${llmMeta.notes.join(' | ')})` : ''}. Run berikutnya: jangan ulang hook/topik di atas; variasikan angle & struktur kalimat.`
+        ? `Run ini: template ${spec.template} (${templateReason}),${approvedScript ? ' INTI = SKRIP ACC BOS (hook dari Bos)' : ''} angle "${assignment?.angle.label ?? 'recap sinyal'}", hook "${spec.scenes[0]?.title || '?'}", topik "${String(spec.topic || '').slice(0, 60)}". LLM: ${llmMeta.provider}/${llmMeta.model}${Array.isArray(llmMeta.notes) && llmMeta.notes.length ? ` (catatan: ${llmMeta.notes.join(' | ')})` : ''}. Run berikutnya: jangan ulang hook/topik di atas; variasikan angle & struktur kalimat.`
         : `Run ini PAKAI FALLBACK LIBRARY (LLM gagal semua provider${llmMeta.notes && Array.isArray(llmMeta.notes) ? `: ${llmMeta.notes.join(' | ')}` : ''}) — cek kesehatan GROQ/GEMINI/OPENROUTER key & kuota; kalau sudah pulih, tulis draf sendiri lagi.`,
     template: spec.template,
     hook: spec.scenes[0]?.title || '',
@@ -681,6 +768,7 @@ async function handle(request: NextRequest) {
     angle: assignment?.angle.id || (spec.template === 'signal' ? 'signal-recap' : ''),
     templateReason,
     source,
+    pakaiSkripBos: !!approvedScript,
     llm: llmMeta,
     dataBasis: {
       tiktokTopCount: topTikToks.length,
@@ -699,6 +787,7 @@ async function handle(request: NextRequest) {
     source,
     template: spec.template,
     templateReason,
+    approvedScriptUsed: !!approvedScript,
     assignment: effectiveTemplate === 'signal'
       ? { angle: 'signal-recap', angleLabel: 'Recap sinyal autentik', topic: spec.topic || '', rationale: 'sinyal segar — struktur recap tetap' }
       : {
@@ -718,7 +807,7 @@ async function handle(request: NextRequest) {
       signalSymbol: latestSignal?.symbol ?? null,
       perfSamples: perf?.samplePosts ?? 0,
     },
-    note: 'Sinta Brain v4: 11 angle + 24 topik + anti-kembar 10 run + A/B performa (70% pemenang / 30% eksperimen). Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). Performa IG disinkron /api/cron/ig-metrics (08:00 WIB). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
+    note: 'Sinta Brain v4: 11 angle + 24 topik + anti-kembar 10 run + A/B performa (70% pemenang / 30% eksperimen) + skrip ACC Bos jadi inti video sore (agent_kv sinta:approved_script). Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). Performa IG disinkron /api/cron/ig-metrics (08:00 WIB). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
   })
 }
 

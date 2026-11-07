@@ -280,6 +280,17 @@ jobs:
             echo "status #$i: $(echo "$ST" | jq -c '.data' 2>/dev/null || echo "$ST")"
           done
 
+          # 📝 FIX kekurangan Sinta: lapor balik ke katalog tiktok_posts biar
+          #    Sinta punya "DATA RIIL" konten sendiri di riset pagi (dulu tabel
+          #    tidak pernah diisi pipeline mana pun). Gagal lapor TIDAK
+          #    menggagalkan run (best-effort).
+          CAPTION=$(jq -r '.spec.caption // empty' /tmp/spec.json 2>/dev/null || echo "")
+          curl -sS --max-time 30 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "${CAPTION:-}" --arg p "${PUBLISH_ID:-}" '{caption:$c, publishId:$p}')" \
+            "$PROD_URL/api/tiktok/report" || echo "⚠️ lapor katalog tiktok gagal (best-effort, dilewati)"
+
       # 📸 IG Reels — giliran Sen/Rab/Jum ATAU fallback dari TikTok yang gagal
       - name: 📸 Posting ke Instagram Reels (19–20 WIB · server putuskan window/cadence)
         if: env.PLATFORM == 'ig' || env.IG_FALLBACK == 'true'

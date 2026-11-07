@@ -12,7 +12,9 @@
  *
  * Switch-case eksekusi NYATA per action_type (TANPA mock):
  *   SEND_WINBACK_EMAIL / SEND_UPGRADE_OFFER → Resend (src/lib/email)
- *   PUBLISH_CONTENT  → Meta Graph API (IG/FB) ATAU tabel blog_posts
+ *   PUBLISH_CONTENT  → platform 'blog' → tabel blog_posts; 'tiktok' →
+ *                      setor skrip ke studio video Sinta (agent_kv, dipakai
+ *                      video sore) + pelajaran selera Bos; ig/fb → Meta Graph API
  *   UPDATE_AB_TEST   → simpan varian ke agent_kv (sistem record A/B)
  *   BROADCAST_MAINTENANCE → email ke semua user via Resend
  *   TRIGGER_INTERNAL_TASK → kirim task ke Discord ops (webhook)
@@ -64,7 +66,7 @@ function simpleHtml(body: string): string {
 
 /* ---------- eksekusi per action_type ---------- */
 
-async function executePayload(actionType: string, payload: Record<string, any>): Promise<{ ok: boolean; detail: string }> {
+async function executePayload(actionType: string, payload: Record<string, any>, actionId?: string): Promise<{ ok: boolean; detail: string }> {
   switch (actionType) {
     /* ── EMAIL personal (Maya winback / Bagas upgrade offer) ── */
     case 'SEND_WINBACK_EMAIL':
@@ -105,6 +107,54 @@ async function executePayload(actionType: string, payload: Record<string, any>):
         })
         if (!res.ok) return { ok: false, detail: `Insert blog_posts gagal HTTP ${res.status}` }
         return { ok: true, detail: `Artikel blog dipublikasikan: "${title}"` }
+      }
+      /* ── TikTok (draf skrip Sinta pagi) → SETOR ke studio video ──
+         FIX kekurangan Sinta (7 Nov): dulu platform 'tiktok' jatuh ke
+         cabang Meta di bawah → ACC Bos untuk skrip TikTok mencoba posting
+         caption ke IG/FB (salah platform) dan skrip TIDAK PERNAH dipakai.
+         Kini: skrip ter-ACC disimpan di agent_kv `sinta:approved_script`
+         → video-bot shift sore (19.10 WIB) WAJIB memakainya sebagai inti
+         video hari itu + Sinta dapat pelajaran selera Bos di office_memory. */
+      if (platform === 'tiktok') {
+        const rawDrafts = Array.isArray(payload.drafts) ? payload.drafts : []
+        const drafts = rawDrafts
+          .map((d: Record<string, unknown>) => ({
+            hook: String(d?.hook || '').slice(0, 200),
+            script: String(d?.script || '').slice(0, 2200),
+            caption: String(d?.caption || '').slice(0, 400),
+            cta: String(d?.cta || '').slice(0, 200),
+          }))
+          .filter((d: { hook: string; script: string }) => d.hook && d.script)
+        if (!drafts.length) return { ok: false, detail: 'Draf TikTok kosong (payload.drafts tidak valid)' }
+        const cfg = sbConfig()
+        const approved = {
+          approvedAt: new Date().toISOString(),
+          approvedDay: wibDay(),
+          actionId: String(actionId || ''),
+          title,
+          analysis: String(payload.analysis || '').slice(0, 600),
+          drafts,
+        }
+        const kvOk = await kvSetKey(cfg, 'sinta:approved_script', JSON.stringify(approved))
+        // Pelajaran selera Bos — Sinta pagi berikutnya belajar hook mana yang disetujui
+        try {
+          const sb = await getCronAdmin()
+          if (sb) {
+            await sb.from('office_memory').insert({
+              agent_name: 'Sinta',
+              run_date: wibDay(),
+              memory_type: 'lesson',
+              content: {
+                lesson: `Bos ACC skrip TikTok hari ini (${drafts.length} skrip, hook pertama: "${drafts[0].hook.slice(0, 90)}") — selera Bos: hook provokatif + CTA jelas. Studio video sore WAJIB pakai ini sebagai inti.`,
+                approvedBy: ownerEmail() || 'bos',
+                draftCount: drafts.length,
+              },
+            })
+          }
+        } catch { /* pelajaran opsional — ACC tetap sukses */ }
+        return kvOk
+          ? { ok: true, detail: `Skrip TikTok ter-ACC → disetor ke studio Sinta; dipakai sebagai inti video shift sore (hook: "${drafts[0].hook.slice(0, 60)}")` }
+          : { ok: false, detail: 'Skrip valid tapi gagal disimpan ke agent_kv (sinta:approved_script)' }
       }
       // ig / instagram / facebook / fb → Meta Graph API nyata
       const caption = [title, body].filter(Boolean).join('\n\n')
@@ -259,7 +309,7 @@ export async function POST(req: NextRequest) {
 
   /* ── ACC → EKSEKUSI NYATA ── */
   console.log(`[execute-action] CEO ACC ${row.agent_name}/${row.action_type} — mengeksekusi...`)
-  const result = await executePayload(row.action_type, row.action_payload || {})
+  const result = await executePayload(row.action_type, row.action_payload || {}, id)
   if (!result.ok) {
     // Eksekusi gagal → row TETAP pending supaya CEO bisa coba lagi; alasan jujur.
     console.error(`[execute-action] eksekusi GAGAL ${row.action_type}: ${result.detail}`)
