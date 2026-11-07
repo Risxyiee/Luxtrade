@@ -333,8 +333,13 @@ jobs:
           CAPTION=$(jq -r '(.spec.igCaption // .spec.caption // "")[0:2100]' /tmp/spec.json)
           TEMPLATE=$(jq -r '.template // "promo"' /tmp/spec.json)
           HOOK=$(jq -r '.spec.scenes[0].title // ""' /tmp/spec.json)
+          # angle + topik → meta instagram_posts → pembelajar performa per-angle
+          # (ig-metrics baca meta.angle → Sinta tahu angle mana yang rame)
+          ANGLE=$(jq -r '.assignment.angle // ""' /tmp/spec.json)
+          TOPIC=$(jq -r '(.assignment.topic // .spec.topic // "")[0:200]' /tmp/spec.json)
           BODY=$(jq -n --arg v "$VIDURL" --arg c "$CAPTION" --arg t "$TEMPLATE" --arg h "$HOOK" \
-            '{videoUrl:$v, caption:$c, template:$t, hook:$h}')
+            --arg a "$ANGLE" --arg tp "$TOPIC" \
+            '{videoUrl:$v, caption:$c, template:$t, hook:$h, angle:$a, topic:$tp}')
           code=$(curl -sS -L -o /tmp/ig.json -w '%{http_code}' --max-time 600 -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" -d "$BODY" \

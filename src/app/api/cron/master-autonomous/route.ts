@@ -476,7 +476,7 @@ FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
 
 html_body: HTML murni — hanya tag <h2>, <h3>, <p>, <ul>, <li>, <strong>. TANPA <html>/<body>/<h1>. Minimal 600 kata.`
 
-const FARHAN_RUBRIC = `- Panjang: hitung kata body — di bawah 600 kata = otomatis nilai 5.
+const FARHAN_RUBRIC = `- Panjang MINIMAL (BUKAN maksimal!): hitung kata body — di bawah 600 kata = otomatis nilai 5. Rentang sehat 600–1.200 kata. JANGAN PERNAH menasihati memangkas/mempersingkat kecuali draf lebih dari 1.500 kata.
 - Struktur SEO: judul mengandung keyword, H2/H3 rapi, pembuka langsung to-the-point.
 - Kepercayaan: ada angka/skenario nyata XAUUSD, bukan basa-basi generik.
 - Gaya: terbaca seperti manusia (bukan template AI), CTA natural.`
@@ -558,11 +558,48 @@ TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang m
 
   const parsedArt = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(ac.text)
   const title = clip(parsedArt?.title || chosen.keyword, 200)
-  const html = String(parsedArt?.html_body || '').trim()
+  let html = String(parsedArt?.html_body || '').trim()
   const meta = clip(parsedArt?.meta_description || chosen.angle, 300)
 
-  // Hitung kata riil (strip tag HTML)
-  const wordCount = html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
+  // Hitung kata riil (strip tag HTML) — hitungan DETERMINISTIK, bukan
+  // klaim critic LLM (kasus nyata 2026-11-07: draf 510 kata dinilai
+  // critic "melebihi batas maksimal 600" → revisi malah MEMANGKAS →
+  // artikel hangus padahal materinya bagus).
+  const countWords = (h: string) => h.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
+  let wordCount = countWords(html)
+
+  /* ── Fase 2b: EXPAND DETERMINISTIK (skill karyawan maksimal —
+     draf kurang panjang TIDAK langsung dibuang). Critic LLM terbukti
+     sering salah hitung kata; batas panjang ini soal angka, jadi
+     diperiksa kode + diperpanjang 1x dengan instruksi eksplisit. */
+  if (html && wordCount < 600) {
+    const expand = await callAgent('Farhan',
+      FARHAN_SYSTEM,
+      `Artikel di bawah hanya ${wordCount} kata — KURANG dari 600 (tidak lolos standar publikasi).
+PERPANJANG menjadi 750–950 kata dengan CARA MENAMBAH:
+- contoh skenario XAUUSD dengan angka konkret (lot, pips, RR, persen risiko)
+- langkah/checklist praktis yang bisa langsung dipraktikkan pembaca
+- penjelasan "kenapa penting" di tiap bagian
+JANGAN memangkas isi yang sudah ada. Pertahankan judul & keyword utama.
+
+Output JSON murni sama: {"title": "...", "meta_description": "...", "html_body": "<h2>...</h2>..."}
+
+=== ARTIKEL SEKARANG (PERPANJANG INI) ===
+${clip(html, 6000)}`,
+      { maxTokens: 2600, temperature: 0.6 })
+    if (expand) {
+      const p2 = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(expand.text)
+      const html2 = String(p2?.html_body || '').trim()
+      const w2 = countWords(html2)
+      if (html2 && w2 > wordCount) {
+        html = html2
+        wordCount = w2
+        /* Judul & meta TETAP dari draf asli (konsisten utk dedup & SEO). */
+        ac.revisions += 1
+        ac.trail.push(`expand deterministik: ${wordCount} kata via ${expand.model}`)
+      }
+    }
+  }
   const passLen = wordCount >= 600
 
   await officeRemember(admin, 'Farhan', 'critic', {
@@ -575,7 +612,7 @@ TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang m
   if (!html || !passLen) {
     return {
       agent: 'Farhan', status: 'error',
-      summary: `draf hanya ${wordCount} kata (<600 wajib) — TIDAK diterbitkan (hindari konten tipis di mata Google)`,
+      summary: `draf ${wordCount ? `${wordCount} kata` : 'kosong'} (<600 wajib${wordCount && wordCount < 600 ? ', sudah dicoba expand otomatis 1x' : ''}) — TIDAK diterbitkan (hindari konten tipis di mata Google)`,
       data: { title, keyword: chosen.keyword, wordCount, criticScore: ac.score, trail: ac.trail },
     }
   }

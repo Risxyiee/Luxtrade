@@ -88,6 +88,15 @@ export interface PerfSnapshot {
   /** Template dengan rata-rata views tertinggi (min. 2 sampel per sisi). */
   winner: 'tip' | 'promo' | null
   samplePosts: number
+  /** Performa per ANGLE konten (id angle → rata-rata) — dipakai
+   *  pickAngleAndTopic supaya "kalau ga rame GANTI KONTENNYA" jadi
+   *  otomatis: angle sepi di-cooldown, angle rame diprioritaskan. */
+  byAngle: Record<string, TemplatePerf>
+  /** Angle id dengan rata-rata views tertinggi (min. 2 sampel). */
+  winnerAngle: string | null
+  /** Angle id yang membukti sepi (min. 2 sampel & views < 40% median
+   *  semua angle) → dihindari run berikutnya. */
+  flopAngles: string[]
 }
 
 /* ============================================================
@@ -438,12 +447,38 @@ export function pickTemplateSmart(
 export function pickAngleAndTopic(
   template: Template,
   recentTopics: string[],
+  perf?: PerfSnapshot | null,
 ): { angle: Angle; topic: TopicEntry; rationale: string } {
   const eligible = TOPIC_POOL.filter((t) =>
     template === 'promo' ? isPromoAngle(t.angle) : !isPromoAngle(t.angle),
   )
   const fresh = eligible.filter((t) => !isTopicRepeated(t.topic, recentTopics))
-  const pool = fresh.length ? fresh : eligible
+  let pool = fresh.length ? fresh : eligible
+
+  /* BELAJAR DARI INSIGHT (permintaan Bos: "liat insight tiap video —
+     kalau ga rame ganti kontennya"):
+     1. Angle sepi (flop) dihindari — kecuali semua kandidat flop.
+     2. Angle pemenang diprioritaskan 55% run (sisa tetap eksplorasi
+        supaya Sinta tidak cepat jenuh dan data terus bertambah). */
+  const flop = new Set(perf?.flopAngles ?? [])
+  const noFlop = pool.filter((t) => !flop.has(t.angle))
+  let flopNote = ''
+  if (noFlop.length && noFlop.length < pool.length) {
+    pool = noFlop
+    flopNote = ` · angle sepi dihindari: ${[...flop].filter((a) => SINTA_ANGLES[a as AngleId]).map((a) => SINTA_ANGLES[a as AngleId].label).join(', ') || [...flop].join(', ')}`
+  }
+  const winnerAngle = perf?.winnerAngle || null
+  if (winnerAngle && hash32(daySeed() * 41 + 11) % 100 < 55) {
+    const winners = pool.filter((t) => t.angle === winnerAngle)
+    if (winners.length) {
+      const idx = hash32(daySeed() * 7 + 5) % winners.length
+      return {
+        angle: SINTA_ANGLES[winners[idx].angle],
+        topic: winners[idx],
+        rationale: `ikut angle pemenang "${SINTA_ANGLES[winnerAngle as AngleId]?.label || winnerAngle}" (${perf?.byAngle?.[winnerAngle]?.avgViews.toFixed(0)} views rata-rata) · pool ${pool.length} topik${flopNote}`,
+      }
+    }
+  }
   let idx = hash32(daySeed()) % pool.length
   let jumped = false
   if (pool.length > 1 && hash32(daySeed() * 31 + 17) % 100 < 25) {
@@ -454,7 +489,7 @@ export function pickAngleAndTopic(
   return {
     angle: SINTA_ANGLES[topic.angle],
     topic,
-    rationale: `pool ${pool.length}/${eligible.length} topik belum-dipakai · indeks ${idx}${jumped ? ' (lompatan eksperimen)' : ''}`,
+    rationale: `pool ${pool.length}/${eligible.length} topik belum-dipakai · indeks ${idx}${jumped ? ' (lompatan eksperimen)' : ''}${flopNote}`,
   }
 }
 
@@ -480,6 +515,16 @@ export function aggregatePerf(
   rows: { meta?: Record<string, unknown> | null; published_at?: string | null }[],
 ): PerfSnapshot {
   const byTemplate: Record<string, TemplatePerf> = {}
+  const byAngle: Record<string, TemplatePerf> = {}
+  const addSample = (store: Record<string, TemplatePerf>, key: string, views: number, likes: number, saves: number) => {
+    const cur = store[key] || { posts: 0, avgViews: 0, avgLikes: 0, avgSaves: 0 }
+    // rata-rata berjalan
+    cur.avgViews = (cur.avgViews * cur.posts + views) / (cur.posts + 1)
+    cur.avgLikes = (cur.avgLikes * cur.posts + likes) / (cur.posts + 1)
+    cur.avgSaves = (cur.avgSaves * cur.posts + saves) / (cur.posts + 1)
+    cur.posts += 1
+    store[key] = cur
+  }
   let samplePosts = 0
   for (const row of rows) {
     const meta = (row?.meta || {}) as Record<string, unknown>
@@ -490,13 +535,10 @@ export function aggregatePerf(
     const likes = Number(metrics.likes ?? 0) || 0
     const saves = Number(metrics.saves ?? 0) || 0
     if (!views && !likes && !saves) continue
-    const cur = byTemplate[tpl] || { posts: 0, avgViews: 0, avgLikes: 0, avgSaves: 0 }
-    // rata-rata berjalan
-    cur.avgViews = (cur.avgViews * cur.posts + views) / (cur.posts + 1)
-    cur.avgLikes = (cur.avgLikes * cur.posts + likes) / (cur.posts + 1)
-    cur.avgSaves = (cur.avgSaves * cur.posts + saves) / (cur.posts + 1)
-    cur.posts += 1
-    byTemplate[tpl] = cur
+    addSample(byTemplate, tpl, views, likes, saves)
+    /* Level angle — meta.angle diisi ig-video-post/video-bot (id angle). */
+    const ang = String(meta.angle || '').trim().toLowerCase()
+    if (ang) addSample(byAngle, ang, views, likes, saves)
     samplePosts += 1
   }
   let winner: 'tip' | 'promo' | null = null
@@ -505,5 +547,18 @@ export function aggregatePerf(
   if (tip && promo && tip.posts >= 2 && promo.posts >= 2) {
     winner = tip.avgViews >= promo.avgViews ? 'tip' : 'promo'
   }
-  return { byTemplate, winner, samplePosts }
+  /* Pemenang + angle sepi (dibanding MEDIAN supaya tahan outlier viral). */
+  const angleEntries = Object.entries(byAngle).filter(([, p]) => p.posts >= 2)
+  let winnerAngle: string | null = null
+  let flopAngles: string[] = []
+  if (angleEntries.length >= 2) {
+    const sorted = [...angleEntries].sort((a, b) => b[1].avgViews - a[1].avgViews)
+    winnerAngle = sorted[0][0]
+    const medians = sorted.map(([, p]) => p.avgViews).sort((a, b) => a - b)
+    const median = medians[Math.floor(medians.length / 2)] || 0
+    flopAngles = sorted
+      .filter(([, p]) => median > 0 && p.avgViews < median * 0.4)
+      .map(([id]) => id)
+  }
+  return { byTemplate, winner, samplePosts, byAngle, winnerAngle, flopAngles }
 }

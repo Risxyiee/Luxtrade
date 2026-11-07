@@ -208,6 +208,8 @@ async function executePayload(actionType: string, payload: Record<string, any>):
             meta: {
               template: String(payload.template || 'reels'),
               hook: String(payload.hook || ''),
+              ...(payload.angle ? { angle: String(payload.angle).slice(0, 40) } : {}),
+              ...(payload.topic ? { topic: String(payload.topic).slice(0, 200) } : {}),
               renderBy: 'sinta (cmo) — remotion 9:16',
               approvedBy: ownerEmail(),
             },

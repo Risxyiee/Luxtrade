@@ -176,16 +176,32 @@ export async function GET(request: NextRequest) {
       const parts = Object.entries(perf.byTemplate)
         .map(([tpl, p]) => `${tpl} rata-rata ${p.avgViews.toFixed(0)} views / ${p.avgLikes.toFixed(0)} likes (${p.posts} konten)`)
         .join(' · ')
+      /* Level angle — Bos minta Sinta GANTI KONTEN kalau ga rame:
+         angle pemenang ditiru polanya, angle sepi dihindari run berikut. */
+      const angleEntries = Object.entries(perf.byAngle || {})
+      const angleParts = angleEntries
+        .map(([ang, p]) => `${ang} ${p.avgViews.toFixed(0)} views (${p.posts} konten)`)
+        .join(' · ')
+      const angleNote = perf.winnerAngle
+        ? ` ANGLE TERBAIK: "${perf.winnerAngle}" — tiru pola menangnya.` +
+          (perf.flopAngles?.length ? ` ANGLE SEPI (HINDARI): ${perf.flopAngles.join(', ')}.` : '')
+        : (angleEntries.length ? ' Data angle belum cukup utk pemenang (min 2 sampel per angle).' : '')
       const lesson =
         `PERFORMA IG 14 hari (sync ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB): ${parts}.` +
         (perf.winner
-          ? ` Pemenang: ${perf.winner.toUpperCase()} — konten berikutnya 70% ikut pemenang, 30% eksperimen.`
-          : ' Data belum cukup utk pemenang — lanjut eksperimen A/B.')
+          ? ` Pemenang template: ${perf.winner.toUpperCase()} — konten berikutnya 70% ikut pemenang, 30% eksperimen.`
+          : ' Data template belum cukup utk pemenang — lanjut eksperimen A/B.') +
+        (angleParts ? ` Per angle: ${angleParts}.${angleNote}` : '')
       try {
         await admin.from('office_memory').insert({
           agent_name: 'Sinta',
           memory_type: 'lesson',
-          content: { lesson, kind: 'ig-performance', synced, perf: perf.byTemplate, runDate: new Date().toISOString() },
+          content: {
+            lesson, kind: 'ig-performance', synced,
+            perf: perf.byTemplate, byAngle: perf.byAngle,
+            winnerAngle: perf.winnerAngle, flopAngles: perf.flopAngles,
+            runDate: new Date().toISOString(),
+          },
         })
       } catch { /* fail-open */ }
       summary = { ...perf, lesson }

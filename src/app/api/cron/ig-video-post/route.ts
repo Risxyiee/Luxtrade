@@ -132,9 +132,15 @@ export async function POST(request: NextRequest) {
     caption?: string
     template?: string
     hook?: string
+    /** id angle konten (mis. "pain-point") + topik — dipakai pembelajar
+     *  performa per-angle (ig-metrics → sinta-brain aggregatePerf). */
+    angle?: string
+    topic?: string
   } | null
   const videoUrl = String(body?.videoUrl || '').trim()
   const caption = String(body?.caption || '').trim().slice(0, 2200)
+  const angleMeta = String(body?.angle || '').trim().slice(0, 40)
+  const topicMeta = String(body?.topic || '').trim().slice(0, 200)
 
   /* ── 1) Validasi input (paling awal — input jejak ditolak sebelum apa pun) ── */
   const invalid = validateIgPostInput({ mediaType: 'REELS', videoUrl, caption })
@@ -196,6 +202,8 @@ export async function POST(request: NextRequest) {
           caption,
           template: body?.template || 'reels',
           hook: body?.hook || '',
+          ...(angleMeta ? { angle: angleMeta } : {}),
+          ...(topicMeta ? { topic: topicMeta } : {}),
           renderNote: 'remotion 9:16 + musik latar — ACC Bos → publish REELS',
           requestedWib: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
           ...(offWindow ? { lateRunNote: `Runner jalan di luar window (${hour}:00 WIB, jadwal 19–21 WIB — kemungkinan delay antrean GitHub Actions). Draft tetap disimpan — ACC Bos menentukan momen tayang.` } : {}),
@@ -276,6 +284,8 @@ export async function POST(request: NextRequest) {
         meta: {
           template: body?.template || 'reels',
           hook: body?.hook || '',
+          ...(angleMeta ? { angle: angleMeta } : {}),
+          ...(topicMeta ? { topic: topicMeta } : {}),
           renderBy: 'sinta (cmo) — remotion 9:16',
           scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
           scheduleNote: `runner ${alasan} → video dijadwalkan (tidak dibuang) — window 19–21 WIB, libur Sabtu/Minggu`,
@@ -337,6 +347,8 @@ export async function POST(request: NextRequest) {
         meta: {
           template: body?.template || 'reels',
           hook: body?.hook || '',
+          ...(angleMeta ? { angle: angleMeta } : {}),
+          ...(topicMeta ? { topic: topicMeta } : {}),
           renderBy: 'sinta (cmo) — remotion 9:16',
           scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
         },

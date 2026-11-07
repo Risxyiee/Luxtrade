@@ -391,6 +391,16 @@ function buildUserPrompt(opts: {
     Object.entries(perf.byTemplate).forEach(([tpl, p]) => {
       lines.push(`${tpl}: ${p.posts} konten · rata-rata ${p.avgViews.toFixed(0)} views · ${p.avgLikes.toFixed(0)} likes · ${p.avgSaves.toFixed(0)} saves`)
     })
+    /* Level angle (baru): Sinta lihat angle mana yang rame — bukan cuma template. */
+    const angleEntries = Object.entries(perf.byAngle || {})
+    if (angleEntries.length) {
+      lines.push('Performa per angle:')
+      angleEntries.forEach(([ang, p]) => {
+        lines.push(`  • ${ang}: ${p.posts} konten · rata-rata ${p.avgViews.toFixed(0)} views`)
+      })
+      if (perf.winnerAngle) lines.push(`→ ANGLE TERBAIK sejauh ini: "${perf.winnerAngle}" — pola menangnya WAJIB ditiru (ritme hook, gaya penyampaian), tanpa menyalin kalimat.`)
+      if (perf.flopAngles?.length) lines.push(`→ ANGLE SEPI (hindari gayanya): ${perf.flopAngles.join(', ')} — konten dgn angle ini kemarin dilihat jauh di bawah rata-rata.`)
+    }
     if (perf.winner) {
       lines.push(`→ Template pemenang sejauh ini: ${perf.winner.toUpperCase()}. Pertahankan pola kontennya (ritme, panjang hook, gaya CTA) — TAPI topik & angle TETAP dari tugasan hari ini.`)
     } else {
@@ -607,7 +617,7 @@ async function handle(request: NextRequest) {
   const assignment =
     effectiveTemplate === 'signal'
       ? null
-      : pickAngleAndTopic(effectiveTemplate, recentTopics)
+      : pickAngleAndTopic(effectiveTemplate, recentTopics, perf)
 
   /* ── 3) LLM menulis isi ── */
   const userPrompt =
@@ -699,7 +709,7 @@ async function handle(request: NextRequest) {
         },
     llm: llmMeta,
     memory: { lessonsLoaded: lessons.length, recentRuns: recentRuns.length, saved: true },
-    perf: perf ? { samplePosts: perf.samplePosts, byTemplate: perf.byTemplate, winner: perf.winner } : null,
+    perf: perf ? { samplePosts: perf.samplePosts, byTemplate: perf.byTemplate, winner: perf.winner, byAngle: perf.byAngle, winnerAngle: perf.winnerAngle, flopAngles: perf.flopAngles } : null,
     spec: { ...spec, caption: captionFull },
     dataBasis: {
       tiktokTopCount: topTikToks.length,
