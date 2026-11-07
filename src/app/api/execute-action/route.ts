@@ -32,7 +32,7 @@ import { ensureFreshToken, postToInstagram } from '@/lib/instagram'
 import { getCronAdmin } from '@/lib/cron-supabase'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import {
-  envGet, sbConfig, ownerEmail, getActionById, decideAction, kvSetKey, kvIncrKey,
+  envGet, sbConfig, ownerEmail, getActionById, decideAction, kvSetKey, kvGetKey, kvIncrKey,
   fetchAllUsers, fetchUnsubscribedUserIds, wibDay,
 } from '@/lib/agent-proposals'
 
@@ -68,25 +68,60 @@ function simpleHtml(body: string): string {
 
 async function executePayload(actionType: string, payload: Record<string, any>, actionId?: string): Promise<{ ok: boolean; detail: string }> {
   switch (actionType) {
-    /* ── EMAIL personal (Maya winback / Bagas upgrade offer) ── */
+    /* ── EMAIL personal (Maya winback / Bagas upgrade offer) ──
+       🚫 SUPPRESSION (penutup temuan audit M3/M4/B2): user yang pernah
+       unsubscribe (re_engagement_emails / daily_reminder_logs) dan alamat
+       yang BOUNCED (webhook Resend → agent_kv open:{email}.bounced) tidak
+       di-email — gerbang akhir untuk SEMUA jalur (master cron, sweep,
+       cron COO). Fail-open: baca gagal → kirim (perilaku lama). */
     case 'SEND_WINBACK_EMAIL':
     case 'SEND_UPGRADE_OFFER': {
+      const cfgMail = sbConfig()
       const emails: string[] = (payload.target_emails || []).map((e: unknown) => String(e)).filter(e => e.includes('@')).slice(0, 50)
       if (emails.length === 0) return { ok: false, detail: 'payload.target_emails kosong' }
+      let unsubEmails = new Set<string>()
+      try {
+        const [unsubIds, users] = await Promise.all([
+          fetchUnsubscribedUserIds(cfgMail),
+          fetchAllUsers(cfgMail, 300),
+        ])
+        for (const u of users) if (u.email && unsubIds.has(u.id)) unsubEmails.add(u.email.toLowerCase())
+      } catch { /* fail-open */ }
+      let skippedUnsub = 0, skippedBounce = 0
       let okCount = 0, failCount = 0
       const errs: string[] = []
       for (const to of emails) {
-        const name = to.split('@')[0].replace(/[._-]/g, ' ')
+        const toNorm = to.toLowerCase().trim()
+        if (unsubEmails.has(toNorm)) { skippedUnsub++; continue }
+        try {
+          const rawSig = await kvGetKey(cfgMail, `open:${toNorm}`)
+          if (rawSig && (JSON.parse(rawSig) as { bounced?: boolean }).bounced) { skippedBounce++; continue }
+        } catch { /* fail-open */ }
         const subject = String(payload.subject || (actionType === 'SEND_UPGRADE_OFFER' ? 'Penawaran khusus untuk trader aktif' : 'Balik lagi yuk — jurnalmu menunggu'))
         const html = actionType === 'SEND_WINBACK_EMAIL'
           ? String(payload.html_body || simpleHtml('Jurnal tradingmu menunggu. Upload 1 screenshot di https://luxtradee.web.id — AI evaluasi dalam 2 menit.'))
           : simpleHtml(String(payload.personalized_message || 'Versi PRO membuka evaluasi AI tanpa batas: https://luxtradee.web.id'))
         const r = await sendEmail({ to, subject, html })
-        if (r.success) { okCount++; await kvIncrKey(sbConfig(), `resend_sent:${wibDay()}`) } else { failCount++; errs.push(`${to}: ${r.error || '?'}`) }
+        if (r.success) {
+          okCount++
+          await kvIncrKey(cfgMail, `resend_sent:${wibDay()}`)
+          /* M1: cooldown winback MULAI SAAT EMAIL BENERAN TERKIRIM —
+             dulu ditulis saat draf dibuat, sehingga draf yang Bos tolak /
+             abaikan tetap membekukan lead 14 hari. Phase 'sent' = penuh
+             14 hari; phase 'draft' (dari cron) = proteksi antre 3 hari. */
+          if (actionType === 'SEND_WINBACK_EMAIL') {
+            await kvSetKey(cfgMail, `winback:${toNorm}`, JSON.stringify({ phase: 'sent', at: new Date().toISOString() }))
+          }
+        } else { failCount++; errs.push(`${to}: ${r.error || '?'}`) }
         await sleep(250) // throttle Resend free tier (2 req/detik)
       }
-      if (okCount === 0) return { ok: false, detail: `Semua pengiriman gagal (${failCount}): ${errs.slice(0, 3).join(' | ')}` }
-      return { ok: true, detail: `Terkirim ${okCount}/${emails.length} email${failCount ? ` — gagal ${failCount}: ${errs.slice(0, 2).join(' | ')}` : ''}` }
+      if (okCount === 0) {
+        if (failCount === 0 && skippedUnsub + skippedBounce > 0) {
+          return { ok: true, detail: `Tidak ada yang dikirim — ${skippedUnsub} unsubscribe, ${skippedBounce} bounce (suppression) — tidak gagal, hanya difilter` }
+        }
+        return { ok: false, detail: `Semua pengiriman gagal (${failCount}): ${errs.slice(0, 3).join(' | ')}` }
+      }
+      return { ok: true, detail: `Terkirim ${okCount}/${emails.length} email${failCount ? ` — gagal ${failCount}: ${errs.slice(0, 2).join(' | ')}` : ''}${skippedUnsub ? ` — ${skippedUnsub} dilewati (unsubscribe)` : ''}${skippedBounce ? `, ${skippedBounce} dilewati (bounce)` : ''}` }
     }
 
     /* ── Konten (Sinta) → Instagram/Facebook ATAU blog ── */

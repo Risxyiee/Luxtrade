@@ -291,6 +291,7 @@ type FollowupResult = { email: string; name: string; subject: string; openedAt: 
 async function runFollowUpPass(
   admin: SupabaseClient,
   profiles: Array<{ id: string; email: string | null; is_pro?: boolean | null; full_name?: string | null }>,
+  unsubIds: Set<string> = new Set(), // audit B2: suppression lintas kampanye
 ): Promise<FollowupResult[]> {
   const percent = parseInt((await getEnvVar('COUPON_PERCENT')) || process.env.COUPON_PERCENT || '20', 10) || 20
   const coupon = `DISKON${percent}`
@@ -318,6 +319,7 @@ async function runFollowUpPass(
 
     const prof = t.target_user_id ? byId.get(t.target_user_id) : undefined
     if (prof?.is_pro) continue // sudah PRO → selamat, bukan target follow-up
+    if (t.target_user_id && unsubIds.has(t.target_user_id)) continue // audit B2: pernah unsubscribe → jangan ganggu
 
     const stat = JSON.parse((await kvAgentGet(admin, `open:${email}`)) || '{}') as { count?: number; clicks?: number; bounced?: boolean; last?: string }
     if (stat.bounced) continue // alamat bounce — jangan ganggu lagi
@@ -413,8 +415,19 @@ async function handleRequest(request: NextRequest) {
     }
   }
 
+  // ── SUPPRESSION (audit B2): user yang pernah unsubscribe (re_engagement_emails /
+  //    daily_reminder_logs) tidak boleh jadi target penawaran/follow-up.
+  //    Fail-open: tabel belum ada → set kosong (perilaku lama).
+  const unsubIds = new Set<string>()
+  try {
+    for (const tbl of ['re_engagement_emails', 'daily_reminder_logs']) {
+      const { data: unsubRows } = await admin.from(tbl).select('user_id').eq('unsubscribed', true).limit(1000)
+      for (const r of (unsubRows || []) as Array<{ user_id?: string | null }>) if (r.user_id) unsubIds.add(r.user_id)
+    }
+  } catch { /* fail-open */ }
+
   const hotLeads: CooLead[] = profiles
-    .filter(p => p.email && !p.is_pro && (tradeCounts.get(p.id) || 0) > 0)
+    .filter(p => p.email && !p.is_pro && (tradeCounts.get(p.id) || 0) > 0 && !unsubIds.has(p.id))
     .map(p => ({
       id: p.id,
       email: p.email as string,
@@ -523,7 +536,7 @@ async function handleRequest(request: NextRequest) {
   // 5b. ⭐ FOLLOW-UP PASS — lead yang BUKA email (webhook Resend) tapi belum PRO
   let followups: FollowupResult[] = []
   try {
-    followups = await runFollowUpPass(admin, profiles)
+    followups = await runFollowUpPass(admin, profiles, unsubIds)
   } catch (err: any) {
     console.error('[ai-coo-agent] Follow-up pass gagal (non-fatal):', err?.message)
   }

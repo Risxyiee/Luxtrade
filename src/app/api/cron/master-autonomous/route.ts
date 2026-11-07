@@ -89,7 +89,7 @@ export const dynamic = 'force-dynamic'
 
 /* ═══════════════════════ KONFIGURASI & HELPERS DASAR ═══════════════════════ */
 
-const RUN_VERSION = 'master-autonomous@2'
+const RUN_VERSION = 'master-autonomous@3-skillmax'
 const DEFAULT_MIN_INTERVAL_MIN = 30
 
 /** Env resolver: CF Workers binding → process.env (pola cron lama). */
@@ -447,6 +447,91 @@ async function kvSet(admin: SupabaseClient, key: string, value: string): Promise
   try { await admin.from('agent_kv').upsert({ key, value }, { onConflict: 'key' }) } catch { /* non-kritis */ }
 }
 
+/* ═══════════ SKILL-MAX SISA KARYAWAN (audit 8 Nov: Maya·Bagas·Putri·Dewi) ═════
+ * Helper bersama yang menutup temuan audit:
+ *   • fetchUnsubUserIds  → M3/B2: suppression list unsubscribe lintas kampanye
+ *   • readEmailSignal    → B1: sinyal webhook Resend (open:{email})
+ *   • parseWinbackStamp  → M1: cooldown winback dua fase (draft 3 hari /
+ *                          sent 14 hari sejak BENERAN terkirim)
+ *   • insightDewiBlock   → D2: pipa insight Dewi ke Farhan/Bagas/Sinta
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/** SUPPRESSION BERSAMA (M3/B2): id user yang minta berhenti di-email dari
+ *  dua kampanye cron (re_engagement_emails / daily_reminder_logs.unsubscribed).
+ *  Fail-open: tabel belum ada / gagal baca → set kosong (perilaku lama). */
+async function fetchUnsubUserIds(admin: SupabaseClient): Promise<Set<string>> {
+  const ids = new Set<string>()
+  for (const tbl of ['re_engagement_emails', 'daily_reminder_logs']) {
+    try {
+      const { data } = await admin.from(tbl).select('user_id').eq('unsubscribed', true).limit(1000)
+      for (const r of (data || []) as Array<{ user_id?: string | null }>) if (r.user_id) ids.add(r.user_id)
+    } catch { /* tabel opsional */ }
+  }
+  return ids
+}
+
+interface EmailSignal { count?: number; clicks?: number; bounced?: boolean; last?: string }
+
+/** Sinyal email per penerima (ditulis webhook /api/webhooks/resend).
+ *  B1: lead yang SUDAH buka/klik = penasaran → angle beda; bounced = jangan
+ *  diganggu lagi. Null kalau belum ada sinyal. */
+async function readEmailSignal(admin: SupabaseClient, email: string): Promise<EmailSignal | null> {
+  try {
+    const raw = await kvGet(admin, `open:${email.toLowerCase().trim()}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as EmailSignal
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch { return null }
+}
+
+/** Parser stamp cooldown winback — kompatibel format lama (ISO polos dianggap
+ *  'sent' agar lead yang sudah di-email dulu tetap terlindungi). */
+function parseWinbackStamp(raw: string | null): { phase: 'sent' | 'draft'; at: number } | null {
+  if (!raw) return null
+  try {
+    const p = JSON.parse(raw) as { phase?: string; at?: string }
+    if (p && (p.phase === 'sent' || p.phase === 'draft')) {
+      const t = new Date(p.at || '').getTime()
+      return Number.isFinite(t) && t > 0 ? { phase: p.phase as 'sent' | 'draft', at: t } : null
+    }
+  } catch { /* format lama: ISO string polos */ }
+  const t = new Date(raw).getTime()
+  return Number.isFinite(t) && !Number.isNaN(t) ? { phase: 'sent', at: t } : null
+}
+
+/* ── DATA DEWI lintas divisi (audit D2) ──────────────────────────────────
+ * Dewi menghitung statistik trading RIIL tiap pagi, tapi dulu insight-nya
+ * berhenti di briefing Alexander. Kini Farhan (topik artikel), Bagas
+ * (angle email) & Sinta (riset pasar) ikut membacanya → emosi/jam entry
+ * terburuk user jadi bahan topik konten & angle penawaran. */
+interface DewiMemory { insight?: string; recommendation?: string; stats?: { winrate?: number; tradesAnalyzed?: number } }
+
+async function officeRecallInsightDewi(admin: SupabaseClient, limit = 1): Promise<DewiMemory[]> {
+  try {
+    const { data, error } = await admin
+      .from('office_memory')
+      .select('content')
+      .eq('agent_name', 'Dewi')
+      .eq('memory_type', 'report')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error || !data) return []
+    return (data as Array<{ content: DewiMemory }>)
+      .map(r => r.content)
+      .filter(c => !!c && typeof c === 'object' && typeof c.insight === 'string' && c.insight.length > 0)
+  } catch { return [] }
+}
+
+/** Blok insight Dewi untuk prompt agen lain ('' kalau belum ada). */
+async function insightDewiBlock(admin: SupabaseClient): Promise<string> {
+  const [latest] = await officeRecallInsightDewi(admin, 1)
+  if (!latest?.insight) return ''
+  const lines = [`Insight: ${latest.insight}`]
+  if (latest.recommendation) lines.push(`Rekomendasi: ${latest.recommendation}`)
+  return `\nDATA ANALYST DEWI TERAKHIR (statistik riil trading user — peluang topik/angle, angka JANGAN diubah):
+${lines.map(l => `- ${l}`).join('\n')}\n`
+}
+
 /* ═══════════════════════ TIPE HASIL AGEN ═══════════════════════════════════ */
 
 interface AgentResult {
@@ -613,6 +698,9 @@ async function agentFarhan(admin: SupabaseClient, dry: boolean): Promise<AgentRe
   // ── Fase 1: riset keyword tren harian (+ bahan riset TikTok Sinta) ──
   const avoidList = existingTitles.slice(0, 15).map(t => clip(t, 90)).join(' | ') || '(kosong)'
   const risetSintaFarhan = await risetSintaBlock(admin)
+  // AUDIT D2: insight Dewi ikut jadi bahan topik artikel (emosi/jam terburuk
+  // user = topik yang LAGI dibutuhkan pembaca)
+  const dewiBlockFarhan = await insightDewiBlock(admin)
 
   /* SKILL BARU (1): TREN PENCARIAN RIIL — Google Trends RSS Indonesia.
      Dulu riset 100% halusinasi LLM; sekarang ada sinyal pasar nyata. */
@@ -635,7 +723,7 @@ ${topArticles.map(a => `- "${clip(a.title, 70)}" — ${a.views} views${a.keyword
     'Kamu riset keyword SEO harian untuk niche trading emas/XAUUSD & prop firm (audiens Indonesia). Cari topik yang SEDANG dicari orang, bukan topik usang.',
     `Tanggal run: ${wibDateStr()}.
 JUDUL YANG SUDAH TERBIT (JANGAN diulang topiknya): ${avoidList}
-${lessonsBlock(lessons)}${risetSintaFarhan}
+${lessonsBlock(lessons)}${risetSintaFarhan}${dewiBlockFarhan}
 ${trendsBlock}
 ${topBlock}
 
@@ -920,6 +1008,9 @@ ${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
   }
 
   const lessons = await officeRecallLessons(admin, 'Sinta')
+  // AUDIT D2: statistik Dewi jadi bahan laporan riset Sinta (topik konten
+  // selaras dengan masalah RIIL trader — emosi/jam entry terburuk)
+  const dewiBlockSinta = await insightDewiBlock(admin)
   const refBlock = [
     topRefs.length
       ? `DATA RIIL — 5 KONTEN TIKTOK VIEWS TERTINGGI (pelajari polanya, tiru yang works):\n${topRefs.map((r, i) => `${i + 1}. [${r.views.toLocaleString('id-ID')} views · ${r.likes.toLocaleString('id-ID')} likes · ${r.comments.toLocaleString('id-ID')} komentar] ${r.caption}`).join('\n')}`
@@ -936,7 +1027,7 @@ ${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
   try {
     const res = await callAgent('Sinta',
       SINTA_RISET_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-      `${refBlock}
+      `${refBlock}${dewiBlockSinta}
 
 Tanggal run: ${wibDateStr()}.
 Susun LAPORAN RISET TikTok hari ini untuk seluruh kantor.`,
@@ -1270,26 +1361,30 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
  * 👥 AGEN 4 — MAYA (CSO · Onboarding & Churn Rescue)
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-const MAYA_SYSTEM = `Kamu MAYA, CSO Luxtradee yang jaga retensi. Kamu menulis email win-back untuk trader yang mulai pasif (belum nyatet trade 2-8 minggu).
-TUJUAN: bikin dia balik LAGI nyatet trade — bukan menekan. Empati dulu, baru ajakan ringan 1 langkah kecil (upload 1 jurnal / buka dashboard).
+const MAYA_SYSTEM = `Kamu MAYA, CSO Luxtradee yang jaga retensi. Kamu menulis email win-back untuk DUA segmen trader yang mulai menghilang:
+1. SEGMENT "pasif" — sudah pernah nyatet trade, tapi 2-8 minggu tidak aktif. CTA: balik lagi nyatet jurnal (empati dulu, 1 langkah kecil: upload 1 jurnal / buka dashboard).
+2. SEGMENT "cold" — daftar cukup lama tapi BELUM PERNAH nyatet trade sekali pun. CTA: bantu dia lewati hambatan pertama (upload trade pertama, tawarin bantuan/auto-import) — jangan anggap dia pernah pakai produk.
+TUJUAN: bikin dia balik PAKAI produk — bukan menekan. Empati dulu, baru ajakan ringan.
 
-GAYA WAJIB: hangat, personal, singkat (maks 120 kata body), tanpa guilt-trip berlebihan, 1 CTA jelas.
-FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
-{"subject": "...", "body": "...", "html_body": "<p>...</p>..."}`
+GAYA WAJIB: hangat, personal, singkat (maks 120 kata per email), tanpa guilt-trip berlebihan, 1 CTA jelas.
+FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence) — SATU email PER target, urut sesuai daftar target di prompt:
+{"emails": [{"subject": "...", "body": "...", "html_body": "<p>...</p>..."}]}`
 
 const MAYA_RUBRIC = `- Tidak terdengar seperti blast mass-production (jangan "Kami menyadari..." kaku).
 - Ada 1 insight nyata kenapa trader berhenti nyatet (malu SL banyak, sibuk, lupa) — empatik.
-- CTA 1 langkah kecil & spesifik (bukan "kunjungi website kami" generik).
-- Maks 120 kata; subjek <60 karakter & tidak clickbait palsu.`
+- CTA 1 langkah kecil & spesifik (bukan "kunjungi website kami" generik) DAN HARUS cocok dgn segmen target (cold ≠ pasif).
+- Maks 120 kata per email; subjek <60 karakter & tidak clickbait palsu.`
 
 async function agentMaya(admin: SupabaseClient, dry: boolean): Promise<AgentResult> {
-  // Data riil: profil + waktu aktivitas terakhir tiap user
-  const profiles = await fetchAllRows<{ id: string; email: string | null }>(
-    (from, to) => admin.from('profiles').select('id, email').range(from, to),
+  // Data riil: profil + waktu aktivitas terakhir tiap user. Window trades
+  // 90 HARI (audit M2: window 60 hari dulu membuat user COLD — daftar lama
+  // tapi belum pernah nyatet sekali pun — tidak pernah terlihat).
+  const profiles = await fetchAllRows<{ id: string; email: string | null; created_at?: string | null }>(
+    (from, to) => admin.from('profiles').select('id, email, created_at').range(from, to),
   )
-  const since60 = new Date(Date.now() - 60 * 86400_000).toISOString()
+  const since90 = new Date(Date.now() - 90 * 86400_000).toISOString()
   const tradeRows = await fetchAllRows<{ user_id: string | null; created_at: string }>(
-    (from, to) => admin.from('trades').select('user_id, created_at').gte('created_at', since60).range(from, to),
+    (from, to) => admin.from('trades').select('user_id, created_at').gte('created_at', since90).range(from, to),
   )
   const lastActive = new Map<string, number>()
   for (const t of tradeRows) {
@@ -1300,76 +1395,151 @@ async function agentMaya(admin: SupabaseClient, dry: boolean): Promise<AgentResu
 
   const now = Date.now()
   const D7 = 7 * 86400_000
-  const D60 = 60 * 86400_000
   let activeCount = 0
-  const passiveUsers: Array<{ id: string; email: string; idleDays: number }> = []
+  const candidates: Array<{ id: string; email: string; idleDays: number; segment: 'pasif' | 'cold' }> = []
   for (const p of profiles) {
     if (!p.email) continue
     const last = lastActive.get(p.id) || 0
     if (last && now - last < D7) activeCount++
     const idleDays = last ? Math.floor((now - last) / 86400_000) : -1
-    if (idleDays >= 14 && now - last < D60) passiveUsers.push({ id: p.id, email: p.email, idleDays })
+    if (last && idleDays >= 14 && idleDays <= 60) {
+      candidates.push({ id: p.id, email: p.email, idleDays, segment: 'pasif' })
+    } else if (!last) {
+      // AUDIT M2: segmen COLD — daftar 14-90 hari lalu, belum pernah nyatet
+      const ageDays = p.created_at ? Math.floor((now - new Date(p.created_at).getTime()) / 86400_000) : -1
+      if (ageDays >= 14 && ageDays <= 90) candidates.push({ id: p.id, email: p.email, idleDays: ageDays, segment: 'cold' })
+    }
   }
   const totalWithEmail = profiles.filter(p => p.email).length
-  const passiveCount = passiveUsers.length
+  const passiveCount = candidates.filter(c => c.segment === 'pasif').length
+  const coldCount = candidates.filter(c => c.segment === 'cold').length
   const activeRatio = totalWithEmail ? Math.round((activeCount / totalWithEmail) * 100) : 0
 
-  // Cooldown anti-spam: yang baru di-winback 14 hari terakhir tidak diganggu
-  const targets: typeof passiveUsers = []
-  for (const u of [...passiveUsers].sort((a, b) => b.idleDays - a.idleDays)) {
-    const lastWb = await kvGet(admin, `winback:${u.email.toLowerCase()}`)
-    if (lastWb && now - new Date(lastWb).getTime() < 14 * 86400_000) continue
+  // AUDIT M3 + M4: suppression di SUMBER — user unsubscribe & alamat bounce
+  // tidak jadi target (gerbang akhir juga ada di /api/execute-action).
+  const unsubIds = await fetchUnsubUserIds(admin)
+  const bouncedEmails = new Set<string>()
+  for (const c of candidates.slice(0, 40)) {
+    const sig = await readEmailSignal(admin, c.email)
+    if (sig?.bounced) bouncedEmails.add(c.email.toLowerCase())
+  }
+  const eligible = candidates.filter(c => !unsubIds.has(c.id) && !bouncedEmails.has(c.email.toLowerCase()))
+
+  // AUDIT M1: cooldown winback DUA FASE — dulu cooldown 14 hari jalan SAAT
+  // DRAF dibuat, jadi draf yang Bos tolak/abaikan tetap membekukan lead
+  // 14 hari. Kini: 'draft' = proteksi antre 3 hari (draf lama dianggap
+  // hangus → lead boleh dipilih lagi), 'sent' = cooldown penuh 14 hari
+  // sejak email BENERAN terkirim (ditulis oleh /api/execute-action).
+  const targets: typeof eligible = []
+  for (const u of [...eligible].sort((a, b) => b.idleDays - a.idleDays)) {
+    const stamp = parseWinbackStamp(await kvGet(admin, `winback:${u.email.toLowerCase()}`))
+    if (stamp) {
+      const age = now - stamp.at
+      if (stamp.phase === 'sent' && age < 14 * 86400_000) continue
+      if (stamp.phase === 'draft' && age < 3 * 86400_000) continue
+    }
     targets.push(u)
     if (targets.length >= 2) break
   }
 
-  const snapshot = { totalUsers: totalWithEmail, activeCount, passiveCount, activeRatio, targets: targets.map(t => t.email) }
-  if (dry) return skipResult('Maya', `dry-run — snapshot: ${activeCount}/${totalWithEmail} aktif (7 hari), ${passiveCount} pasif 14-60 hari, ${targets.length} kandidat win-back`, snapshot)
+  const snapshot = { totalUsers: totalWithEmail, activeCount, passiveCount, coldCount, activeRatio, bouncedSkipped: bouncedEmails.size, unsubscribed: unsubIds.size, targets: targets.map(t => `${t.email} (${t.segment})`) }
+  if (dry) return skipResult('Maya', `dry-run — snapshot: ${activeCount}/${totalWithEmail} aktif (7 hari), ${passiveCount} pasif + ${coldCount} cold, ${targets.length} kandidat win-back`, snapshot)
   if (!targets.length) {
-    return okResult('Maya', `tidak ada target win-back baru (${passiveCount} pasif, semua dalam cooldown / tidak ada pasif)`, snapshot)
+    return okResult('Maya', `tidak ada target win-back baru (${passiveCount} pasif + ${coldCount} cold — semua dalam cooldown/suppression)`, snapshot)
   }
+
+  // AUDIT M5: LEARNING LOOP — dulu Maya amnesiak (office_memory-nya kosong,
+  // recall selalu "belum ada memori"). Kini dia evaluasi hasil win-back
+  // 30 hari terakhir (lead balik nyatet setelah di-email?) → disimpan ke
+  // memori kantor → dibaca lagi run berikutnya via lessonsBlock.
+  let wbSent30 = 0, wbReturned30 = 0
+  try {
+    const since30 = new Date(now - 30 * 86400_000).toISOString()
+    const { data: sentActions } = await admin.from('ai_pending_actions')
+      .select('action_payload, executed_at')
+      .eq('agent_name', 'Maya').eq('action_type', 'SEND_WINBACK_EMAIL')
+      .eq('status', 'approved').gte('executed_at', since30).limit(50)
+    const byEmail = new Map(profiles.filter(p => p.email).map(p => [(p.email as string).toLowerCase(), p.id]))
+    for (const a of (sentActions || []) as Array<{ action_payload: { target_emails?: string[] }; executed_at: string | null }>) {
+      for (const em of a.action_payload?.target_emails || []) {
+        wbSent30++
+        const uid = byEmail.get(String(em).toLowerCase())
+        const sentTs = a.executed_at ? new Date(a.executed_at).getTime() : 0
+        if (uid && sentTs && (lastActive.get(uid) || 0) > sentTs) wbReturned30++
+      }
+    }
+    if (wbSent30 > 0) {
+      const rate = Math.round((wbReturned30 / wbSent30) * 100)
+      await officeRemember(admin, 'Maya', 'critic', {
+        lesson: `Win-back 30 hari terakhir: ${wbReturned30}/${wbSent30} lead balik nyatet setelah di-email (${rate}%) — ${rate < 20 ? 'angle/CTA perlu variasi: subjek lebih spesifik & CTA makin kecil' : 'pola bekerja, pertahankan gaya hangat + 1 langkah kecil'}`,
+        sent: wbSent30, returned: wbReturned30, rate,
+      })
+    }
+  } catch { /* evaluasi opsional — jangan ganggu tugas utama */ }
 
   const lessons = await officeRecallLessons(admin, 'Maya')
   const ac = await actorCritic('Maya', {
     system: MAYA_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-    user: `DATA RIIL: ${activeCount} dari ${totalWithEmail} user aktif 7 hari terakhir (${activeRatio}%). Ada ${passiveCount} user pasif (2-8 minggu tidak nyatet).
-Email ini dikirim personal via Resend ke ${targets.length} trader pasif — greeting netral tanpa nama (dikirim massal).
+    user: `DATA RIIL: ${activeCount} dari ${totalWithEmail} user aktif 7 hari terakhir (${activeRatio}%). Kandidat win-back hari ini (SATU email per target, urut sesuai daftar):
+${targets.map((t, i) => `${i + 1}. ${t.email} — SEGMENT ${t.segment === 'cold'
+      ? `COLD: daftar ${t.idleDays} hari lalu, belum pernah nyatet trade sekali pun → CTA bantu upload trade PERTAMA`
+      : `PASIF: terakhir nyatet ${t.idleDays} hari lalu → CTA balik ke jurnal`}`).join('\n')}
+Email dikirim personal via Resend — greeting netral tanpa nama (dikirim massal).
 
-Tulis 1 email win-back.`,
+Tulis 1 email win-back per target.`,
     rubric: MAYA_RUBRIC,
-    maxTokens: 700,
+    maxTokens: 1100,
     temperature: 0.8,
     passScore: 7,
     maxRevisions: 1,
   })
   if (!ac) return errResult('Maya', 'LLM tidak tersedia — email win-back tidak dibuat', snapshot)
 
-  const parsed = extractJson<{ subject?: string; body?: string; html_body?: string }>(ac.text)
-  if (!parsed?.subject || !parsed?.html_body) {
+  const parsed = extractJson<{ emails?: Array<{ subject?: string; body?: string; html_body?: string }>; subject?: string; body?: string; html_body?: string }>(ac.text)
+  // Fallback kompatibel: format lama 1 email (tanpa array "emails")
+  const emailDrafts = (parsed?.emails?.length ? parsed.emails : (parsed?.subject && parsed?.html_body ? [parsed] : []))
+    .filter(e => e?.subject && e?.html_body)
+  if (!emailDrafts.length) {
     return errResult('Maya', `JSON email tidak valid (model ${ac.model})`, snapshot)
   }
 
-  // Kontrak payload SAMA dengan /api/execute-action (SEND_WINBACK_EMAIL)
-  const { error: insErr } = await admin.from('ai_pending_actions').insert({
-    agent_name: 'Maya',
-    action_type: 'SEND_WINBACK_EMAIL',
-    action_payload: {
-      target_emails: targets.map(t => t.email),
-      subject: clip(parsed.subject, 150),
-      html_body: String(parsed.html_body),
-      body_plain: clip(parsed.body || '', 1500),
-      context: { activeCount, passiveCount, activeRatio, idleDays: targets.map(t => t.idleDays) },
-    },
-    status: 'pending',
-  })
-  if (insErr) {
-    return skipResult('Maya', `draf jadi (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi gagal disimpan: ${clip(insErr.message, 140)}`,
-      { ...snapshot, subject: parsed.subject })
+  // AUDIT M6: SATU row pending PER TARGET — dulu 1 email massal copy sama
+  // persis utk semua target; kini tiap target dapat email sesuai segmennya
+  // (cold vs pasif beda CTA). Cooldown 'draft' 3 hari dipasang saat draf
+  // masuk antrean; cooldown PENUH baru jalan saat terkirim (execute-action).
+  let savedCount = 0
+  let saveErr = ''
+  for (let i = 0; i < Math.min(emailDrafts.length, targets.length); i++) {
+    const t = targets[i]
+    const d = emailDrafts[i]
+    const { error: insErr } = await admin.from('ai_pending_actions').insert({
+      agent_name: 'Maya',
+      action_type: 'SEND_WINBACK_EMAIL',
+      action_payload: {
+        target_emails: [t.email],
+        subject: clip(d.subject, 150),
+        html_body: String(d.html_body),
+        body_plain: clip(d.body || '', 1500),
+        context: { segment: t.segment, idleDays: t.idleDays, activeCount, passiveCount, coldCount, activeRatio },
+      },
+      status: 'pending',
+    })
+    if (insErr) { saveErr = clip(insErr.message, 140); break }
+    await kvSet(admin, `winback:${t.email.toLowerCase()}`, JSON.stringify({ phase: 'draft', at: new Date().toISOString() }))
+    savedCount++
   }
-  for (const t of targets) await kvSet(admin, `winback:${t.email.toLowerCase()}`, new Date().toISOString())
+  if (savedCount === 0) {
+    return skipResult('Maya', `draf jadi (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi gagal disimpan: ${saveErr}`,
+      { ...snapshot, subject: clip(emailDrafts[0].subject, 90) })
+  }
 
-  return okResult('Maya', `rasio aktif ${activeRatio}% (${activeCount}/${totalWithEmail}) — ${targets.length} email win-back nunggu ACC Bos (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`})`,
-    { ...snapshot, criticScore: ac.score, subject: clip(parsed.subject, 90) })
+  await officeRemember(admin, 'Maya', 'critic', {
+    lesson: `Draf win-back ${savedCount}/${targets.length} target (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) — segmen: ${targets.slice(0, savedCount).map(t => t.segment).join(', ')}; subjek pertama "${clip(emailDrafts[0].subject, 60)}"`,
+    score: ac.score, saved: savedCount,
+  })
+
+  return okResult('Maya', `rasio aktif ${activeRatio}% (${activeCount}/${totalWithEmail}) — ${savedCount} email win-back per-segmen nunggu ACC Bos (${targets.slice(0, savedCount).map(t => `${t.email.split('@')[0]}·${t.segment}`).join(', ')})${emailDrafts.length < targets.length ? ` — ${targets.length - emailDrafts.length} target tanpa draf, diulang run berikutnya` : ''} (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`})`,
+    { ...snapshot, criticScore: ac.score, winback30d: { sent: wbSent30, returned: wbReturned30 }, subjects: emailDrafts.slice(0, savedCount).map(e => clip(e.subject, 60)) })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1379,30 +1549,56 @@ Tulis 1 email win-back.`,
 const BAGAS_SYSTEM = `Kamu BAGAS, COO Luxtradee — closer ulung. Kamu menulis email konversi PRO untuk free user PALING AKTIF (sudah ketagihan pakai produk, tinggal ditawarin upgrade).
 PRO = analisa AI unlimited dari jurnal mereka (harga Rp49.000/bulan — boleh disebut, jangan hard-sell).
 
-GAYA WAJIB: santai khas anak SMC/ICT, respect dulu ke kerajinan mereka, angkat pain point (nyatet manual makan waktu), CTA tegas. Maks 130 kata body.
-FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
-{"subject": "...", "personalized_message": "...", "html_body": "<p>...</p>..."}`
+PENYEGMENTASI LEAD:
+- Lead COLD (belum pernah lihat penawaran): respect kerajinan dulu, angkat pain point (nyatet manual makan waktu).
+- Lead WARM (SUDAH BUKA/KLIK email sebelumnya tapi belum upgrade): dia TERTARIK TAPI RAGU — jualan ulang dari awal itu salah; akui dia sudah lihat penawaran, obati keraguan spesifik (harga? waktu? fitur?), tawarkan bantuan.
+- Lead MANTAN PELANGGAN (pernah bayar PRO): angle "kembali" — singgung manfaat yang dia pernah rasakan, bukan pitch dari nol.
 
-const BAGAS_RUBRIC = `- Buka dengan apresiasi SPESIFIK (aktivitas tinggi), bukan "Semoga email ini menemukanmu dengan baik".
+GAYA WAJIB: santai khas anak SMC/ICT, respect dulu ke kerajinan mereka, CTA tegas. Maks 130 kata per email.
+FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence) — SATU email PER lead, urut sesuai daftar lead di prompt:
+{"emails": [{"subject": "...", "personalized_message": "...", "html_body": "<p>...</p>..."}]}`
+
+const BAGAS_RUBRIC = `- Buka dengan apresiasi SPESIFIK (aktivitas lead), bukan "Semoga email ini menemukanmu dengan baik".
+- Angle HARUS cocok segmen lead (warm ≠ cold ≠ mantan pelanggan) — lead warm jangan di-pitch dari nol lagi.
 - Ada 1 angka konkret pain vs gain (waktu nyatet manual vs analisa otomatis).
 - Sebut harga Rp49.000/bulan sekali, natural.
-- CTA tunggal yang tegas; maks 130 kata.`
+- CTA tunggal yang tegas; maks 130 kata per email.`
 
 async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentResult> {
-  const since7 = new Date(Date.now() - 7 * 86400_000).toISOString()
-  const tradeRows = await fetchAllRows<{ user_id: string | null }>(
-    (from, to) => admin.from('trades').select('user_id').gte('created_at', since7).range(from, to),
+  // Window trades 30 hari (audit B: segmen mantan-pembayar butuh aktivitas
+  // 30 hari; window 7 hari dulu terlalu sempit) + pisah hitungan 7d/30d.
+  const since30 = new Date(Date.now() - 30 * 86400_000).toISOString()
+  const tradeRows = await fetchAllRows<{ user_id: string | null; created_at: string }>(
+    (from, to) => admin.from('trades').select('user_id, created_at').gte('created_at', since30).range(from, to),
   )
-  const counts = new Map<string, number>()
-  for (const t of tradeRows) if (t.user_id) counts.set(t.user_id, (counts.get(t.user_id) || 0) + 1)
+  const counts7 = new Map<string, number>()
+  const counts30 = new Map<string, number>()
+  const cutoff7 = Date.now() - 7 * 86400_000
+  for (const t of tradeRows) {
+    if (!t.user_id) continue
+    counts30.set(t.user_id, (counts30.get(t.user_id) || 0) + 1)
+    if (new Date(t.created_at).getTime() >= cutoff7) counts7.set(t.user_id, (counts7.get(t.user_id) || 0) + 1)
+  }
 
   const profiles = await fetchAllRows<{ id: string; email: string | null; full_name?: string | null; is_pro?: boolean | null }>(
     (from, to) => admin.from('profiles').select('id, email, full_name, is_pro').range(from, to),
   )
+
+  // AUDIT B (segmen expired-PRO): mantan pembayar = pernah SUCCESS di
+  // payment_orders tapi is_pro=false sekarang (downgrade-expired-pro
+  // men-null-kan pro_expiry, jadi satu-satunya jejak adalah riwayat bayar).
+  // Lead paling hangat: sudah pernah bayar & masih aktif trading.
+  const everPaid = new Set<string>()
+  try {
+    const { data: paidRows } = await admin.from('payment_orders').select('user_id, paid_at')
+      .eq('status', 'SUCCESS').order('paid_at', { ascending: false }).limit(300)
+    for (const r of (paidRows || []) as Array<{ user_id?: string | null }>) if (r.user_id) everPaid.add(r.user_id)
+  } catch { /* tabel opsional */ }
+
   const hot = profiles
-    .filter(p => p.email && !p.is_pro && (counts.get(p.id) || 0) > 0)
-    .map(p => ({ id: p.id, email: p.email as string, name: p.full_name || (p.email as string).split('@')[0], trades7d: counts.get(p.id) || 0 }))
-    .sort((a, b) => b.trades7d - a.trades7d)
+    .filter(p => p.email && !p.is_pro && ((counts7.get(p.id) || 0) > 0 || (everPaid.has(p.id) && (counts30.get(p.id) || 0) > 0)))
+    .map(p => ({ id: p.id, email: p.email as string, name: p.full_name || (p.email as string).split('@')[0], trades7d: counts7.get(p.id) || 0, trades30d: counts30.get(p.id) || 0, everPaid: everPaid.has(p.id) }))
+    .sort((a, b) => (Number(b.everPaid) - Number(a.everPaid)) || (b.trades7d - a.trades7d))
 
   // Anti-spam: yang sudah ditawarin (Bagas via ai_pending_actions / COO-CS via
   // ai_pending_tasks) dalam 7 hari terakhir tidak diganggu lagi
@@ -1424,51 +1620,113 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
     }
   } catch { /* tabel opsional */ }
 
-  const targets = hot.filter(l => !contacted.has(l.email.toLowerCase()) && !contacted.has(l.id)).slice(0, 2)
-  const snapshot = { hotLeads: hot.length, contactedRecently: contacted.size, targets: targets.map(t => t.email) }
-  if (dry) return skipResult('Bagas', `dry-run — ${hot.length} hot lead terdeteksi, ${targets.length} kandidat tanpa cooldown`, snapshot)
-  if (!targets.length) return okResult('Bagas', 'tidak ada hot lead baru (semua dalam cooldown / belum ada free user aktif)', snapshot)
+  // AUDIT B1: sinyal webhook Resend (open/click/bounce) — lead WARM dapat
+  // angle beda, alamat bounce DILEWATI. Baca KV dibatasi 10 kandidat teratas
+  // (hemat budget subrequest CF Workers).
+  const unsubIds = await fetchUnsubUserIds(admin)
+  const signalCache = new Map<string, EmailSignal | null>()
+  for (const l of hot.slice(0, 10)) signalCache.set(l.id, await readEmailSignal(admin, l.email))
+  const sigOf = (id: string): EmailSignal | null => signalCache.get(id) ?? null
+
+  const targets = hot
+    .filter(l => !contacted.has(l.email.toLowerCase()) && !contacted.has(l.id)
+      && !unsubIds.has(l.id)
+      && !sigOf(l.id)?.bounced)
+    .slice(0, 2)
+  const warmCount = hot.slice(0, 10).filter(l => (sigOf(l.id)?.count || 0) + (sigOf(l.id)?.clicks || 0) > 0).length
+  const snapshot = { hotLeads: hot.length, everPaidLeads: hot.filter(l => l.everPaid).length, warmLeads: warmCount, contactedRecently: contacted.size, unsubscribed: unsubIds.size, targets: targets.map(t => t.email) }
+  if (dry) return skipResult('Bagas', `dry-run — ${hot.length} hot lead terdeteksi (${warmCount} warm/opened, ${snapshot.everPaidLeads} mantan-pembayar), ${targets.length} kandidat tanpa cooldown/suppression`, snapshot)
+  if (!targets.length) return okResult('Bagas', 'tidak ada hot lead baru (semua dalam cooldown/suppression / belum ada free user aktif)', snapshot)
+
+  // AUDIT B3: LEARNING LOOP — dulu Bagas tidak pernah tahu copy-nya
+  // men-converting atau tidak. Kini: lead yang di-email 30 hari terakhir,
+  // berapa yang kini PRO → masuk memori kantor → recall run berikutnya.
+  try {
+    const since30Acts = new Date(Date.now() - 30 * 86400_000).toISOString()
+    const { data: sentActs } = await admin.from('ai_pending_actions').select('action_payload')
+      .eq('agent_name', 'Bagas').eq('action_type', 'SEND_UPGRADE_OFFER').eq('status', 'approved')
+      .gte('executed_at', since30Acts).limit(50)
+    const contactedEmails = emailsFromActionRows(sentActs || [])
+    if (contactedEmails.size) {
+      const proEmails = new Set(profiles.filter(p => p.is_pro).map(p => (p.email as string).toLowerCase()))
+      let converted = 0
+      for (const e of contactedEmails) if (proEmails.has(e)) converted++
+      await officeRemember(admin, 'Bagas', 'critic', {
+        lesson: `Email konversi 30 hari terakhir: ${converted}/${contactedEmails.size} lead kini PRO (sinyal kasar — upgrade bisa di luar window email) — ${converted === 0 ? 'uji angle beda: buka dengan angka spesifik aktivitas lead, pain nyatet manual vs otomatis' : 'angle bekerja, pertahankan struktur respect→pain→CTA'}`,
+        contacted: contactedEmails.size, converted,
+      })
+    }
+  } catch { /* evaluasi opsional */ }
 
   const lessons = await officeRecallLessons(admin, 'Bagas')
   const risetSintaBagas = await risetSintaBlock(admin)
+  const dewiBlockBagas = await insightDewiBlock(admin)
   const ac = await actorCritic('Bagas', {
     system: BAGAS_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-    user: `DATA RIIL hot leads (1 email personal per lead via Resend — sebut aktivitas lead paling aktif): ${targets.map(t => `${t.name} (${t.trades7d} trades/7hr)`).join(', ')}.
+    user: `DATA RIIL hot leads (SATU email per lead, urut sesuai daftar — sebut aktivitas lead paling aktif):
+${targets.map((t, i) => {
+      const sig = sigOf(t.id)
+      const segmen = sig && ((sig.count || 0) + (sig.clicks || 0) > 0)
+        ? `WARM — SUDAH BUKA email penawaran ${sig.count || 0}x & KLIK ${sig.clicks || 0}x tapi belum upgrade → obati keraguan, JANGAN pitch dari nol`
+        : t.everPaid
+          ? 'MANTAN PELANGGAN — pernah bayar PRO, masih aktif trading → angle "kembali ke PRO"'
+          : 'COLD — belum pernah lihat penawaran → pitch standar respect→pain→CTA'
+      return `${i + 1}. ${t.name} (${t.trades7d} trades/7hr, ${t.trades30d} trades/30hr) — ${segmen}`
+    }).join('\n')}
 
-Tulis 1 email konversi PRO.${risetSintaBagas}`,
+Tulis 1 email konversi PRO per lead.${risetSintaBagas}${dewiBlockBagas}`,
     rubric: BAGAS_RUBRIC,
-    maxTokens: 750,
+    maxTokens: 1000,
     temperature: 0.8,
     passScore: 7,
     maxRevisions: 1,
   })
   if (!ac) return errResult('Bagas', 'LLM tidak tersedia — email konversi tidak dibuat', snapshot)
 
-  const parsed = extractJson<{ subject?: string; personalized_message?: string; html_body?: string }>(ac.text)
-  if (!parsed?.subject || !parsed?.html_body) {
+  const parsed = extractJson<{ emails?: Array<{ subject?: string; personalized_message?: string; html_body?: string }>; subject?: string; personalized_message?: string; html_body?: string }>(ac.text)
+  // Fallback kompatibel: format lama 1 email (tanpa array "emails")
+  const emailDrafts = (parsed?.emails?.length ? parsed.emails : (parsed?.subject && parsed?.html_body ? [parsed] : []))
+    .filter(e => e?.subject && e?.html_body)
+  if (!emailDrafts.length) {
     return errResult('Bagas', `JSON email tidak valid (model ${ac.model})`, snapshot)
   }
 
-  // Kontrak payload SAMA dengan /api/execute-action (SEND_UPGRADE_OFFER)
-  const { error: insErr } = await admin.from('ai_pending_actions').insert({
-    agent_name: 'Bagas',
-    action_type: 'SEND_UPGRADE_OFFER',
-    action_payload: {
-      target_emails: targets.map(t => t.email),
-      subject: clip(parsed.subject, 150),
-      personalized_message: clip(parsed.personalized_message || parsed.html_body, 1200),
-      html_body: String(parsed.html_body),
-      context: targets.map(t => ({ email: t.email, trades7d: t.trades7d })),
-    },
-    status: 'pending',
-  })
-  if (insErr) {
-    return skipResult('Bagas', `draf jadi (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi gagal disimpan: ${clip(insErr.message, 140)}`,
-      { ...snapshot, subject: parsed.subject })
+  // Kontrak payload SAMA dengan /api/execute-action (SEND_UPGRADE_OFFER) —
+  // audit B: SATU row PER lead (dulu 1 email massal utk semua lead dengan
+  // stats lead lain; kini tiap lead dapat email sesuai segmennya).
+  let savedCount = 0
+  let saveErr = ''
+  for (let i = 0; i < Math.min(emailDrafts.length, targets.length); i++) {
+    const t = targets[i]
+    const d = emailDrafts[i]
+    const sig = sigOf(t.id)
+    const { error: insErr } = await admin.from('ai_pending_actions').insert({
+      agent_name: 'Bagas',
+      action_type: 'SEND_UPGRADE_OFFER',
+      action_payload: {
+        target_emails: [t.email],
+        subject: clip(d.subject, 150),
+        personalized_message: clip(d.personalized_message || d.html_body, 1200),
+        html_body: String(d.html_body),
+        context: [{ email: t.email, trades7d: t.trades7d, trades30d: t.trades30d, everPaid: t.everPaid, opened: sig?.count || 0, clicked: sig?.clicks || 0 }],
+      },
+      status: 'pending',
+    })
+    if (insErr) { saveErr = clip(insErr.message, 140); break }
+    savedCount++
+  }
+  if (savedCount === 0) {
+    return skipResult('Bagas', `draf jadi (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi gagal disimpan: ${saveErr}`,
+      { ...snapshot, subject: clip(emailDrafts[0].subject, 90) })
   }
 
-  return okResult('Bagas', `${targets.length} draf email konversi PRO siap (${targets.map(t => `${t.name}: ${t.trades7d} trades/7hr`).join(', ')}) — nunggu ACC Bos`,
-    { ...snapshot, criticScore: ac.score, subject: clip(parsed.subject, 90) })
+  await officeRemember(admin, 'Bagas', 'critic', {
+    lesson: `Draf konversi ${savedCount}/${targets.length} lead (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) — segmen: ${targets.slice(0, savedCount).map(t => sigOf(t.id) && ((sigOf(t.id)!.count || 0) + (sigOf(t.id)!.clicks || 0) > 0) ? 'warm' : t.everPaid ? 'mantan-pembayar' : 'cold').join(', ')}`,
+    score: ac.score, saved: savedCount,
+  })
+
+  return okResult('Bagas', `${savedCount} draf email konversi PRO per-segmen siap (${targets.slice(0, savedCount).map(t => `${t.name}: ${t.trades7d} trades/7hr`).join(', ')}) — nunggu ACC Bos`,
+    { ...snapshot, criticScore: ac.score, subjects: emailDrafts.slice(0, savedCount).map(e => clip(e.subject, 60)) })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1479,17 +1737,26 @@ Tulis 1 email konversi PRO.${risetSintaBagas}`,
 async function agentPutri(admin: SupabaseClient, dry: boolean): Promise<AgentResult> {
   // ── MRR: PRO AKTIF = is_pro=true & pro_expiry belum lewat (null = lifetime)
   let proCount = 0, lifetimeCount = 0, expiredCount = 0, freeCount = 0
+  const proExpiring: Array<{ email: string; expiry: string; daysLeft: number }> = []
   try {
-    const profiles = await fetchAllRows<{ is_pro?: boolean | null; pro_expiry?: string | null }>(
-      (from, to) => admin.from('profiles').select('is_pro, pro_expiry').range(from, to),
+    const profiles = await fetchAllRows<{ is_pro?: boolean | null; pro_expiry?: string | null; email?: string | null }>(
+      (from, to) => admin.from('profiles').select('is_pro, pro_expiry, email').range(from, to),
     )
     const now = Date.now()
     for (const p of profiles) {
       if (!p.is_pro) { freeCount++; continue }
       if (!p.pro_expiry) { proCount++; lifetimeCount++; continue } // lifetime aktif selamanya
-      if (new Date(p.pro_expiry).getTime() > now) { proCount++; continue }
+      const expTs = new Date(p.pro_expiry).getTime()
+      if (expTs > now) {
+        proCount++
+        // AUDIT P3: early-warning renewal — PRO yang mau jatuh ≤7 hari
+        const daysLeft = Math.ceil((expTs - now) / 86400_000)
+        if (daysLeft <= 7 && p.email) proExpiring.push({ email: p.email, expiry: p.pro_expiry.slice(0, 10), daysLeft })
+        continue
+      }
       expiredCount++
     }
+    proExpiring.sort((a, b) => a.daysLeft - b.daysLeft)
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return errResult('Putri', `gagal hitung profiles: ${clip(msg, 140)}`)
@@ -1498,8 +1765,26 @@ async function agentPutri(admin: SupabaseClient, dry: boolean): Promise<AgentRes
   const priceMonthly = parseInt((await envVal('PRO_MONTHLY_PRICE_IDR')) || '49000', 10) || 49000
   const mrrIdr = proCount * priceMonthly // lifetime TIDAK masuk MRR (one-time) — dilaporkan terpisah
 
-  // ── Kuota API: LLM hari ini (counter agent_kv kumulatif + run ini) & email 24 jam
+  /* ── AUDIT P1: TREN MRR — dulu Putri amnesiak (snapshot hilang, Bos
+     tidak pernah dengar "MRR naik/turun"). Kini snapshot harian ke
+     agent_kv → dibandingkan dengan kemarin → tren masuk briefing. */
   const day = wibDateStr()
+  const yesterday = wibDateStr(new Date(Date.now() - 86400_000))
+  let mrrTrend: { prevMrr: number | null; deltaIdr: number; deltaPct: number; direction: 'naik' | 'turun' | 'flat' | 'baseline-pertama' } = { prevMrr: null, deltaIdr: 0, deltaPct: 0, direction: 'baseline-pertama' }
+  try {
+    const prevRaw = await kvGet(admin, `putri:mrr:${yesterday}`)
+    if (prevRaw) {
+      const prev = JSON.parse(prevRaw) as { mrrIdr?: number }
+      if (Number.isFinite(prev.mrrIdr)) {
+        const prevMrr = prev.mrrIdr as number
+        const deltaIdr = mrrIdr - prevMrr
+        mrrTrend = { prevMrr, deltaIdr, deltaPct: prevMrr ? Math.round((deltaIdr / prevMrr) * 1000) / 10 : 0, direction: deltaIdr > 0 ? 'naik' : deltaIdr < 0 ? 'turun' : 'flat' }
+      }
+    }
+  } catch { /* snapshot opsional */ }
+  if (!dry) await kvSet(admin, `putri:mrr:${day}`, JSON.stringify({ mrrIdr, proCount, at: new Date().toISOString() }))
+
+  // ── Kuota API: LLM hari ini (counter agent_kv kumulatif + run ini) & email 24 jam
   const storedLlm = parseInt((await kvGet(admin, `q:llm:${day}`)) || '0', 10) || 0
   const llmToday = storedLlm + quotaTracker.llmCalls
 
@@ -1535,15 +1820,30 @@ async function agentPutri(admin: SupabaseClient, dry: boolean): Promise<AgentRes
     proLifetime: lifetimeCount,
     proExpired: expiredCount,
     freeUsers: freeCount,
+    mrrTrend,
+    proExpiring,
     quotas,
     risk429,
   }
   if (dry) return skipResult('Putri', `dry-run — MRR est. Rp${mrrIdr.toLocaleString('id-ID')} (${proCount} PRO aktif), kuota LLM hari ini ${llmToday}/${orLimit}`, data)
 
   const mrrTxt = `Rp${mrrIdr.toLocaleString('id-ID')}`
+  const trendTxt = mrrTrend.prevMrr !== null
+    ? `, ${mrrTrend.direction} ${Math.abs(mrrTrend.deltaPct)}% vs kemarin`
+    : ', baseline pertama'
+  const expiringTxt = proExpiring.length ? ` — ⏳ ${proExpiring.length} PRO expiring ≤7 hari (renewal!)` : ''
   const summary = risk429.length
-    ? `MRR est. ${mrrTxt} (${proCount} PRO × Rp${priceMonthly.toLocaleString('id-ID')}) — ⚠️ kuota ${risk429.join(', ')} mendekati limit 429!`
-    : `MRR est. ${mrrTxt} (${proCount} PRO aktif × Rp${priceMonthly.toLocaleString('id-ID')}, ${lifetimeCount} lifetime) — kuota aman`
+    ? `MRR est. ${mrrTxt} (${proCount} PRO × Rp${priceMonthly.toLocaleString('id-ID')}${trendTxt}${expiringTxt}) — ⚠️ kuota ${risk429.join(', ')} mendekati limit 429!`
+    : `MRR est. ${mrrTxt} (${proCount} PRO aktif × Rp${priceMonthly.toLocaleString('id-ID')}, ${lifetimeCount} lifetime${trendTxt}${expiringTxt}) — kuota aman`
+
+  // AUDIT P1: memori kantor — MRR + tren tercatat, dibaca Alexander
+  // (dan tampil di panel Memori Kantor) — dulu laporan hilang tiap hari.
+  await officeRemember(admin, 'Putri', 'report', {
+    lesson: `MRR ${mrrTxt} (${proCount} PRO aktif${trendTxt})${expiredCount ? `; ${expiredCount} expired PRO perlu win-back (segmen mantan-pembayar Bagas)` : ''}${proExpiring.length ? `; ${proExpiring.length} expiring ≤7 hari` : ''}`,
+    mrrIdr, proCount, lifetimeCount, expiredCount, trend: mrrTrend.direction, deltaPct: mrrTrend.deltaPct,
+    expiringCount: proExpiring.length,
+  })
+
   return okResult('Putri', summary, data)
 }
 
@@ -1554,12 +1854,15 @@ async function agentPutri(admin: SupabaseClient, dry: boolean): Promise<AgentRes
 
 async function agentDewi(admin: SupabaseClient, dry: boolean): Promise<AgentResult> {
   const since14 = new Date(Date.now() - 14 * 86400_000).toISOString()
-  const trades = await fetchAllRows<{ emotion?: string | null; profit_loss?: number | null }>(
-    (from, to) => admin.from('trades').select('emotion, profit_loss').gte('created_at', since14).range(from, to),
+  const trades = await fetchAllRows<{ emotion?: string | null; profit_loss?: number | null; created_at?: string }>(
+    (from, to) => admin.from('trades').select('emotion, profit_loss, created_at').gte('created_at', since14).range(from, to),
   )
 
   interface EmoAgg { n: number; wins: number; totalPL: number }
   const byEmotion = new Map<string, EmoAgg>()
+  // AUDIT D3: distribusi jam entry (WIB) — jam paling untung/paling nyakit
+  // jadi bahan topik konten Sinta & rekomendasi disiplin Bos.
+  const byHour = new Map<number, { n: number; wins: number; totalPL: number }>()
   let totalPL = 0, wins = 0, analyzed = 0
   for (const t of trades) {
     const pl = Number(t.profit_loss)
@@ -1571,6 +1874,12 @@ async function agentDewi(admin: SupabaseClient, dry: boolean): Promise<AgentResu
     const agg = byEmotion.get(emo) || { n: 0, wins: 0, totalPL: 0 }
     agg.n++; agg.totalPL += pl; if (pl > 0) agg.wins++
     byEmotion.set(emo, agg)
+    if (t.created_at) {
+      const h = (new Date(t.created_at).getUTCHours() + 7) % 24 // WIB
+      const ha = byHour.get(h) || { n: 0, wins: 0, totalPL: 0 }
+      ha.n++; ha.totalPL += pl; if (pl > 0) ha.wins++
+      byHour.set(h, ha)
+    }
   }
 
   const r2 = (n: number) => Math.round(n * 100) / 100
@@ -1582,6 +1891,35 @@ async function agentDewi(admin: SupabaseClient, dry: boolean): Promise<AgentResu
   const bestEmotion = meaningful[0] || null
   const worstEmotion = meaningful.length > 1 ? meaningful[meaningful.length - 1] : null
 
+  const hourStats = [...byHour.entries()]
+    .filter(([, a]) => a.n >= 3)
+    .map(([hourWib, a]) => ({ hourWib, trades: a.n, winrate: Math.round((a.wins / a.n) * 100), avgPL: r2(a.totalPL / a.n) }))
+    .sort((a, b) => b.avgPL - a.avgPL)
+  const bestHour = hourStats[0] || null
+  const worstHour = hourStats.length > 1 ? hourStats[hourStats.length - 1] : null
+
+  // AUDIT D3: perbandingan vs 14 hari SEBELUMNYA (dulu cuma snapshot —
+  // Bos tidak pernah tahu performanya membaik atau memburuk)
+  const since28 = new Date(Date.now() - 28 * 86400_000).toISOString()
+  let prevWinrate: number | null = null
+  let winrateDelta = 0
+  try {
+    const prevTrades = await fetchAllRows<{ profit_loss?: number | null }>(
+      (from, to) => admin.from('trades').select('profit_loss').gte('created_at', since28).lt('created_at', since14).range(from, to),
+    )
+    let prevN = 0, prevWins = 0
+    for (const t of prevTrades) {
+      const pl = Number(t.profit_loss)
+      if (!Number.isFinite(pl)) continue
+      prevN++; if (pl > 0) prevWins++
+    }
+    if (prevN >= 3 && analyzed > 0) {
+      prevWinrate = Math.round((prevWins / prevN) * 100)
+      winrateDelta = Math.round((wins / analyzed) * 100) - prevWinrate
+    }
+  } catch { /* perbandingan opsional */ }
+  const periodDirection = prevWinrate === null ? null : winrateDelta > 0 ? 'membaik' : winrateDelta < 0 ? 'memburuk' : 'sama'
+
   const stats = {
     tradesAnalyzed: analyzed,
     winrate: analyzed ? Math.round((wins / analyzed) * 100) : 0,
@@ -1590,9 +1928,12 @@ async function agentDewi(admin: SupabaseClient, dry: boolean): Promise<AgentResu
     bestEmotion,
     worstEmotion,
     emotionStats: emotionStats.slice(0, 8),
+    period: { prevWinrate, winrateDelta, direction: periodDirection },
+    bestHour,
+    worstHour,
   }
 
-  if (dry) return skipResult('Dewi', `dry-run — ${analyzed} trades 14 hari teranalisa, winrate ${stats.winrate}%`, stats)
+  if (dry) return skipResult('Dewi', `dry-run — ${analyzed} trades 14 hari teranalisa, winrate ${stats.winrate}%${periodDirection ? ` (${periodDirection} ${Math.abs(winrateDelta)}pp vs 14 hari sebelumnya)` : ''}`, stats)
   if (analyzed === 0) return okResult('Dewi', 'belum ada trade dengan profit_loss valid dalam 14 hari — insight dilewati (jujur, tidak mengarang)', stats)
 
   // LLM hanya menarasikan angka riil (dilarang menambah/mengubah angka)
@@ -1605,7 +1946,7 @@ Output JSON murni: {"insight": "...", "recommendation": "..."}`,
     `DATA RIIL (14 hari terakhir, dihitung sistem):
 ${JSON.stringify(stats, null, 1)}
 ${lessons.length ? lessonsBlock(lessons) : ''}`,
-    { maxTokens: 420, temperature: 0.6 })
+    { maxTokens: 520, temperature: 0.6 })
 
   let insight = ''
   let recommendation = ''
@@ -1624,7 +1965,18 @@ ${lessons.length ? lessonsBlock(lessons) : ''}`,
       : 'Lanjutkan disiplin jurnal — data mulai menunjukkan pola.'
   }
 
-  return okResult('Dewi', `insight siap dari ${analyzed} trade (winrate ${stats.winrate}%, P/L total ${stats.totalPL})`,
+  /* AUDIT D1: MEMORI KANTOR — dulu insight Dewi hilang begitu briefing
+     selesai (amnesia) & recall lessons-nya selalu kosong. Kini tiap hari
+     tersimpan → dibaca lagi Dewi (tren), dan DIPAKAI divisi lain via
+     insightDewiBlock (Farhan topik artikel, Bagas angle email, Sinta riset). */
+  const periodTxt = periodDirection ? `, ${periodDirection} ${Math.abs(winrateDelta)}pp vs 14 hari sebelumnya` : ''
+  await officeRemember(admin, 'Dewi', 'report', {
+    lesson: `Statistik 14 hari: winrate ${stats.winrate}%${periodTxt}, P/L ${stats.totalPL}${bestEmotion ? `; emosi terbaik "${bestEmotion.emotion}" ${bestEmotion.winrate}%` : ''}${worstEmotion ? `, terburuk "${worstEmotion.emotion}" ${worstEmotion.winrate}% (avg ${worstEmotion.avgPL})` : ''}${worstHour ? `; jam terburuk ${worstHour.hourWib}:00 WIB (avg ${worstHour.avgPL})` : ''}. ${insight}`,
+    insight, recommendation,
+    stats: { winrate: stats.winrate, tradesAnalyzed: analyzed },
+  })
+
+  return okResult('Dewi', `insight siap dari ${analyzed} trade (winrate ${stats.winrate}%${periodTxt}, P/L total ${stats.totalPL}${worstHour ? `, jam terburuk ${worstHour.hourWib}:00 WIB` : ''}) — dibagikan ke Farhan/Bagas/Sinta`,
     { ...stats, insight, recommendation, aiNarration: !!res })
 }
 
@@ -1673,11 +2025,31 @@ async function agentAlexander(
   const raka = results.find(r => r.agent === 'Raka')
   const p1Alarm = !!(raka?.data && (raka.data as { alarm?: boolean }).alarm)
 
+  // AUDIT A2: ACCOUNTABILITY — baca NBA & mood briefing TERAKHIR dari
+  // memori kantor → briefing hari ini bisa ngecek "NBA kemarin dikerjakan?"
+  // (dulu briefing amnesiak antar hari).
+  let prevBrief: { nba?: string; mood?: string; day?: string } | null = null
+  try {
+    const { data: prevRows } = await admin.from('office_memory').select('content, run_date')
+      .eq('agent_name', 'Alexander').eq('memory_type', 'report')
+      .order('created_at', { ascending: false }).limit(1)
+    const c = (prevRows?.[0] as { content?: { nba?: string; mood?: string }; run_date?: string } | null)?.content
+    if (c?.nba) prevBrief = { nba: c.nba, mood: c.mood, day: (prevRows?.[0] as { run_date?: string }).run_date }
+  } catch { /* memori opsional */ }
+
   // Prioritas Next Best Action (fallback deterministik kalau LLM gagal)
+  // AUDIT A1: dulu cuma 3 hint — kini Putri (kuota 429 + renewal) & Maya
+  // (win-back) ikut menentukan prioritas hari ini.
+  const putriRes = results.find(r => r.agent === 'Putri')
+  const putriData = ((putriRes?.data || {}) as { risk429?: string[]; proExpiring?: Array<{ email: string; daysLeft: number }> })
+  const mayaRes = results.find(r => r.agent === 'Maya')
   let nbaHint = 'Review antrean ACC di Dashboard Alexander — konten & email siap ditinjau'
   if (p1Alarm) nbaHint = 'PERBAIKI CELAH KEAMANAN P1 SEKARANG — tutup/protect route yang terbuka'
   else if (results.some(r => r.agent === 'Farhan' && r.status === 'error')) nbaHint = 'Cek OPENROUTER_API_KEY & kuota — artikel SEO hari ini gagal dibuat'
+  else if (putriData.risk429?.length) nbaHint = `Kuota ${putriData.risk429.join(', ')} hampir limit — isi saldo OpenRouter / kurangi beban LLM hari ini sebelum kantor lumpuh`
+  else if ((putriData.proExpiring?.length || 0) > 0) nbaHint = `${putriData.proExpiring!.length} user PRO expiring ≤7 hari — pastikan renewal offer terkirim (revenue paling murah)`
   else if (results.some(r => r.agent === 'Bagas' && r.status === 'ok')) nbaHint = 'ACC email konversi PRO Bagas — hot lead tidak bisa ditunggu lama'
+  else if (mayaRes?.status === 'ok' && mayaRes.summary.includes('nunggu ACC')) nbaHint = 'ACC email win-back Maya — user pasif makin lama makin sulit dibalikkan'
 
   const reportJson = JSON.stringify(
     results.map(r => ({ agent: r.agent, status: r.status, summary: r.summary, data: r.data ? clip(JSON.stringify(r.data), 700) : undefined })),
@@ -1686,8 +2058,11 @@ async function agentAlexander(
 
   let briefing = buildBriefingFallback(results, nbaHint)
   let aiModel = 'fallback-deterministik'
+  const prevNbaLine = prevBrief?.nba
+    ? `NBA BRIEFING TERAKHIR (${prevBrief.day || '?'}): "${clip(prevBrief.nba, 140)}" (mood ${prevBrief.mood || '?'}) — cek: sudah dikerjakan atau belum? Kalau masih relevan & belum, prioritaskan lagi; kalau sudah, pilih prioritas baru dari data di atas.\n\n`
+    : ''
   const res = await callAgent('Alexander', ALEX_SYSTEM,
-    `LAPORAN KARYAWAN (run ${runMeta.runId}, ${Math.round(runMeta.durationMs / 1000)}s, ${totalLlmCalls} panggilan LLM):\n${clip(reportJson, 6500)}\n\n${ANTI_HALUSINASI}`,
+    `LAPORAN KARYAWAN (run ${runMeta.runId}, ${Math.round(runMeta.durationMs / 1000)}s, ${totalLlmCalls} panggilan LLM):\n${clip(reportJson, 6500)}\n\n${prevNbaLine}${ANTI_HALUSINASI}`,
     { maxTokens: 650, temperature: 0.5 })
   if (res) {
     const parsed = extractJson<{ ringkasan?: string; next_best_action?: { judul?: string; alasan?: string; langkah?: string }; mood?: string }>(res.text)
@@ -1708,6 +2083,10 @@ async function agentAlexander(
   await officeRemember(admin, 'Alexander', 'report', {
     lesson: `Run ${runMeta.runId}: mood ${briefing.mood}, NBA "${briefing.next_best_action.judul}"`,
     mood: briefing.mood, okCount: results.filter(r => r.status === 'ok').length,
+    // AUDIT A2: NBA & tanggal disimpan TERSTRUKTUR — dibaca lagi run
+    // berikutnya utk accountability ("NBA kemarin dikerjakan belum?")
+    nba: briefing.next_best_action.judul,
+    day: wibDateStr(),
   })
 
   // ── Kirim ke Discord (non-kritis — gagal tidak menjatuhkan run) ──
