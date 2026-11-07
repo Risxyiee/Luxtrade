@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCronAdmin, fetchAllRows, isMissingTableError, isMissingColumnError } from '@/lib/cron-supabase'
 import { slugify, renderSafeArticleHtml } from '@/lib/blog-html'
-import { extractJson, callLLM } from '@/lib/ai-llm'
+import { extractJson, callLLM, callMorteraDirect } from '@/lib/ai-llm'
 import { getEnvVar, getSelfFetch } from '@/lib/cloudflare-bindings'
 import { sendDiscordNotification } from '@/lib/discord'
 import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@/lib/bagas-cooldown'
@@ -138,7 +138,7 @@ const OR_LIVE_CHAIN = [
 ]
 const DEFAULT_OR_MODEL = OR_LIVE_CHAIN[0]
 
-interface AgentLLMResult { text: string; model: string }
+interface AgentLLMResult { text: string; model: string; /** Diagnosa rotasi provider (kenapa Mortera gagal → jatuh ke OpenRouter) — tampil di trail & run JSON supaya 'templat/LLM gagal' SELALU ada penjelasannya. */ notes?: string[] }
 
 interface CallAgentOpts {
   maxTokens?: number
@@ -148,10 +148,20 @@ interface CallAgentOpts {
   model?: string
 }
 /**
- * Helper LLM WAJIB semua agen: fetch OpenRouter murni (tanpa SDK — aman di
- * CF Workers) + failover rantai model hidup + pencatatan kuota per agen.
- * Return null kalau key kosong / semua model gagal → caller WAJIB punya
- * fallback deterministik (data riil tetap dilaporkan jujur).
+ * Helper LLM WAJIB semua agen — RANTAI 3 LAPIS (7 Nov: Bos komplain
+ * "kok banyak karyawan masih pakai templat/LLM gagal" — akar masalahnya:
+ * dulu helper ini LANGSUNG OpenRouter free, Mortera cuma di fallback
+ * callLLM yang sering tidak pernah tersentuh):
+ *
+ *   LAPIS 1 — MORTERA (deposit Rupiah Bos): Claude Haiku/Sonnet kelas
+ *             premium. Artikel kependekan (510 kata), JSON riset rusak,
+ *             critic salah hitung — semua karena model free. Kini Mortera
+ *             dulu; gagal → alasan persisnya ada di result.notes.
+ *   LAPIS 2 — OpenRouter rantai model hidup (:free, model resmi per-agen).
+ *   LAPIS 3 — callLLM fallback (Groq → Gemini → OpenRouter :free).
+ *
+ * Return null kalau semua gagal → caller WAJIB punya fallback
+ * deterministik (data riil tetap dilaporkan jujur).
  */
 async function callAgent(
   agentTag: string,
@@ -159,6 +169,25 @@ async function callAgent(
   userPrompt: string,
   opts: CallAgentOpts = {},
 ): Promise<AgentLLMResult | null> {
+  /* LAPIS 1 — Mortera. Timeout ikut opts.timeoutMs (draf artikel panjang
+     butuh >40 dtk; critic pendek tetap cepat). Catatan: callLLM di LAPIS 3
+     TIDAK akan mencoba Mortera ulang kalau di sini 402/401 (cooldown sama
+     di modul ai-llm) — tidak ada pemborosan subrequest. */
+  const morNotes: string[] = []
+  const mor = await callMorteraDirect(
+    systemPrompt, userPrompt,
+    Math.max(opts.maxTokens ?? 800, 1024),
+    morNotes,
+    opts.temperature ?? 0.7,
+    opts.timeoutMs,
+  )
+  if (mor) {
+    quotaTracker.llmCalls++
+    quotaTracker.perAgent[agentTag] = (quotaTracker.perAgent[agentTag] || 0) + 1
+    return { text: mor.text, model: `mortera/${mor.model}` }
+  }
+
+  /* LAPIS 2 — OpenRouter (rantai model hidup, :free). */
   const key = (await envVal('OPENROUTER_API_KEY')).trim()
   if (!key) {
     console.warn(`[master:${agentTag}] OPENROUTER_API_KEY kosong — fallback ke Groq/Gemini (ai-llm)`)
@@ -197,7 +226,7 @@ async function callAgent(
       }
       quotaTracker.llmCalls++
       quotaTracker.perAgent[agentTag] = (quotaTracker.perAgent[agentTag] || 0) + 1
-      return { text, model }
+      return { text, model, notes: morNotes.length ? morNotes : undefined }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error(`[master:${agentTag}] OpenRouter ${model} error: ${clip(msg, 140)}`)
@@ -206,17 +235,19 @@ async function callAgent(
   }
   }
 
-  // ── Fallback: Groq (free ±14.400 req/hari) → Gemini (free 1.500/hari) ──
-  // Helper ai-llm sudah ter-bundle di worker & Workers-safe (fetch murni).
-  // Catatan: temperature fallback tetap bawaan helper (opts.temperature diabaikan).
+  /* LAPIS 3 — Groq (free ±14.400 req/hari) → Gemini (free 1.500/hari) →
+     OpenRouter :free. Helper ai-llm sudah ter-bundle di worker &
+     Workers-safe (fetch murni). Mortera di dalam helper otomatis dilewati
+     kalau tadi sudah 402/401 (cooldown bersama). */
   const fb = await callLLM(systemPrompt, userPrompt, opts.maxTokens ?? 800)
   if (fb) {
     quotaTracker.llmCalls++
     quotaTracker.perAgent[agentTag] = (quotaTracker.perAgent[agentTag] || 0) + 1
     console.log(`[master:${agentTag}] LLM sukses via fallback ${fb.provider}/${fb.model}`)
-    return { text: fb.text, model: `${fb.provider}/${fb.model}` }
+    const allNotes = [...morNotes, ...(fb.notes || [])].filter(Boolean)
+    return { text: fb.text, model: `${fb.provider}/${fb.model}`, notes: allNotes.length ? allNotes : undefined }
   }
-  console.warn(`[master:${agentTag}] Semua provider LLM gagal (OpenRouter kosong/semua model gagal, GROQ_API_KEY & GEMINI_API_KEY tidak diset/gagal)`)
+  console.warn(`[master:${agentTag}] SEMUA provider gagal (mortera: ${morNotes.join(' | ') || 'tidak mencoba'}, OpenRouter, Groq, Gemini)`)
   return null
 }
 
@@ -289,6 +320,9 @@ async function actorCritic(
   if (!first) return null
   let draft = first
   trail.push(`draf#1 via ${first.model}`)
+  /* Visibilitas: kenapa Mortera tidak melayani call ini (402/timeout/model
+     mati)? — masuk trail supaya Bos bisa baca di run JSON/dashboard. */
+  if (first.notes?.length) trail.push(`catatan rantai: ${clip(first.notes.join(' | '), 160)}`)
 
   let verdict = await criticJudge(agentTag, params.rubric, draft.text)
   let revisions = 0
@@ -727,7 +761,7 @@ ${lessonsBlock(lessons)}${risetSintaFarhan}${dewiBlockFarhan}
 ${trendsBlock}
 ${topBlock}
 
-Usulkan 5 keyword/article-angle berpotensi mendatangkan trafik Google hari ini (strategi XAUUSD, psikologi trading, prop firm challenge, risk management, news emas). Pilih yang BELUM dibahas di daftar atas.
+Usulkan 5 keyword/article-angle berpotensi mendatangkan trafik Google hari ini (strategi XAUUSD, psikologi trading, prop firm challenge, risk management, news emas). Pilih yang BELUM dibahas di daftar atas. Susun urut dari yang paling potensial (urutan #1 dipakai artikel 1, #2 artikel 2).
 
 Output JSON murni: {"keywords": [{"keyword": "...", "angle": "sudut pandang unik artikelnya"}]}`,
     { maxTokens: 450, temperature: 0.8 })
@@ -758,46 +792,50 @@ Output JSON murni: {"keywords": [{"keyword": "...", "angle": "sudut pandang unik
 ${linkCandidates.slice(0, 4).map(c => `- <a href="/blog/${c.slug}">${clip(c.title, 70)}</a>`).join('\n')}`
     : '(belum ada artikel lain — lewati link internal, CTA signup tetap wajib)'
 
-  const ac = await actorCritic('Farhan', {
-    system: FARHAN_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-    user: `Tulis artikel SEO hari ini.
-
-KEYWORD UTAMA: ${chosen.keyword}
-ANGLE: ${chosen.angle}
-KEYWORD CADANGAN (boleh diselipkan natural): ${keywords.slice(1, 3).map(k => k.keyword).join(' ; ') || '-'}
-${linkBlock}
-
-TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang mau pegang konsistensi. Jangan lupa bagian FAQ di akhir.`,
-    rubric: FARHAN_RUBRIC,
-    maxTokens: 2600,
-    temperature: 0.75,
-    passScore: 7,
-    maxRevisions: 1,
-  })
-  if (!ac) {
-    return errResult('Farhan', 'LLM tidak tersedia (semua model OpenRouter gagal — free-tier sering 429/timeout di panggilan panjang; isi saldo ≥$10 → limit 1000/hari) — artikel tidak dibuat')
-  }
-
-  const parsedArt = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(ac.text)
-  const title = clip(parsedArt?.title || chosen.keyword, 200)
-  let html = String(parsedArt?.html_body || '').trim()
-  const meta = clip(parsedArt?.meta_description || chosen.angle, 300)
-
   // Hitung kata riil (strip tag HTML) — hitungan DETERMINISTIK, bukan
   // klaim critic LLM (kasus nyata 2026-11-07: draf 510 kata dinilai
   // critic "melebihi batas maksimal 600" → revisi malah MEMANGKAS →
   // artikel hangus padahal materinya bagus).
   const countWords = (h: string) => h.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
-  let wordCount = countWords(html)
 
-  /* ── Fase 2b: EXPAND DETERMINISTIK (skill karyawan maksimal —
-     draf kurang panjang TIDAK langsung dibuang). Critic LLM terbukti
-     sering salah hitung kata; batas panjang ini soal angka, jadi
-     diperiksa kode + diperpanjang 1x dengan instruksi eksplisit. */
-  if (html && wordCount < 600) {
-    const expand = await callAgent('Farhan',
-      FARHAN_SYSTEM,
-      `Artikel di bawah hanya ${wordCount} kata — KURANG dari 600 (tidak lolos standar publikasi).
+  /** Tulis (Actor-Critic) + expand + sanitize + AUTO-TERBIT SATU artikel.
+   * Dipanggil 1-2x per run (lihat MODE NARIK ORANG di bawah). */
+  const writePublishOne = async (kw: FarhanKeyword, nomor: number): Promise<AgentResult> => {
+    const ac = await actorCritic('Farhan', {
+      system: FARHAN_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+      user: `Tulis artikel SEO hari ini.
+
+KEYWORD UTAMA: ${kw.keyword}
+ANGLE: ${kw.angle}
+KEYWORD CADANGAN (boleh diselipkan natural): ${keywords.filter(k => k.keyword !== kw.keyword).slice(0, 2).map(k => k.keyword).join(' ; ') || '-'}
+${linkBlock}
+
+TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang mau pegang konsistensi. Jangan lupa bagian FAQ di akhir.`,
+      rubric: FARHAN_RUBRIC,
+      maxTokens: 2600,
+      temperature: 0.75,
+      passScore: 7,
+      maxRevisions: 1,
+      timeoutMs: 120_000,
+    })
+    if (!ac) {
+      return errResult('Farhan', 'LLM tidak tersedia (Mortera + semua rantai free gagal — alasan tiap percobaan ada di trail bila ada draf sebagian; cek saldo Mortera & kuota free) — artikel tidak dibuat')
+    }
+
+    const parsedArt = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(ac.text)
+    const title = clip(parsedArt?.title || kw.keyword, 200)
+    let html = String(parsedArt?.html_body || '').trim()
+    const meta = clip(parsedArt?.meta_description || kw.angle, 300)
+    let wordCount = countWords(html)
+
+    /* ── Fase 2b: EXPAND DETERMINISTIK (skill karyawan maksimal —
+       draf kurang panjang TIDAK langsung dibuang). Critic LLM terbukti
+       sering salah hitung kata; batas panjang ini soal angka, jadi
+       diperiksa kode + diperpanjang 1x dengan instruksi eksplisit. */
+    if (html && wordCount < 600) {
+      const expand = await callAgent('Farhan',
+        FARHAN_SYSTEM,
+        `Artikel di bawah hanya ${wordCount} kata — KURANG dari 600 (tidak lolos standar publikasi).
 PERPANJANG menjadi 750–950 kata dengan CARA MENAMBAH:
 - contoh skenario XAUUSD dengan angka konkret (lot, pips, RR, persen risiko)
 - langkah/checklist praktis yang bisa langsung dipraktikkan pembaca
@@ -808,103 +846,124 @@ Output JSON murni sama: {"title": "...", "meta_description": "...", "html_body":
 
 === ARTIKEL SEKARANG (PERPANJANG INI) ===
 ${clip(html, 6000)}`,
-      { maxTokens: 2600, temperature: 0.6 })
-    if (expand) {
-      const p2 = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(expand.text)
-      const html2 = String(p2?.html_body || '').trim()
-      const w2 = countWords(html2)
-      if (html2 && w2 > wordCount) {
-        html = html2
-        wordCount = w2
-        /* Judul & meta TETAP dari draf asli (konsisten utk dedup & SEO). */
-        ac.revisions += 1
-        ac.trail.push(`expand deterministik: ${wordCount} kata via ${expand.model}`)
-      }
-    }
-  }
-  const passLen = wordCount >= 600
-
-  /* SKILL BARU (4): SANITIZE + PERSIST SEO — html di-whitelist sebelum
-     masuk DB; slug/meta_description/keyword tersimpan di kolom (migrasi
-     040) → kalau kolom belum ada, insert kolom inti + meta disimpan di
-     agent_kv 'blog_seo:<id>' (dibaca API blog publik sebagai fallback). */
-  const slug = slugify(title)
-  const safeHtml = renderSafeArticleHtml(html)
-  if (safeHtml) html = safeHtml
-  const internalLinks = (html.match(/href="\/blog\//g) || []).length
-  const wordCountFinal = countWords(html)
-  if (wordCountFinal > 0) wordCount = wordCountFinal // sanitasi bisa memotong tag berbahaya dgn isi
-
-  await officeRemember(admin, 'Farhan', 'critic', {
-    lesson: ac.score >= 7 && passLen
-      ? `Artikel "${clip(title, 60)}" (keyword: ${clip(chosen.keyword, 40)}) lolos critic ${ac.score}/10 (${wordCount} kata, ${internalLinks} link internal) — gaya & struktur dipertahankan`
-      : `Artikel "${clip(title, 60)}" hanya ${ac.score < 0 ? 'tanpa nilai' : `${ac.score}/10`} & ${wordCount} kata — catatan: ${clip(ac.trail.join(' | '), 180)}; besok perbaiki`,
-    score: ac.score, revisions: ac.revisions, wordCount, model: ac.model,
-  })
-
-  if (!html || !passLen) {
-    return {
-      agent: 'Farhan', status: 'error',
-      summary: `draf ${wordCount ? `${wordCount} kata` : 'kosong'} (<600 wajib${wordCount && wordCount < 600 ? ', sudah dicoba expand otomatis 1x' : ''}) — TIDAK diterbitkan (hindari konten tipis di mata Google)`,
-      data: { title, keyword: chosen.keyword, wordCount, criticScore: ac.score, trail: ac.trail },
-    }
-  }
-  if (!tableReady) {
-    return skipResult('Farhan', `artikel siap (${wordCount} kata) tapi tabel blog_posts belum ada — jalankan supabase-migrations/015_create_ai_pending_actions.sql`,
-      { title, keyword: chosen.keyword, wordCount, html_body: html, meta_description: meta })
-  }
-
-  // ── Fase 3: AUTO-TERBIT (dedup judul + insert resilient SEO) ──
-  const { data: dup } = await admin.from('blog_posts').select('id').ilike('title', title).limit(1)
-  if (dup && dup.length > 0) {
-    return skipResult('Farhan', 'artikel dengan judul serupa sudah ada — dilewati (dedup)', { title })
-  }
-
-  const baseRow = {
-    title,
-    content_body: html,
-    author: 'Farhan (Growth Hacker — AI Agent)',
-    status: 'published',
-  }
-  const seoRow = {
-    ...baseRow,
-    slug,
-    meta_description: meta,
-    keyword: chosen.keyword,
-  }
-
-  // Coba insert dgn kolom SEO (migrasi 040) → kolom belum ada? fallback
-  // kolom inti + meta SEO disimpan di agent_kv (API blog membacanya).
-  let ins = await admin.from('blog_posts').insert(seoRow)
-  let insErr = ins.error
-  let seoStoredAs = 'columns'
-  if (insErr && isMissingColumnError(insErr)) {
-    ins = await admin.from('blog_posts').insert(baseRow)
-    insErr = ins.error
-    seoStoredAs = 'agent_kv'
-    if (!insErr) {
-      try {
-        const { data: nr } = await admin.from('blog_posts').select('id')
-          .ilike('title', title).order('created_at', { ascending: false }).limit(1)
-        const newId = (nr?.[0] as { id?: string } | undefined)?.id
-        if (newId) {
-          await admin.from('agent_kv').upsert({
-            key: `blog_seo:${newId}`,
-            value: JSON.stringify({ slug, meta_description: meta, keyword: chosen.keyword, wordCount }),
-            updated_at: new Date().toISOString(),
-          })
+        { maxTokens: 2600, temperature: 0.6, timeoutMs: 120_000 })
+      if (expand) {
+        const p2 = extractJson<{ title?: string; meta_description?: string; html_body?: string }>(expand.text)
+        const html2 = String(p2?.html_body || '').trim()
+        const w2 = countWords(html2)
+        if (html2 && w2 > wordCount) {
+          html = html2
+          wordCount = w2
+          /* Judul & meta TETAP dari draf asli (konsisten utk dedup & SEO). */
+          ac.revisions += 1
+          ac.trail.push(`expand deterministik: ${wordCount} kata via ${expand.model}`)
         }
-      } catch {
-        /* kv belum ada → meta hilang run ini; besok migrasi 040 menyelesaikan */
       }
     }
-  }
-  if (insErr) {
-    return errResult('Farhan', `insert blog_posts gagal: ${insErr.message}`, { title, wordCount })
+    const passLen = wordCount >= 600
+
+    /* SKILL BARU (4): SANITIZE + PERSIST SEO — html di-whitelist sebelum
+       masuk DB; slug/meta_description/keyword tersimpan di kolom (migrasi
+       040) → kalau kolom belum ada, insert kolom inti + meta disimpan di
+       agent_kv 'blog_seo:<id>' (dibaca API blog publik sebagai fallback). */
+    const slug = slugify(title)
+    const safeHtml = renderSafeArticleHtml(html)
+    if (safeHtml) html = safeHtml
+    const internalLinks = (html.match(/href="\/blog\//g) || []).length
+    const wordCountFinal = countWords(html)
+    if (wordCountFinal > 0) wordCount = wordCountFinal // sanitasi bisa memotong tag berbahaya dgn isi
+
+    await officeRemember(admin, 'Farhan', 'critic', {
+      lesson: ac.score >= 7 && passLen
+        ? `Artikel "${clip(title, 60)}" (keyword: ${clip(kw.keyword, 40)}) lolos critic ${ac.score}/10 (${wordCount} kata, ${internalLinks} link internal) — gaya & struktur dipertahankan`
+        : `Artikel "${clip(title, 60)}" hanya ${ac.score < 0 ? 'tanpa nilai' : `${ac.score}/10`} & ${wordCount} kata — catatan: ${clip(ac.trail.join(' | '), 180)}; besok perbaiki`,
+      score: ac.score, revisions: ac.revisions, wordCount, model: ac.model,
+    })
+
+    if (!html || !passLen) {
+      return {
+        agent: 'Farhan', status: 'error',
+        summary: `artikel#${nomor} draf ${wordCount ? `${wordCount} kata` : 'kosong'} (<600 wajib${wordCount && wordCount < 600 ? ', sudah dicoba expand otomatis 1x' : ''}) — TIDAK diterbitkan (hindari konten tipis di mata Google)`,
+        data: { title, keyword: kw.keyword, wordCount, criticScore: ac.score, trail: ac.trail, nomor },
+      }
+    }
+    if (!tableReady) {
+      return skipResult('Farhan', `artikel#${nomor} siap (${wordCount} kata) tapi tabel blog_posts belum ada — jalankan supabase-migrations/015_create_ai_pending_actions.sql`,
+        { title, keyword: kw.keyword, wordCount, html_body: html, meta_description: meta, nomor })
+    }
+
+    // ── Fase 3: AUTO-TERBIT (dedup judul + insert resilient SEO) ──
+    const { data: dup } = await admin.from('blog_posts').select('id').ilike('title', title).limit(1)
+    if (dup && dup.length > 0) {
+      return skipResult('Farhan', `artikel#${nomor} dengan judul serupa sudah ada — dilewati (dedup)`, { title, nomor })
+    }
+
+    const baseRow = {
+      title,
+      content_body: html,
+      author: 'Farhan (Growth Hacker — AI Agent)',
+      status: 'published',
+    }
+    const seoRow = {
+      ...baseRow,
+      slug,
+      meta_description: meta,
+      keyword: kw.keyword,
+    }
+
+    // Coba insert dgn kolom SEO (migrasi 040) → kolom belum ada? fallback
+    // kolom inti + meta SEO disimpan di agent_kv (API blog membacanya).
+    let ins = await admin.from('blog_posts').insert(seoRow)
+    let insErr = ins.error
+    let seoStoredAs = 'columns'
+    if (insErr && isMissingColumnError(insErr)) {
+      ins = await admin.from('blog_posts').insert(baseRow)
+      insErr = ins.error
+      seoStoredAs = 'agent_kv'
+      if (!insErr) {
+        try {
+          const { data: nr } = await admin.from('blog_posts').select('id')
+            .ilike('title', title).order('created_at', { ascending: false }).limit(1)
+          const newId = (nr?.[0] as { id?: string } | undefined)?.id
+          if (newId) {
+            await admin.from('agent_kv').upsert({
+              key: `blog_seo:${newId}`,
+              value: JSON.stringify({ slug, meta_description: meta, keyword: kw.keyword, wordCount }),
+              updated_at: new Date().toISOString(),
+            })
+          }
+        } catch {
+          /* kv belum ada → meta hilang run ini; besok migrasi 040 menyelesaikan */
+        }
+      }
+    }
+    if (insErr) {
+      return errResult('Farhan', `insert blog_posts gagal (artikel#${nomor}): ${insErr.message}`, { title, wordCount, nomor })
+    }
+
+    return okResult('Farhan', `artikel SEO TERBIT: "${clip(title, 70)}" (${wordCount} kata, critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}, ${ac.revisions} revisi, ${internalLinks} link internal, SEO di ${seoStoredAs})`,
+      { title, slug, keyword: kw.keyword, wordCount, meta_description: meta, criticScore: ac.score, revisions: ac.revisions, model: ac.model, published: true, internalLinks, seoStoredAs, nomor })
   }
 
-  return okResult('Farhan', `artikel SEO TERBIT: "${clip(title, 70)}" (${wordCount} kata, critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}, ${ac.revisions} revisi, ${internalLinks} link internal, SEO di ${seoStoredAs})`,
-    { title, slug, keyword: chosen.keyword, wordCount, meta_description: meta, criticScore: ac.score, revisions: ac.revisions, model: ac.model, published: true, internalLinks, seoStoredAs })
+  const first = await writePublishOne(chosen, 1)
+
+  /* ══ MODE NARIK ORANG (Bos 7 Nov: "kalau ga ada pengguna saya sendiri yang
+     kerja buat narik orang ke websiteku") — kantor sepi bukan alasan output
+     dikit, justru saatnya karyawan yang narik. Artikel #1 sukses = rantai
+     LLM sehat → Farhan langsung nulis & terbitkan ARTIKEL KEDUA (keyword
+     #2) di run yang sama. Pintu masuk Google dobel setiap hari, TANPA
+     nunggu Bos, TANPA nunggu pengunjung. Kalau artikel #1 gagal, artikel
+     #2 tidak dicoba (rantai LLM sedang sakit — jangan buang kuota). */
+  if (first.status === 'ok' && keywords.length > 1 && keywords[1]) {
+    const second = await writePublishOne(keywords[1], 2)
+    const okCount = [first, second].filter(r => r.status === 'ok').length
+    const published = [first, second].filter(r => r.status === 'ok').map(r => r.data)
+    const summary = okCount === 2
+      ? `2 artikel SEO TERBIT hari ini (MODE NARIK ORANG): "${clip(String(first.data?.title || ''), 48)}" + "${clip(String(second.data?.title || ''), 48)}"`
+      : `artikel#1 TERBIT: "${clip(String(first.data?.title || ''), 60)}" — artikel#2 tidak terbit: ${second.error || second.summary}`
+    return okResult('Farhan', summary, { articles: published, article2: second.status, publishedCount: okCount })
+  }
+  return first
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1024,6 +1083,7 @@ ${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
      Biaya: 1 panggilan LLM (Putri pantau kuota). Gagal → draf tetap jalan. */
   let riset: SintaRiset | null = null
   let risetModel = ''
+  let risetFailNote = ''
   try {
     const res = await callAgent('Sinta',
       SINTA_RISET_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
@@ -1031,12 +1091,18 @@ ${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
 
 Tanggal run: ${wibDateStr()}.
 Susun LAPORAN RISET TikTok hari ini untuk seluruh kantor.`,
-      { maxTokens: 900, temperature: 0.6 })
+      { maxTokens: 900, temperature: 0.6, timeoutMs: 60_000 })
     if (res?.text) {
-      riset = sanitizeRiset(extractJson<SintaRiset>(res.text))
+      const parsedRiset = extractJson<SintaRiset>(res.text)
+      riset = sanitizeRiset(parsedRiset)
       if (riset) risetModel = res.model
+      else risetFailNote = `JSON riset tidak bisa di-parse dari ${res.model}${res.notes?.length ? ` (rantai: ${clip(res.notes.join(' | '), 100)})` : ''}`
+    } else if (!res) {
+      risetFailNote = 'LLM riset gagal total (semua provider)'
     }
-  } catch { /* riset opsional — draf tetap jalan */ }
+  } catch (e: unknown) {
+    risetFailNote = `riset error: ${clip(e instanceof Error ? e.message : String(e), 100)}`
+  }
 
   if (riset) {
     await officeRemember(admin, 'Sinta', 'report', {
@@ -1115,8 +1181,8 @@ Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi tradin
     return skipResult('Sinta', `3 draf dibuat${riset ? ' + laporan riset tersimpan' : ''} (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi GAGAL disimpan: ${saveNote}`,
       { drafts, criticScore: ac.score, riset: riset || undefined })
   }
-  return okResult('Sinta', `3 draf skrip TikTok nunggu ACC Bos + LAPORAN RISET TikTok dibagikan ke kantor (briefing/Farhan/Bagas/Memori Kantor${riset ? `, model ${risetModel}` : ' — riset gagal, draf jalan tanpa riset'}) · critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}`,
-    { angles: drafts.map(d => clip(d.hook, 80)), criticScore: ac.score, revisions: ac.revisions, riset: riset || undefined })
+  return okResult('Sinta', `3 draf skrip TikTok nunggu ACC Bos + LAPORAN RISET TikTok dibagikan ke kantor (briefing/Farhan/Bagas/Memori Kantor${riset ? `, model ${risetModel}` : ` — riset gagal${risetFailNote ? `: ${risetFailNote}` : ''}, draf jalan tanpa riset`}) · critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}`,
+    { angles: drafts.map(d => clip(d.hook, 80)), criticScore: ac.score, revisions: ac.revisions, riset: riset || undefined, risetFailNote: risetFailNote || undefined })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

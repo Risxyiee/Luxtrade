@@ -252,10 +252,12 @@ async function callOpenAICompatible(
   maxTokens: number,
   notes: string[],
   temperature = 0.8,
+  /** Override timeout per panggilan — draf artikel panjang butuh >40 dtk default. */
+  timeoutMs?: number,
 ): Promise<LLMResult | null> {
   let sawModel404 = false
   for (const model of models) {
-    const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature)
+    const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
     if (r.ok && r.result) return r.result
     if (r.hardStop) return null
     if (r.model404) sawModel404 = true
@@ -268,7 +270,7 @@ async function callOpenAICompatible(
     if (fresh.length) {
       notes.push(`${label} auto-discover kandidat: ${fresh.join(', ')}`)
       for (const alt of fresh) {
-        const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes, temperature)
+        const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
         if (r.ok && r.result) return r.result
         if (r.hardStop) return null
       }
@@ -289,6 +291,7 @@ async function callOpenAIModel(
   maxTokens: number,
   notes: string[],
   temperature = 0.8,
+  timeoutMs = 40_000,
 ): Promise<{ ok: boolean; result?: LLMResult; hardStop?: boolean; model404?: boolean }> {
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -310,7 +313,7 @@ async function callOpenAIModel(
         max_tokens: Math.max(maxTokens, 4000),
         ...(model.includes('gpt-oss') ? { reasoning_effort: 'low' } : {}),
       }),
-      signal: AbortSignal.timeout(40000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
 
     if (!res.ok) {
@@ -402,11 +405,14 @@ export async function callMorteraDirect(
   maxTokens = 1024,
   notes: string[] = [],
   temperature = 0.8,
+  /** Override timeout per panggilan (ms) — default 40 dtk; draf artikel
+   *  panjang (600-900 kata) di karyawan master-autonomous pakai 90-120 dtk. */
+  timeoutMs?: number,
 ): Promise<LLMResult | null> {
   const key = await getMorteraKey()
   if (!key) { notes.push('mortera: MORTERA_API_KEY belum diset — lompat ke rantai cadangan'); return null }
   if (isCool('mortera')) { notes.push(`mortera dilompati — ${coolReason('mortera')}`); return null }
-  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature)
+  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
 }
 
 async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
