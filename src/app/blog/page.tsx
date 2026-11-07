@@ -1,22 +1,70 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
   Calendar, Clock, ArrowRight, TrendingUp, Brain,
-  Shield, Target, Zap, BookOpen, Eye
+  Shield, Target, Zap, BookOpen, Eye, Bot, Eye as EyeIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * HALAMAN BLOG PUBLIK — SEKARANG BACA ARTIKEL RIIL dari tabel blog_posts
+ * (via API publik /api/blog/posts), bukan hard-code saja lagi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Sebelumnya: 6 artikel statis hard-coded — artikel yang Farhan (Growth
+ * Hacker AI) terbitkan tiap hari ke blog_posts TIDAK PERNAH tampil →
+ * kerja Farhan invisible buat pengunjung & Google.
+ * Sekarang: artikel riil tampil di grid paling atas ("Terbaru dari Tim AI"),
+ * artikel statis klasik tetap ada di bawah sebagai pustaka. API gagal/kosong
+ * → halaman tetap jalan dengan artikel statis (degrade gracefully).
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+interface RealPost {
+  id: string
+  slug: string
+  title: string
+  excerpt: string
+  keyword: string
+  author: string
+  created_at: string
+  views: number
+  readMinutes: number
+  wordCount: number
+}
+
+function formatDate(iso: string, lang: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    })
+  } catch {
+    return ''
+  }
+}
+
 export default function BlogPage() {
-  const { language, t } = useLanguage()
+  const { language } = useLanguage()
   const isEnglish = language === 'en'
+
+  const [realPosts, setRealPosts] = useState<RealPost[] | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/blog/posts')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive) setRealPosts(Array.isArray(d?.posts) ? d.posts : []) })
+      .catch(() => { if (alive) setRealPosts([]) })
+    return () => { alive = false }
+  }, [])
 
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
@@ -124,8 +172,10 @@ export default function BlogPage() {
     }
   ]
 
+  const realCount = realPosts?.length ?? 0
   const categories = [
-    { name: isEnglish ? 'All Posts' : 'Semua Artikel', count: 6 },
+    { name: isEnglish ? 'All Posts' : 'Semua Artikel', count: realCount + blogPosts.length },
+    { name: isEnglish ? 'Fresh from AI Team' : 'Terbaru Tim AI', count: realCount },
     { name: isEnglish ? 'Trading Tips' : 'Tips Trading', count: 1 },
     { name: isEnglish ? 'Psychology' : 'Psikologi', count: 1 },
     { name: isEnglish ? 'Risk Management' : 'Manajemen Risiko', count: 1 },
@@ -135,7 +185,7 @@ export default function BlogPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-[#0f051d] text-white overflow-x-hidden">
       {/* Partikel Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
         <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
@@ -238,7 +288,7 @@ export default function BlogPage() {
       </section>
 
       {/* Blog Content */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-10 px-4 sm:px-6 lg:px-8 flex-1">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Sidebar - Categories */}
@@ -271,9 +321,107 @@ export default function BlogPage() {
 
             {/* Blog Posts Grid */}
             <div className="lg:col-span-3">
+              {/* ── ARTIKEL RIIL dari Farhan (AI) — tampil paling atas ── */}
+              {realPosts === null ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12" aria-busy="true" aria-label={isEnglish ? 'Loading latest articles' : 'Memuat artikel terbaru'}>
+                  {[0, 1].map(i => (
+                    <Card key={i} className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 animate-pulse">
+                      <div className="h-6 w-24 rounded bg-white/10 mb-4" />
+                      <div className="h-5 w-3/4 rounded bg-white/10 mb-3" />
+                      <div className="h-4 w-full rounded bg-white/5 mb-2" />
+                      <div className="h-4 w-5/6 rounded bg-white/5 mb-4" />
+                      <div className="h-4 w-1/3 rounded bg-white/10" />
+                    </Card>
+                  ))}
+                </div>
+              ) : realPosts.length > 0 ? (
+                <div className="mb-14">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                      <Bot className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-extrabold text-white leading-tight">
+                        {isEnglish ? 'Fresh from the AI Team' : 'Terbaru dari Tim AI'}
+                      </h2>
+                      <p className="text-white/40 text-xs">
+                        {isEnglish
+                          ? 'Written daily by Farhan — our AI growth hacker, based on real Google Trends'
+                          : 'Ditulis harian oleh Farhan — AI growth hacker kita, berdasarkan Google Trends riil'}
+                      </p>
+                    </div>
+                    <Badge className="ml-auto bg-cyan-500/15 text-cyan-300 border-cyan-500/30 text-xs">
+                      {realCount} {isEnglish ? 'articles' : 'artikel'}
+                    </Badge>
+                  </div>
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    variants={staggerContainer}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  >
+                    {realPosts.map((post) => (
+                      <motion.div key={post.id} variants={fadeInUp} whileHover={{ y: -4 }} transition={{ duration: 0.3 }}>
+                        <Link prefetch={false} href={`/blog/${post.slug}`}>
+                          <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-cyan-500/15 hover:border-cyan-400/40 hover:shadow-[0_0_40px_rgba(34,211,238,0.15)] transition-all duration-300 overflow-hidden p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <Badge className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 text-xs font-bold">
+                                {post.keyword ? (post.keyword.length > 28 ? `${post.keyword.slice(0, 28)}…` : post.keyword) : (isEnglish ? 'AI Insight' : 'Insight AI')}
+                              </Badge>
+                              <div className="flex items-center gap-3 text-white/40 text-xs">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  {formatDate(post.created_at, language)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {post.readMinutes} {isEnglish ? 'min' : 'mnt'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <h2 className="text-xl font-extrabold text-white mb-3 line-clamp-2 hover:text-cyan-300 transition-colors">
+                              {post.title}
+                            </h2>
+
+                            <p className="text-white/60 text-sm leading-relaxed mb-4 line-clamp-3">
+                              {post.excerpt}
+                            </p>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-cyan-400 text-sm font-semibold group-hover:gap-3 transition-all">
+                                {isEnglish ? 'Read Article' : 'Baca Artikel'}
+                                <ArrowRight className="w-4 h-4" />
+                              </div>
+                              {post.views > 0 && (
+                                <span className="flex items-center gap-1 text-white/30 text-xs">
+                                  <EyeIcon className="w-3.5 h-3.5" />
+                                  {post.views}
+                                </span>
+                              )}
+                            </div>
+                          </Card>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </div>
+              ) : null}
+
+              {/* ── ARTIKEL KLASIK (pustaka statis) ── */}
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-xl font-extrabold text-white">
+                  {isEnglish ? 'Featured Library' : 'Pustaka Pilihan'}
+                </h2>
+                <Badge variant="outline" className="text-xs border-white/10 text-white/40">
+                  {blogPosts.length}
+                </Badge>
+              </div>
               <motion.div
                 initial="hidden"
-                animate="visible"
+                whileInView="visible"
+                viewport={{ once: true }}
                 variants={staggerContainer}
                 className="grid grid-cols-1 md:grid-cols-2 gap-6"
               >

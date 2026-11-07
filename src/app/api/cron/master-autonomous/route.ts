@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
+import { getCronAdmin, fetchAllRows, isMissingTableError, isMissingColumnError } from '@/lib/cron-supabase'
+import { slugify, renderSafeArticleHtml } from '@/lib/blog-html'
 import { extractJson, callLLM } from '@/lib/ai-llm'
 import { getEnvVar, getSelfFetch } from '@/lib/cloudflare-bindings'
 import { sendDiscordNotification } from '@/lib/discord'
@@ -13,9 +14,13 @@ import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@
  *
  * SATU endpoint, DELAPAN agen:
  *
- *   🚀 FARHAN   (Growth Hacker) — riset keyword → artikel SEO 600+ kata
- *               (Actor-Critic) → AUTO-TERBIT di tabel blog_posts (tabel
- *               "posts" milik /blog — target eksekusi resmi di sistem)
+ *   🚀 FARHAN   (Growth Hacker) — riset keyword dgn TREN RIIL (Google Trends
+ *               RSS Indonesia, tanpa API key) + learning loop views →
+ *               artikel SEO 600+ kata (Actor-Critic) + link internal antar
+ *               artikel + FAQ featured-snippet + CTA signup → slug/meta/
+ *               keyword TERSIMPAN (migrasi 040, fallback agent_kv) →
+ *               AUTO-TERBIT di blog_posts → TAMPIL di /blog via API publik
+ *               /api/blog/posts (halaman blog baca tabel, bukan hard-code)
  *   📣 SINTA    (CMO)          — RISET TikTok: LAPORAN ANALISIS pasar
  *               niche trading (pola hook works, topik FYP, jadwal
  *               posting, insight lintas divisi) → dibagikan ke briefing
@@ -469,19 +474,109 @@ GAYA WAJIB:
 - Seperti trader senior ngobrol ke teman: tegas, praktis, kadang sarkas ringan. BUKAN bahasa korporat kaku.
 - Spesifik: sebut angka, contoh RR, contoh skenario XAUUSD nyata. Nol kalimat kosong seperti "trading membutuhkan strategi yang baik".
 - SEO natural: keyword utama muncul di judul, kalimat pembuka, 1 H2, dan penutup. Jangan keyword-stuffing.
-- 1 CTA halus ke Luxtradee (jurnal trading AI) di paragraf akhir. Jangan hard-sell.
+- LINK INTERNAL: sisipkan minimal 2 tautan ke artikel lain Luxtradee (<a href="/blog/...">...</a>) secara natural di dalam isi — anchor text deskriptif, bukan "klik di sini".
+- CTA penutup: link teks <a href="/auth/signup">jurnal trading AI Luxtradee</a> di paragraf akhir, halus tanpa hard-sell.
+- FAQ: akhir artikel WAJIB ada <h3>FAQ</h3> berisi 2 pertanyaan + jawaban singkat (2-3 kalimat) yang relevan dengan keyword — material featured snippet Google.
 
 FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
 {"title": "...", "meta_description": "...", "html_body": "<h2>...</h2><p>...</p>..."}
 
-html_body: HTML murni — hanya tag <h2>, <h3>, <p>, <ul>, <li>, <strong>. TANPA <html>/<body>/<h1>. Minimal 600 kata.`
+html_body: HTML murni — hanya tag <h2>, <h3>, <p>, <ul>, <li>, <strong>, <a>. TANPA <html>/<body>/<h1>. Minimal 600 kata.`
 
 const FARHAN_RUBRIC = `- Panjang MINIMAL (BUKAN maksimal!): hitung kata body — di bawah 600 kata = otomatis nilai 5. Rentang sehat 600–1.200 kata. JANGAN PERNAH menasihati memangkas/mempersingkat kecuali draf lebih dari 1.500 kata.
 - Struktur SEO: judul mengandung keyword, H2/H3 rapi, pembuka langsung to-the-point.
+- Tautan internal: minimal 2 <a href="/blog/..."> tersisip natural + 1 CTA <a href="/auth/signup"> di penutup + bagian FAQ (2 pertanyaan) di akhir. Tanpa semuanya = turun nilai.
 - Kepercayaan: ada angka/skenario nyata XAUUSD, bukan basa-basi generik.
 - Gaya: terbaca seperti manusia (bukan template AI), CTA natural.`
 
 interface FarhanKeyword { keyword: string; angle: string }
+
+/**
+ * Tren pencarian Google Indonesia HARI INI — DATA RIIL dari Google Trends RSS
+ * (https://trends.google.com/trending/rss?geo=ID), tanpa API key, fetch murni
+ * (Workers-safe). Gagal/timeout → array kosong (riset lanjut dgn intuisi niche,
+ * ditandai eksplisit di prompt). Dulu: riset Farhan 100% halusinasi LLM.
+ */
+async function fetchGoogleTrendsId(timeoutMs = 8000): Promise<string[]> {
+  try {
+    const res = await fetch('https://trends.google.com/trending/rss?geo=ID', {
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxtradeeBot/1.0)' },
+    })
+    if (!res.ok) return []
+    const xml = await res.text()
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)]
+    const out: string[] = []
+    for (const it of items) {
+      const m = it[1].match(/<title>([\s\S]*?)<\/title>/)
+      const title = m ? m[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : ''
+      if (title) out.push(clip(title, 60))
+      if (out.length >= 8) break
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Artikel berperforma terbaik (views pembaca RIIL — kolom views migrasi 040).
+ * Belum dimigrasi / belum ada pembaca → kosong (prompt tanpa blok ini).
+ * Ini LEARNING LOOP Farhan: dia belajar pola artikel yang menang, bukan
+ * nulis buta tiap hari.
+ */
+async function fetchTopBlogArticles(
+  admin: SupabaseClient,
+): Promise<Array<{ title: string; views: number; keyword: string }>> {
+  try {
+    const { data, error } = await admin
+      .from('blog_posts')
+      .select('title,views,keyword')
+      .eq('status', 'published')
+      .gt('views', 0)
+      .order('views', { ascending: false })
+      .limit(5)
+    if (error || !data?.length) return []
+    return (data as Array<{ title: string; views: number; keyword: string | null }>).map(r => ({
+      title: r.title,
+      views: r.views,
+      keyword: r.keyword || '',
+    }))
+  } catch {
+    return []
+  }
+}
+
+/** Kandidat link internal: artikel terbit terakhir (+slug, migrasi 040 → fallback slugify judul). */
+async function fetchBlogLinkCandidates(
+  admin: SupabaseClient,
+): Promise<Array<{ title: string; slug: string }>> {
+  try {
+    const { data, error } = await admin
+      .from('blog_posts')
+      .select('title,slug')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(8)
+    if (error) {
+      if (!isMissingColumnError(error)) return []
+      const q2 = await admin
+        .from('blog_posts')
+        .select('title')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(8)
+      if (q2.error) return []
+      return (q2.data || [] as Array<{ title: string }>).map(r => ({ title: r.title, slug: slugify(r.title) }))
+    }
+    return (data || [] as Array<{ title: string; slug: string | null }>).map(r => ({
+      title: r.title,
+      slug: r.slug || slugify(r.title),
+    }))
+  } catch {
+    return []
+  }
+}
 
 async function agentFarhan(admin: SupabaseClient, dry: boolean): Promise<AgentResult> {
   // Data riil: judul yang SUDAH terbit (hindari nulis ulang topik sama)
@@ -508,11 +603,31 @@ async function agentFarhan(admin: SupabaseClient, dry: boolean): Promise<AgentRe
   // ── Fase 1: riset keyword tren harian (+ bahan riset TikTok Sinta) ──
   const avoidList = existingTitles.slice(0, 15).map(t => clip(t, 90)).join(' | ') || '(kosong)'
   const risetSintaFarhan = await risetSintaBlock(admin)
+
+  /* SKILL BARU (1): TREN PENCARIAN RIIL — Google Trends RSS Indonesia.
+     Dulu riset 100% halusinasi LLM; sekarang ada sinyal pasar nyata. */
+  const trends = await fetchGoogleTrendsId()
+  const trendsBlock = trends.length
+    ? `TREN PENCARIAN GOOGLE INDONESIA HARI INI (DATA RIIL Google Trends — bukan asumsi):
+${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+→ Kalau ada tren yang bisa disambungkan ke niche trading emas/XAUUSD/prop firm, jadikan itu angle utama. Kalau TIDAK ada yang relevan, tetap pilih dari niche — tapi sebutkan tren mana yang paling dekat konteksnya.`
+    : '(Google Trends tidak tersedia run ini — pakai intuisi niche, TANDAI jawaban sebagai asumsi)'
+
+  /* SKILL BARU (2): LEARNING LOOP — artikel dgn views terbanyak (data riil
+     pembaca /blog, kolom views migrasi 040). Farhan belajar pola menang. */
+  const topArticles = await fetchTopBlogArticles(admin)
+  const topBlock = topArticles.length
+    ? `ARTIKEL PERFORMA TERBAIK (views pembaca riil — pelajari polanya; topik serupa BOLEH diulang dengan angle BARU):
+${topArticles.map(a => `- "${clip(a.title, 70)}" — ${a.views} views${a.keyword ? ` (keyword: ${a.keyword})` : ''}`).join('\n')}`
+    : ''
+
   const kwRes = await callAgent('Farhan',
     'Kamu riset keyword SEO harian untuk niche trading emas/XAUUSD & prop firm (audiens Indonesia). Cari topik yang SEDANG dicari orang, bukan topik usang.',
     `Tanggal run: ${wibDateStr()}.
 JUDUL YANG SUDAH TERBIT (JANGAN diulang topiknya): ${avoidList}
 ${lessonsBlock(lessons)}${risetSintaFarhan}
+${trendsBlock}
+${topBlock}
 
 Usulkan 5 keyword/article-angle berpotensi mendatangkan trafik Google hari ini (strategi XAUUSD, psikologi trading, prop firm challenge, risk management, news emas). Pilih yang BELUM dibahas di daftar atas.
 
@@ -537,6 +652,14 @@ Output JSON murni: {"keywords": [{"keyword": "...", "angle": "sudut pandang unik
   const chosen = keywords[0]
 
   // ── Fase 2: tulis artikel (Actor-Critic) ──
+  /* SKILL BARU (3): LINK INTERNAL — kandidat artikel terbit (slug riil)
+     disuntikkan ke prompt → artikel saling terhubung (SEO + session length). */
+  const linkCandidates = await fetchBlogLinkCandidates(admin)
+  const linkBlock = linkCandidates.length
+    ? `TAUTAN INTERNAL WAJIB (sisipkan minimal 2 secara natural di dalam isi, format <a href="/blog/<slug>"><anchor deskriptif></a>):
+${linkCandidates.slice(0, 4).map(c => `- <a href="/blog/${c.slug}">${clip(c.title, 70)}</a>`).join('\n')}`
+    : '(belum ada artikel lain — lewati link internal, CTA signup tetap wajib)'
+
   const ac = await actorCritic('Farhan', {
     system: FARHAN_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
     user: `Tulis artikel SEO hari ini.
@@ -544,8 +667,9 @@ Output JSON murni: {"keywords": [{"keyword": "...", "angle": "sudut pandang unik
 KEYWORD UTAMA: ${chosen.keyword}
 ANGLE: ${chosen.angle}
 KEYWORD CADANGAN (boleh diselipkan natural): ${keywords.slice(1, 3).map(k => k.keyword).join(' ; ') || '-'}
+${linkBlock}
 
-TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang mau pegang konsistensi.`,
+TARGET: minimal 650 kata (aman di atas batas 600), sasar trader Indonesia yang mau pegang konsistensi. Jangan lupa bagian FAQ di akhir.`,
     rubric: FARHAN_RUBRIC,
     maxTokens: 2600,
     temperature: 0.75,
@@ -602,9 +726,20 @@ ${clip(html, 6000)}`,
   }
   const passLen = wordCount >= 600
 
+  /* SKILL BARU (4): SANITIZE + PERSIST SEO — html di-whitelist sebelum
+     masuk DB; slug/meta_description/keyword tersimpan di kolom (migrasi
+     040) → kalau kolom belum ada, insert kolom inti + meta disimpan di
+     agent_kv 'blog_seo:<id>' (dibaca API blog publik sebagai fallback). */
+  const slug = slugify(title)
+  const safeHtml = renderSafeArticleHtml(html)
+  if (safeHtml) html = safeHtml
+  const internalLinks = (html.match(/href="\/blog\//g) || []).length
+  const wordCountFinal = countWords(html)
+  if (wordCountFinal > 0) wordCount = wordCountFinal // sanitasi bisa memotong tag berbahaya dgn isi
+
   await officeRemember(admin, 'Farhan', 'critic', {
     lesson: ac.score >= 7 && passLen
-      ? `Artikel "${clip(title, 60)}" lolos critic ${ac.score}/10 (${wordCount} kata) — gaya & struktur dipertahankan`
+      ? `Artikel "${clip(title, 60)}" (keyword: ${clip(chosen.keyword, 40)}) lolos critic ${ac.score}/10 (${wordCount} kata, ${internalLinks} link internal) — gaya & struktur dipertahankan`
       : `Artikel "${clip(title, 60)}" hanya ${ac.score < 0 ? 'tanpa nilai' : `${ac.score}/10`} & ${wordCount} kata — catatan: ${clip(ac.trail.join(' | '), 180)}; besok perbaiki`,
     score: ac.score, revisions: ac.revisions, wordCount, model: ac.model,
   })
@@ -621,23 +756,57 @@ ${clip(html, 6000)}`,
       { title, keyword: chosen.keyword, wordCount, html_body: html, meta_description: meta })
   }
 
-  // ── Fase 3: AUTO-TERBIT (dedup judul) ──
+  // ── Fase 3: AUTO-TERBIT (dedup judul + insert resilient SEO) ──
   const { data: dup } = await admin.from('blog_posts').select('id').ilike('title', title).limit(1)
   if (dup && dup.length > 0) {
     return skipResult('Farhan', 'artikel dengan judul serupa sudah ada — dilewati (dedup)', { title })
   }
-  const { error: insErr } = await admin.from('blog_posts').insert({
+
+  const baseRow = {
     title,
     content_body: html,
     author: 'Farhan (Growth Hacker — AI Agent)',
     status: 'published',
-  })
+  }
+  const seoRow = {
+    ...baseRow,
+    slug,
+    meta_description: meta,
+    keyword: chosen.keyword,
+  }
+
+  // Coba insert dgn kolom SEO (migrasi 040) → kolom belum ada? fallback
+  // kolom inti + meta SEO disimpan di agent_kv (API blog membacanya).
+  let ins = await admin.from('blog_posts').insert(seoRow)
+  let insErr = ins.error
+  let seoStoredAs = 'columns'
+  if (insErr && isMissingColumnError(insErr)) {
+    ins = await admin.from('blog_posts').insert(baseRow)
+    insErr = ins.error
+    seoStoredAs = 'agent_kv'
+    if (!insErr) {
+      try {
+        const { data: nr } = await admin.from('blog_posts').select('id')
+          .ilike('title', title).order('created_at', { ascending: false }).limit(1)
+        const newId = (nr?.[0] as { id?: string } | undefined)?.id
+        if (newId) {
+          await admin.from('agent_kv').upsert({
+            key: `blog_seo:${newId}`,
+            value: JSON.stringify({ slug, meta_description: meta, keyword: chosen.keyword, wordCount }),
+            updated_at: new Date().toISOString(),
+          })
+        }
+      } catch {
+        /* kv belum ada → meta hilang run ini; besok migrasi 040 menyelesaikan */
+      }
+    }
+  }
   if (insErr) {
     return errResult('Farhan', `insert blog_posts gagal: ${insErr.message}`, { title, wordCount })
   }
 
-  return okResult('Farhan', `artikel SEO TERBIT: "${clip(title, 70)}" (${wordCount} kata, critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}, ${ac.revisions} revisi)`,
-    { title, keyword: chosen.keyword, wordCount, meta_description: meta, criticScore: ac.score, revisions: ac.revisions, model: ac.model, published: true })
+  return okResult('Farhan', `artikel SEO TERBIT: "${clip(title, 70)}" (${wordCount} kata, critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}, ${ac.revisions} revisi, ${internalLinks} link internal, SEO di ${seoStoredAs})`,
+    { title, slug, keyword: chosen.keyword, wordCount, meta_description: meta, criticScore: ac.score, revisions: ac.revisions, model: ac.model, published: true, internalLinks, seoStoredAs })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

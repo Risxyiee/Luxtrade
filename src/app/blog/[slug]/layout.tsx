@@ -1,16 +1,10 @@
-export const dynamic = 'force-static'
-
-export async function generateStaticParams() {
-  return [
-    { slug: 'cara-menggunakan-jurnal-trading-untuk-menjadi-trader-konsisten' },
-    { slug: '5-kesalahan-psikologi-trading-paling-umum' },
-    { slug: 'manajemen-risiko-trading-pemula' },
-    { slug: 'analisis-ai-dalam-trading-modern' },
-    { slug: 'membangun-strategi-trading-yang-teruji' },
-    { slug: 'mengapa-95-persen-trader-gagal' },
-  ]
-}
-
+/**
+ * Layout detail blog — konten dirender CLIENT-SIDE dari API
+ * /api/blog/posts/[slug] (artikel riil dari blog_posts) dengan fallback
+ * statis utk 6 artikel klasik. Tidak ada lagi prerender per-slug: dulu
+ * generateStaticParams hard-code 6 slug + force-static → artikel BARU
+ * hasil terbitan Farhan berisiko 404 karena slug-nya tidak dikenal build.
+ */
 export default function BlogPostLayout({ children }: { children: React.ReactNode }) {
   return children
 }

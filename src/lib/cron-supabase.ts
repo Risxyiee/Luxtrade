@@ -47,6 +47,23 @@ export function isMissingTableError(err: any): boolean {
 }
 
 /**
+ * Detect "column does not exist" errors from PostgREST (insert/select dengan
+ * kolom yang belum dimigrasi). Pemakai: insert SEO Farhan (slug/meta/keyword/
+ * views — migrasi 040) → fallback resilient ke insert kolom inti + agent_kv.
+ */
+export function isMissingColumnError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const e = err as { code?: string; message?: string; details?: string }
+  const code = e.code || ''
+  const msg = String(e.message || e.details || '')
+  return (
+    code === 'PGRST204' || // "Could not find the 'x' column of 'y' in the schema cache"
+    /column .* does not exist/i.test(msg) ||
+    (msg.includes('Could not find the') && msg.includes('column'))
+  )
+}
+
+/**
  * Fetch ALL rows from a paginated Supabase query (PostgREST caps at 1000 rows/request).
  *
  * Usage:
