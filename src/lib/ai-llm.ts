@@ -11,7 +11,14 @@ import { getEnvVar } from '@/lib/cloudflare-bindings'
  * "perbaiki api yang limit — karyawan ai ganti ke yang baru dan free,
  *  harus pintar berpikir & menemukan solusi sendiri"
  *
- *   Groq (free) → Gemini (free) → OpenRouter (:free) → null
+ *   Mortera (deposit Rupiah, prioritas 1) → Groq (free) → Gemini (free)
+ *   → OpenRouter (:free) → null
+ *
+ * Mortera Cloud (mortera.cloud) = gateway OpenAI-compatible billing Rupiah.
+ * AKTIF hanya kalau MORTERA_API_KEY diset (CF secret / env) — tanpa key,
+ * provider ini dilompati dan rantai berperilaku persis seperti dulu.
+ * Saldo habis (HTTP 402) → cooldown 60 mnt → otomatis jatuh ke rantai
+ * free: karyawan TIDAK PERNAH mogok hanya karena lupa top-up.
  *
  * Lapis pertahanan (dari luar ke dalam):
  *   1. PROVIDER rotasi: 429/limit → provider didinginkan (10 mnt),
@@ -26,13 +33,13 @@ import { getEnvVar } from '@/lib/cloudflare-bindings'
  *
  * Semua keputusan dicatat di notes (getLastLLMDiag) → ditulis Sinta ke
  * office_memory → run berikutnya "tahu" apa yang terjadi.
- * Override model via env GROQ_MODEL / GEMINI_MODEL / OPENROUTER_MODEL.
+ * Override model via env MORTERA_MODEL / GROQ_MODEL / GEMINI_MODEL / OPENROUTER_MODEL.
  * ═══════════════════════════════════════════════════════════════════
  */
 
 export interface LLMResult {
   text: string
-  provider: 'groq' | 'gemini' | 'openrouter'
+  provider: 'mortera' | 'groq' | 'gemini' | 'openrouter'
   model: string
   /** Catatan rotasi/fallback/discover yang terjadi (untuk office_memory). */
   notes?: string[]
@@ -41,6 +48,11 @@ export interface LLMResult {
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+/* Mortera Cloud — kuda beban prioritas (deposit Rupiah Bos). Whitelist murah:
+   Haiku (default) → GPT-6.1 Terra → Sonnet. Fable/Opus SENGAJA tidak ada
+   (140x lebih mahal, tidak ada tugas karyawan yang butuh). */
+const MORTERA_MODEL = process.env.MORTERA_MODEL || 'claude-haiku-5.5'
+const MORTERA_FALLBACKS = ['gpt-6.1-terra', 'claude-sonnet-5.5']
 /** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
 const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
@@ -72,7 +84,7 @@ const DISCOVER_TTL = 6 * 60 * 60 * 1000
 const discovered = new Map<string, { models: string[]; until: number }>()
 
 async function discoverOpenAIModels(
-  label: 'groq' | 'openrouter',
+  label: 'mortera' | 'groq' | 'openrouter',
   baseUrl: string,
   apiKey: string,
   score: (id: string) => number,
@@ -138,9 +150,13 @@ async function getGeminiKey(): Promise<string> {
 async function getOpenRouterKey(): Promise<string> {
   try { return (await getEnvVar('OPENROUTER_API_KEY', { quiet: true })) || process.env.OPENROUTER_API_KEY || '' } catch { return process.env.OPENROUTER_API_KEY || '' }
 }
+async function getMorteraKey(): Promise<string> {
+  try { return (await getEnvVar('MORTERA_API_KEY', { quiet: true })) || process.env.MORTERA_API_KEY || '' } catch { return process.env.MORTERA_API_KEY || '' }
+}
 
 /** Cek ketersediaan LLM tanpa melakukan panggilan (untuk logging & response meta). */
-export async function getLLMProviderName(): Promise<'groq' | 'gemini' | 'openrouter' | 'template'> {
+export async function getLLMProviderName(): Promise<'mortera' | 'groq' | 'gemini' | 'openrouter' | 'template'> {
+  if (await getMorteraKey()) return 'mortera'
   if (await getGroqKey()) return 'groq'
   if (await getGeminiKey()) return 'gemini'
   if (await getOpenRouterKey()) return 'openrouter'
@@ -150,6 +166,8 @@ export async function getLLMProviderName(): Promise<'groq' | 'gemini' | 'openrou
 /** Status rantai provider — untuk diagnostik (route GET / log admin). */
 export async function getLLMChainStatus(): Promise<{ provider: string; ok: boolean; reason?: string }[]> {
   const out: { provider: string; ok: boolean; reason?: string }[] = []
+  const mor = await getMorteraKey()
+  out.push({ provider: `mortera(${MORTERA_MODEL})`, ok: !!mor && !isCool('mortera'), reason: !mor ? 'no key' : isCool('mortera') ? coolReason('mortera') : undefined })
   const groq = await getGroqKey()
   out.push({ provider: `groq(${GROQ_MODEL})`, ok: !!groq && !isCool('groq'), reason: !groq ? 'no key' : isCool('groq') ? coolReason('groq') : undefined })
   const gem = await getGeminiKey()
@@ -171,6 +189,17 @@ export function getLastLLMDiag(): string[] { return lastCallDiag }
 export async function callLLM(systemPrompt: string, userPrompt: string, maxTokens = 800): Promise<LLMResult | null> {
   const notes: string[] = []
   lastCallDiag = notes
+
+  /* PRIORITAS 1 — Mortera Cloud (deposit Rupiah, model kelas Claude/GPT). */
+  const morteraKey = await getMorteraKey()
+  if (morteraKey && !isCool('mortera')) {
+    const res = await callMortera(morteraKey, systemPrompt, userPrompt, maxTokens, notes)
+    if (res) return { ...res, notes: notes.length ? notes : undefined }
+    if (!isCool('mortera')) cool('mortera', COOLDOWN_MS_LIMIT)
+    notes.push(coolReason('mortera'))
+  } else if (morteraKey && isCool('mortera')) {
+    notes.push(`mortera dilompati — ${coolReason('mortera')}`)
+  }
 
   const groqKey = await getGroqKey()
   if (groqKey && !isCool('groq')) {
@@ -202,16 +231,16 @@ export async function callLLM(systemPrompt: string, userPrompt: string, maxToken
     notes.push(`openrouter dilompati — ${coolReason('openrouter')}`)
   }
 
-  if (!groqKey && !geminiKey && !orKey) {
-    console.warn('[ai-llm] Tidak ada GROQ/GEMINI/OPENROUTER_API_KEY — caller must use template fallback')
+  if (!morteraKey && !groqKey && !geminiKey && !orKey) {
+    console.warn('[ai-llm] Tidak ada MORTERA/GROQ/GEMINI/OPENROUTER_API_KEY — caller must use template fallback')
   }
   if (notes.length) console.warn('[ai-llm] Semua provider gagal:', notes.join(' | '))
   return null
 }
 
-/** OpenAI-compatible (Groq & OpenRouter) + auto-discover. */
+/** OpenAI-compatible (Mortera, Groq & OpenRouter) + auto-discover. */
 async function callOpenAICompatible(
-  label: 'groq' | 'openrouter',
+  label: 'mortera' | 'groq' | 'openrouter',
   baseUrl: string,
   apiKey: string,
   models: string[],
@@ -248,7 +277,7 @@ async function callOpenAICompatible(
 }
 
 async function callOpenAIModel(
-  label: 'groq' | 'openrouter',
+  label: 'mortera' | 'groq' | 'openrouter',
   baseUrl: string,
   apiKey: string,
   model: string,
@@ -297,6 +326,13 @@ async function callOpenAIModel(
         cool(label, COOLDOWN_MS_AUTH)
         return { ok: false, hardStop: true }
       }
+      if (res.status === 402) {
+        // Khusus Mortera: wallet habis — capek coba model lain, lompat
+        // provider; rantai free mengambil alih sampai Bos top-up.
+        notes.push(`${label} 402 saldo/wallet habis → cooldown 60 menit + rantai free mengambil alih`)
+        cool(label, COOLDOWN_MS_AUTH)
+        return { ok: false, hardStop: true }
+      }
       if (res.status >= 500) {
         notes.push(`${label} HTTP ${res.status} (model ${model}) → coba model/provider lain`)
         return { ok: false } // overload sementara → model/provider berikutnya
@@ -334,6 +370,20 @@ async function callOpenAIModel(
 
 async function callGroq(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
   return callOpenAICompatible('groq', 'https://api.groq.com/openai/v1', apiKey, [GROQ_MODEL, ...GROQ_FALLBACKS], groqScore, systemPrompt, userPrompt, maxTokens, notes)
+}
+
+/* ── MORTERA CLOUD (mortera.cloud/v1) ──────────────────────────────
+   Gateway OpenAI-compatible billing Rupiah. Auto-discover pakai
+   morteraScore: prefer Haiku/Terra/Sonnet (murah), HARD-VETO Fable/Opus
+   + katalog uncensored (140x lebih mahal / tidak kita perlukan) supaya
+   fallback otomatis tidak pernah nyasar ke model mahal. */
+const morteraScore = (id: string) => {
+  if (/fable|opus|uncensored|abliterated|image|video|embed|whisper|tts/i.test(id)) return -100
+  return (/haiku/i.test(id) ? 50 : 0) + (/terra/i.test(id) ? 30 : 0) + (/sonnet/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 8 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
+}
+
+async function callMortera(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
+  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes)
 }
 
 async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
