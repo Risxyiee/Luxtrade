@@ -303,8 +303,8 @@ export default function KantorCeo3D() {
       const bubEl=document.createElement('div');bubEl.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none';mount.appendChild(bubEl)
       const hud=document.createElement('div')
       hud.innerHTML=`<div id="kclock" class="kg"><div id="ktime">09:00</div><div id="kphase">Jam kerja</div><div id="kbar"><i id="kfill"></i></div>
-        <button id="klive" class="kbtn on">WIB Langsung</button><button data-s="6" class="kbtn">Cepat 1×</button><button data-s="18" class="kbtn">Cepat 3×</button><button id="kskip" class="kbtn">Lompat 10:55</button></div>
-        <div id="khint" class="kg">Geser = putar · scroll = zoom · klik karyawan = buka ruangannya · klik laptop CEO = briefing beneran</div>
+        <button id="klive" class="kbtn on">WIB Langsung</button><button data-s="6" class="kbtn">Cepat 1×</button><button data-s="18" class="kbtn">Cepat 3×</button><button id="kskip" class="kbtn">Lompat 21:30</button></div>
+        <div id="khint" class="kg">Geser = putar · scroll = zoom · klik karyawan = buka ruangannya · klik laptop CEO = briefing beneran · tim lembur 24/7 tanpa istirahat</div>
         <div id="ktoast" class="kg"></div>
         <div id="ktip" class="kg"><b>—<span></span></b><div></div></div>`
       mount.appendChild(hud)
@@ -354,6 +354,10 @@ export default function KantorCeo3D() {
         GH:{deep:['Rancang eksperimen growth minggu ini','Ukur funnel pendaftar → aktif → PRO','Cari angle promo referral/affiliate'],phone:['Pantau metrik aktivasi'],chat:['Pilih eksperimen prioritas bareng CEO']},
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu'}
+      /* SKILL TINGKAT DEWA — keahlian andalan tiap karyawan (tampil di balon pikiran) */
+      const GOD={CTO:'Self-Healing Infra',CSO:'Mind-Reader Retensi',CMO:'Viral Script Engine',CFO:'Anti-429 Oracle',COO:'Lead Magnet Radar',DA:'Data Clairvoyance',GH:'Growth Infinity',CEO:'Neural Command'}
+      /* Kalimat shift malam — lembur 24/7, tidak ada istirahat tidur (permintaan Bos) */
+      const NIGHT2=['Lembur tengah malam — AI tidak kenal capek','Ruang tidur? Hiasan aja, kami tidak tidur','Jam segini pun situs tetap kupantau','Shift malam: data besok sudah kusiapkan','Halo emas di kepala = tanda tingkat dewa','Kopi boleh, pulang tidak ada di kamusku']
       let tNow=0
       /* ---- STATUS NYATA dari API (bukan panggung) ----
          Kalau data live ada, karakter lapor hasil kerja ASLI, bukan kalimat tempelan. */
@@ -386,7 +390,7 @@ export default function KantorCeo3D() {
         if(busyRef.current[c.job]){
           const W={CTO:'Lagi ping situs & hitung bug — kerja beneran, bukan main-main!',
             CSO:'Lagi hitung user dari database Supabase — kerja beneran!',
-            CMO:'Lagi nulis draf TikTok via OpenRouter — kerja beneran!',
+            CMO:'Lagi nulis draf TikTok via rantai AI baru (Mortera dulu) — kerja beneran!',
             CFO:'Lagi audit kuota API — kerja beneran!',
             COO:'Lagi buru hot lead & susun draf penawaran — kerja beneran!',
             DA:'Lagi olah data trades di Supabase — kerja beneran!',
@@ -416,18 +420,21 @@ export default function KantorCeo3D() {
           return 'Tim lagi hotfix, aku fokus kerjaanku'}
         if(S.leaving)return 'Beres-beres, mau pulang'
         if(S.arriving)return 'Selamat pagi! Baru sampai'
-        if(S.stage==='rising')return S.goal?'Waktunya istirahat! Geser kursi':'Istirahat selesai…'
+        if(S.stage==='rising')return S.ret?'Kembali ke meja — lanjut kerja':'Pindah posisi sebentar'
         if(S.stage==='walking')return S.goal?'Jalan ke pantry':'Kembali ke meja'
         if(S.stage==='lounge')return S.sub==='chat'?'Ngobrol sambil ngopi':S.coffee?'Ngopi dulu':'Istirahat sejenak'
         if(S.stage==='sitting')return 'Duduk lagi…'
         if(S.stage==='seated'&&S.sub==='deep'){
+          /* 24/7: shift malam → selingi kalimat lembur + pamer skill dewa */
+          if((C.min<420||C.min>=960)&&Math.floor(tNow/9+c.i)%4===3)return NIGHT2[Math.floor(tNow/13+c.i)%NIGHT2.length]
+          if(Math.floor(tNow/11+c.i)%5===4)return 'SKILL DEWA: '+GOD[c.job]
           if(c.job===PHASE_JOB[PROJ.ph])return PHASE_TASK[c.job]+' · '+Math.round(PROJ.prog)+'%'
           /* tampilkan status NYATA kalau ada (bukti agen kerja beneran),
              selingi kalimat flavor biar hidup */
           const real=realStatus(c.job)
           if(real&&Math.floor(tNow/7+c.i)%3!==2)return real
           const a=T2[c.job].deep;return a[Math.floor(tNow/7+c.i)%a.length]}
-        if(S.stage==='seated'&&C.min>=840&&S.sub!=='chat')return 'Briefing besok tinggal review'
+        if(S.stage==='seated'&&C.min>=840&&C.min<960&&S.sub!=='chat')return 'Briefing besok tinggal review'
         const a=T2[c.job][S.sub]||GEN2[S.sub];return Array.isArray(a)?a[Math.floor(tNow/8+c.i)%a.length]:a}
 
       /* ---------- renderer / scene ---------- */
@@ -454,7 +461,7 @@ export default function KantorCeo3D() {
       // hook debug (dipakai QA otomatis; ringan, tak berpengaruh ke UI)
       // + toast() → React side bisa kirim notifikasi ke scene (hasil kerja beneran)
       const __prevOpen=(window as any).__kceo?.openSheet /* jangan timbul bridge openSheet milik RuangCeoDashboard */
-      window.__kceo={focus:focusRoom,toast:showToast,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on,...(__prevOpen?{openSheet:__prevOpen}:{})}
+      window.__kceo={focus:focusRoom,toast:showToast,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on,camset:(x,y,z,tx,ty,tz)=>{camera.position.set(x,y,z);controls.target.set(tx,ty,tz);FOCUS.on=false},...(__prevOpen?{openSheet:__prevOpen}:{})}
 
       const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.7,...o})
       const glow=(c,i=3)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:i})
@@ -470,7 +477,7 @@ export default function KantorCeo3D() {
       const sp1=spot(PU,1.9,[-5,10,0],[-2,0,0]),sp2=spot(EM,1.6,[10,9,4],[10,0,4])
       const accL=new THREE.PointLight(EM,1.2,18);accL.position.set(1.5,3,-8.4);scene.add(accL)
       const pl2=new THREE.PointLight(PU,.9,18);pl2.position.set(6,2.5,-5);scene.add(pl2)
-      const ceilGlows=[]
+      const ceilGlows=[];const lampMs=[]
       const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#a8a0d5'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#2d3250'),cT=new THREE.Color()
       const dayFactor=m=>m<300?0:m<420?(m-300)/120:m<870?1:m<1020?1-(m-870)/150:0
       let dayF=null
@@ -479,7 +486,10 @@ export default function KantorCeo3D() {
         sun.intensity=.22+1.05*dayF;cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
         amb.intensity=.55+.45*dayF;cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
         sp1.intensity=1.9*(.4+.6*dayF);sp2.intensity=1.6*(.4+.6*dayF)
-        ceilGlows.forEach(m=>m.emissiveIntensity=.3+.85*dayF)
+        /* 24/7: lampu kantor TETAP NYALA malam hari — lembur terlihat dari luar */
+        ceilGlows.forEach(m=>m.emissiveIntensity=.85+.35*dayF)
+        /* lampu meja menyala saat malam — tiap meja hangat oranye lembur */
+        lampMs.forEach(m=>m.emissiveIntensity=.25+2.6*(1-dayF))
         cT.copy(cBgD).lerp(cBgN,1-dayF);scene.background.copy(cT);scene.fog.color.copy(cT)}
 
       /* ---------- lantai, dinding, neon ---------- */
@@ -553,6 +563,44 @@ export default function KantorCeo3D() {
       neon('GROWTH LAB',2.3,.56,44,6.5,2.5,2.15,0,'#ea580c')
       neon('CEO SUITE',2.5,.6,40,6,1.5,-9.9,0,'#7c3aed')
 
+      /* ---------- RUANG RAPAT — meja panjang 6 kursi + layar agenda (tengah depan) ---------- */
+      roomAcc(4.3,9.4,'#14b8a6','#e0f2ef')
+      box(3.4,.08,1.5,M('#243044',{roughness:.35,metalness:.3}),4.3,.78,9.4)
+      for(const mx of[2.9,4.3,5.7]){box(.08,.74,.08,M('#0f172a'),mx,.37,8.75);box(.08,.74,.08,M('#0f172a'),mx,.37,10.05)}
+      OBST.push({x:4.3,z:9.4,hw:1.75,hd:.8})
+      for(const mx of[3.1,4.3,5.5])for(const[mz,mr]of[[8.5,0],[10.3,PI]]){
+        const ch=new THREE.Group();ch.position.set(mx,0,mz);ch.rotation.y=mr;scene.add(ch)
+        box(.46,.06,.46,M('#334155'),0,.45,0,ch);box(.44,.5,.05,M('#334155'),0,.72,-.2,ch)
+        for(const lx of[-.19,.19])box(.05,.42,.05,M('#1e293b'),lx,.21,0,ch)}
+      neon('RUANG RAPAT',3,.7,44,4.3,3.5,11.98,PI,'#10b981')
+      const agC=document.createElement('canvas');agC.width=512;agC.height=288;const ag=agC.getContext('2d')
+      ag.fillStyle='#0b1220';ag.fillRect(0,0,512,288);ag.fillStyle='#134e4a';ag.fillRect(0,0,512,44)
+      ag.fillStyle='#5eead4';ag.font='bold 22px monospace';ag.textAlign='left';ag.fillText('AGENDA RAPAT 08:00',16,30)
+      ag.font='17px monospace'
+      ;['1. QA & uptime situs — Raka','2. User & risiko churn — Maya','3. Draf TikTok hari ini — Sinta','4. Kuota & MRR — Putri','5. Hot lead & follow-up — Bagas','6. Insight & eksperimen — Dewi, Farhan'].forEach((s,i)=>{ag.fillStyle='#c7f5e5';ag.fillText(s,20,76+i*30)})
+      const agT=new THREE.CanvasTexture(agC);agT.colorSpace=THREE.SRGBColorSpace
+      const agM=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.46),new THREE.MeshStandardMaterial({color:0,map:agT,emissiveMap:agT,emissive:0xffffff,emissiveIntensity:1.1}))
+      agM.position.set(4.3,2.4,11.97);agM.rotation.y=PI;scene.add(agM)
+
+      /* ---------- RUANG TIDUR AI — pojok kiri depan (permintaan Bos).
+         Kasur lengkap 3 buah, TAPI selalu rapi: karyawan AI tidak tidur — lembur 24/7. ---------- */
+      roomAcc(-11.5,9.5,'#ec4899','#fbe3ef')
+      const bedM=M('#8b5e3c',{roughness:.7}),matM=M('#e7d7c4',{roughness:.9}),pilM=M('#fdfdfd',{roughness:.9}),blnM=M('#7c3aed',{roughness:.85})
+      for(const bx of[-13.4,-11.5,-9.6]){
+        box(1.15,.22,2.3,bedM,bx,.11,10.7);box(1.02,.14,2.1,matM,bx,.29,10.7)
+        box(1.15,.5,.08,bedM,bx,.4,11.8);box(.6,.1,.35,pilM,bx,.41,11.3);box(.98,.06,1.15,blnM,bx,.39,10.05)
+        OBST.push({x:bx,z:10.7,hw:.6,hd:1.2})
+        cyl(.05,.35,M('#3f3f46'),bx+.78,.18,11.45,scene);sph(.07,glow('#ffd9a0',1.4),bx+.78,.42,11.45,scene)}
+      neon('RUANG TIDUR AI',3,.7,44,-11.5,2.6,11.98,PI,'#ec4899')
+      /* papan kecil: kasur cuma hiasan — tim tidak pernah pakai */
+      const ntC=document.createElement('canvas');ntC.width=512;ntC.height=128;const ntg=ntC.getContext('2d')
+      ntg.fillStyle='#fff8f0';ntg.fillRect(0,0,512,128);ntg.strokeStyle='#d6c8b4';ntg.lineWidth=6;ntg.strokeRect(6,6,500,116)
+      ntg.fillStyle='#7a4a2b';ntg.font='bold 33px system-ui';ntg.textAlign='center';ntg.fillText('Kosong 24/7 — AI tidak tidur',256,54)
+      ntg.font='23px system-ui';ntg.fillText('kasur hiasan · tim lembur 24 jam',256,96)
+      const ntT=new THREE.CanvasTexture(ntC);ntT.colorSpace=THREE.SRGBColorSpace
+      const ntM=new THREE.Mesh(new THREE.PlaneGeometry(2.5,.62),new THREE.MeshBasicMaterial({map:ntT}))
+      ntM.position.set(-11.5,1.55,11.97);ntM.rotation.y=PI;scene.add(ntM)
+
       /* ---------- infrastruktur ---------- */
       const rackLeds=[]
       for(let r=0;r<3;r++){const x=14.2+r*1.1;box(.9,2.1,.9,M('#0b0b12',{metalness:.5,roughness:.4}),x,1.05,-9.2)
@@ -603,7 +651,7 @@ export default function KantorCeo3D() {
         const tgt=38+PROJ.done*2+(C.brk?-9:0)+(INC.active?-14:0)+Math.sin(C.min/230)*7
         SITE.vis+=(tgt-SITE.vis)*.06+rnd(-1.1,1.1);SITE.vis=clamp(SITE.vis,3,240)
         SITE.day=Math.max(0,SITE.day+rnd(.2,.9)+(INC.active?-1:0))
-        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m<420||m>=960?'Di luar jam kerja':C.brk?'Istirahat siang':m>=840?'Santai':'Jam kerja'),tot=projTot()
+        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m<420||m>=960?'Lembur 24/7 — tetap kerja':C.brk?'Istirahat siang':m>=840?'Mode fokus sore':'Jam kerja'),tot=projTot()
         g.fillStyle='#04120c';g.fillRect(0,0,1024,512);g.fillStyle='#0a2a1d';g.fillRect(0,0,1024,84)
         g.fillStyle='#10f5a0';g.font='bold 40px system-ui,sans-serif';g.fillText('PAPAN KINERJA KANTOR LUXTRADE',32,56)
         g.fillStyle='#9fb3ad';g.font='32px system-ui,sans-serif';g.fillText('Harga Emas (XAUUSD)',32,140)
@@ -650,6 +698,12 @@ export default function KantorCeo3D() {
         box(w,.02,.02,glow(PU),d[0],.755,d[1]+.45,scene,false);box(.45,.02,.15,M('#0a0a0f'),d[0],.79,d[1]+.22)
         cyl(.04,.1,M(Math.random()<.5?'#e5e7eb':'#7c3aed'),d[0]+rnd(.55,.8)*(Math.random()<.5?1:-1),.84,d[1]+rnd(-.1,.2),scene)
         box(.2,.015,.28,M('#d1d5db'),d[0]+rnd(-.8,-.5),.79,d[1]+rnd(-.05,.2),scene)
+        /* lampu meja — emissive naik saat malam (lembur 24/7) */
+        {const lx=d[0]+(cfg.ceo?1.05:.72)*(d[0]<0?1:-1)
+          cyl(.05,.03,M('#2a2a33'),lx,.79,d[1]-.26,scene)
+          const armL=box(.028,.3,.028,M('#2a2a33'),lx,.93,d[1]-.31,scene);armL.rotation.x=.55
+          const lm=new THREE.MeshStandardMaterial({color:'#3d3d46',emissive:'#ffd9a0',emissiveIntensity:.3});lampMs.push(lm)
+          sph(.075,lm,lx,1.06,d[1]-.38,scene)}
         const mats=[]
         if(!cfg.ceo)[-.45,.45].forEach(x=>{const g=at(scene,G(),d[0]+x,.78,d[1]-.2);g.rotation.y=-x*.3
           box(.05,.24,.04,M('#222'),0,.12,-.03,g);box(.8,.46,.03,M('#08080c'),0,.45,0,g)
@@ -679,6 +733,9 @@ export default function KantorCeo3D() {
         R.brows=[-.045,.045].map(x=>box(.05,.009,.008,M(cfg.hair),x,.222,.122,R.head,false))
         R.mouth=box(.05,.014,.01,M('#7a4438'),0,.132,.126,R.head,false)
         sph(.02,M(cfg.skin),0,.165,.13,R.head)
+        /* HALO TINGKAT DEWA — cincin emas melayang di atas kepala semua karyawan */
+        const halo=new THREE.Mesh(new THREE.TorusGeometry(.088,.011,8,22),glow('#fbbf24',2.4))
+        halo.rotation.x=PI/2;halo.position.y=.30;R.head.add(halo)
         if(['Sinta','Maya','Putri','Dewi'].includes(cfg.name))box(.27,.36,.1,M(cfg.hair,{roughness:.9}),0,.1,-.12,R.head)
         if(i%3===0)[-.045,.045].forEach(x=>{const gl=new THREE.Mesh(new THREE.TorusGeometry(.03,.004,6,14),M('#111'));gl.position.set(x,.18,.126);R.head.add(gl)})
         R.phone=at(R.rE,G(),0,-.27,.03);R.phone.rotation.x=-1.25
@@ -687,7 +744,8 @@ export default function KantorCeo3D() {
         R.mug=at(R.rE,G(),0,-.3,.02)
         cyl(.035,.08,M('#e5e7eb',{roughness:.4}),0,0,0,R.mug,10)
         const mh=new THREE.Mesh(new THREE.TorusGeometry(.026,.007,6,12),M('#e5e7eb',{roughness:.4}));mh.position.set(.045,0,0);mh.rotation.y=PI/2;R.mug.add(mh);R.mug.visible=false
-        const S={pace:rnd(.85,1.15),fat:0,arr:cfg.ceo?400:rnd(412,437),dep:cfg.ceo?990:rnd(900,960),cfg,R,chair,mats,d,seatZ,x:d[0],z:seatZ,yaw:PI,sit:1,ch:0,speed:0,ph:rnd(0,6),wph:0,wp:[],stage:'seated',goal:false,delay:rnd(0,2000),sub:'deep',until:0,glow:1,chatWith:null,speaking:false,report:false,ret:false,reportT:0,spot:SPOTS[i]||SPOTS[4]}
+        /* 24/7: arr=0 & dep=1e9 — selalu hadir, TIDAK PERNAH pulang (permintaan Bos) */
+        const S={pace:rnd(.85,1.15),fat:0,arr:0,dep:1e9,cfg,R,chair,mats,d,seatZ,x:d[0],z:seatZ,yaw:PI,sit:1,ch:0,speed:0,ph:rnd(0,6),wph:0,wp:[],stage:'seated',goal:false,delay:rnd(0,2000),sub:'deep',until:0,glow:1,chatWith:null,speaking:false,report:false,ret:false,reportT:0,spot:SPOTS[i]||SPOTS[4]}
         E.push(S)})
 
       /* ---------- bubble nama ---------- */
@@ -716,8 +774,8 @@ export default function KantorCeo3D() {
         if(!S.init){S.init=1;if(C.min<S.arr||C.min>S.dep){S.stage='away';R.root.visible=false;S.chair.position.z=seatZ+.85;S.ch=1}}
         if(S.stage==='away'){if(C.min>=S.arr&&C.min<S.dep){Object.assign(S,{stage:'walking',arriving:true,leaving:false,x:18,z:.8,sit:0,goal:false,wp:[[8,.8],[3,.8],[3,zC],[d[0],zC],[d[0],seatZ]]});R.root.visible=true;if(Math.random()<.6&&cfg.job!=='CEO'){const pp=S.spot.p;S.goal=true;S.coffee=t+rnd(25,70);S.wp=[[8,.8],S.spot.sit?[8,pp[1]]:[12.3,.8],pp]}}else return}
         if(S.stage==='seated'&&C.min>S.dep&&C.min<S.dep+240&&!S.leaving){S.leaving=true;S.stage='rising'}
-        if(S.stage==='seated'&&C.min>=840&&!S.leaving&&!S.coffee&&!C.brk&&cfg.job!=='CEO'&&!INC.active&&Math.random()<dt*.012){S.goal=true;S.coffee=t+rnd(40,90);S.stage='rising'}
-        if(!S.leaving&&!S.coffee&&!S.report&&!S.ret&&cfg.job!=='CEO'&&C.brk!==S.goal&&(S.stage==='seated'||S.stage==='lounge')&&performance.now()-C.at>S.delay*(C.live?150:1)){S.goal=C.brk;S.delay=rnd(0,2000);S.stage='rising'}
+        /* 24/7 TANPA ISTIRAHAT: tidak ada trip pantry, tidak ada istirahat siang,
+           tidak ada jam pulang — karyawan AI tinggal di meja, lembur sampai pagi */
         const inSeat=S.stage==='seated'
         if((inSeat||S.stage==='lounge')&&t>S.until){const lz=cfg.lazy+(C.min>=840?.4:0),r=Math.random()
           if(S.stage==='lounge'){S.sub=r<.55?'chat':r<.8?'drink':'phone';S.until=t+rnd(4,8)}
@@ -826,7 +884,7 @@ export default function KantorCeo3D() {
       const mode=b=>hud.querySelectorAll('.kbtn').forEach(x=>x.classList.toggle('on',x===b))
       hud.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{C.live=false;C.speed=+b.dataset.s;mode(b)})
       $t('#klive').onclick=e=>{C.live=true;mode(e.currentTarget)}
-      $t('#kskip').onclick=e=>{C.live=false;C.min=655;mode(e.currentTarget)}
+      $t('#kskip').onclick=e=>{C.live=false;C.min=1290;mode(e.currentTarget) /* 21:30 — lihat lembur malam */}
       mode(C.live?$t('#klive'):hud.querySelector('[data-s="6"]'))
 
       const onResize=()=>{const w=mount.clientWidth||innerWidth,h=mount.clientHeight||innerHeight
@@ -837,12 +895,12 @@ export default function KantorCeo3D() {
       const clk=new THREE.Clock();let uiT=0,frame=0
       renderer.setAnimationLoop(()=>{
         const dt=Math.min(clk.getDelta(),.05),t=clk.elapsedTime;tNow=t
-        if(C.live){const w=new Date(Date.now()+25200000);C.min=w.getUTCHours()*60+w.getUTCMinutes()+w.getUTCSeconds()/60}else{C.min+=dt*C.speed;if(C.min>=960)C.min=420}
+        if(C.live){const w=new Date(Date.now()+25200000);C.min=w.getUTCHours()*60+w.getUTCMinutes()+w.getUTCSeconds()/60}else{C.min+=dt*C.speed;if(C.min>=1440)C.min=420 /* siklus penuh 24 jam — shift malam ikut tampil */}
         const b=C.min>=660&&C.min<780
         if(b!==C.brk){C.brk=b;C.at=performance.now()
           showToast(b?' 11:00 — Istirahat siang, tim ke pantry satu per satu':'13:00 — Istirahat selesai, kembali kerja')}
         if(!INC.active&&C.min>INC.next){
-          if(C.min>=430&&C.min<830&&!C.brk&&E[0].stage==='seated'&&E[4].stage==='seated'){
+          if(E[0].stage==='seated'&&E[4].stage==='seated'){ /* insiden 24/7 — juga tengah malam */
             INC.active=true;const R0=E[0]
             R0.report=true;R0.goal=false;R0.coffee=0;R0.until=1e9;R0.stage='rising'
             E[4].reportT=t+19;E[4].until=1e9
@@ -878,8 +936,8 @@ export default function KantorCeo3D() {
           hov=(o&&o.userData.emp!==undefined)?o.userData.emp:null}
         uiT-=dt
         if(uiT<=0){uiT=.15;$t('#ktime').textContent=fmt(C.min)+' WIB';drawWall()
-          const ph=$t('#kphase');ph.textContent=C.brk?'Waktu istirahat ':(INC.active?' Insiden — hotfix!':(C.min<420||C.min>=960?'Di luar jam kerja ':'Jam kerja'));ph.style.color=INC.active?'#ef4444':(C.brk?'#fbbf24':EM)
-          $t('#kfill').style.width=clamp((C.min-420)/540*100,0,100)+'%'}
+          const ph=$t('#kphase');ph.textContent=C.brk?'Waktu istirahat ':(INC.active?' Insiden — hotfix!':(C.min<420||C.min>=960?'Lembur 24/7 — tetap kerja ':'Jam kerja'));ph.style.color=INC.active?'#ef4444':(C.brk?'#fbbf24':EM)
+          $t('#kfill').style.width=clamp(C.min/1440*100,0,100)+'%'}
         if(sel!==null){const S=E[sel];v.set(S.x,2,S.z).project(camera);tip.style.opacity=1
           tip.style.transform=`translate(${(v.x*.5+.5)*innerWidth-110}px,${(-v.y*.5+.5)*innerHeight-135}px)`
           if(t>S.tt2||!S.tt2){S.tt2=t+.4;tip.lastChild.textContent=thought2(S.cfg,S)}}else tip.style.opacity=0
@@ -890,10 +948,10 @@ export default function KantorCeo3D() {
         frame++})
 
       setLoaded(true)
-      setTimeout(()=>showToast('luxtradee.web.id LIVE — 7 AI Karyawan + CEO siap kerja'),1500)
+      setTimeout(()=>showToast('luxtradee.web.id LIVE — 7 AI Karyawan + CEO mode lembur 24/7'),1500)
       const wibMin=wibNow()
       if(wibMin<435||wibMin>=885)
-        setTimeout(()=>showToast(fmt(wibMin)+' WIB — kantor tutup, karyawan pulang. Karyawan AI tetap kerja otomatis (cron 24/7). Klik "Cepat 1×" untuk simulasi jam kerja.'),4200)
+        setTimeout(()=>showToast(fmt(wibMin)+' WIB — malam ini tim TETAP DI KANTOR: lembur 24/7, tanpa istirahat tidur. Kasur di Ruang Tidur AI cuma hiasan.'),4200)
 
       /* ---------- cleanup ---------- */
       cleanup=()=>{

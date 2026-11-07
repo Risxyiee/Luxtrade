@@ -699,8 +699,66 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
   throw new Error(lastErr || 'OpenRouter: semua model gagal')
 }
 
-/* Otak Multi-Agent: model resmi karyawan (OpenRouter) → kalau mati semua,
-   caller wajib pakai templat statis (sistem tidak pernah crash).
+/* ============================================================
+   MORTERA CLOUD — otak TINGKAT DEWA semua karyawan (prioritas 1).
+   Claude Haiku 5.5 (Rp 394 in / Rp 1.182 out per 1M token) →
+   Claude Sonnet 5.5 → GPT-6.1 Terra. OpenAI-compatible:
+   https://mortera.cloud/v1/chat/completions — key dari secret
+   MORTERA_API_KEY (senada dengan rantai callLLM di src/lib/ai-llm.ts).
+   401/402/403 = key mati/dompet kosong → cooldown 60 mnt in-memory →
+   rantai OpenRouter langsung takeover — karyawan tidak pernah manggung.
+   Tanpa key → langsung lompat ke OpenRouter, perilaku lama 100% utuh.
+   ============================================================ */
+const MORTERA_CHAT_URL = 'https://mortera.cloud/v1/chat/completions'
+const MORTERA_CHAIN = ['claude-haiku-5.5', 'claude-sonnet-5.5', 'gpt-6.1-terra']
+const MORTERA_COOLDOWN_MS = 60 * 60 * 1000
+let morteraSickUntil = 0
+
+async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, maxTokens: number, temperature: number): Promise<{ text: string; model: string }> {
+  const key = cfSecret(e, 'MORTERA_API_KEY')
+  if (!key) throw new Error('MORTERA_API_KEY belum diset — kantor tetap jalan pakai rantai OpenRouter (dorman, bukan error)')
+  if (Date.now() < morteraSickUntil) throw new Error(`Mortera cooldown ±${Math.ceil((morteraSickUntil - Date.now()) / 60000)} mnt — key/dompet bermasalah, rantai cadangan takeover`)
+  let lastErr = '', hardStop = false
+  for (const model of MORTERA_CHAIN) {
+    try {
+      const res = await fetch(MORTERA_CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: maxTokens,
+          temperature,
+        }),
+        signal: timeoutSignal(45_000),
+      })
+      if (!res.ok) {
+        lastErr = `mortera ${model} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 120)}`
+        /* key invalid / saldo habis / diblokir → jangan buang 2 percobaan sisanya */
+        if ([401, 402, 403].includes(res.status)) hardStop = true
+        continue
+      }
+      const result: any = await res.json()
+      /* model reasoning kadang menaruh teks di `reasoning` dengan `content` kosong */
+      const msg = result?.choices?.[0]?.message || {}
+      const text = String(msg.content ?? msg.reasoning ?? '').trim()
+      if (!text) { lastErr = `mortera ${model} → respons kosong`; continue }
+      return { text, model }
+    } catch (x: any) {
+      lastErr = `mortera ${model} → ${String(x?.message || x).slice(0, 120)}`
+    }
+    if (hardStop) break
+  }
+  if (hardStop) morteraSickUntil = Date.now() + MORTERA_COOLDOWN_MS
+  throw new Error(lastErr || 'Mortera: semua model gagal')
+}
+
+/* Otak Multi-Agent — PRIORITAS 1 MORTERA (Claude Haiku 5.5) → model resmi
+   karyawan (OpenRouter) → kalau mati semua, caller wajib pakai templat
+   statis (sistem tidak pernah crash).
 
    ⚠️ PENTING (lindungi kuota auto-jurnal): Gemini TIDAK lagi jadi fallback
    otomatis kerjaan karyawan AI. Seluruh kuota GEMINI_API_KEY disisakan untuk
@@ -709,8 +767,17 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
    Kalau OpenRouter mati total → laporan tetap terkirim pakai templat statis.
    Set LLM_GEMINI_FALLBACK=1 di Cloudflare untuk mengaktifkan kembali
    fallback Gemini secara sengaja. */
-async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'openrouter' | 'gemini'; model: string }> {
+async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'mortera' | 'openrouter' | 'gemini'; model: string }> {
   let err = ''
+  /* PRIORITAS 1 — MORTERA (Claude Haiku 5.5): otak baru SEMUA karyawan kantor.
+     Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus. */
+  try {
+    const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature)
+    return { ...m, provider: 'mortera' }
+  } catch (x: any) {
+    err = '[Mortera] ' + String(x?.message || x).slice(0, 120)
+    console.error(`[agentBrain:${agent}] Mortera gagal — lanjut rantai OpenRouter:`, err)
+  }
   try {
     const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature)
     return { ...r, provider: 'openrouter' }
@@ -936,7 +1003,7 @@ async function cmoAgent(e: Env) {
      ⭐ Kemampuan baru: 1 panggilan model → 3 draf pilihan (Bos pilih).
         Kalau model cuma kasih 1–2, draf utama diduplikasi agar pilihan tetap ada. */
   let drafts: string[] = []
-  let provider: 'gemini' | 'openrouter' | 'fallback' = 'fallback'
+  let provider: 'mortera' | 'gemini' | 'openrouter' | 'fallback' = 'fallback'
   let model = ''
   let usedFallback = false
   let fallbackError = ''
@@ -1013,7 +1080,8 @@ async function cmoInstagramCaption(e: Env) {
     }
   } catch { /* data opsional — fallback ke default */ }
 
-  const angle = wibDay() % 2 === 0
+  /* Paritas tanggal (angka hari dlm bulan, bukan string ISO) — angle IG caption selang-seling per hari */
+  const angle = parseInt(wibDay().slice(8), 10) % 2 === 0
     ? 'win rate komunitas + pair favorit hari ini'
     : 'sesi trading terbaik & pola yang paling sering muncul'
 
@@ -1042,7 +1110,7 @@ async function cmoInstagramCaption(e: Env) {
     `\nOutput: HANYA caption Instagram (1 post), tanpa penjelasan tambahan, tanpa label "Caption:".`
 
   let caption = ''
-  let provider: 'openrouter' | 'gemini' | 'fallback' = 'fallback'
+  let provider: 'mortera' | 'openrouter' | 'gemini' | 'fallback' = 'fallback'
   let model = ''
   let usedFallback = false
   let fallbackError = ''
@@ -1196,6 +1264,7 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
   if (cmo?.usedFallback) L.push('_(semua model gagal — pakai draf cadangan, mohon revisi manual)_')
+  else if (cmo?.provider === 'mortera') L.push(`_(via Mortera Cloud — otak baru Sinta: Claude Haiku 5.5 ✅)_`)
   else if (cmo?.provider === 'openrouter') L.push(`_(via OpenRouter — model resmi Sinta${cmo?.model ? ': ' + cmo.model : ''} ✅)_`)
   if (cmo?.basedOn === 'tiktok') L.push(`📚 Dianalisis dari ${fmtN(cmo.analyzedPosts)} konten TikTok asli lo (urut views) — pola pemenang ditiru`)
   else if (cmo?.draft) L.push('📚 Analisis pakai referensi statis — isi "Bahan Analisis TikTok" di Ruang CMO biar makin akurat')
@@ -2292,7 +2361,7 @@ async function cooYesterdayLine(e: Env): Promise<string> {
 interface TalkTurn { who: 'CSO' | 'CMO'; text: string }
 interface CsoCmoTalk {
   at: string
-  provider: 'gemini' | 'openrouter' | 'fallback'
+  provider: 'mortera' | 'gemini' | 'openrouter' | 'fallback'
   diagnosis: string
   reasons: string[]
   dialog: TalkTurn[]
@@ -2467,7 +2536,7 @@ function talkToDiscord(t: CsoCmoTalk): string {
    ============================================================ */
 interface DaInsight {
   at: string
-  provider: 'gemini' | 'openrouter' | 'fallback'
+  provider: 'mortera' | 'gemini' | 'openrouter' | 'fallback'
   insight: string
   patterns: string[]
   recommendations: string[]
@@ -2632,7 +2701,7 @@ interface GhExperiment { name: string; how: string; metric: string; effort: stri
 interface AbVariantStat { views: number; clicks: number; cr: number }
 interface GhInsight {
   at: string
-  provider: 'gemini' | 'openrouter' | 'fallback'
+  provider: 'mortera' | 'gemini' | 'openrouter' | 'fallback'
   insight: string
   experiments: GhExperiment[]
   funnel: { total: number; pro: number; baru7: number; referred: number; onboarded: number; activated7: number }

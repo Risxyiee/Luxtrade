@@ -37,7 +37,7 @@ import { getClientBrowserAsync } from '@/lib/supabase-browser'
 const TEAM_DETAIL = [
   {
     id: 'COO', name: 'Bagas', jabatan: 'COO · Chief Operating Officer', divisi: 'Divisi Jualan & Monetisasi', color: '#059669',
-    model: 'Gemma 4 26B (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 26B (OpenRouter) → templat',
     shift: 'Cron harian 08:00 WIB (slot 0 1 * * * UTC) · ACC Bos kapan pun di Ruang COO',
     baca: 'profiles (free user + email) · trades 7 hari per user · ai_pending_tasks (riwayat kontak)',
     tugas: [
@@ -57,7 +57,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'CTO', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488',
-    model: 'Nemotron 3.5 Lightning (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
     shift: 'Watchdog tiap 15 menit 24/7 · QA sweep + laporan di briefing 08:00 WIB',
     baca: 'Ping https://luxtradee.web.id · bug_reports · riwayat uptime (agent_kv) · env diagnostik',
     tugas: [
@@ -76,7 +76,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'CSO', name: 'Maya', jabatan: 'CSO · Chief Customer Success Officer', divisi: 'Customer Success & Retensi', color: '#be185d',
-    model: 'Gemma 4 26B (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 26B (OpenRouter) → templat',
     shift: 'Hitung user di briefing 08:00 · email pasif otomatis 1x/hari (kalau AUTO-ACC on) · rapat dengan CMO 1x/hari',
     baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
     tugas: [
@@ -96,7 +96,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'CMO', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed',
-    model: 'Gemma 4 31B (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 31B (OpenRouter) → templat',
     shift: 'Shift pagi: LAPORAN RISET TikTok + draf skrip di briefing 08:00 · Shift sore: produksi & posting video 20:00 WIB (prime time FYP)',
     baca: 'tiktok_posts (top 5 konten Bos urut views) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
     tugas: [
@@ -139,7 +139,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'DA', name: 'Dewi', jabatan: 'Data Analyst · Analis Pola Trading', divisi: 'Data & Insight', color: '#0891b2',
-    model: 'Gemma 4 31B (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 31B (OpenRouter) → templat',
     shift: 'Analisis harian 08:00 WIB (cron) · analisis mendalam tiap Senin 10:00 · kapan pun lewat tombol di Ruang Data Analyst',
     baca: 'trades 30 hari terakhir (maks 1.000 terbaru): symbol, profit_loss, session, user_id, created_at, emotion (self-report user)',
     tugas: [
@@ -159,7 +159,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'GH', name: 'Farhan', jabatan: 'Growth Hacker · Eksperimen Pertumbuhan', divisi: 'Growth & Eksperimen', color: '#ea580c',
-    model: 'Nemotron 3.5 Lightning (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
     shift: 'Rancang eksperimen harian 08:00 WIB (cron) · mendalam tiap Senin 10:00 · kapan pun lewat tombol di Ruang Growth',
     baca: 'Funnel profiles: pendaftar, PRO, pendaftar 7 hari, user dari referral (referred_by_code), onboarding selesai, aktivasi (upload trade) + insight Dewi (DA)',
     tugas: [
@@ -179,7 +179,7 @@ const TEAM_DETAIL = [
   },
   {
     id: 'CEO', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
-    model: 'Nemotron 3.5 Lightning (OpenRouter)',
+    model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
     baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + Memori Kantor',
     tugas: [
@@ -202,6 +202,30 @@ const TEAM_DETAIL = [
     ide: 'TTS suara natural via API (butuh provider berbayar) · bot Discord jawab semua karyawan (bukan cuma CEO) · eksekusi NBA penuh otomatis (butuh izin aksi langsung)',
   },
 ]
+
+/* ---------- SKILL TINGKAT DEWA — keahlian andalan tiap karyawan ----------
+   Ringkasan satu baris keunggulan ekstrem masing-masing agen (bukan daftar
+   tugas harian — itu ada di Ruang Struktur). Dipakai chip di tiap ruangan
+   + baris di kartu akordeon. Otaknya kini rantai baru: Mortera (Claude
+   Haiku 5.5) dulu → OpenRouter → templat — karyawan tidak pernah manggung. */
+const GOD_SKILL: Record<string, string> = {
+  CEO: 'Neural Command — orkestrasi 7 agen, NBA harian, akuntabilitas & memori kantor',
+  CTO: 'Self-Healing Infra — watchdog 15 menit, QA 15 route + E2E login beneran, alarm sendiri ke Discord',
+  CSO: 'Mind-Reader Retensi — skor churn harian, email personal 2 grup dari data trading asli, rapat data × CMO',
+  CMO: 'Viral Script Engine — riset TikTok harian buat seluruh kantor + 3 draf pilihan + video Remotion prime time 20:00',
+  CFO: 'Anti-429 Oracle — gerbang kuota sebelum evaluasi, alarm 80%, estimasi MRR tanpa halusinasi (100% matematika)',
+  COO: 'Lead Magnet Radar — pilih 3 hot lead paling ketagihan, follow-up open-rate + kupon terkontrol',
+  DA: 'Data Clairvoyance — korelasi emosi vs profit, 3 pola tersembunyi, learning loop mingguan',
+  GH: 'Growth Infinity — funnel nyata + A/B CTA landing otomatis 50/50 + 3 eksperimen siap eksekusi',
+}
+function GodChip({ id }: { id: string }) {
+  return (
+    <div className="mb-3 rounded-xl border border-amber-300/25 bg-amber-400/10 px-2.5 py-1.5 leading-relaxed">
+      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-200/90">Skill Tingkat Dewa</span>
+      <span className="text-white/75 text-[11px]"> · {GOD_SKILL[id]}</span>
+    </div>
+  )
+}
 
 /* Warna aksen versi TERANG — terbaca di atas glass gelap */
 const BRIGHT: Record<string, string> = {
@@ -391,6 +415,7 @@ function EmployeeCard({ m, open, onToggle, live }: { m: TeamMember; open: boolea
             <span className="text-white/70"><b className="text-white/85">Jam kerja:</b> {m.shift}</span>
             <span className="text-white/70"><b className="text-white/85">Data yang dibaca:</b> {m.baca}</span>
             <span className="text-white/70"><b className="text-white/85">Model AI:</b> {m.model}</span>
+            <span className="text-white/70"><b className="text-amber-300">Skill tingkat dewa:</b> {GOD_SKILL[m.id]}</span>
           </div>
 
           <div className="rounded-xl px-2.5 py-2" style={{ background: `${bright}0d`, border: `1px solid ${bright}33` }}>
@@ -650,6 +675,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-teal-200 mb-0.5">RUANG RAPAT</div>
               <div className="text-white/50 text-[11px] mb-3">CEO Suite · Briefing &amp; kontrol utama</div>
+              <GodChip id="CEO" />
               <div className="flex flex-wrap gap-1.5">
                 <button className={BTN} disabled={busy} onClick={() => call('briefing', 'POST')}>{busy ? 'Jalan...' : 'Briefing + Discord'}</button>
                 <button className={BTN} onClick={() => call('briefing-last')}>Briefing Terakhir</button>
@@ -727,6 +753,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-teal-300 mb-0.5">RUANG CTO</div>
               <div className="text-white/50 text-[11px] mb-3">IT &amp; QA · Monitor sistem, bug &amp; tes fitur otomatis</div>
+              <GodChip id="CTO" />
               {cto ? (
                 <div>
                   <div className="flex gap-2.5 items-center">
@@ -821,6 +848,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-pink-300 mb-0.5">RUANG CSO</div>
               <div className="text-white/50 text-[11px] mb-3">Customer Success · User, email retensi &amp; riset churn</div>
+              <GodChip id="CSO" />
               {cso ? (
                 <div>
                   <div className="grid grid-cols-3 gap-1.5 text-center">
@@ -923,6 +951,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-violet-300 mb-0.5">RUANG CMO</div>
               <div className="text-white/50 text-[11px] mb-3">Marketing &amp; Copywriter AI · Draf TikTok</div>
+              <GodChip id="CMO" />
               {cmo ? (
                 <div>
                   {cmoDrafts.length > 1 ? (
@@ -986,6 +1015,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-amber-300 mb-0.5">RUANG CFO</div>
               <div className="text-white/50 text-[11px] mb-3">API Quota Manager · Anti-429 Gemini Vision</div>
+              <GodChip id="CFO" />
               {cfo ? (
                 <div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1036,6 +1066,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-emerald-300 mb-0.5">RUANG COO</div>
               <div className="text-white/50 text-[11px] mb-2.5">Jualan &amp; Monetisasi · Hot lead → email tawaran PRO (ACC dulu, baru kirim)</div>
+              <GodChip id="COO" />
               <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
                 <b>Target:</b> free user paling aktif 7 hari (udah ketagihan, tinggal ditawarin upgrade)<br />
                 <b>Cron</b> harian 08:00 WIB · <b>Anti-spam:</b> 1 lead maks 1x per 7 hari<br />
@@ -1102,6 +1133,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-cyan-300 mb-0.5">RUANG DATA ANALYST</div>
               <div className="text-white/50 text-[11px] mb-3">Dewi · Pola trading user → insight &amp; rekomendasi</div>
+              <GodChip id="DA" />
               {da ? (
                 <div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1155,6 +1187,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
               <div className="text-[15px] font-bold text-orange-300 mb-0.5">RUANG GROWTH</div>
               <div className="text-white/50 text-[11px] mb-3">Farhan · Funnel nyata → 3 eksperimen pertumbuhan</div>
+              <GodChip id="GH" />
               {gh ? (
                 <div>
                   {gh.funnel && (
