@@ -463,7 +463,14 @@ function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
      tiap ±5 menit. Dulu tampil "⚠️ Pengecekan GAGAL" → Bos kira alertnya
      error/padahal normal (foto Bos 2026-11-07). Sekarang: pesan ramah. */
   if (tj?.engineDeferred) {
-    return { kind: 'ok', text: '✅ Alert AKTIF 24 jam! Pengecekan langsung memang tidak tersedia di server produksi — skrip kamu dievaluasi runner eksternal tiap ±5 menit, dan notifikasi Entry/SL/TP otomatis masuk ke layar HP begitu ada sinyal. Tidak perlu lakukan apa-apa lagi.' }
+    /* FIX lanjutan (foto Bos 7 Nov): server produksi sekarang TETAP
+       mengirim push tes 🧪 walau engine tidak bisa jalan (codegen
+       dinonaktifkan Cloudflare) — pesan menyebut itu supaya Bos tahu
+       jalur Pine→HP-nya sudah TERBUKTI, bukan sekadar janji. */
+    const tes = tj?.testMessage
+      ? ' Tes push 🧪 juga baru saja dikirim ke layar HP kamu — cek sekarang.'
+      : ''
+    return { kind: 'ok', text: `✅ Alert AKTIF 24 jam! Pengecekan langsung memang tidak tersedia di server produksi — skrip kamu dievaluasi runner eksternal tiap ±5 menit, dan notifikasi Entry/SL/TP otomatis masuk ke layar HP begitu ada sinyal.${tes} Tidak perlu lakukan apa-apa lagi.` }
   }
   if (tj?.ok === false || tj?.error) {
     return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi otomatis.` }

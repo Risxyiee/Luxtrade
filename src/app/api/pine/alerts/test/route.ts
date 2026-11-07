@@ -96,12 +96,18 @@ export async function POST(request: NextRequest) {
        Dulu: run gagal (candle kosong / engine error) tetap 200 ok → UI
        menampilkan "✅ Berjalan normal — belum ada sinyal" padahal
        TIDAK ADA pengecekan yang jalan (keluhan Bos: tes tidak
-       muncul apa-apa). Sekarang: error = HTTP 502 + alasan jelas. */
-    if (!out.ok) {
+       muncul apa-apa). Sekarang: error = HTTP 502 + alasan jelas.
+       PENGECUALIAN engineDeferred (produksi Cloudflare Workers tanpa
+       codegen): BUKAN kegagalan alert — evaluasi skrip didelegasikan
+       ke runner eksternal GHA (Node penuh, tiap ±5 menit). Dulu ini
+       502 + pesan panjang → Bos kira alertnya error (foto 7 Nov:
+       "⚠️ Pengecekan GAGAL: Engine Pine tidak bisa berjalan…").
+       Sekarang: dianggap sukses + push TES 🧪 di langkah 6 tetap
+       dikirim → jalur Pine→HP terbukti langsung dari produksi. */
+    if (!out.ok && !out.engineDeferred) {
       return NextResponse.json({
         ok: false,
         error: out.error || 'Evaluasi alert gagal',
-        engineDeferred: !!out.engineDeferred,
         candleSource: out.candleSource,
         evaluatedAt: new Date().toISOString(),
       }, { status: 502 })
@@ -116,11 +122,13 @@ export async function POST(request: NextRequest) {
        cron 5 menit tidak akan terganggu).
        JUJUR: push gagal/belum diaktifkan dilaporkan apa adanya. */
     let testMessage = false
-    if (out.ok && out.sent === 0) {
+    if (out.engineDeferred || (out.ok && out.sent === 0)) {
       const nTrig = out.triggers.length
-      const note = nTrig > 0
-        ? `ada ${nTrig} sinyal di bar ini tapi sudah pernah dikirim (dedupe anti-spam per-bar)`
-        : 'belum ada sinyal di bar terakhir — alert tetap berjalan otomatis 24 jam (GHA tiap 5 menit + cron CF tiap 15 menit)'
+      const note = out.engineDeferred
+        ? 'alert aktif 24 jam — evaluasi skrip dijalankan runner eksternal tiap ±5 menit, sinyal Entry/SL/TP masuk otomatis ke layar HP begitu ada'
+        : nTrig > 0
+          ? `ada ${nTrig} sinyal di bar ini tapi sudah pernah dikirim (dedupe anti-spam per-bar)`
+          : 'belum ada sinyal di bar terakhir — alert tetap berjalan otomatis 24 jam (GHA tiap 5 menit + cron CF tiap 15 menit)'
       const push = await pushToUser(supabase, userId, {
         title: '🧪 Tes Alert LuxTradee — Berhasil',
         body: `📐 ${script.name} · ${symbol} (${interval}) · ${out.candleSource || 'server'}. ${note}.`,
@@ -154,7 +162,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      ok: out.ok,
+      ok: true,
+      engineDeferred: !!out.engineDeferred,
       error: out.error,
       triggers: out.triggers.map((t) => ({ signal: t.signal, price: t.price, time: t.time, message: t.message })),
       sent: out.sent,

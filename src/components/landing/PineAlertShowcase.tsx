@@ -170,12 +170,8 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
   /* state live: candle selesai + candle yang sedang terbentuk */
   const done = Math.min(Math.floor(tick / TICKS_PER_CANDLE), candles.length)
   const prog = ((tick % TICKS_PER_CANDLE) + 1) / TICKS_PER_CANDLE
-  /* wobble deterministik per tick (seed+tick) — harga "berdenyut" live */
-  const wobY = tick > 0 && done < candles.length
-    ? (mulberry32((seed ^ Math.imul(tick, 2654435761)) >>> 0)() - 0.5) * 7
-    : 0
   const view: Array<Candle & { live?: boolean }> = candles.slice(0, done).map((c) => ({ ...c }))
-  if (done < candles.length) view.push({ ...liveCandle(candles[done], prog, wobY), live: true })
+  if (done < candles.length) view.push({ ...liveCandle(candles[done], prog, tick, seed), live: true })
   const last = view[view.length - 1]
   const lpBull = last ? last.c < last.o : true // y kecil = harga tinggi → bullish
   const lpY = last ? last.c : RES_Y
@@ -443,8 +439,8 @@ const VOL_BASE = 372   // garis dasar bar volume
 
 /* Live tick engine: 6 tick per candle × 15 candle. 15×6×63ms ≈ 5.7s →
    timing flash breakout (5.7s), indikator (5.3s) & push notif (6.9s)
-   tetap sinkron — tapi tiap candle terbentuk lebih halus (6 langkah
-   vs 5) dan total durasi sama persis dgn sebelumnya. */
+   tetap sinkron — tiap candle terbentuk 6 langkah dgn path bridge
+   noise + wick flicker (lihat liveCandle). */
 const TICK_MS = 63
 const TICKS_PER_CANDLE = 6
 const PRE_COUNT = 14
@@ -506,18 +502,39 @@ function genCandles(rnd: () => number): Candle[] {
   return cs
 }
 
-/* Candle yang sedang TERBENTUK: body tumbuh open→close dengan EASE-OUT
-   (cepat lalu menurun — dulu linear = kaku), wick memanjang bertahap,
-   volume menumpuk, plus WOBBLE — getaran harga naik-turun kecil khas
-   tick sungguhan (memudar mendekati close supaya hasil akhir akurat). */
-function liveCandle(c: Candle, prog: number, wobY = 0): Candle {
+/* Candle yang sedang TERBENTUK — gerakan tick ala chart asli (dipoles
+   permintaan Bos: "lumayan tapi dipoles dikit untuk candle & gerakannya"):
+   - PATH: ease-out open→close + BRIDGE NOISE — derau acak yang meluruh
+     ke 0 saat candle close (price bridge sungguhan: harga boleh
+     menyimpang di tengah jalan tapi SELALU sampai di close).
+   - VOLATILITAS PER-CANDLE: body besar (apalagi breakout) → tick
+     lebih liar; candle doji → tick tenang. Ala volatility cluster.
+   - WICK FLICKER: tick yang mendorong lebih tinggi/rendah memanjangkan
+     sumbu sesaat — tapi TIDAK PERNAH melewati wick final datanya.
+   - VOLUME: menumpuk tidak rata (ada tick sepi & sibuk) ala order flow.
+   Semua deterministik (seed+tick) → SSR/hidrasi aman, gerak beda tiap
+   siklus (seed baru per remount). */
+function liveCandle(c: Candle, prog: number, tick: number, seed: number): Candle {
   const pe = 1 - (1 - prog) * (1 - prog) // ease-out
-  const env = Math.sin(Math.PI * prog) // 0 di ujung → wobble hilang saat close
-  const base = c.o + (c.c - c.o) * pe
-  const wt = Math.min(c.o, base) - (Math.min(c.o, base) - c.wt) * pe
-  const wb = Math.max(c.o, base) + (c.wb - Math.max(c.o, base)) * pe
-  const cur = Math.min(wb, Math.max(wt, base + wobY * env))
-  return { x: c.x, o: c.o, c: cur, wt, wb, vol: c.vol * prog }
+  const env = Math.sin(Math.PI * prog) // 0 di ujung → derau hilang saat close
+  /* RNG per-tick deterministik — 3 putaran: path, flicker, volume */
+  const rr = mulberry32((seed ^ Math.imul(tick + 1, 2654435761)) >>> 0)
+  const n1 = rr() - 0.5
+  const n2 = rr()
+  const n3 = rr()
+  /* volatilitas ikut tubuh candle (px) — breakout jauh lebih hidup */
+  const vola = 2.0 + Math.min(9, Math.abs(c.c - c.o) * 0.14)
+  const base = c.o + (c.c - c.o) * pe + n1 * 2 * vola * (1 - pe) * env
+  /* wick live: tumbuh ease-out + flicker per-tick (clamp ke wick final) */
+  const bodyTop = Math.min(c.o, base)
+  const bodyBot = Math.max(c.o, base)
+  const fUp = Math.max(0, n2 - 0.55) * 5.2 * env
+  const fDn = Math.max(0, 0.45 - n2) * 5.2 * env
+  const wt = Math.max(c.wt, bodyTop - (bodyTop - c.wt) * pe - fUp)
+  const wb = Math.min(c.wb, bodyBot + (c.wb - bodyBot) * pe + fDn)
+  const cur = Math.min(wb, Math.max(wt, base))
+  const vol = Math.min(c.vol, c.vol * prog * (0.82 + n3 * 0.36))
+  return { x: c.x, o: c.o, c: cur, wt, wb, vol }
 }
 
 const BULL = '#34d399'

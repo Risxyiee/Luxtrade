@@ -63,6 +63,19 @@ const MIN_GAP_MS = 20 * 60 * 60 * 1000
 /** Window jam WIB yang diizinkan: 19 dan 20 (permintaan Bos: jam 19–20). */
 const WINDOW_HOURS_WIB = [19, 20]
 
+/** 19:00 WIB berikutnya (≥ after) — 19:00 WIB = 12:00 UTC.
+ *  Sabtu/Minggu DILEWATI (permintaan Bos: "sabtu minggu libur") —
+ *  video buatan Jumat yang telat dieksekusi Sabtu dini hari tetap
+ *  tayang Senin 19:00 WIB, bukan Sabtu/Minggu. */
+function nextWindowStartWib(after: Date = new Date()): Date {
+  const d = new Date(
+    Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate(), 12, 0, 0)
+  )
+  if (d.getTime() <= after.getTime()) d.setUTCDate(d.getUTCDate() + 1)
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1)
+  return d
+}
+
 async function isAuthorized(request: NextRequest): Promise<boolean> {
   const provided = request.headers.get('authorization')?.replace('Bearer ', '')
     || request.headers.get('x-cron-secret') || ''
@@ -215,14 +228,19 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  /* ── 3) MODE AUTO: window 19–20 WIB + cadence 1x/hari (kecuali force) ── */
+  /* ── 3) MODE AUTO: window 19–20 WIB + cadence 1x/hari (kecuali force) ──
+     FIX "auto post IG error" (lanjutan 2026-11-07): GHA TERBUKTI telat
+     2 hari beruntun (jadwal 19:10 WIB dieksekusi 02:18 & 02:52 WIB).
+     Dulu: di luar window → skip → video hasil render (±2 menit CPU
+     runner) DIBUANG → antrean kosong terus → IG tak pernah kebagian
+     konten. Sekarang video TIDAK PERNAH dibuang: di luar window /
+     cadence → masuk antrean dgn scheduled_for = window 19:00 WIB
+     berikutnya (lewati Sabtu/Minggu) yang memenuhi jeda 20 jam —
+     ig-auto-post (09:00/19:00/20:30 WIB) yang publish saat jatuh tempo. */
   const hourAuto = wibHourNow()
-  if (!force && !WINDOW_HOURS_WIB.includes(hourAuto)) {
-    return NextResponse.json({
-      ok: true,
-      skipped: `di luar window posting (${hourAuto}:00 WIB — jadwal 19:00–20:59 WIB)`,
-    })
-  }
+  const inWindow = force || WINDOW_HOURS_WIB.includes(hourAuto)
+
+  let lastMs: number | null = null
   if (!force) {
     const { data: recent } = await admin
       .from('instagram_posts')
@@ -231,15 +249,59 @@ export async function POST(request: NextRequest) {
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(1)
-    const lastMs = recent?.[0]?.published_at ? Date.parse(recent[0].published_at) : null
-    if (lastMs && Date.now() - lastMs < MIN_GAP_MS) {
-      const jamLalu = ((Date.now() - lastMs) / 3_600_000).toFixed(1)
-      return NextResponse.json({
-        ok: true,
-        skipped: `cadence 1x/hari (jeda 20 jam) — Reels terakhir baru ${jamLalu} jam lalu`,
-        nextEligibleAt: new Date(lastMs + MIN_GAP_MS).toISOString(),
+    lastMs = recent?.[0]?.published_at ? Date.parse(recent[0].published_at) : null
+  }
+  const cadenceOk = force || lastMs === null || Date.now() - lastMs >= MIN_GAP_MS
+
+  if (inWindow && cadenceOk) {
+    /* Di window + cadence aman → publish inline sekarang (lanjut ke bawah) */
+  } else {
+    /* Jadwalkan — konten disimpan, bukan dibuang */
+    const cadenceMs = lastMs ? lastMs + MIN_GAP_MS : 0
+    const base = nextWindowStartWib()
+    const schedMs = cadenceMs > base.getTime()
+      ? nextWindowStartWib(new Date(cadenceMs)).getTime()
+      : base.getTime()
+    const alasan = !inWindow
+      ? `di luar window (${hourAuto}:00 WIB — jadwal 19:00–20:59 WIB)`
+      : `cadence 1x/hari (jeda 20 jam — Reels terakhir ${((Date.now() - (lastMs || 0)) / 3_600_000).toFixed(1)} jam lalu)`
+    const { data: sched, error: schedErr } = await admin
+      .from('instagram_posts')
+      .insert({
+        media_type: 'REELS',
+        video_url: videoUrl,
+        caption,
+        status: 'pending',
+        source: 'sinta-video',
+        meta: {
+          template: body?.template || 'reels',
+          hook: body?.hook || '',
+          renderBy: 'sinta (cmo) — remotion 9:16',
+          scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
+          scheduleNote: `runner ${alasan} → video dijadwalkan (tidak dibuang) — window 19–21 WIB, libur Sabtu/Minggu`,
+        },
+        scheduled_for: new Date(schedMs).toISOString(),
       })
+      .select('id')
+      .single()
+    if (schedErr || !sched) {
+      return NextResponse.json({
+        error: `Gagal simpan antrean terjadwal (jalankan migrasi 037 + 038 di Supabase?): ${schedErr?.message || '?'}`,
+      }, { status: 500 })
     }
+    await sendAdminNotification(
+      `📸⏰ <b>Sinta: Reels dijadwalkan (runner di luar window — video tidak hangus)</b>\n` +
+      `Alasan: ${alasan}\n` +
+      `🗓️ Tayang: ${new Date(schedMs).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB\n` +
+      `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
+    ).catch(() => {})
+    return NextResponse.json({
+      ok: true,
+      queued: true,
+      scheduledFor: new Date(schedMs).toISOString(),
+      reason: alasan,
+      note: 'Video masuk antrean dgn jadwal — cron ig-auto-post (09:00/19:00/20:30 WIB) yang mempublish saat jatuh tempo.',
+    })
   }
 
   try {
