@@ -651,7 +651,7 @@ export default function KantorCeo3D() {
         const tgt=38+PROJ.done*2+(C.brk?-9:0)+(INC.active?-14:0)+Math.sin(C.min/230)*7
         SITE.vis+=(tgt-SITE.vis)*.06+rnd(-1.1,1.1);SITE.vis=clamp(SITE.vis,3,240)
         SITE.day=Math.max(0,SITE.day+rnd(.2,.9)+(INC.active?-1:0))
-        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m<420||m>=960?'Lembur 24/7 — tetap kerja':C.brk?'Istirahat siang':m>=840?'Mode fokus sore':'Jam kerja'),tot=projTot()
+        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m<420||m>=960?'Lembur 24/7 — tetap kerja':C.brk?'Jam istirahat dilewati — tetap kerja':m>=840?'Mode fokus sore':'Jam kerja'),tot=projTot()
         g.fillStyle='#04120c';g.fillRect(0,0,1024,512);g.fillStyle='#0a2a1d';g.fillRect(0,0,1024,84)
         g.fillStyle='#10f5a0';g.font='bold 40px system-ui,sans-serif';g.fillText('PAPAN KINERJA KANTOR LUXTRADE',32,56)
         g.fillStyle='#9fb3ad';g.font='32px system-ui,sans-serif';g.fillText('Harga Emas (XAUUSD)',32,140)
@@ -898,7 +898,7 @@ export default function KantorCeo3D() {
         if(C.live){const w=new Date(Date.now()+25200000);C.min=w.getUTCHours()*60+w.getUTCMinutes()+w.getUTCSeconds()/60}else{C.min+=dt*C.speed;if(C.min>=1440)C.min=420 /* siklus penuh 24 jam — shift malam ikut tampil */}
         const b=C.min>=660&&C.min<780
         if(b!==C.brk){C.brk=b;C.at=performance.now()
-          showToast(b?' 11:00 — Istirahat siang, tim ke pantry satu per satu':'13:00 — Istirahat selesai, kembali kerja')}
+          showToast(b?' 11:00 — Jam istirahat DILEWATI: mode lembur 24/7, tim tetap di meja':'13:00 — Jam istirahat selesai (dilewati) — tim tidak pernah bergerak dari meja')}
         if(!INC.active&&C.min>INC.next){
           if(E[0].stage==='seated'&&E[4].stage==='seated'){ /* insiden 24/7 — juga tengah malam */
             INC.active=true;const R0=E[0]
