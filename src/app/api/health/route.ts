@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getLLMChainStatus } from '@/lib/ai-llm'
+import { getLLMChainStatus, getLastLLMDiag } from '@/lib/ai-llm'
 
 /**
  * GET /api/health — health check PUBLIK (dipakai uptime monitor + probe
@@ -11,6 +11,13 @@ import { getLLMChainStatus } from '@/lib/ai-llm'
  * kehadiran konfigurasi, supaya Bos bisa verifikasi dari luar bahwa
  * secret baru (mis. MORTERA_API_KEY di Cloudflare) benar-benar terbaca
  * tanpa harus membuka dashboard.
+ *
+ * 8 Nov 2026 (v2): tambah `lastDiag` — catatan rotasi panggilan callLLM
+ * TERAKHIR (model dicoba, HTTP status, auto-discover, cooldown). Inilah
+ * jawaban "kok karyawan jatuh ke templat?" TANPA harus login: kalau ada
+ * baris `mortera model claude-haiku-5.5 mati → coba cadangan` berarti
+ * model-ID salah (auto-discover langsung menyembuhkan); `402` = saldo;
+ * `429` = rate-limit. Tanpa nilai key / data user — aman publik.
  */
 export async function GET() {
   let llm: { provider: string; ok: boolean; reason?: string }[] | null = null
@@ -19,6 +26,8 @@ export async function GET() {
     // llm: null artinya "diagnostik tidak tersedia", bukan "down".
     llm = await getLLMChainStatus()
   } catch { /* diagnostik opsional */ }
+  let lastDiag: string[] = []
+  try { lastDiag = getLastLLMDiag() } catch { /* diagnostik opsional */ }
 
   return NextResponse.json({
     status: 'healthy',
@@ -26,5 +35,6 @@ export async function GET() {
     version: '2.0',
     message: 'Server is running',
     llm,
+    lastDiag: lastDiag.length ? lastDiag : ['(belum ada panggilan LLM di isolate ini)'],
   })
 }

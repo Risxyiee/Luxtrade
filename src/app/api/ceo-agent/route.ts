@@ -24,6 +24,7 @@
 // (fetch, AbortController, Intl) Workers-compatible.
 import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
+import { callMorteraDirect } from '@/lib/ai-llm'
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
@@ -701,59 +702,20 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
 
 /* ============================================================
    MORTERA CLOUD — otak TINGKAT DEWA semua karyawan (prioritas 1).
-   Claude Haiku 5.5 (Rp 394 in / Rp 1.182 out per 1M token) →
-   Claude Sonnet 5.5 → GPT-6.1 Terra. OpenAI-compatible:
-   https://mortera.cloud/v1/chat/completions — key dari secret
-   MORTERA_API_KEY (senada dengan rantai callLLM di src/lib/ai-llm.ts).
-   401/402/403 = key mati/dompet kosong → cooldown 60 mnt in-memory →
-   rantai OpenRouter langsung takeover — karyawan tidak pernah manggung.
-   Tanpa key → langsung lompat ke OpenRouter, perilaku lama 100% utuh.
+   Kini DELEGASI ke callMorteraDirect di src/lib/ai-llm.ts — dapat SEMUA
+   perlakuan hardened rantai callLLM: 404/400 → model cadangan →
+   AUTO-DISCOVER GET /models (model-ID salah menyembuhkan DIRI tanpa
+   deploy — dulu inilah penyebab "semua karyawan jadi templat"),
+   429 → cooldown 10 mnt, 401/402/403 → cooldown 60 mnt.
+   Gagal seluruhnya → rantai OpenRouter lama takeover mulus.
    ============================================================ */
-const MORTERA_CHAT_URL = 'https://mortera.cloud/v1/chat/completions'
-const MORTERA_CHAIN = ['claude-haiku-5.5', 'claude-sonnet-5.5', 'gpt-6.1-terra']
-const MORTERA_COOLDOWN_MS = 60 * 60 * 1000
-let morteraSickUntil = 0
-
 async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, maxTokens: number, temperature: number): Promise<{ text: string; model: string }> {
   const key = cfSecret(e, 'MORTERA_API_KEY')
   if (!key) throw new Error('MORTERA_API_KEY belum diset — kantor tetap jalan pakai rantai OpenRouter (dorman, bukan error)')
-  if (Date.now() < morteraSickUntil) throw new Error(`Mortera cooldown ±${Math.ceil((morteraSickUntil - Date.now()) / 60000)} mnt — key/dompet bermasalah, rantai cadangan takeover`)
-  let lastErr = '', hardStop = false
-  for (const model of MORTERA_CHAIN) {
-    try {
-      const res = await fetch(MORTERA_CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: maxTokens,
-          temperature,
-        }),
-        signal: timeoutSignal(45_000),
-      })
-      if (!res.ok) {
-        lastErr = `mortera ${model} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 120)}`
-        /* key invalid / saldo habis / diblokir → jangan buang 2 percobaan sisanya */
-        if ([401, 402, 403].includes(res.status)) hardStop = true
-        continue
-      }
-      const result: any = await res.json()
-      /* model reasoning kadang menaruh teks di `reasoning` dengan `content` kosong */
-      const msg = result?.choices?.[0]?.message || {}
-      const text = String(msg.content ?? msg.reasoning ?? '').trim()
-      if (!text) { lastErr = `mortera ${model} → respons kosong`; continue }
-      return { text, model }
-    } catch (x: any) {
-      lastErr = `mortera ${model} → ${String(x?.message || x).slice(0, 120)}`
-    }
-    if (hardStop) break
-  }
-  if (hardStop) morteraSickUntil = Date.now() + MORTERA_COOLDOWN_MS
-  throw new Error(lastErr || 'Mortera: semua model gagal')
+  const notes: string[] = []
+  const r = await callMorteraDirect(systemPrompt, userPrompt, maxTokens, notes, temperature)
+  if (!r) throw new Error(notes.length ? notes.join(' | ').slice(0, 300) : 'Mortera: semua model gagal')
+  return { text: r.text, model: r.model }
 }
 
 /* Otak Multi-Agent — PRIORITAS 1 MORTERA (Claude Haiku 5.5) → model resmi
@@ -767,22 +729,39 @@ async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, max
    Kalau OpenRouter mati total → laporan tetap terkirim pakai templat statis.
    Set LLM_GEMINI_FALLBACK=1 di Cloudflare untuk mengaktifkan kembali
    fallback Gemini secara sengaja. */
+/* Diagnosa TERAKHIR agentBrain — disimpan ke agent_kv `brain:diag` DAN
+   tampil di action=info (PUBLIK, tanpa secret — isinya cuma provider/model
+   + alasan gagal). Tujuan: Bos bisa lihat DARI LUAR kenapa karyawan jatuh
+   ke templat — tanpa login, tanpa wrangler tail, dan TIDAK hilang saat
+   isolate Workers berganti (in-memory saja terlalu rapuh). */
+let lastBrainDiag: { at: string; agent: string; hasil: string } | null = null
+
+function recordBrainDiag(e: Env, agent: string, hasil: string): void {
+  lastBrainDiag = { at: new Date().toISOString(), agent, hasil }
+  /* fire-and-forget: diagnostik tidak boleh menggagalkan agen */
+  kvSet(e, 'brain:diag', JSON.stringify(lastBrainDiag)).catch(() => {})
+}
+
 async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'mortera' | 'openrouter' | 'gemini'; model: string }> {
   let err = ''
   /* PRIORITAS 1 — MORTERA (Claude Haiku 5.5): otak baru SEMUA karyawan kantor.
      Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus. */
   try {
     const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature)
+    recordBrainDiag(e, agent, `mortera ✅ ${m.model}`)
     return { ...m, provider: 'mortera' }
   } catch (x: any) {
-    err = '[Mortera] ' + String(x?.message || x).slice(0, 120)
+    err = '[Mortera] ' + String(x?.message || x).slice(0, 220)
+    recordBrainDiag(e, agent, 'mortera ❌ → ' + err)
     console.error(`[agentBrain:${agent}] Mortera gagal — lanjut rantai OpenRouter:`, err)
   }
   try {
     const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature)
+    recordBrainDiag(e, agent, `openrouter ✅ ${r.model} (mortera gagal: ${err.slice(0, 160)})`)
     return { ...r, provider: 'openrouter' }
   } catch (x: any) {
     err = String(x?.message || x).slice(0, 140)
+    recordBrainDiag(e, agent, 'openrouter ❌ → ' + err)
     /* Task 33: jejak log server — agen mana yang gagal & penyebabnya */
     console.error(`[agentBrain:${agent}] OpenRouter gagal, mencoba jalur cadangan:`, err)
   }
@@ -3414,9 +3393,16 @@ async function handle(req: Request): Promise<Response> {
         return last ? j({ gh: JSON.parse(last) }) : j({ gh: null })
       } catch { return j({ gh: null }) }
     }
-    default:
+    default: {
+      /* Diagnosa otak karyawan: in-memory dulu (isolate hangat), kalau kosong
+         baca dari agent_kv `brain:diag` (persist antar-isolate). Publik. */
+      let diag = lastBrainDiag
+      if (!diag) {
+        try { const raw = await kvGet(e, 'brain:diag'); if (raw) diag = JSON.parse(raw) } catch { /* opsional */ }
+      }
       return j({
         app: 'Luxtrade Super AI Agent — Multi-Agent (SOP: tiap karyawan model OpenRouter sendiri)',
+        brainDiag: diag || { at: null, agent: null, hasil: 'belum ada panggilan sejak deploy terakhir' },
         models: {
           COO_Bagas: AGENT_MODELS.coo,
           CTO_Raka: AGENT_MODELS.cto,
@@ -3455,6 +3441,7 @@ async function handle(req: Request): Promise<Response> {
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
+    }
   }
 }
 

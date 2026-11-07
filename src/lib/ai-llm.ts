@@ -251,10 +251,11 @@ async function callOpenAICompatible(
   userPrompt: string,
   maxTokens: number,
   notes: string[],
+  temperature = 0.8,
 ): Promise<LLMResult | null> {
   let sawModel404 = false
   for (const model of models) {
-    const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes)
+    const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature)
     if (r.ok && r.result) return r.result
     if (r.hardStop) return null
     if (r.model404) sawModel404 = true
@@ -267,7 +268,7 @@ async function callOpenAICompatible(
     if (fresh.length) {
       notes.push(`${label} auto-discover kandidat: ${fresh.join(', ')}`)
       for (const alt of fresh) {
-        const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
+        const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes, temperature)
         if (r.ok && r.result) return r.result
         if (r.hardStop) return null
       }
@@ -287,6 +288,7 @@ async function callOpenAIModel(
   userPrompt: string,
   maxTokens: number,
   notes: string[],
+  temperature = 0.8,
 ): Promise<{ ok: boolean; result?: LLMResult; hardStop?: boolean; model404?: boolean }> {
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -302,7 +304,7 @@ async function callOpenAIModel(
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.8,
+        temperature,
         // Reasoning model (gpt-oss dll) butuh budget besar — reasoning-nya
         // memakan token sebelum content, kalau kecil → content kosong.
         max_tokens: Math.max(maxTokens, 4000),
@@ -386,6 +388,25 @@ const morteraScore = (id: string) => {
 
 async function callMortera(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
   return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes)
+}
+
+/** Panggil Mortera LANGSUNG — tanpa rotasi ke provider lain. Untuk route yang
+ * punya rantai cadangan sendiri (ceo-agent agentBrain). Dapat SEMUA perlakuan
+ * hardened rantai callLLM: 404/400 → model cadangan → AUTO-DISCOVER GET /models
+ * (menyembuhkan model-ID salah tanpa deploy), 429 → cooldown 10 mnt,
+ * 401/402/403 → cooldown 60 mnt. Null = gagal — notes berisi alasan tiap
+ * percobaan (tampilkan supaya 'jatuh ke templat' SELALU ada penjelasannya). */
+export async function callMorteraDirect(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 1024,
+  notes: string[] = [],
+  temperature = 0.8,
+): Promise<LLMResult | null> {
+  const key = await getMorteraKey()
+  if (!key) { notes.push('mortera: MORTERA_API_KEY belum diset — lompat ke rantai cadangan'); return null }
+  if (isCool('mortera')) { notes.push(`mortera dilompati — ${coolReason('mortera')}`); return null }
+  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature)
 }
 
 async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
