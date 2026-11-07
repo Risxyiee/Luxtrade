@@ -62,21 +62,24 @@ const TD_SYMBOLS: Record<string, string> = {
   US100: 'NDX',
   /* CRYPTO (permintaan Bos 7 Nov: "chart dari twelve khusus forex ga ada
      crypto") — Twelve Data melayani crypto lewat endpoint /time_series
-     YANG SAMA dgn format simbol "BASE/QUOTE" (BTC/USDT dkk), free tier
-     termasuk crypto. Satu skala konsisten dgn forex TD → chart crypto
-     tidak lagi campur skala Yahoo (BTC-USD)↔overlay Binance USDT.
-     Kalau simbol tidak tersedia di plan/key → TD balas error → cooldown
-     60 dtk → fallback Yahoo seperti sebelumnya (NOL regresi). */
-  BTCUSDT: 'BTC/USDT',
-  ETHUSDT: 'ETH/USDT',
-  SOLUSDT: 'SOL/USDT',
-  XRPUSDT: 'XRP/USDT',
-  DOGEUSDT: 'DOGE/USDT',
-  ADAUSDT: 'ADA/USDT',
-  LTCUSDT: 'LTC/USDT',
-  BNBUSDT: 'BNB/USDT',
-  LINKUSDT: 'LINK/USDT',
-  AVAXUSDT: 'AVAX/USDT',
+     YANG SAMA. PENTING (terbukti di produksi 7 Nov): plan/key TD ini
+     MENOLAK pair USDT (BTC/USDT → error → cooldown → Yahoo), tapi pair
+     USD lulus (XAUUSD tetap twelvedata sementara BTCUSDT yahoo) — makanya
+     mapping pakai QUOTE USD (BTC/USD). Skala tetap akurat: selisih
+     BTC/USD (TD spot agregat) vs BTC/USDT (Binance, overlay live) cuma
+     ~0,05-0,2% (peg USDT) — jauh di bawah toleransi drift-guard 0,35%.
+     Kalau simbol tetap ditolak plan → fallback Yahoo seperti sebelumnya
+     (NOL regresi). */
+  BTCUSDT: 'BTC/USD',
+  ETHUSDT: 'ETH/USD',
+  SOLUSDT: 'SOL/USD',
+  XRPUSDT: 'XRP/USD',
+  DOGEUSDT: 'DOGE/USD',
+  ADAUSDT: 'ADA/USD',
+  LTCUSDT: 'LTC/USD',
+  BNBUSDT: 'BNB/USD',
+  LINKUSDT: 'LINK/USD',
+  AVAXUSDT: 'AVAX/USD',
 }
 
 /* ---------- Pemetaan interval ---------- */
