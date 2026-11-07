@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-05.1'
-const NOTES = 'Sinta Brain v4: 11 angle + 24 topik anti-kembar + A/B performa IG (ig-metrics 08:00 WIB) + fallback 7 script — solusi "kontennya itu-itu mulu"'
+const VERSION = '2026-11-07.1'
+const NOTES = 'Audit-fix karyawan sisa: Maya (cooldown 2-fase + segmen cold + learning loop), Bagas (sinyal open/click/bounce + segmen mantan-pembayar + eval konversi), Putri (tren MRR harian + renewal ≤7 hari), Dewi (memori + jam entry + pipa lintas divisi), Alexander (NBA accountability), suppression unsub/bounce 3 gerbang'
 
 export async function GET() {
   return NextResponse.json(
