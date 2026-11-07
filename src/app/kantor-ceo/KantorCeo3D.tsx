@@ -591,6 +591,21 @@ export default function KantorCeo3D() {
         box(1.15,.5,.08,bedM,bx,.4,11.8);box(.6,.1,.35,pilM,bx,.41,11.3);box(.98,.06,1.15,blnM,bx,.39,10.05)
         OBST.push({x:bx,z:10.7,hw:.6,hd:1.2})
         cyl(.05,.35,M('#3f3f46'),bx+.78,.18,11.45,scene);sph(.07,glow('#ffd9a0',1.4),bx+.78,.42,11.45,scene)}
+      /* MES TIDUR AI — mesin kapsul tidur (permintaan Bos). Merah menyala "SIAGA"
+         tapi TIDAK PERNAH dipakai: tim lembur 24/7, kasur sebelah pun kosong. */
+      const mesT=M('#2a1420',{roughness:.35,metalness:.4}),mesGlass=M('#ec4899',{roughness:.15,emissive:'#ec4899',emissiveIntensity:.75})
+      box(.95,1.35,1.5,mesT,-8,.68,10.9);box(.7,1.05,1.3,mesGlass,-8,1.15,10.9) /* kapsul + jendela menyala */
+      box(.95,.12,1.5,M('#111'),-8,1.42,10.9) /* tutup mesin */
+      sph(.045,glow('#22c55e',2.2),-8.42,1.1,9.98,scene) /* LED SIAGA hijau */
+      OBST.push({x:-8,z:10.9,hw:.55,hd:.85})
+      const msc=document.createElement('canvas');msc.width=512;msc.height=160;const msg=msc.getContext('2d')
+      msg.fillStyle='#140a12';msg.fillRect(0,0,512,160);msg.strokeStyle='#ec4899';msg.lineWidth=8;msg.strokeRect(4,4,504,152)
+      msg.fillStyle='#f9a8d4';msg.font='bold 44px system-ui';msg.textAlign='center';msg.fillText('MES TIDUR AI',256,58)
+      msg.fillStyle='#6ee7b7';msg.font='bold 30px monospace';msg.fillText('STANDBY 24/7 — tak pernah dipakai',256,104)
+      msg.fillStyle='#9ca3af';msg.font='22px monospace';msg.fillText('tim lebih suka lembur 😤',256,138)
+      const msT=new THREE.CanvasTexture(msc);msT.colorSpace=THREE.SRGBColorSpace
+      const msM=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.53),new THREE.MeshBasicMaterial({map:msT}))
+      msM.position.set(-8,2.05,10.55);msM.rotation.y=PI;scene.add(msM) /* marquee melayang di atas mesin, menghadap ruangan */
       neon('RUANG TIDUR AI',3,.7,44,-11.5,2.6,11.98,PI,'#ec4899')
       /* papan kecil: kasur cuma hiasan — tim tidak pernah pakai */
       const ntC=document.createElement('canvas');ntC.width=512;ntC.height=128;const ntg=ntC.getContext('2d')
