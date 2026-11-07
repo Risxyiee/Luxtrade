@@ -2,9 +2,18 @@
  * ============================================================
  * twelvedata — klien Twelve Data® time_series (SERVER-ONLY)
  * ============================================================
- * Sumber candle SPOT-grade untuk forex & logam (XAU/USD dkk) —
- * level harganya paling dekat dengan feed broker (OANDA/MT4/MT5)
- * dibanding Yahoo yang berbasis futures (GC=F/NQ=F).
+ * Sumber candle SPOT-grade untuk forex, logam (XAU/USD dkk) &
+ * CRYPTO (BTC/USDT dkk) — level harganya paling dekat dengan
+ * feed broker/exchange (OANDA/MT4/MT5/Binance) dibanding Yahoo
+ * yang berbasis futures (GC=F/NQ=F).
+ *
+ * CATATAN SDK (Bos minta cek github.com/twelvedata/twelvedata-node):
+ * SDK resmi @twelvedata/twelvedata-node bagus untuk proyek Node,
+ * TAPI bergantung paket `ws` (WebSocket Node.js) yang TIDAK JALAN
+ * di runtime Cloudflare Workers (workerd) — dan endpoint REST-nya
+ * (/time_series) identik dengan fetch murni di file ini. Jadi klien
+ * raw-fetch sendiri tetap dipakai (Workers-safe, sudah ada rate
+ * limiter + pagination + fallback), SDK tidak diinstal.
  *
  * ATURAN AMAN (tanpa risiko 401 di UI):
  *   - API key dibaca dari process.env.TWELVE_DATA_API_KEY.
@@ -18,6 +27,7 @@
  * Pemetaan simbol kanonik Luxtradee → Twelve Data:
  *   XAUUSD → XAU/USD, XAGUSD → XAG/USD (spot metal)
  *   EURUSD → EUR/USD, dst. (semua major di FOREX_SYMBOLS)
+ *   BTCUSDT → BTC/USDT, dst. (10 pair crypto — lihat TD_SYMBOLS)
  *   US100  → NDX (indeks; bila plan tidak mencakup → fallback
  *            Yahoo NQ=F yang level harganya setara Nasdaq 100.
  *            QQQ sengaja TIDAK dipakai — levelnya ~490 vs NDX ~21rb
@@ -50,6 +60,23 @@ const TD_SYMBOLS: Record<string, string> = {
   USDCAD: 'USD/CAD',
   USDCHF: 'USD/CHF',
   US100: 'NDX',
+  /* CRYPTO (permintaan Bos 7 Nov: "chart dari twelve khusus forex ga ada
+     crypto") — Twelve Data melayani crypto lewat endpoint /time_series
+     YANG SAMA dgn format simbol "BASE/QUOTE" (BTC/USDT dkk), free tier
+     termasuk crypto. Satu skala konsisten dgn forex TD → chart crypto
+     tidak lagi campur skala Yahoo (BTC-USD)↔overlay Binance USDT.
+     Kalau simbol tidak tersedia di plan/key → TD balas error → cooldown
+     60 dtk → fallback Yahoo seperti sebelumnya (NOL regresi). */
+  BTCUSDT: 'BTC/USDT',
+  ETHUSDT: 'ETH/USDT',
+  SOLUSDT: 'SOL/USDT',
+  XRPUSDT: 'XRP/USDT',
+  DOGEUSDT: 'DOGE/USDT',
+  ADAUSDT: 'ADA/USDT',
+  LTCUSDT: 'LTC/USDT',
+  BNBUSDT: 'BNB/USDT',
+  LINKUSDT: 'LINK/USDT',
+  AVAXUSDT: 'AVAX/USDT',
 }
 
 /* ---------- Pemetaan interval ---------- */
