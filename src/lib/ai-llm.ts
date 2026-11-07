@@ -48,13 +48,13 @@ export interface LLMResult {
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
-/* Mortera Cloud — kuda beban prioritas (deposit Rupiah Bos). Sesuai daftar
-   model yang TERSEDIA di form key (bukan halaman pricing — Haiku 5.5 &
-   Sonnet 5.5 tidak ada di katalog key): GPT-6.1 Terra (Rp 985/4.925 per 1M)
-   → Claude Sonnet 4.6 (Rp 2.955/14.775, satu-satunya Anthropic) → Gemini
-   3.8 Flash. Fable/Opus/uncensored SENGAJA di-veto (mahal / tidak perlu). */
-const MORTERA_MODEL = process.env.MORTERA_MODEL || 'gpt-6.1-terra'
-const MORTERA_FALLBACKS = ['claude-sonnet-4.6', 'gemini-3.8-flash']
+/* Mortera Cloud — kuda beban prioritas (deposit Rupiah Bos). Default:
+   Claude Haiku 5.5 (Rp 394/1.182 per 1M — termurah kelas Claude, ~Rp 63/hari
+   untuk volume karyawan) → Claude Sonnet 5.5 (Rp 2.955/14.775, premium)
+   → GPT-6.1 Terra (Rp 985/4.925). Fable/Opus SENGAJA di-veto (Rp 10rb-55rb
+   input per 1M — 25-140x Haiku, tidak ada tugas karyawan yang butuh). */
+const MORTERA_MODEL = process.env.MORTERA_MODEL || 'claude-haiku-5.5'
+const MORTERA_FALLBACKS = ['claude-sonnet-5.5', 'gpt-6.1-terra']
 /** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
 const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
@@ -376,12 +376,12 @@ async function callGroq(apiKey: string, systemPrompt: string, userPrompt: string
 
 /* ── MORTERA CLOUD (mortera.cloud/v1) ──────────────────────────────
    Gateway OpenAI-compatible billing Rupiah. Auto-discover pakai
-   morteraScore: prefer Terra/Sonnet-4.6/Flash (murah), HARD-VETO Fable/
-   Opus + katalog uncensored & image (mahal / tidak kita perlukan) supaya
+   morteraScore: prefer Haiku/Sonnet/Terra (murah), HARD-VETO Fable/Opus
+   + katalog uncensored & image (mahal / tidak kita perlukan) supaya
    fallback otomatis tidak pernah nyasar ke model mahal. */
 const morteraScore = (id: string) => {
   if (/fable|opus|uncensored|abliterated|image|video|embed|whisper|tts|nano ?banana|imagine/i.test(id)) return -100
-  return (/terra/i.test(id) ? 50 : 0) + (/sonnet/i.test(id) ? 30 : 0) + (/flash/i.test(id) ? 15 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
+  return (/haiku/i.test(id) ? 50 : 0) + (/sonnet/i.test(id) ? 30 : 0) + (/terra/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 10 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
 }
 
 async function callMortera(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
