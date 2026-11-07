@@ -55,7 +55,10 @@ jobs:
           node-version: 20
 
       - name: Install engine deps (vela-pinets + tsx)
-        run: npm install --no-save --no-audit --no-fund @luxalgo/vela-pinets@^0.3.0 tsx@^4
+        # FIX run 2026-11-07: "Cannot find package 'pinets'" — vela-pinets
+        # memakai peerDependencies (pinets + @luxalgo/vela) yang tidak
+        # ikut terpasang di runner → engine gagal load. Pasang eksplisit.
+        run: npm install --no-save --no-audit --no-fund @luxalgo/vela-pinets@^0.3.0 pinets@^0.13.1 @luxalgo/vela@^0.9.0 tsx@^4
 
       - name: Run Pine engine & report triggers
         env:
