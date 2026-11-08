@@ -837,7 +837,7 @@ export default function KantorCeo3D() {
         /* arr=0 & dep=1e9 — selalu hadir di kantor (tinggal di asrama kantor);
            jam tidur 22:00 → kasur personal, bangun 07:00 (permintaan Bos 8 Nov) */
         const S={pace:rnd(.85,1.15),fat:0,arr:0,dep:1e9,cfg,R,chair,mats,d,seatZ,x:d[0],z:seatZ,yaw:PI,sit:1,ch:0,speed:0,ph:rnd(0,6),wph:0,wp:[],stage:'seated',goal:false,delay:rnd(0,2000),sub:'deep',until:0,glow:1,chatWith:null,speaking:false,report:false,ret:false,reportT:0,spot:SPOTS[i]||SPOTS[4],
-          night:false,nmode:null,bedTime:SLEEPT+(i*23)%35,wake:WAKE+(i*29)%50,lieA:0,preRouted:false,walkCd:0,dest:null,napUntil:0,bedInside:false,sleepX:0,sleepZ:0,sleepYaw:0,sleepLie:0,napWake:null}
+          night:false,nmode:null,bedTime:SLEEPT+(i*23)%35,wake:WAKE+(i*29)%50,lieA:0,preRouted:false,walkCd:0,dest:null,napUntil:0,bedInside:false,sleepX:0,sleepZ:0,sleepYaw:0,sleepLie:0,napWake:null,stX:0,stZ:0,stT:0}
         E.push(S)})
 
       /* ---------- bubble nama ---------- */
@@ -941,7 +941,23 @@ export default function KantorCeo3D() {
             else if(S.nmode==='sleep'){S.stage='sleeping';S.until=1e9}
             else if(S.nmode==='bedsit'){S.stage='bedrest';S.until=1e9}
             else{S.stage=S.goal?'lounge':'sitting';S.ret=false;S.arriving=false;S.until=0;S.dest=null}}
-          else if(t>=(S.hold||0)){const dx=g[0]-S.x,dz=g[1]-S.z,dd=Math.hypot(dx,dz);if(dd<.15)S.wp.shift();else{sp=Math.min(1.35*S.pace,dd*2+.3);yawT=Math.atan2(dx,dz);S.x+=dx/dd*S.speed*dt;S.z+=dz/dd*S.speed*dt}}}
+          else if(t>=(S.hold||0)){const dx=g[0]-S.x,dz=g[1]-S.z,dd=Math.hypot(dx,dz)
+            if(dd<.15)S.wp.shift()
+            else{sp=Math.min(1.35*S.pace,dd*2+.3);yawT=Math.atan2(dx,dz);const step=S.speed*dt
+              /* ANTI-MONCAPAT (laporan Bos: "kadang diem diruangan gabisa jalan"):
+                 frame drop (ganti tab/GC/HP lemot) → dt gede → langkah 1 frame bisa
+                 MELAMPAUI sisa jarak ke waypoint (0.15) → bolak-balik mengambang
+                 di sekitarnya SELAMANYA, waypoint tak pernah ter-consume. Fix:
+                 langkah ≥ sisa jarak → SNAP tepat ke waypoint + consume. dt
+                 sebesar apa pun tidak bisa lagi mengunci rute. */
+              if(step>=dd-.01){S.x=g[0];S.z=g[1];S.wp.shift()}
+              else{S.x+=dx/dd*step;S.z+=dz/dd*step}
+              /* Watchdog lapis kedua: stage walking tapi posisi nyaris tak bergeser
+                 >6 detik (mis. 2 karyawan saling dorong di pintu sempit) → paksa
+                 lewati 1 waypoint — rute menyembuhkan diri tanpa teleport kasar. */
+              if(Math.hypot(S.x-S.stX,S.z-S.stZ)<.06){if(!S.stT)S.stT=t;else if(t-S.stT>6&&S.wp.length){S.wp.shift();S.stT=0}}
+              else S.stT=0
+              S.stX=S.x;S.stZ=S.z}}}
         else if(S.stage==='report'){sitT=0;pose='chat';S.chatWith=4
           yawT=Math.atan2(E[4].x-S.x,E[4].z-S.z)
           if(t>INC.endT){S.report=false;S.chatWith=null;S.ret=true;S.until=0;S.stage='rising'
