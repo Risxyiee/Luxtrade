@@ -3,6 +3,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { getCronAdmin } from '@/lib/cron-supabase'
 import { extractEmail, clipLeadMessage } from '@/lib/growth-sentinel'
 import { callLLM, getLLMChainStatus, getLLMProviderName, getLastLLMDiag, type ConversationTurn } from '@/lib/ai-llm'
+import { csFallbackReply } from '@/lib/cs-fallback'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
 export const dynamic = 'force-dynamic'
@@ -190,6 +191,8 @@ export async function POST(req: NextRequest) {
     // model. 429 satu provider = otomatis pindah, bot TIDAK mogok.
     if ((await getLLMProviderName()) === 'template') {
       console.error('[chat API] Tidak ada LLM API key (MORTERA/GROQ/GEMINI/OPENROUTER)')
+      const fb = csFallbackReply(message, language)
+      if (fb) return NextResponse.json({ response: fb, via: 'fallback-deterministik' })
       return NextResponse.json({
         response: language === 'en'
           ? "Sorry, AI service is not configured. Please contact Telegram @Risxyiee."
@@ -225,9 +228,14 @@ export async function POST(req: NextRequest) {
     const result = await callLLM(systemPrompt, turns, 1024)
 
     if (!result || !result.text?.trim()) {
-      // Semua provider gagal (429/402/auth/mati) — pesan ramah + DIAGNOSA
-      // transparan (SOP karyawan: 'jatuh ke templat SELALU ada penjelasannya')
+      // Semua provider gagal → LAYER TERAKHIR: jawaban deterministik utk
+      // pertanyaan umum (harga/daftar/sinyal/admin) — bot tetap berguna
+      // walau semua kuota LLM tumbang; di luar kamus → pesan istirahat.
       const diag = getLastLLMDiag().slice(0, 8)
+      const fb = csFallbackReply(message, language)
+      if (fb) {
+        return NextResponse.json({ response: fb, via: 'fallback-deterministik', aiUnavailable: true })
+      }
       console.error('[chat API] Semua provider LLM gagal:', diag.join(' | '))
       return NextResponse.json({
         response: language === 'en'

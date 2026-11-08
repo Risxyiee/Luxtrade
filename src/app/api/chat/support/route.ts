@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { callLLM, getLLMChainStatus, getLLMProviderName, getLastLLMDiag, type ConversationTurn } from '@/lib/ai-llm'
+import { csFallbackReply } from '@/lib/cs-fallback'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -101,6 +102,8 @@ export async function POST(req: NextRequest) {
     // ── OTAK: RANTAI SELF-HEALING (fix Gemini 429 free tier — sama dgn /api/chat) ──
     if ((await getLLMProviderName()) === 'template') {
       console.error('[chat/support API] Tidak ada LLM API key (MORTERA/GROQ/GEMINI/OPENROUTER)')
+      const fb = csFallbackReply(message, language)
+      if (fb) return NextResponse.json({ response: fb, via: 'fallback-deterministik' })
       return NextResponse.json({
         response: language === 'en'
           ? "Sorry, AI service is not configured. Please contact Telegram @Risxyiee."
@@ -167,6 +170,10 @@ export async function POST(req: NextRequest) {
     const result = await callLLM(systemPrompt, turns, 1024)
 
     if (!result || !result.text?.trim()) {
+      const fb = csFallbackReply(message, language)
+      if (fb) {
+        return NextResponse.json({ response: fb, via: 'fallback-deterministik', aiUnavailable: true })
+      }
       const diag = getLastLLMDiag().slice(0, 8)
       console.error('[chat/support API] Semua provider LLM gagal:', diag.join(' | '))
       return NextResponse.json({
