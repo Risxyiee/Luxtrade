@@ -481,11 +481,14 @@ function LuxTradeDashboardContent() {
     return headers
   }, [])
 
-  // Free user trade limit - 10 trades per month
-  const FREE_TRADE_LIMIT = 10
+  /* STRATEGI FREEMIUM BARU (keputusan Bos): jurnal = UNLIMITED untuk semua
+     user, selamanya gratis. Tembok upgrade dipindah ke fitur AI/otomasi.
+     Alasan: jurnal = mesin pengumpul data (moat) + habit loop — dirasionalkan
+     malah membunuh aktivasi. Pro tetap bernilai lewat AI analysis, sinyal,
+     auto-journal MT5, dan fitur cerdas lainnya. */
   const isFreeUser = !isPro
   const tradeCount = filteredTrades.length
-  const canAddTrade = isPro || tradeCount < FREE_TRADE_LIMIT
+  const canAddTrade = true
 
   // ==================== STABLE FORM HANDLERS ====================
   
@@ -900,7 +903,7 @@ function LuxTradeDashboardContent() {
     setSaving,
     setPlanSelectionModalOpen,
     isFreeUser,
-    FREE_TRADE_LIMIT,
+    FREE_TRADE_LIMIT: Number.POSITIVE_INFINITY,
     getAuthHeaders,
     fetchData
   })

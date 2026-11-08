@@ -389,11 +389,110 @@ async function handleRequest(request: NextRequest) {
       }
     }
 
+    /* ================================================================
+       NUDGE ONBOARDING (baru — laporan Bos: "udah ada yg daftar tapi
+       ga make trading jurnalnya"): cohort AKTIF-sudah-jurnal dilayani
+       di atas, tapi user daftar-lalu-diam (0 trade) tidak pernah
+       kebagian apa pun. Kini dapat WEB PUSH dorongan pertama
+       (Telegram sudah dihapus — semua notifikasi via push web).
+       Aturan: daftar ≤30 hari · login ≤14 hari · 0 trade · cooldown
+       3 hari via daily_reminder_logs · hanya dicatat "terkirim" bila
+       push subscription benar-benar ada (kalau belum, coba lagi esok).
+       ================================================================ */
+    let onboardingNudged = 0
+    try {
+      const { pushToUser } = await import('@/lib/push-notify')
+      const regCutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+      const loginCutoff = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()
+
+      // 1. Profil baru + aktif login
+      const newProfiles = await fetchAllRows<any>((from, to) =>
+        admin.from('profiles')
+          .select('id, email, full_name, created_at, last_login_at')
+          .not('email', 'is', null)
+          .gte('created_at', regCutoff)
+          .range(from, to)
+      )
+      const candidates = newProfiles.filter((p: any) =>
+        (!targetUid || p.id === targetUid) &&
+        (!p.last_login_at || new Date(p.last_login_at).getTime() >= new Date(loginCutoff).getTime())
+      )
+
+      if (candidates.length) {
+        const ids = candidates.map((p: any) => p.id)
+
+        // 2. Buang yang sudah punya trade (bukan cohort 0-trade lagi)
+        const tradedSet = new Set<string>()
+        for (const c of chunk(ids, 100)) {
+          const rows = await fetchAllRows<any>((from, to) =>
+            admin.from('trades').select('user_id').in('user_id', c).range(from, to)
+          )
+          rows.forEach((r: any) => tradedSet.add(r.user_id))
+        }
+
+        // 3. Hormati unsubscribe + cooldown (tabel belum ada → skip halus)
+        const unsubSet = new Set<string>()
+        try {
+          const rows = await fetchAllRows<any>((from, to) =>
+            admin.from('daily_reminder_logs').select('user_id, sent_date, unsubscribed').in('user_id', ids).range(from, to)
+          )
+          rows.forEach((r: any) => {
+            if (r.unsubscribed) unsubSet.add(r.user_id)
+          })
+        } catch (err: any) {
+          if (!isMissingTableError(err)) console.warn('[daily-reminder] nudge log query failed:', err.message)
+        }
+
+        // 4. Cooldown 3 hari — sent_date maksimum per user dihitung di JS
+        const lastSent = new Map<string, string>()
+        try {
+          const rows = await fetchAllRows<any>((from, to) =>
+            admin.from('daily_reminder_logs').select('user_id, sent_date').in('user_id', ids).range(from, to)
+          )
+          rows.forEach((r: any) => {
+            const prev = lastSent.get(r.user_id)
+            if (!prev || (r.sent_date || '') > prev) lastSent.set(r.user_id, r.sent_date)
+          })
+        } catch { /* non-fatal */ }
+
+        const cooldownCutoff = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+        for (const p of candidates) {
+          if (onboardingNudged >= 200) break // batas aman per run
+          if (tradedSet.has(p.id)) continue
+          if (unsubSet.has(p.id)) continue
+          const last = lastSent.get(p.id)
+          if (last && last >= cooldownCutoff) continue
+
+          const pushRes = await pushToUser(admin, p.id, {
+            title: '📝 Catat trade pertamamu — 30 detik doang',
+            body: 'Upload screenshot, AI isi form otomatis. Jurnal unlimited — gratis selamanya.',
+            tag: 'onboarding-nudge',
+            type: 'general',
+            url: '/dashboard',
+          })
+
+          // Catat terkirim hanya bila push benar-benar sampai (ada
+          // subscription) — tanpa subs, biarkan dicoba lagi besok.
+          if (pushRes.sent > 0) {
+            onboardingNudged++
+            await logSentEmail(
+              { user_id: p.id, email: p.email, full_name: p.full_name || 'Trader', streak_count: 0, best_streak: 0 },
+              true
+            )
+            console.log(`🔔 [daily-reminder] Onboarding nudge → ${p.email}`)
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('[daily-reminder] Onboarding nudge gagal (non-fatal):', err?.message || err)
+    }
+
     return NextResponse.json({
-      message: `Daily reminder: sent ${sentCount} emails, ${failCount} failed`,
+      message: `Daily reminder: sent ${sentCount} emails, ${failCount} failed; onboarding nudge: ${onboardingNudged}`,
       sent: sentCount,
       failed: failCount,
       total: users.length,
+      onboardingNudged,
       day: getDayName(),
       newsCount: news.length,
       results,

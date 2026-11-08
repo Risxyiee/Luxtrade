@@ -2,11 +2,71 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { edgeCrypto } from '@/lib/edge-crypto'
+import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 // Allowed file types
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+
+/* ============================================================
+   VLM AUTO-FILL (best-effort) — AI baca screenshot platform
+   trading (MT4/MT5/TradingView/Exness/dll) dan ekstrak field
+   jurnal. Jangan pernah gagalkan upload kalau AI-nya gagal —
+   user selalu review hasil sebelum simpan (anti-halusinasi).
+   ============================================================ */
+function toBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
+export interface ExtractedTrade {
+  symbol: string | null
+  type: 'BUY' | 'SELL' | null
+  open_price: string | null
+  close_price: string | null
+  profit_loss: string | null
+}
+
+export async function extractTradeFromImage(
+  base64Image: string,
+  _mimeType: string
+): Promise<ExtractedTrade | null> {
+  try {
+    const raw = await analyzeImageWithZAIVision(
+      base64Image,
+      'Ini screenshot platform trading (MT4/MT5/TradingView/Exness/broker lain). ' +
+        'Ekstrak data SATU trade paling utama/terbaru yang terlihat. ' +
+        'Balas HANYA JSON tanpa penjelasan, format persis: ' +
+        '{"symbol":"XAUUSD","type":"BUY","open_price":2345.6,"close_price":2350.2,"profit_loss":-12.5} ' +
+        'Gunakan null untuk field yang tidak terbaca. profit_loss boleh negatif. ' +
+        'Type = arah posisi (BUY/SELL), bukan profit/rugi.'
+    )
+
+    const m = (raw.text || '').match(/\{[\s\S]*\}/)
+    if (!m) return null
+    const obj = JSON.parse(m[0])
+    const num = (v: unknown): string | null => {
+      if (v === null || v === undefined || v === '') return null
+      const n = Number(v)
+      return Number.isFinite(n) ? String(n) : null
+    }
+    return {
+      symbol: typeof obj.symbol === 'string' && obj.symbol.trim() ? obj.symbol.trim().toUpperCase().slice(0, 12) : null,
+      type: obj.type === 'BUY' || obj.type === 'SELL' ? obj.type : null,
+      open_price: num(obj.open_price),
+      close_price: num(obj.close_price),
+      profit_loss: num(obj.profit_loss),
+    }
+  } catch (err: any) {
+    console.warn('[trade-upload] VLM extraction gagal (non-fatal):', err?.message || err)
+    return null
+  }
+}
 
 // POST - Upload trade image to Supabase Storage
 export async function POST(request: NextRequest) {
@@ -120,14 +180,24 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [API] Signed URL generated (valid for 7 days)')
 
-    // Step 9: Return success response
+    // Step 9: VLM auto-fill (best-effort) — ekstrak field jurnal dari
+    // screenshot. Gagal AI → tetap sukses upload, field kosong.
+    let extracted: ExtractedTrade | null = null
+    try {
+      extracted = await extractTradeFromImage(toBase64(buffer), file.type)
+    } catch (e: any) {
+      console.warn('[trade-upload] extraction skipped:', e?.message || e)
+    }
+
+    // Step 10: Return success response
     return NextResponse.json({
       success: true,
       url: signedUrlData.signedUrl,
       path: filename,
       size: file.size,
       type: file.type,
-      bucket: 'trade-screenshots'
+      bucket: 'trade-screenshots',
+      extracted,
     })
 
   } catch (err) {

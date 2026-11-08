@@ -47,7 +47,10 @@ export const useUserStore = create<UserState>()(
       isAuthenticated: false,
       isAdmin: false,
       tradeCount: 0,
-      FREE_TRADE_LIMIT: 50,
+      /* Freemium baru (keputusan Bos): jurnal unlimited untuk semua plan —
+         tembok upgrade dipindah ke fitur AI. Konstanta lama dibiarkan
+         agar kompatibel, tapi tak lagi membatasi pencatatan. */
+      FREE_TRADE_LIMIT: Number.POSITIVE_INFINITY,
 
       // Actions
       setUser: (user) => set({ user }),

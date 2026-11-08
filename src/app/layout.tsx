@@ -26,7 +26,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL('https://luxtradee.web.id'),
   title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
-  description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Equity curve, analisis psikologi trading, risk calculator. Gratis 10 trade/bulan.",
+  description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Equity curve, analisis psikologi trading, risk calculator. Jurnal unlimited gratis selamanya.",
   keywords: ["trading journal", "jurnal trading", "trading journal Indonesia", "AI trading journal", "jurnal trading AI", "catat trade", "analisis trading", "forex journal", "jurnal forex", "equity curve", "deteksi kesalahan trading", "trading psikologi", "risk calculator forex", "MT4 journal", "MT5 journal", "luxtrade"],
   authors: [{ name: "LuxTradee" }],
   manifest: '/manifest.webmanifest',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
-    description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Gratis 10 trade/bulan.",
+    description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Jurnal unlimited gratis selamanya.",
     type: "website",
     siteName: "LuxTradee",
     locale: "id_ID",

@@ -48,10 +48,10 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       title: "Buka Potensi Trading Terbaikmu!",
       subtitle: feature
         ? `Fitur "${feature}" hanya tersedia untuk pengguna PRO`
-        : "Kamu telah mencapai batas 10 trade/bulan. Upgrade ke PRO untuk unlimited trades dan semua fitur premium.",
-      description: "Upgrade ke PRO untuk unlimited trades, analitik mendalam, AI auto-journal, deteksi pola kerugian, dan watchlist prop firm.",
+        : "Kamu telah mencapai batas pemakaian fitur gratis. Jurnal tetap unlimited gratis — upgrade ke PRO untuk lapisan AI penuh.",
+      description: "Upgrade ke PRO untuk tanya AI tanpa batas, AI Vision auto-journal, analitik mendalam, deteksi pola kerugian, dan watchlist prop firm.",
       features: [
-        { icon: Infinity, title: "Unlimited Trade Entries & AI", desc: "Jurnal transaksi dan tanya AI tanpa batas per bulan" },
+        { icon: Infinity, title: "Tanya AI Tanpa Batas", desc: "Chat AI analisis trading tanpa batas per bulan" },
         { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Analitik mendalam dengan grafik dan statistik lengkap" },
         { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
         { icon: Zap, title: "Chart Vela™ Semua Preset Indikator", desc: "EMA 20/50 + RSI 14 + VWAP, Pine Script® tanpa batas" },
@@ -78,8 +78,8 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       title: "Unlock Your Ultimate Trading Potential!",
       subtitle: feature
         ? `The "${feature}" feature is only available for PRO users`
-        : "You've hit the 10 trades/month limit. Upgrade to PRO for unlimited trades and all premium features.",
-      description: "Upgrade to PRO for unlimited trades, deep analytics, AI auto-journal, loss pattern detection, and prop firm watchlist.",
+        : "You've hit the free feature limit. Journaling stays unlimited & free — upgrade to PRO for the full AI layer.",
+      description: "Upgrade to PRO for unlimited AI chat, AI Vision auto-journal, deep analytics, loss pattern detection, and prop firm watchlist.",
       features: [
         { icon: Infinity, title: "Unlimited Trade Entries & AI", desc: "No limit on trading journals or AI queries per month" },
         { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Deep analytics with complete charts and statistics" },

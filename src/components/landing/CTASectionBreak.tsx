@@ -25,8 +25,8 @@ export default function CTASectionBreak({ language }: { language: 'id' | 'en' })
           </h2>
           <p className="text-[15px] text-[#8892b0] mb-10 max-w-md mx-auto leading-relaxed">
             {language === 'id'
-              ? 'Gratis, 10 trade per bulan. Kalau serius, upgrade kapan saja.'
-              : "Free, 10 trades/month. Upgrade anytime when you're ready."}
+              ? 'Gratis selamanya — jurnal unlimited. Kalau mau AI penuh, upgrade kapan saja.'
+              : "Free forever — unlimited journals. Upgrade anytime for the full AI layer."}
           </p>
 
           <Link href="/auth/signup">

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle2, AlertCircle, Upload, X, Info, Loader2, FileText, Sparkles } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Upload, X, Info, Loader2, FileText, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { TradeFormData } from '../utils/types'
 import { datetimeLocalToISO } from '../utils/helpers'
 import { toast } from 'sonner'
@@ -42,6 +42,9 @@ function TradeForm({
   const [uploadingImage, setUploadingImage] = useState(false)
   const [analyzingScreenshot, setAnalyzingScreenshot] = useState(false)
   const [uploadingMT5, setUploadingMT5] = useState(false)
+  /* QUICK MODE (aktivasi): hanya 4 field wajib tampak — lot/jam/sesi/catatan
+     diciutkan biar form terasa "30 detik kelar", bukan formulir panjang. */
+  const [showDetails, setShowDetails] = useState(false)
 
   // Validate field
   const validateField = (field: keyof TradeFormData, value: string): string => {
@@ -125,7 +128,19 @@ function TradeForm({
         if (data.url) {
           onFormChange('image_url', data.url)
         }
-        toast.success('📷 Screenshot uploaded successfully!')
+        // VLM AUTO-FILL: AI baca screenshot → isi field yang terbaca.
+        // User tetap review — anti-halusinasi dengan konfirmasi manual.
+        const ex = data.extracted
+        if (ex && (ex.symbol || ex.open_price || ex.close_price || ex.profit_loss != null)) {
+          if (ex.symbol) onFormChange('symbol', String(ex.symbol).toUpperCase().slice(0, 12))
+          if (ex.type === 'BUY' || ex.type === 'SELL') onTypeChange(ex.type)
+          if (ex.open_price != null && ex.open_price !== '') onFormChange('open_price', String(ex.open_price))
+          if (ex.close_price != null && ex.close_price !== '') onFormChange('close_price', String(ex.close_price))
+          if (ex.profit_loss != null && ex.profit_loss !== '') onFormChange('profit_loss', String(ex.profit_loss))
+          toast.success('🤖 AI mengisi form dari screenshot — cek & koreksi sebelum simpan!')
+        } else {
+          toast.success('📷 Screenshot uploaded successfully!')
+        }
       } else {
         toast.error(data.error || 'Failed to upload screenshot')
       }
@@ -366,32 +381,6 @@ function TradeForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="lot_size" className="flex items-center gap-2">
-              Lot Size
-              {getFieldStatus('lot_size') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-              {getFieldStatus('lot_size') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-            </Label>
-            <Input
-              id="lot_size"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0.1"
-              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
-                getFieldStatus('lot_size') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
-                getFieldStatus('lot_size') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
-              }`}
-              value={formData.lot_size}
-              onChange={(e) => handleFieldChange('lot_size', e.target.value)}
-              onBlur={() => handleFieldBlur('lot_size')}
-            />
-            {errors.lot_size && touched.lot_size && (
-              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" /> {errors.lot_size}
-              </p>
-            )}
-          </div>
-          <div>
             <Label htmlFor="profit_loss" className="flex items-center gap-2">
               P/L ($) *
               {getFieldStatus('profit_loss') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
@@ -416,6 +405,48 @@ function TradeForm({
               </p>
             )}
           </div>
+        </div>
+
+        {/* QUICK MODE expander — detail opsional (lot, jam, sesi, catatan).
+            Cukup 4 field (*) untuk simpan — sisanya bisa dilengkapi nanti. */}
+        <button
+          type="button"
+          onClick={() => setShowDetails(v => !v)}
+          className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors w-fit"
+        >
+          {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {showDetails
+            ? 'Sembunyikan detail opsional'
+            : 'Lengkapi detail (lot, jam, sesi, catatan) — opsional'}
+        </button>
+
+        {showDetails && (
+          <div className="space-y-4 border-l-2 border-blue-500/20 pl-3">
+        <div>
+            <Label htmlFor="lot_size" className="flex items-center gap-2">
+              Lot Size
+              {getFieldStatus('lot_size') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              {getFieldStatus('lot_size') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+            </Label>
+            <Input
+              id="lot_size"
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="0.1"
+              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
+                getFieldStatus('lot_size') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
+                getFieldStatus('lot_size') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
+              }`}
+              value={formData.lot_size}
+              onChange={(e) => handleFieldChange('lot_size', e.target.value)}
+              onBlur={() => handleFieldBlur('lot_size')}
+            />
+            {errors.lot_size && touched.lot_size && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.lot_size}
+              </p>
+            )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -467,6 +498,8 @@ function TradeForm({
             onChange={(e) => onFormChange('notes', e.target.value)}
           />
         </div>
+          </div>
+        )}
       </div>
 
       {/* Screenshot Preview */}

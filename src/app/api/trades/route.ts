@@ -47,9 +47,9 @@ async function updateAccountBalance(client: any, accountId: string | null) {
   }
 }
 
-// Free user trade limit - 10 trades per month
-const FREE_TRADE_LIMIT = 10
-
+/* STRATEGI FREEMIUM BARU (keputusan Bos): jurnal = unlimited untuk semua
+   plan di level SERVER juga. Tembok 403 TRADE_LIMIT_EXCEEDED dihapus —
+   wall upgrade kini hanya di fitur AI (chat 10x free, Vision, dll). */
 // In-memory rate limiter for POST
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minute
@@ -271,21 +271,8 @@ export async function POST(request: NextRequest) {
       body.close_price = 0
     }
 
-    // Check PRO status BEFORE creating trade
-    const pro = await isUserPro(userId)
-
-    if (!pro) {
-      const tradeCount = await countUserTrades(client, userId)
-      if (tradeCount >= FREE_TRADE_LIMIT) {
-        return NextResponse.json({
-          error: `Pengguna Free dibatasi maksimal ${FREE_TRADE_LIMIT} jurnal transaksi per bulan. Upgrade ke PRO untuk akses UNLIMITED!`,
-          code: 'TRADE_LIMIT_EXCEEDED',
-          limit: FREE_TRADE_LIMIT,
-          current: tradeCount,
-          requiresUpgrade: true
-        }, { status: 403 })
-      }
-    }
+    /* Freemium baru: tanpa cek limit — semua user bisa mencatat
+       sebanyak apa pun (server-side dijamin, bukan cuma UI). */
 
     // Create trade via Supabase
     // Helper: safe parseFloat that returns 0 for NaN/undefined (guards NOT NULL columns)

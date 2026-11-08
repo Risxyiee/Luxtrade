@@ -111,7 +111,7 @@ export default function PricingSectionNew({
               <span className="text-gray-500">{language === 'en' ? '/month' : '/bulan'}</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-400 text-sm flex-grow">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 Trade Entries / month' : '10 Jurnal Transaksi / bulan'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Trade Journals — free forever' : '∞ Jurnal Transaksi — gratis selamanya'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10x AI Chat Queries' : '10x Tanya AI (Chat)'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Vela™ Live Chart + 1 Indicator' : 'Chart Live Vela™ + 1 Indikator'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Pine Script® 2×/month' : 'Pine Script® 2×/bulan'}</li>

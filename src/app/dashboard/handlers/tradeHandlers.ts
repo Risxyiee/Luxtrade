@@ -81,24 +81,9 @@ export const createTradeHandlers = ({
       return
     }
 
-    // Check trade limit for free users
-    if (isFreeUser && trades.length >= FREE_TRADE_LIMIT) {
-      console.log('⚠️ [handleAddTrade] Trade limit exceeded')
-      toast.error(`Free users are limited to ${FREE_TRADE_LIMIT} trades. Upgrade to PRO for unlimited trades!`)
-      setPlanSelectionModalOpen(true)
-      return
-    }
-
-    // Show upgrade warning at 80% of limit (8 out of 10 trades)
-    if (isFreeUser && trades.length >= FREE_TRADE_LIMIT - 2 && trades.length < FREE_TRADE_LIMIT) {
-      console.log(`⚠️ [handleAddTrade] Trade limit warning: ${trades.length}/${FREE_TRADE_LIMIT}`)
-      toast.warning(`Kamu sudah pakai ${trades.length}/${FREE_TRADE_LIMIT} trade bulan ini. Upgrade ke PRO untuk unlimited!`, {
-        action: {
-          label: 'Upgrade',
-          onClick: () => setPlanSelectionModalOpen(true)
-        }
-      })
-    }
+    /* STRATEGI FREEMIUM BARU (keputusan Bos): jurnal unlimited untuk semua
+       user — blok limit & toast "sisa trade" DIHAPUS. Tembok upgrade
+       dipindah ke fitur AI/otomasi (analisis, sinyal, auto-journal). */
 
     setSaving(true)
     try {

@@ -588,7 +588,8 @@ export default function TradeWizardForm({
           if (saveRes.ok && save.success) {
             toast.success(save.message || `✅ ${save.inserted} transaksi masuk ke jurnal!`)
             if (save.limitReached) {
-              toast.warning('Batas Free 10 transaksi/bulan tercapai — sisanya gak masuk. Upgrade PRO untuk unlimited.')
+              /* Freemium baru: jurnal unlimited — pesan batas 10/bulan
+                 DIHAPUS (freemium lama). Import tetap lanjut normal. */
             }
             // Tutup modal + refresh daftar transaksi
             onAutoJournalSuccess?.()

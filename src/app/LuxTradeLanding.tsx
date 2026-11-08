@@ -1109,7 +1109,7 @@ export default function LuxTradeLanding() {
                   </div>
                   <ul className="space-y-4 my-8">
                     {[
-                      { text: language === 'id' ? '5 Jurnal Transaksi / Bulan' : '5 Trade Journals / Month' },
+                      { text: language === 'id' ? '∞ Jurnal Transaksi — Unlimited, Gratis Selamanya' : '∞ Trade Journals — Unlimited, Free Forever' },
                       { text: language === 'id' ? 'Grafik Performa & Statistik Standar' : 'Standard Performance Charts & Stats' },
                       { text: language === 'id' ? 'Kalkulator Risiko Trading Pemula' : 'Basic Trading Risk Calculator' },
                       { text: language === 'id' ? '🎁 BONUS: 3x Uji Coba Fitur AI' : '🎁 BONUS: 3x AI Features Trial' },
@@ -1158,7 +1158,7 @@ export default function LuxTradeLanding() {
                 </div>
                 <ul className="space-y-3.5 my-8">
                   {[
-                    language === 'id' ? '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)' : '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
+                    language === 'id' ? '🔥 AI Analisis & Insight Tanpa Batas' : '🔥 UNLIMITED AI Analysis & Insights',
                     language === 'id' ? '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)' : '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
                     language === 'id' ? '📊 Grafik Win-Rate Mendalam & Mistake Tracker' : '📊 In-Depth Win-Rate Charts & Mistake Tracker',
                     language === 'id' ? '🧮 Kalkulator Risiko & Posisi Advance' : '🧮 Advanced Risk & Position Calculator',
@@ -1210,8 +1210,8 @@ export default function LuxTradeLanding() {
                 <tbody className="divide-y divide-white/[0.05]">
                   {[
                     { 
-                      feature: language === 'id' ? 'Jurnal Transaksi / Bulan' : 'Trade Journals / Month', 
-                      free: '10', 
+                      feature: language === 'id' ? 'Jurnal Transaksi' : 'Trade Journals', 
+                      free: '∞', 
                       pro: 'UNLIMITED', 
                       ultra: 'UNLIMITED' 
                     },
@@ -1500,7 +1500,7 @@ export default function LuxTradeLanding() {
             {[
               {
                 q: language === 'id' ? 'Apakah LuxTrade gratis digunakan?' : 'Is LuxTrade free to use?',
-                a: language === 'id' ? 'Ya! LuxTrade menawarkan paket gratis yang murah hati yang memungkinkan hingga 5 transaksi per bulan dengan analitik dasar. Anda dapat upgrade ke Elite Pro untuk transaksi tidak terbatas dan fitur lanjutan.' : 'Yes! LuxTrade offers a generous free plan that allows up to 5 trades per month with basic analytics. You can upgrade to Elite Pro for unlimited trades and advanced features.'
+                a: language === 'id' ? 'Ya! Jurnal trade di LuxTrade unlimited dan gratis selamanya — catat sebanyak apa pun tanpa batas, lengkap dengan grafik performa dan statistik standar. Paket Elite Pro membuka kemampuan cerdas: analisis AI tanpa batas, sinyal prioritas, ekspor data, dan auto-journal.' : 'Yes! Trading journal in LuxTrade is unlimited and free forever — log as many trades as you want with performance charts and standard analytics. Elite Pro unlocks the smart layer: unlimited AI analysis, priority signals, data export, and auto-journal.'
               },
               {
                 q: language === 'id' ? 'Bagaimana cara kerja analisis AI?' : 'How does the AI analysis work?',

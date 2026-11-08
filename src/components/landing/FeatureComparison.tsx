@@ -23,8 +23,8 @@ interface FeatureRow {
 
 const features: FeatureRow[] = [
   {
-    name: { id: 'Jurnal Transaksi / bulan', en: 'Trade Entries / month' },
-    free: { type: 'text', value: '10' },
+    name: { id: 'Jurnal Transaksi', en: 'Trade Journals' },
+    free: { type: 'unlimited', label: 'Unlimited' },
     pro: { type: 'unlimited', label: 'Unlimited' },
   },
   {
