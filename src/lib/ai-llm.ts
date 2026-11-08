@@ -364,9 +364,16 @@ async function callOpenAIModel(
           ...toTurns(userPrompt).map((t) => ({ role: t.role, content: t.content })),
         ],
         temperature,
-        // Reasoning model (gpt-oss dll) butuh budget besar — reasoning-nya
-        // memakan token sebelum content, kalau kecil → content kosong.
-        max_tokens: Math.max(maxTokens, 4000),
+        /* FIX AKAR MASALAH 8 Nov 2026 (diag transparansi produksi):
+           dulu SEMUA panggilan dipaksa max_tokens min 4000 — padahal
+           Mortera PRE-AUTHORIZE biaya maksimum = prompt + max_tokens.
+           Saldo Bos kecil → wallet "cannot cover this request's maximum
+           cost" → 429 padahal saldo ADA (pesannya sendiri menyuruh
+           "send a smaller max_tokens"). Floor 4000 kini HANYA utk model
+           reasoning (budget-nya dimakan reasoning sebelum content);
+           model biasa kirim maxTokens apa adanya sesuai kebutuhan caller
+           (chat 1024, artikel 2600 — semua caller panjang sudah eksplisit). */
+        max_tokens: /gpt-oss|thinking/i.test(model) ? Math.max(maxTokens, 4000) : maxTokens,
         ...(model.includes('gpt-oss') ? { reasoning_effort: 'low' } : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
