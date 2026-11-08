@@ -221,6 +221,75 @@ export async function getLLMChainStatus(): Promise<{ provider: string; ok: boole
 let lastCallDiag: string[] = []
 export function getLastLLMDiag(): string[] { return lastCallDiag }
 
+/* ── CEK SALDO MORTERA (tampilkannya di /api/health) ───────────────
+   Keluhan Bos 8 Nov: "udah saya isi saldo kok masih error?" — pesan
+   429 Mortera = "wallet cannot cover this request's maximum cost".
+   Dokumen resmi Mortera: key punya billing_modes (payg = Rupiah /
+   token = paket kredit); request ditolak bila wallet yang DIIZINKAN
+   KEY tidak menutup estimasi input + min 1 token output — WALAU
+   saldo jenis lain ada. GET /v1/credits melaporkan saldo key ini,
+   GET /v1/key melaporkan label + billing_modes + tier. Hasilnya
+   bikin Bos lihat SENDIRI: saldo kosong? salah jenis wallet? key
+   salah akun? — tanpa buka log, tanpa nilai key bocor. */
+export interface MorteraWalletStatus {
+  reachable: boolean
+  /** Saldo Pay As You Go (IDR) milik key ini — null bila tidak dilaporkan. */
+  paygIdr?: number
+  /** Sisa kredit paket Token milik key ini. */
+  tokenCredits?: number
+  /** Mode billing yang diizinkan utk key ini (payg/token). */
+  billingModes?: string[]
+  label?: string
+  tier?: string
+  error?: string
+}
+let morteraWalletCache: { at: number; val: MorteraWalletStatus } | null = null
+export async function getMorteraWallet(): Promise<MorteraWalletStatus | null> {
+  if (morteraWalletCache && Date.now() - morteraWalletCache.at < 60_000) return morteraWalletCache.val
+  const key = await getMorteraKey()
+  if (!key) return null
+  const val = await (async (): Promise<MorteraWalletStatus> => {
+    try {
+      const res = await fetch('https://mortera.cloud/v1/credits', {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(8_000),
+      })
+      if (!res.ok) return { reachable: false, error: `GET /v1/credits → HTTP ${res.status}` }
+      const body = await res.json().catch(() => null) as Record<string, unknown> | null
+      const data = (body?.data ?? body ?? {}) as Record<string, unknown>
+      const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
+      const status: MorteraWalletStatus = {
+        reachable: true,
+        paygIdr: num(data.payg_idr) ?? num(data.payg) ?? num(data.balance_idr) ?? num(data.idr),
+        tokenCredits: num(data.credits) ?? num(data.token_credits) ?? num(data.credits_remaining),
+      }
+      // Bentuk tak dikenal → teruskan mentah biar tetap kelihatan isinya.
+      if (status.paygIdr === undefined && status.tokenCredits === undefined) {
+        status.error = `bentuk tak dikenal: ${JSON.stringify(body).slice(0, 200)}`
+      }
+      return status
+    } catch (err) {
+      return { reachable: false, error: String((err as Error)?.message || err).slice(0, 120) }
+    }
+  })()
+  try {
+    const kres = await fetch('https://mortera.cloud/v1/key', {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (kres.ok) {
+      const kb = await kres.json().catch(() => null) as { data?: { label?: string; billing_modes?: string[]; tier?: string } } | null
+      if (kb?.data) {
+        val.label = kb.data.label
+        val.billingModes = kb.data.billing_modes
+        val.tier = kb.data.tier
+      }
+    }
+  } catch { /* opsional — credits saja sudah cukup */ }
+  morteraWalletCache = { at: Date.now(), val }
+  return val
+}
+
 export interface LLMCallOpts {
   /** Override model Mortera UNTUK PANGGILAN INI saja — dipakai tugas
    *  yang butuh kualitas tulisan premium (mis. konten Remotion Sinta

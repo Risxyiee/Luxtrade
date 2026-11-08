@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getLLMChainStatus, getLastLLMDiag } from '@/lib/ai-llm'
+import { getLLMChainStatus, getLastLLMDiag, getMorteraWallet } from '@/lib/ai-llm'
 import { getMarketListenerStatus } from '@/services/marketListener'
 
 /**
@@ -19,6 +19,12 @@ import { getMarketListenerStatus } from '@/services/marketListener'
  * baris `mortera model claude-haiku-5-5 mati → coba cadangan` berarti
  * model-ID salah (auto-discover langsung menyembuhkan); `402` = saldo;
  * `429` = rate-limit. Tanpa nilai key / data user — aman publik.
+ *
+ * 8 Nov 2026 (v3): tambah `mortera` — SALDO wallet milik key langsung
+ * dari Mortera (GET /v1/credits + /v1/key, cache 60 dtk): paygIdr
+ * (Rupiah), tokenCredits (paket), billingModes yang diizinkan key.
+ * Jawab keluhan Bos "udah isi saldo kok gabisa?" — saldo kosong /
+ * salah jenis wallet / key salah akun LANGSUNG kelihatan di sini.
  */
 export async function GET() {
   let llm: { provider: string; ok: boolean; reason?: string }[] | null = null
@@ -35,6 +41,11 @@ export async function GET() {
   let vipSignals: ReturnType<typeof getMarketListenerStatus> | null = null
   try { vipSignals = getMarketListenerStatus() } catch { /* diagnostik opsional */ }
 
+  // 8 Nov 2026 (v3): saldo wallet Mortera milik key ini — bukti nyata
+  // "udah isi saldo kok gabisa?" tanpa harus buka panel Mortera.
+  let mortera: Awaited<ReturnType<typeof getMorteraWallet>> = null
+  try { mortera = await getMorteraWallet() } catch { /* diagnostik opsional */ }
+
   return NextResponse.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -43,5 +54,6 @@ export async function GET() {
     llm,
     lastDiag: lastDiag.length ? lastDiag : ['(belum ada panggilan LLM di isolate ini)'],
     vipSignals,
+    mortera,
   })
 }
