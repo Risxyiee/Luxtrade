@@ -100,7 +100,12 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = getSupabaseAdmin()
 
     // Step 1: Check if achievements table exists
-    const achievementsTableExists = await tableExists(supabase, 'achievements')
+    /* FIX 401 (log CF Workers 8 Nov 2026): tableExists dulu pakai client
+       ANON — NEXT_PUBLIC_SUPABASE_ANON_KEY di env CF ditolak Supabase
+       (401 Invalid API key) di SETIAP penyelesaian onboarding. Client
+       service-role terbukti hidup (dipakai cron/push/dll) → pakai itu;
+       anon hanya fallback kalau service-role memang tak dikonfigurasi. */
+    const achievementsTableExists = await tableExists(supabaseAdmin || supabase, 'achievements')
 
     if (!achievementsTableExists) {
       console.log('[onboarding achievement] Achievements table does not exist, returning success')

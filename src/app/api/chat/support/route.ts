@@ -29,8 +29,8 @@ ESCALATION KE ADMIN:
 
 INFO PRODUK:
 - LuxTradee = jurnal trading AI untuk prop firm traders
-- Paket Gratis: 10 trade/bulan, 10 AI queries/bulan, analitik dasar
-- Paket PRO: Rp49K/bulan, unlimited trades, AI pattern detection, auto extract screenshot MT5/TV, equity curve, export CSV/PDF, psychology tracking
+- Paket Gratis: jurnal trade UNLIMITED & GRATIS SELAMANYA (catat manual, impor screenshot/MT4-CSV, grafik performa & statistik standar) — jangan pernah bilang jurnal gratis ada batas
+- Paket PRO/Elite: fitur lapisan cerdas — analisis AI, sinyal VIP, ekspor data, auto-journal (harga cek halaman pricing, jangan sebut angka kalau tak yakin)
 - AI Vision: upload screenshot MT5/TradingView → auto extract data trade
 - AI Pattern Detection: deteksi pola loss berulang (FOMO, overtrading, dll)
 - Payment: Midtrans (QRIS, Virtual Account, e-wallet — via Midtrans Snap)
@@ -167,7 +167,11 @@ export async function POST(req: NextRequest) {
     ]
 
     // Panggil rantai LLM self-healing: Mortera → Groq → Gemini → OpenRouter
-    const result = await callLLM(systemPrompt, turns, 1024)
+    /* FIX CS LAMBAT (laporan Bos 8 Nov 2026): default timeout 40 dtk per
+       provider × rantai hang = user menunggu 1-2 menit. Chat interaktif
+       → 12 dtk per provider; provider yang menggantung otomatis
+       didinginkan lintas-isolate (lihat ai-llm.ts). */
+    const result = await callLLM(systemPrompt, turns, 1024, { timeoutMs: 12_000 })
 
     if (!result || !result.text?.trim()) {
       const fb = csFallbackReply(message, language)

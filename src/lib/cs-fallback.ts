@@ -31,8 +31,8 @@ const FAQ: Array<{ keys: RegExp; id: string; en: string }> = [
   {
     // harga / berapa / premium / bayar / plan / langganan
     keys: /harga|berapa|biaya|premium|bayar|plan|paket|langganan|berlangganan|price|upgrade|pro\??.*(harga|biaya)|murah/i,
-    id: 'Luxtradee ada plan GRATIS (10 trade/bulan + 10 tanya AI) dan PRO Rp49.000/bulan (trade unlimited, deteksi pola loss AI, auto-extract screenshot MT5/TV, equity curve, export CSV/PDF). Detail lengkap di halaman pricing ya! 😊',
-    en: "Luxtradee has a FREE plan (10 trades/month + 10 AI queries) and PRO at Rp49,000/month (unlimited trades, AI loss-pattern detection, auto screenshot extraction, equity curve, CSV/PDF export). See the pricing page for details! 😊",
+    id: 'Luxtradee ada plan GRATIS — jurnal trade UNLIMITED & gratis selamanya (catat manual, impor screenshot/MT4-CSV, grafik performa & statistik) — dan PRO untuk lapisan cerdasnya: analisis AI, sinyal VIP, ekspor data, auto-journal. Detail lengkap di halaman pricing ya! 😊',
+    en: "Luxtradee has a FREE plan — unlimited trading journal, free forever (manual logging, screenshot/MT4-CSV import, performance charts & stats) — plus PRO for the smart layer: AI analysis, VIP signals, data export, auto-journal. See the pricing page for details! 😊",
   },
   {
     // cara daftar / mulai / gabung / download / install

@@ -225,7 +225,10 @@ export async function POST(req: NextRequest) {
     ]
 
     // Panggil rantai LLM self-healing (riwayat utuh, bukan di-flatten)
-    const result = await callLLM(systemPrompt, turns, 1024)
+    /* FIX CS LAMBAT: chat interaktif → 12 dtk per provider (default 40
+       dtk terlalu lama); provider menggantung kini didinginkan
+       lintas-isolate via KV (lihat ai-llm.ts). */
+    const result = await callLLM(systemPrompt, turns, 1024, { timeoutMs: 12_000 })
 
     if (!result || !result.text?.trim()) {
       // Semua provider gagal → LAYER TERAKHIR: jawaban deterministik utk

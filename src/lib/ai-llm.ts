@@ -1,4 +1,5 @@
 import { getEnvVar } from '@/lib/cloudflare-bindings'
+import { kvGet, kvSet } from '@/lib/kv-cache'
 
 /**
  * Shared LLM helper untuk AI Staff agents — Cloudflare Workers safe.
@@ -103,12 +104,47 @@ const COOLDOWN_MS_LIMIT = 10 * 60 * 1000
 const COOLDOWN_MS_AUTH = 60 * 60 * 1000
 const providerCoolUntil = new Map<string, number>()
 
+/* FIX CS LAMBAT (laporan Bos 8 Nov 2026: "landing page cs respond lama
+   sm cs didashbord"): cooldown dulu CUMA in-memory per-isolate — isolate
+   CF Workers baru = map kosong = provider yang barusan menggantung 40
+   dtk dicoba LAGI dari awal di pesan berikutnya. Kini cooldown
+   dicerminkan ke KV (lintas-isolate, TTL 1 jam): isolate mana pun yang
+   melayani chat langsung tahu provider mana yang sedang sakit. */
+const COOL_KV_KEY = 'llm-provider-cooldown'
+const COOL_KV_TTL_SEC = 60 * 60 // 1 jam — meliputi cooldown terpanjang (auth 60 mnt)
+
+/** Sinkronkan cooldown dari KV → memori isolate ini (sekali per callLLM). */
+async function hydrateCooldowns(): Promise<void> {
+  const saved = await kvGet<Record<string, number>>(COOL_KV_KEY)
+  if (!saved) return
+  for (const [provider, until] of Object.entries(saved)) {
+    if (until > Date.now() && (providerCoolUntil.get(provider) || 0) < until) {
+      providerCoolUntil.set(provider, until)
+    }
+  }
+}
+
+/** Cerminakan cooldown provider ke KV (lintas-isolate). Gagal = diam —
+    pendinginkan memori tetap jalan (best-effort). */
+async function persistCooldown(provider: string, until: number): Promise<void> {
+  const saved = (await kvGet<Record<string, number>>(COOL_KV_KEY)) || {}
+  saved[provider] = Math.max(saved[provider] || 0, until)
+  // Buang entri kedaluwarsa biar map tetap ramping
+  const now = Date.now()
+  for (const k of Object.keys(saved)) {
+    if ((saved[k] || 0) <= now) delete saved[k]
+  }
+  await kvSet(COOL_KV_KEY, saved, { ttl: COOL_KV_TTL_SEC })
+}
+
 function isCool(provider: string): boolean {
   const until = providerCoolUntil.get(provider) || 0
   return Date.now() < until
 }
-function cool(provider: string, ms: number): void {
-  providerCoolUntil.set(provider, Date.now() + ms)
+async function cool(provider: string, ms: number): Promise<void> {
+  const until = Date.now() + ms
+  providerCoolUntil.set(provider, until)
+  try { await persistCooldown(provider, until) } catch { /* best-effort */ }
 }
 function coolReason(provider: string): string {
   const until = providerCoolUntil.get(provider) || 0
@@ -304,6 +340,11 @@ export interface LLMCallOpts {
    *  bagus"). Gagal/404 → otomatis turun ke MORTERA_FALLBACKS lalu
    *  rantai gratis seperti biasa. */
   morteraModel?: string
+  /** Override timeout PER PROVIDER untuk panggilan ini (ms). Default 40
+   *  dtk — wajar buat agen background, TERLALU lama buat chat interaktif
+   *  (4 provider hang berurutan = user nunggu 2+ menit). Chat CS pass
+   *  12_000. */
+  timeoutMs?: number
 }
 
 /**
@@ -318,12 +359,16 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
   const notes: string[] = []
   lastCallDiag = notes
 
+  /* FIX CS LAMBAT: tarik cooldown lintas-isolate dari KV dulu — tanpa
+     ini, isolate baru mencoba provider sakit dari nol (hang 40 dtk). */
+  await hydrateCooldowns()
+
   /* PRIORITAS 1 — Mortera Cloud (deposit Rupiah, model kelas Claude/GPT). */
   const morteraKey = await getMorteraKey()
   if (morteraKey && !isCool('mortera')) {
-    const res = await callMortera(morteraKey, systemPrompt, userPrompt, maxTokens, notes, opts?.morteraModel)
+    const res = await callMortera(morteraKey, systemPrompt, userPrompt, maxTokens, notes, opts?.morteraModel, opts?.timeoutMs)
     if (res) return { ...res, notes: notes.length ? notes : undefined }
-    if (!isCool('mortera')) cool('mortera', COOLDOWN_MS_LIMIT)
+    if (!isCool('mortera')) await cool('mortera', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('mortera'))
   } else if (morteraKey && isCool('mortera')) {
     notes.push(`mortera dilompati — ${coolReason('mortera')}`)
@@ -331,9 +376,9 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
 
   const groqKey = await getGroqKey()
   if (groqKey && !isCool('groq')) {
-    const res = await callGroq(groqKey, systemPrompt, userPrompt, maxTokens, notes)
+    const res = await callGroq(groqKey, systemPrompt, userPrompt, maxTokens, notes, opts?.timeoutMs)
     if (res) return { ...res, notes: notes.length ? notes : undefined }
-    if (!isCool('groq')) cool('groq', COOLDOWN_MS_LIMIT)
+    if (!isCool('groq')) await cool('groq', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('groq'))
   } else if (groqKey && isCool('groq')) {
     notes.push(`groq dilompati — ${coolReason('groq')}`)
@@ -341,9 +386,9 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
 
   const geminiKey = await getGeminiKey()
   if (geminiKey && !isCool('gemini')) {
-    const res = await callGemini(geminiKey, systemPrompt, userPrompt, maxTokens, notes)
+    const res = await callGemini(geminiKey, systemPrompt, userPrompt, maxTokens, notes, opts?.timeoutMs)
     if (res) return { ...res, notes: notes.length ? notes : undefined }
-    if (!isCool('gemini')) cool('gemini', COOLDOWN_MS_LIMIT)
+    if (!isCool('gemini')) await cool('gemini', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('gemini'))
   } else if (geminiKey && isCool('gemini')) {
     notes.push(`gemini dilompati — ${coolReason('gemini')}`)
@@ -351,9 +396,9 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
 
   const orKey = await getOpenRouterKey()
   if (orKey && !isCool('openrouter')) {
-    const res = await callOpenRouter(orKey, systemPrompt, userPrompt, maxTokens, notes)
+    const res = await callOpenRouter(orKey, systemPrompt, userPrompt, maxTokens, notes, opts?.timeoutMs)
     if (res) return { ...res, notes: notes.length ? notes : undefined }
-    if (!isCool('openrouter')) cool('openrouter', COOLDOWN_MS_LIMIT)
+    if (!isCool('openrouter')) await cool('openrouter', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('openrouter'))
   } else if (orKey && isCool('openrouter')) {
     notes.push(`openrouter dilompati — ${coolReason('openrouter')}`)
@@ -413,7 +458,7 @@ async function callOpenAICompatible(
          subrequest yang menembus limit 50/invokasi (insiden
          master-autonomous 8 Nov, log CF Bos). */
       notes.push(`${label} auto-discover tidak menemukan kandidat layak → pendinginkan 10 mnt`)
-      cool(label, COOLDOWN_MS_LIMIT)
+      await cool(label, COOLDOWN_MS_LIMIT)
     }
   }
   return null
@@ -477,12 +522,12 @@ async function callOpenAIModel(
         const raSec = Number(res.headers.get('retry-after'))
         const hint = errBody.replace(/\s+/g, ' ').trim().slice(0, 140)
         notes.push(`${label} 429 rate-limit (model ${model})${hint ? ` — provider: ${hint}` : ''} → cooldown + pindah provider`)
-        cool(label, Number.isFinite(raSec) && raSec > 0 ? Math.min(raSec * 1000, COOLDOWN_MS_LIMIT) : COOLDOWN_MS_LIMIT)
+        await cool(label, Number.isFinite(raSec) && raSec > 0 ? Math.min(raSec * 1000, COOLDOWN_MS_LIMIT) : COOLDOWN_MS_LIMIT)
         return { ok: false, hardStop: true }
       }
       if (res.status === 401 || res.status === 403) {
         notes.push(`${label} ${res.status} auth bermasalah → cooldown 60 menit`)
-        cool(label, COOLDOWN_MS_AUTH)
+        await cool(label, COOLDOWN_MS_AUTH)
         return { ok: false, hardStop: true }
       }
       if (res.status === 402) {
@@ -492,7 +537,7 @@ async function callOpenAIModel(
         // masih 402, sebabnya kelihatan langsung (mis. key akun yang lain).
         const hint = errBody.replace(/\s+/g, ' ').trim().slice(0, 140)
         notes.push(`${label} 402 saldo/wallet habis${hint ? ` — provider: ${hint}` : ''} → cooldown 60 menit + rantai free mengambil alih`)
-        cool(label, COOLDOWN_MS_AUTH)
+        await cool(label, COOLDOWN_MS_AUTH)
         return { ok: false, hardStop: true }
       }
       if (res.status >= 500) {
@@ -526,12 +571,20 @@ async function callOpenAIModel(
   } catch (err: any) {
     console.error(`[ai-llm] ${label} error (${model}):`, err?.message || err)
     notes.push(`${label} ${model} error: ${String(err?.message || err).slice(0, 80)}`)
+    /* FIX CS LAMBAT: dulu timeout/network error TANPA cooldown — provider
+       yang menggantung dicoba LAGI di pesan berikutnya (isolate CF juga
+       ganti-ganti, memori cooldown kosong) → user menunggu 40 dtk berulang
+       (laporan Bos: CS respond lama). Kini: timeout → istirahat 5 menit,
+       network error lain (DNS/socket sesaat) → 1 menit. */
+    const isTimeout = err?.name === 'TimeoutError' || err?.name === 'AbortError' || /timeout|timed out/i.test(String(err?.message || ''))
+    notes.push(isTimeout ? `${label} timeout → cooldown 5 menit` : `${label} network error → cooldown 1 menit`)
+    await cool(label, isTimeout ? 5 * 60_000 : 60_000)
     return { ok: false, hardStop: true } // network error → provider lain
   }
 }
 
-async function callGroq(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
-  return callOpenAICompatible('groq', 'https://api.groq.com/openai/v1', apiKey, [GROQ_MODEL, ...GROQ_FALLBACKS], groqScore, systemPrompt, userPrompt, maxTokens, notes)
+async function callGroq(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], timeoutMs?: number): Promise<LLMResult | null> {
+  return callOpenAICompatible('groq', 'https://api.groq.com/openai/v1', apiKey, [GROQ_MODEL, ...GROQ_FALLBACKS], groqScore, systemPrompt, userPrompt, maxTokens, notes, 0.8, timeoutMs)
 }
 
 /* ── MORTERA CLOUD (mortera.cloud/v1) ──────────────────────────────
@@ -544,9 +597,9 @@ const morteraScore = (id: string) => {
   return (/haiku/i.test(id) ? 50 : 0) + (/sonnet/i.test(id) ? 30 : 0) + (/terra/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 10 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
 }
 
-async function callMortera(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], modelOverride?: string): Promise<LLMResult | null> {
+async function callMortera(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], modelOverride?: string, timeoutMs?: number): Promise<LLMResult | null> {
   const chain = [...new Set([modelOverride?.trim() || MORTERA_MODEL, MORTERA_MODEL, ...MORTERA_FALLBACKS])]
-  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, chain, morteraScore, systemPrompt, userPrompt, maxTokens, notes)
+  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, chain, morteraScore, systemPrompt, userPrompt, maxTokens, notes, 0.8, timeoutMs)
 }
 
 /** Panggil Mortera LANGSUNG — tanpa rotasi ke provider lain. Untuk route yang
@@ -571,8 +624,8 @@ export async function callMorteraDirect(
   return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
 }
 
-async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
-  return callOpenAICompatible('openrouter', 'https://openrouter.ai/api/v1', apiKey, [OPENROUTER_MODEL, ...OPENROUTER_FALLBACKS], openrouterScore, systemPrompt, userPrompt, maxTokens, notes)
+async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], timeoutMs?: number): Promise<LLMResult | null> {
+  return callOpenAICompatible('openrouter', 'https://openrouter.ai/api/v1', apiKey, [OPENROUTER_MODEL, ...OPENROUTER_FALLBACKS], openrouterScore, systemPrompt, userPrompt, maxTokens, notes, 0.8, timeoutMs)
 }
 
 async function callGeminiModel(
@@ -582,6 +635,7 @@ async function callGeminiModel(
   userPrompt: LLMUserInput,
   maxTokens: number,
   notes: string[],
+  timeoutMs = 40_000,
 ): Promise<{ ok: boolean; result?: LLMResult; model404?: boolean }> {
   try {
     const res = await fetch(
@@ -600,7 +654,7 @@ async function callGeminiModel(
             ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
           },
         }),
-        signal: AbortSignal.timeout(40000),
+        signal: AbortSignal.timeout(timeoutMs),
       }
     )
 
@@ -613,12 +667,12 @@ async function callGeminiModel(
       }
       if (res.status === 429) {
         notes.push('gemini 429 rate-limit → cooldown + pindah provider')
-        cool('gemini', COOLDOWN_MS_LIMIT)
+        await cool('gemini', COOLDOWN_MS_LIMIT)
         return { ok: false }
       }
       if (res.status === 401 || res.status === 403) {
         notes.push(`gemini ${res.status} auth bermasalah → cooldown 60 menit`)
-        cool('gemini', COOLDOWN_MS_AUTH)
+        await cool('gemini', COOLDOWN_MS_AUTH)
         return { ok: false }
       }
       if (res.status >= 500) {
@@ -644,14 +698,20 @@ async function callGeminiModel(
   } catch (err: any) {
     console.error(`[ai-llm] Gemini error (${model}):`, err?.message || err)
     notes.push(`gemini ${model} error: ${String(err?.message || err).slice(0, 80)}`)
+    /* FIX CS LAMBAT: sama seperti rantai OpenAI-compatible — timeout/network
+       kini didinginkan (5 mnt / 1 mnt) supaya isolate berikutnya lompat
+       langsung, bukan menggantung 40 dtk dari nol. */
+    const isTimeout = err?.name === 'TimeoutError' || err?.name === 'AbortError' || /timeout|timed out/i.test(String(err?.message || ''))
+    notes.push(isTimeout ? 'gemini timeout → cooldown 5 menit' : 'gemini network error → cooldown 1 menit')
+    await cool('gemini', isTimeout ? 5 * 60_000 : 60_000)
     return { ok: false }
   }
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], timeoutMs?: number): Promise<LLMResult | null> {
   let saw404 = false
   for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACKS]) {
-    const r = await callGeminiModel(apiKey, model, systemPrompt, userPrompt, maxTokens, notes)
+    const r = await callGeminiModel(apiKey, model, systemPrompt, userPrompt, maxTokens, notes, timeoutMs)
     if (r.ok) return r.result!
     if (r.model404) saw404 = true
   }
@@ -662,14 +722,14 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: LLMU
     if (fresh.length) {
       notes.push(`gemini auto-discover kandidat: ${fresh.join(', ')}`)
       for (const alt of fresh) {
-        const r = await callGeminiModel(apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
+        const r = await callGeminiModel(apiKey, alt, systemPrompt, userPrompt, maxTokens, notes, timeoutMs)
         if (r.ok) return r.result!
       }
     } else {
       /* Semua model mati + discover kosong → pendinginkan (anti badai
          subrequest, lihat catatan di callOpenAICompatible). */
       notes.push('gemini auto-discover tidak menemukan kandidat layak → pendinginkan 10 mnt')
-      cool('gemini', COOLDOWN_MS_LIMIT)
+      await cool('gemini', COOLDOWN_MS_LIMIT)
     }
   }
   return null
