@@ -42,20 +42,15 @@
 //                 balas aman otomatis (maks 5/run & 15/hari) + lapor
 //                 prospek ke Discord; hunt maks tiap 2 jam)
 //
-// Slot cron ke-5 (terakhir — kuota Free = 5): * * * * * tiap MENIT →
-//   COMMENT HUNTER tick cepat. Alasan: dengan 15-menit, balasan komentar
-//   IG telat maksimal 15 menit setelah jendela hunt 2 jam buka; dengan
-//   tick per-menit balasan bisa keluar ≤1 menit — karyawan terasa
-//   HIDUP 24 jam. Murah: throttle internal (HUNT_COOLDOWN_MS) balik
-//   'cooldown' SEBELUM menyentuh Graph API — cuma 1 probe tabel +
-//   1 baca agent_kv per tick (±1440×/hari, nol kuota IG, nol LLM).
+// CATATAN slot cron: percobaan pakai slot ke-5 utk tick per-menit
+//   COMMENT HUNTER DIBATALKAN 8 Nov — CF menolak (error 10072: akun
+//   Free sudah genap 5 cron trigger per akun) dan bikin deploy gagal
+//   setelah script ter-upload. Comment Hunter kembali ke slot */15.
 const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
   '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/vip-signals', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
-  // Slot ke-5 (terakhir) — tick per menit Pemburu Komentar (lihat catatan atas)
-  '* * * * *': ['/api/cron/comment-hunter'],
 }
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),

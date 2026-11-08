@@ -106,11 +106,13 @@
         // 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary + ai-marketing-agent + ceo weekly report)
         // */15 * * * = tiap 15 menit     (econ-calendar-notify + ceo watchdog 24/7)
         "triggers": {
-                // Slot ke-5 (habis kuota Free 5 cron): * * * * * = tiap MENIT
-                // → Pemburu Komentar IG reaksi ≤1 menit setelah jeda 2 jam
-                //   buka ("karyawan terasa hidup 24 jam"), bukan nunggu ≤15
-                //   menit. Aman: throttle internal balik 'cooldown' tanpa
-                //   nyentuh Graph API (1 probe tabel + 1 baca agent_kv saja).
-                "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *", "* * * * *"]
+                // SLOT MENIT DIBATALKAN (log build CF 8 Nov 06:54 — error 10072):
+                // "This account has reached the Workers Free limit of 5 cron
+                // triggers per account" → akun sudah penuh, cron * * * * *
+                // DITOLAK CF dan bikin SELURUH deploy gagal. Pemburu Komentar
+                // kembali numpang slot */15 (throttle internal 2 jam tetap
+                // bikin reaksinya tepat). Mau tick per-menit beneran → upgrade
+                // Workers Paid (Durable Objects alarms) ATAU hapus cron lain.
+                "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
         }
 }

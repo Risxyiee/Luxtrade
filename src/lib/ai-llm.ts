@@ -121,6 +121,8 @@ function coolReason(provider: string): string {
    pilih kandidat terbaik yang masih tersedia. Ini yang bikin rantai
    "menemukan solusi sendiri" — tanpa deploy ulang. */
 const DISCOVER_TTL = 6 * 60 * 60 * 1000
+/** Cache kekosongan hasil discover — 30 mnt (anti badai subrequest). */
+const DISCOVER_FAIL_TTL = 30 * 60 * 1000
 const discovered = new Map<string, { models: string[]; until: number }>()
 
 async function discoverOpenAIModels(
@@ -131,17 +133,22 @@ async function discoverOpenAIModels(
 ): Promise<string[]> {
   const hit = discovered.get(label)
   if (hit && Date.now() < hit.until) return hit.models
+  /* DISCOVER_FAIL_TTL: hasil KOSONG juga di-cache (30 mnt) — dulu tiap
+     panggilan mengulang GET /models padahal kandidat memang tak ada,
+     jadi pemborosan subrequest beruntun (insiden master-autonomous
+     8 Nov: 5 agen × rantai mati = limit 50 subrequest/invokasi tembus,
+     semua fetch ikut jebol "Too many subrequests"). */
   try {
     const res = await fetch(`${baseUrl}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(12_000),
     })
-    if (!res.ok) return []
+    if (!res.ok) { discovered.set(label, { models: [], until: Date.now() + DISCOVER_FAIL_TTL }); return [] }
     const data = await res.json() as { data?: { id?: string }[] }
     const ids = (data?.data || []).map((m) => String(m?.id || '')).filter(Boolean)
-    if (!ids.length) return []
+    if (!ids.length) { discovered.set(label, { models: [], until: Date.now() + DISCOVER_FAIL_TTL }); return [] }
     const ranked = [...ids].sort((a, b) => score(b) - score(a)).filter((id) => score(id) > 0).slice(0, 3)
-    if (!ranked.length) return []
+    if (!ranked.length) { discovered.set(label, { models: [], until: Date.now() + DISCOVER_FAIL_TTL }); return [] }
     discovered.set(label, { models: ranked, until: Date.now() + DISCOVER_TTL })
     return ranked
   } catch { return [] }
@@ -155,13 +162,13 @@ async function discoverGeminiModels(apiKey: string): Promise<string[]> {
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`,
       { signal: AbortSignal.timeout(12_000) },
     )
-    if (!res.ok) return []
+    if (!res.ok) { discovered.set('gemini', { models: [], until: Date.now() + DISCOVER_FAIL_TTL }); return [] }
     const data = await res.json() as { models?: { name?: string; supportedGenerationMethods?: string[] }[] }
     const usable = (data?.models || [])
       .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
       .map((m) => String(m.name || '').replace(/^models\//, ''))
       .filter((id) => id && !/embedding|aqa|image|audio|tts|veo/i.test(id))
-    if (!usable.length) return []
+    if (!usable.length) { discovered.set('gemini', { models: [], until: Date.now() + DISCOVER_FAIL_TTL }); return [] }
     const score = (id: string) =>
       (/flash/i.test(id) ? 40 : 0) + (/gemini/i.test(id) ? 20 : 0) + (/latest/i.test(id) ? 5 : 0) - (/thinking|pro/i.test(id) ? 8 : 0)
     const ranked = [...usable].sort((a, b) => score(b) - score(a)).slice(0, 3)
@@ -399,8 +406,14 @@ async function callOpenAICompatible(
         if (r.ok && r.result) return r.result
         if (r.hardStop) break
       }
-    } else if (!alts.length) {
-      notes.push(`${label} auto-discover tidak menemukan kandidat layak`)
+    } else {
+      /* Semua model mati + discover tak menemukan apa pun → pendinginkan
+         provider (10 mnt). Dulu dibiarkan dingin-0: tiap panggilan
+         berikutnya mengulang 3× model 404 + GET /models — pemborosan
+         subrequest yang menembus limit 50/invokasi (insiden
+         master-autonomous 8 Nov, log CF Bos). */
+      notes.push(`${label} auto-discover tidak menemukan kandidat layak → pendinginkan 10 mnt`)
+      cool(label, COOLDOWN_MS_LIMIT)
     }
   }
   return null
@@ -652,6 +665,11 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: LLMU
         const r = await callGeminiModel(apiKey, alt, systemPrompt, userPrompt, maxTokens, notes)
         if (r.ok) return r.result!
       }
+    } else {
+      /* Semua model mati + discover kosong → pendinginkan (anti badai
+         subrequest, lihat catatan di callOpenAICompatible). */
+      notes.push('gemini auto-discover tidak menemukan kandidat layak → pendinginkan 10 mnt')
+      cool('gemini', COOLDOWN_MS_LIMIT)
     }
   }
   return null
