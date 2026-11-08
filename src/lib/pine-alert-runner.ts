@@ -32,6 +32,7 @@ import {
 import { fetchServerCandles } from '@/lib/market/server-candles'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { pushToUser, signalEmoji } from '@/lib/push-notify'
+import { isXauLikeSymbol, isXauMarketOpen } from '@/lib/market-hours'
 
 /* Kompatibilitas API lama (modul lain impor dari runner) */
 export { collectTriggers, evaluateAlertRules, ALERT_LOOKBACK_BARS } from '@/lib/pine-engine-core'
@@ -161,6 +162,14 @@ export async function sendAlertTriggers(
 
   if (!triggers.length || !users.length) return { sent, perUser }
 
+  /* GERBANG PASAR TUTUP (keluhan Bos 8 Nov 2026, Minggu: "pine script
+     masih kirim notif XAU padahal pasar tutup"). Evaluasi tetap jalan
+     (kesehatan skrip tetap terpantau), claim dedupe tetap ditulis —
+     sinyal basi bar Jumat TIDAK di-replay Senin saat buka — hanya
+     PUSH-nya yang ditahan. Jadwal = KALENDER New York, tidak bisa
+     dibodohi timestamp upstream yang beku di weekend. */
+  const marketOpen = !isXauLikeSymbol(symbol) || isXauMarketOpen()
+
   for (const u of users) {
     let sentThis = false
     let reason = 'server belum terhubung'
@@ -202,6 +211,14 @@ export async function sendAlertTriggers(
         }
       }
       if (!isNew) { reason = 'sudah terkirim di bar ini'; continue }
+
+      /* Pasar tutup → notifikasi DITAHAN (claim dedupe sudah ditulis di
+         atas — bar ini tidak akan menembak ulang). Lihat catatan di
+         atas (const marketOpen). */
+      if (!marketOpen) {
+        reason = 'pasar tutup (weekend/jeda harian) — notifikasi ditahan'
+        continue
+      }
 
       /* ── Push layar HP — tampil otomatis walau app tertutup.
          Dedupe bar sudah dijaga pine_alert_log di atas → dedupe:false.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { pushToUser } from '@/lib/push-notify'
 import { getSelfFetch } from '@/lib/cloudflare-bindings'
+import { isXauLikeSymbol, isXauMarketOpen } from '@/lib/market-hours'
 
 /**
  * GET/POST /api/cron/price-alerts
@@ -183,9 +184,13 @@ async function handle(): Promise<NextResponse> {
     }
 
     // 2. Unikkan symbol → 1 fetch per symbol (hemat kuota upstream)
+    //    Pasar logam tutup (weekend/jeda) → quote = harga beku Jumat;
+    //    jangan bandingkan target dgn data basi (push "tercapai" palsu
+    //    di hari Minggu). Target dicek lagi begitu pasar buka.
     const symbols = [...new Set(watch.map((r) => r.symbol))].slice(0, 40)
     const quotes = new Map<string, Quote>()
     for (const sym of symbols) {
+      if (isXauLikeSymbol(sym) && !isXauMarketOpen()) continue
       const q = await fetchQuote(sym)
       if (q) quotes.set(sym, q)
       await new Promise((r) => setTimeout(r, 150)) // jeda sopan antar upstream

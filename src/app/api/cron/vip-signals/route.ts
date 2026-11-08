@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { getSelfFetch } from '@/lib/cloudflare-bindings'
+import { isXauMarketOpen } from '@/lib/market-hours'
 import {
   evaluateCloses,
   broadcastVipSignal,
@@ -128,6 +129,26 @@ async function handle(request: NextRequest): Promise<NextResponse> {
 
   try {
     const demo = request.nextUrl.searchParams.get('demo') === '1'
+
+    /* ── GERBANG KALENDER PASAR (keluhan Bos 8 Nov 2026, Minggu) ──
+       Gerbang "bar basi" di bawah hanya melindungi bila upstream
+       menyediakan timestamp bar (lastClosedAtSec > 0); kalau tidak,
+       evaluasi jalan atas data beku weekend → EMA cross palsu →
+       alert pasaran tutap. Gerbang kalender tak bisa dibodohi:
+       XAU tutup Jumat 17:00 ET s.d. Minggu 18:00 ET (+ jeda harian
+       17:00–17:59 ET Senin–Kamis). Dipasang SEBELUM fetch candle →
+       hemat kuota upstream juga. */
+    if (!demo && !isXauMarketOpen()) {
+      return NextResponse.json({
+        ok: true,
+        triggered: false,
+        skipped: 'market-closed-calendar',
+        symbol: 'XAU/USD',
+        engine: getMarketListenerStatus(),
+        elapsed_ms: Date.now() - startTime,
+      })
+    }
+
     const quote = await fetchCandles()
     if (!quote) {
       return NextResponse.json(
