@@ -91,6 +91,10 @@ export interface VipBroadcastResult {
   error?: string
   /** id baris market_alerts yang tercipta */
   alertId?: string
+  /** Jumlah user Pro yang DILEWATI dari broadcast engine karena punya
+      langganan Pine aktif — sinyal mereka datang dari skrip sendiri
+      (pine-alert-runner), bukan engine EMA generik. */
+  pineExcluded?: number
 }
 
 export type ListenerState =
@@ -395,7 +399,10 @@ export async function broadcastVipSignal(
 
   const emoji = signal.action === 'BUY' ? '🟢' : '🔴'
   const payload = {
-    title: opts?.demo ? '🧪 [TES] Sinyal VIP Luxtradee' : '🚨 Sinyal VIP Luxtradee',
+    /* Label sumber DIPERJELAS (keluhan Bos: "masih sinyal ema? ga
+       sesuai yang dimasukin user ke pine") — sinyal ini dari engine
+       bawaan EMA9/21+RSI XAU/USD, BUKAN dari Pine Script user. */
+    title: opts?.demo ? '🧪 [TES] Sinyal VIP · Engine EMA' : '🚨 Sinyal VIP · Engine EMA',
     body: `${emoji} ${signal.action} ${tick.symbol} @ ${fmt(signal.entryPrice)} | 🛑 SL: ${fmt(signal.sl)} | 🎯 TP: ${fmt(signal.tp)}`,
     icon: '/icon-192x192.png',
     tag: opts?.demo ? 'vip-signal-demo' : 'vip-signal',
@@ -412,12 +419,34 @@ export async function broadcastVipSignal(
     .limit(1000)
   if (proErr) return { sent: false, skipped: 'db-error', error: proErr.message }
 
-  const ids = ((pros ?? []) as { id: string }[]).map((r) => String(r.id)).filter(Boolean)
+  const allProIds = ((pros ?? []) as { id: string }[]).map((r) => String(r.id)).filter(Boolean)
+
+  /* 2) EXCLUDE user yang punya langganan Pine AKTIF — sinyal mereka
+     datang dari SKRIP SENDIRI (pine-alert-runner: GHA runner ±5 mnt /
+     cron CF backup), bukan engine EMA generik. Sinyal EMA yang nyasar
+     ke layar user ber-Pine = keluhan Bos: "ga sesuai apa yang
+     dimasukin user ke pine".
+     Fail-open: tabel belum dimigrasi / query error → kirim ke SEMUA
+     Pro (perilaku lama) supaya sinyal tidak hilang total. */
+  let pineExcluded = 0
+  let ids = allProIds
+  try {
+    const { data: pineSubs, error: pineErr } = await admin
+      .from('pine_alert_subscriptions')
+      .select('user_id')
+      .eq('enabled', true)
+      .limit(2000)
+    if (!pineErr && pineSubs?.length) {
+      const pineUsers = new Set((pineSubs as { user_id: string }[]).map((s) => String(s.user_id)))
+      ids = allProIds.filter((id) => !pineUsers.has(id))
+      pineExcluded = allProIds.length - ids.length
+    }
+  } catch { /* tabel belum ada → perilaku lama */ }
 
   let receivers = 0
   let failed = 0
   if (ids.length) {
-    // 2) Kirim per user — sendPushToUser di dalamnya pakai
+    // 3) Kirim per user — sendPushToUser di dalamnya pakai
     //    Promise.allSettled per device + buang endpoint 410/404.
     const results = await pushToUsers(
       admin,
@@ -455,7 +484,9 @@ export async function broadcastVipSignal(
   lastBroadcastAt = Date.now()
   console.log(
     `[vip-signal] ${signal.action} ${tick.symbol} @ ${fmt(signal.entryPrice)} ` +
-    `SL ${fmt(signal.sl)} TP ${fmt(signal.tp)} → ${receivers} user PRO${failed ? `, ${failed} gagal` : ''}`
+    `SL ${fmt(signal.sl)} TP ${fmt(signal.tp)} → ${receivers} user PRO` +
+    `${pineExcluded ? ` (${pineExcluded} pakai Pine sendiri — skip engine)` : ''}` +
+    `${failed ? `, ${failed} gagal` : ''}`
   )
 
   /* FREEMIUM BARU — user FREE dapat sinyal yang SAMA dengan jeda satu
@@ -472,7 +503,7 @@ export async function broadcastVipSignal(
     }
   }
 
-  return { sent: true, receivers, failed, alertId }
+  return { sent: true, receivers, failed, alertId, pineExcluded }
 }
 
 /* ════════════════════════════════════════════════════════════════
