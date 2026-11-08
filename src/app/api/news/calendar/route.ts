@@ -146,13 +146,25 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
  */
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; unavailable: boolean }> {
   // 0. Try Faireconomy.media (free ForexFactory JSON — works from CF Workers!)
+  //    Dua host: nfs sering 429 (rate-limit publik) → coba mirror cdn-nfs
+  //    sebelum jatuh ke TradingEconomics/sample.
   try {
     console.log('[Calendar] Fetching from Faireconomy.media...');
-    const res = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (res.ok) {
+    let res: Response | null = null;
+    const FF_TIMEOUT_MS = 8000;
+    for (const ffHost of ['https://nfs.faireconomy.media', 'https://cdn-nfs.faireconomy.media']) {
+      try {
+        const r = await fetch(`${ffHost}/ff_calendar_thisweek.json`, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(FF_TIMEOUT_MS),
+        });
+        if (r.ok) { res = r; break; }
+        console.info(`[Calendar] Faireconomy ${ffHost} → ${r.status}, coba host berikutnya`);
+      } catch (hostErr: any) {
+        console.info(`[Calendar] Faireconomy ${ffHost} error: ${hostErr?.message || hostErr}`);
+      }
+    }
+    if (res) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const events: CalendarEvent[] = [];

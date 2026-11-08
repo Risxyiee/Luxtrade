@@ -122,6 +122,17 @@ export const VIP_SIGNAL_REARM_MS = Math.max(
   Number(process.env.VIP_SIGNAL_REARM_MS || 4 * 60 * 60_000) || 4 * 60 * 60_000
 )
 
+/** Jeda minimal antar sinyal APA PUN (arah apa pun). Default 45 menit
+ *  (= 3 tik cron 15-menit, senada gerbang bar-basi di route cron).
+ *  Re-arm 4 jam HANYA menahan arah sama — arah berlawanan lolos langsung.
+ *  Tanpa jeda global ini, cross bolak-balik (pasar choppy / data basi)
+ *  bisa ping-pong BUY→SELL→BUY tiap tik cron (kasus nyata: Minggu
+ *  2026-11-08, pasar TUTUP, BUY 10:00 WIB → SELL 10:30 WIB). */
+export const VIP_SIGNAL_MIN_GAP_MS = Math.max(
+  VIP_SIGNAL_COOLDOWN_MS,
+  Number(process.env.VIP_SIGNAL_MIN_GAP_MS || 45 * 60_000) || 45 * 60_000
+)
+
 /** Kill-switch darurat: VIP_SIGNALS_ENABLED=false mematikan broadcast */
 function signalsEnabled(): boolean {
   return String(process.env.VIP_SIGNALS_ENABLED ?? 'true').toLowerCase() !== 'false'
@@ -324,6 +335,9 @@ async function isCooldownActive(
       if (Number.isFinite(t)) {
         const age = Date.now() - t
         if (age < VIP_SIGNAL_COOLDOWN_MS) return true
+        // Jeda global: sinyal apa pun (arah apa pun) max 1× per 30 menit —
+        // tameng ping-pong BUY↔SELL saat cross noise/basi.
+        if (age < VIP_SIGNAL_MIN_GAP_MS) return true
         if (String(data[0].symbol) === symbol && String(data[0].action) === action && age < VIP_SIGNAL_REARM_MS) return true
       }
     }
@@ -612,6 +626,8 @@ export interface MarketListenerStatus {
   lastError: string | null
   hasTwelveDataKey: boolean
   cooldownMs: number
+  rearmMs: number
+  minGapMs: number
   lastBroadcastAt: number | null
   enabled: boolean
 }
@@ -632,6 +648,8 @@ export function getMarketListenerStatus(): MarketListenerStatus {
     lastError: rt.lastError || null,
     hasTwelveDataKey: Boolean(String(process.env.TWELVE_DATA_API_KEY || '').trim()),
     cooldownMs: VIP_SIGNAL_COOLDOWN_MS,
+    rearmMs: VIP_SIGNAL_REARM_MS,
+    minGapMs: VIP_SIGNAL_MIN_GAP_MS,
     lastBroadcastAt: lastBroadcastAt || null,
     enabled: signalsEnabled(),
   }

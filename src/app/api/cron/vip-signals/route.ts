@@ -64,14 +64,25 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
 }
 
 /** Candle 15m XAU/USD — via /api/candles (SELF binding anti-522).
- *  80 bar (±20 jam) cukup utk EMA21 + RSI14 + deteksi cross. */
+ *  80 bar (±20 jam) cukup utk EMA21 + RSI14 + deteksi cross.
+ *  Bar terakhir DIBUANG dari `closes`: itu bar BERJALAN (overlay spot
+ *  real-time di /api/candles) — saat pasar tutup nilai overlay-nya
+ *  berganti-ganti antar sumber/cache → EMA9×21 "cross palsu" dari noise
+ *  (bug spam Minggu 2026-11-08: BUY 10:00 WIB → SELL 10:30 WIB padahal
+ *  pasar TUTUP). Keputusan sinyal = bar tutup SAJA. */
 const CANDLE_INTERVAL = '15m'
 const CANDLE_LIMIT = 80
+const CANDLE_INTERVAL_MIN = Number(CANDLE_INTERVAL.replace(/\D/g, '')) || 15
+/** Bar tertutup terakhir harus segar ≤ 3× timeframe (45 mnt utk 15m).
+ *  Lebih tua = pasar tutup/weekend/data beku → JANGAN evaluasi. */
+const STALE_CLOSED_BAR_SEC = 3 * CANDLE_INTERVAL_MIN * 60
 
 async function fetchCandles(): Promise<{
   price: number
   symbol: string
   closes: number[]
+  /** epoch DETIK pembukaan bar tertutup terakhir; 0 bila upstream tak menyediakan */
+  lastClosedAtSec: number
 } | null> {
   try {
     const quoteUrl =
@@ -85,15 +96,23 @@ async function fetchCandles(): Promise<{
     const json = await res.json()
     const bars = Array.isArray(json?.data) ? json.data : []
     if (!bars.length) return null
+    const closed = bars.length > 1 ? bars.slice(0, -1) : bars
     const closes: number[] = []
-    for (const b of bars) {
+    for (const b of closed) {
       const c = Number(b?.close)
       if (Number.isFinite(c) && c > 0) closes.push(c)
     }
     const last = bars[bars.length - 1]
     const price = Number(last?.close)
     if (!closes.length || !Number.isFinite(price) || price <= 0) return null
-    return { price, symbol: String(last?.symbol || 'XAU/USD'), closes }
+    const lastClosedTime = Number(closed[closed.length - 1]?.time)
+    return {
+      price,
+      symbol: String(last?.symbol || 'XAU/USD'),
+      closes,
+      lastClosedAtSec:
+        Number.isFinite(lastClosedTime) && lastClosedTime > 0 ? lastClosedTime : 0,
+    }
   } catch {
     return null
   }
@@ -122,6 +141,25 @@ async function handle(request: NextRequest): Promise<NextResponse> {
       price: quote.price,
       timestamp: Date.now(),
       source: demo ? 'demo' : 'poll',
+    }
+
+    // ── GERBANG PASAR TUTUP (anti sinyal basi) ──
+    // Bar tertutup terakhir harus segar (≤ 45 mnt utk TF 15m). Weekend
+    // / holiday → candle beku → jangan evaluasi: cross basi yang sama
+    // tidak boleh menembak ulang tiap lewatnya window re-arm.
+    const nowSec = Math.floor(Date.now() / 1000)
+    const barAgeSec = quote.lastClosedAtSec > 0 ? nowSec - quote.lastClosedAtSec : 0
+    if (!demo && quote.lastClosedAtSec > 0 && barAgeSec > STALE_CLOSED_BAR_SEC) {
+      return NextResponse.json({
+        ok: true,
+        triggered: false,
+        skipped: 'market-closed',
+        symbol: tick.symbol,
+        price: tick.price,
+        last_closed_bar_age_min: Math.round(barAgeSec / 60),
+        engine: getMarketListenerStatus(),
+        elapsed_ms: Date.now() - startTime,
+      })
     }
 
     // ── OTAK (satu-satunya): EMA9/21 cross + RSI filter di atas

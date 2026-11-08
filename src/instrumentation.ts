@@ -13,7 +13,28 @@
  * (Pola early-return biasa TIDAK cukup — webpack tetap menelusuri
  * import() dan kompilasi edge gagal: "Can't resolve 'http'".)
  */
+/**
+ * Deteksi runtime Cloudflare Workers (workerd).
+ * Setiap request cron/cold-start di Workers menjalankan register() —
+ * rantai import marketListener (supabase-js + web-push) memakan CPU init
+ * yang mahal di plan GRATIS (limit 10 ms CPU/request → "Worker exceeded
+ * CPU time limit" → 503 acak). Di Workers jalur WS memang mustahil jalan
+ * (`ws` butuh net/tls — terbukti commit e4c7abc5); sinyal VIP diproduksi
+ * jalur cron REST /api/cron/vip-signals. Maka di Workers: JANGAN import
+ * apa pun.
+ */
+const isCloudflareWorkers =
+  (typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers') ||
+  typeof (globalThis as { WebSocketPair?: unknown }).WebSocketPair !== 'undefined'
+
 export async function register() {
+  if (isCloudflareWorkers) {
+    console.log(
+      '✅ [Instrumentation] Cloudflare Workers terdeteksi — listener WS dilewati (produksi via cron REST /api/cron/vip-signals)'
+    )
+    return
+  }
+
   // Auto-migration disabled — run migrations manually via Supabase SQL Editor
   console.log('✅ [Instrumentation] Server started (auto-migration disabled)')
 
