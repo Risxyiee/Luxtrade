@@ -15,10 +15,15 @@
 --   043 — growth_leads: jejak lead dari CS bot proaktif (Kevin)
 --   044 — Kolom kesehatan evaluasi Pine (last_eval_at/ok/error)
 --   045 — ig_comment_hunts: jejak Pemburu Komentar IG (dedupe)
+--   046 — blog_posts JARING PENGAMAN: buat tabel bila belum ada +
+--         kolom slug/meta_description/keyword/views (040) — log CF
+--         8 Nov: GET /rest/v1/blog_posts?select=slug → 400 karena
+--         tabel/kolom ini memang belum ada di database.
 --
 -- Tanpa 043: lead email tidak tersimpan + metrik sentinel 400/404.
 -- Tanpa 045: Pemburu Komentar balik "skipped" tiap cron.
 -- Tanpa 044: dialog alert Pine tidak menampilkan bukti evaluasi.
+-- Tanpa 046: SEO Factory (Farhan) gagal insert + halaman /blog 400.
 -- ==================================================================
 
 -- ============================================================
@@ -379,3 +384,75 @@ COMMENT ON COLUMN public.ig_comment_hunts.lead_flag IS
 
 COMMENT ON COLUMN public.ig_comment_hunts.replied_at IS
   'Waktu balasan otomatis berhasil dikirim (null bila belum/bukan auto_replied).';
+
+-- ============================================================
+-- 046 — BLOG_POSTS JARING PENGAMAN (tabel + kolom SEO 040)
+-- ------------------------------------------------------------
+-- BUKTI DARI LOG Cloudflare 8 Nov 2026:
+--   GET https://...supabase.co/rest/v1/blog_posts?select=slug&limit=1000
+--   → HTTP 400 (dipanggil SEO Factory Farhan tiap cron, dan
+--     halaman /blog).
+-- Penyebab: tabel blog_posts BELUM ADA (atau ada tapi tanpa kolom
+-- slug dari migrasi 040 yang belum dijalankan). Paket ini meliputi
+-- KEDUA kemungkinan sekaligus:
+--   a) tabel belum ada     → CREATE TABLE buat utuh (skema 015b)
+--   b) tabel ada, kolom 040 belum ada → ADD COLUMN IF NOT EXISTS
+--      + backfill slug dari judul (logika sama dgn migrasi 040)
+-- IDEMPOTENT: aman dijalankan berulang kali, data lama TIDAK hilang.
+-- ============================================================
+
+-- 1) Tabel inti (bila benar-benar belum ada — skema asli 015b)
+CREATE TABLE IF NOT EXISTS public.blog_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  content_body TEXT NOT NULL DEFAULT '',
+  media_url TEXT,
+  author TEXT NOT NULL DEFAULT 'Sinta (CMO — AI Agent)',
+  status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'published')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2) Kolom SEO (migrasi 040) — no-op kalau sudah ada
+ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS meta_description TEXT;
+ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS keyword TEXT;
+ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0;
+
+-- 3) Backfill slug dari judul (hanya baris yang slug-nya kosong —
+--    rumus identik dengan slugify() di kode: lowercase, bukan a-z0-9 → '-')
+UPDATE public.blog_posts
+SET slug = regexp_replace(
+  lower(regexp_replace(trim(title), '[^a-zA-Z0-9]+', '-', 'g')),
+  '^-+|-+$', '', 'g')
+WHERE slug IS NULL OR slug = '';
+
+-- 4) Dedup slug (judul mirip → suffix 6 karakter id) — WAJIB sebelum
+--    index unik, kalau tidak CREATE INDEX bisa gagal
+UPDATE public.blog_posts b
+SET slug = dups.slug || '-' || substr(replace(b.id::text, '-', ''), 1, 6)
+FROM (
+  SELECT id, slug, row_number() OVER (PARTITION BY slug ORDER BY created_at) AS rn
+  FROM public.blog_posts
+  WHERE slug IS NOT NULL AND slug <> ''
+) dups
+WHERE b.id = dups.id AND dups.rn > 1;
+
+-- 5) Slug unik (URL /blog/<slug> deterministik)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_blog_posts_slug
+  ON public.blog_posts (slug);
+
+-- 6) RLS + GRANT (pola 015b: blog PUBLIK — semua boleh baca,
+--    tulis hanya lewat API server)
+ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.blog_posts TO service_role;
+GRANT SELECT ON public.blog_posts TO authenticated, anon;
+
+COMMENT ON COLUMN public.blog_posts.slug IS
+  'URL slug SEO (migrasi 040) — diisi Farhan saat insert, backfill dari judul, unik.';
+COMMENT ON COLUMN public.blog_posts.views IS
+  'Jumlah pembukaan artikel (increment oleh /api/blog/posts/[slug]). Dipakai learning loop Farhan.';
+
+-- Cek cepat setelah Run (harus mengembalikan 1 baris):
+-- SELECT column_name FROM information_schema.columns
+--  WHERE table_schema='public' AND table_name='blog_posts'
+--    AND column_name IN ('slug','meta_description','keyword','views');

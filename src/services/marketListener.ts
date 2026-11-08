@@ -39,6 +39,7 @@
 
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { pushToUsers } from '@/lib/push-notify'
+import { isXauLikeSymbol, isXauMarketOpen } from '@/lib/market-hours'
 
 /* ════════════════════════════════════════════════════════════════
    TIPE KETAT — kontrak publik engine
@@ -80,7 +81,7 @@ export interface SignalPayload {
 export interface VipBroadcastResult {
   /** true = sinyal diteruskan ke pipeline push (terlepas dari jumlah penerima) */
   sent: boolean
-  skipped?: 'cooldown' | 'rearm' | 'disabled' | 'no-supabase' | 'db-error' | 'invalid-levels'
+  skipped?: 'cooldown' | 'rearm' | 'disabled' | 'no-supabase' | 'db-error' | 'invalid-levels' | 'market-closed'
   /** Jumlah user PRO yang ≥1 push-nya sukses terkirim */
   receivers?: number
   /** Jumlah user PRO yang gagal kirim (subscription error, dsb.) */
@@ -136,6 +137,16 @@ export const VIP_SIGNAL_MIN_GAP_MS = Math.max(
 /** Kill-switch darurat: VIP_SIGNALS_ENABLED=false mematikan broadcast */
 function signalsEnabled(): boolean {
   return String(process.env.VIP_SIGNALS_ENABLED ?? 'true').toLowerCase() !== 'false'
+}
+
+/** Throttle log "pasar tutup" — jalur WS kirim tick per detik; log tiap
+ *  tick akan membanjiri output. Cukup 1× per 10 menit. */
+let lastMarketClosedLogAt = 0
+function logMarketClosedOnce(symbol: string): void {
+  const now = Date.now()
+  if (now - lastMarketClosedLogAt < 10 * 60_000) return
+  lastMarketClosedLogAt = now
+  log(`sinyal ${symbol} DITAHAN — pasar XAU tutup (kalender New York: Jumat 17:00 ET → Minggu 18:00 ET + jeda harian 17:00–17:59 ET)`)
 }
 
 /** XAU/USD tampil 2 desimal */
@@ -362,6 +373,18 @@ export async function broadcastVipSignal(
   if (!signalLevelsValid(signal)) {
     return { sent: false, skipped: 'invalid-levels' }
   }
+  /* GERBANG TERAKHIR — kalender pasar New York (lapisan ke-3):
+     1) route cron vip-signals sudah menahan evaluasi saat tutup;
+     2) jalur WS (Node) menahan di handleWsMessage;
+     3) DI SINI — corong final sebelum push, melindungi SEMUA jalur
+        (termasuk demo tanpa sadar dipanggil saat weekend) dari notif
+        "sinyal XAU" yang tidak bisa ditrade karena pasar tutup
+        (keluhan Bos 8 Nov 2026: notif sel XAU pasaran tutup).
+        demo=true TETAP lolos — gerbang ini untuk sinyal LIVE. */
+  if (!opts?.demo && isXauLikeSymbol(tick.symbol) && !isXauMarketOpen(new Date(tick.timestamp || Date.now()))) {
+    logMarketClosedOnce(tick.symbol)
+    return { sent: false, skipped: 'market-closed' }
+  }
 
   const admin = await getSupabaseAdminAsync()
   if (!admin) return { sent: false, skipped: 'no-supabase' }
@@ -504,6 +527,16 @@ function handleWsMessage(rt: ListenerRuntime, raw: string): void {
     }
     rt.ticks++
     rt.lastTickAt = Date.now()
+
+    // ── GERBANG PASAR TUTUP (hemat CPU + tanpa sinyal basi):
+    //    Twelve Data mengirim isMarketOpen=false saat weekend/rollover,
+    //    dan kalender New York sebagai cadangan bila flag tak dikirim.
+    //    Evaluasi indikator TIDAK jalan atas data beku — cross palsu
+    //    tidak boleh tercipta sejak awal (lapisan 2 dari 3). ──
+    if (tick.isMarketOpen === false || (isXauLikeSymbol(tick.symbol) && !isXauMarketOpen(new Date(tick.timestamp)))) {
+      logMarketClosedOnce(tick.symbol)
+      return
+    }
 
     // ── OTAK: indikator custom Bos ──
     let signal: SignalPayload
