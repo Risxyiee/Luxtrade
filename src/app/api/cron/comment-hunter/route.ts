@@ -12,7 +12,9 @@ import {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════
- * 💬 COMMENT HUNTER — "PEMBURU KOMENTAR" (karyawan AI pemantau komentar IG)
+ * 💬 COMMENT HUNTER — "PEMBURU KOMENTAR" — tugas resmi KEVIN
+ *    (Growth Hunter — sama seperti growth-sentinel: domain-nya narik
+ *    user baru, kali ini dari komentar IG postingan sendiri)
  * ═══════════════════════════════════════════════════════════════════════
  *
  * PATUH ToS Instagram: HANYA memantau komentar pada POSTINGAN MILIK
@@ -48,6 +50,11 @@ import {
  *
  * OTAK MURNI di @/lib/comment-hunter (dites langsung dari kode asli via
  * Bun.Transpiler — marker blok MURNI).
+ *
+ * MEMORI KARYAWAN (permintaan Bos — panel kartu Kevin di Kantor CEO):
+ * tiap hunt dengan hasil → tulis (1) mem:list (Memori Kantor), (2)
+ * mem:agent:kevin (memori pribadi Kevin — dibaca GET /api/ceo-agent
+ * ?action=mem-agent&agent=kevin), (3) office_memory (riwayat arsip).
  * ═══════════════════════════════════════════════════════════════════════
  */
 
@@ -494,6 +501,38 @@ async function handle(_request: NextRequest): Promise<NextResponse> {
     if (results.length > 0) {
       const rep = await sendDiscordNotification(summarizeHunt(results))
       discordSent = rep.ok
+    }
+
+    /* ── 11b. MEMORI KARYAWAN Kevin — kartu karyawan + Memori Kantor ──
+       Dulu hunt tidak pernah ninggal jejak di panel (MEMORI KARYAWAN
+       kosong terus). Kini tiap hunt berhasil/gagal tercatat — Kevin
+       "ingat" hasil kerjanya & Bos bisa baca di kartunya. */
+    if (results.length > 0 || insertsFailed > 0) {
+      const draftedCount = results.filter((r) => r.status === 'drafted').length
+      const skippedCount = results.filter((r) => r.status === 'skipped').length
+      const failedCount = results.filter((r) => r.status === 'failed').length
+      const lesson = !results.length && insertsFailed > 0
+        ? `Hunt IG gagal simpan jejak: ${errors[0] || 'tidak diketahui'}`
+        : `Hunt komentar IG: ${results.length} baru — balas otomatis ${autoReplied}, draf ACC ${draftedCount}, spam dilewati ${skippedCount}${failedCount ? `, gagal ${failedCount}` : ''}, propek minat-harga ${leads}`
+      interface MemEntry { at: string; who: string; text: string }
+      const entry: MemEntry = { at: nowIso, who: 'Growth Kevin', text: lesson.slice(0, 190) }
+      // (1) Memori Kantor (mem:list) + (2) memori pribadi Kevin (mem:agent:kevin)
+      for (const [key, cap] of [['mem:list', 24], ['mem:agent:kevin', 20]] as const) {
+        try {
+          let list: MemEntry[] = []
+          try { list = JSON.parse((await kvGet(admin, key)) || '[]') as MemEntry[] } catch { /* reset */ }
+          if (!Array.isArray(list)) list = []
+          list.unshift({ ...entry, text: (key === 'mem:list' ? entry.text : lesson).slice(0, 240) })
+          await kvSet(admin, key, JSON.stringify(list.slice(0, cap)))
+        } catch { /* memori non-kritis */ }
+      }
+      // (3) Arsip office_memory (sama pola growth-sentinel)
+      try {
+        await admin.from('office_memory').insert({
+          agent_name: 'Kevin', run_date: wibDateStr(), memory_type: 'report',
+          content: { lesson, action: 'comment-hunt', newComments: targets.length, autoReplied, leads },
+        })
+      } catch { /* arsip opsional */ }
     }
 
     /* ── 12. Respons jujur ── */

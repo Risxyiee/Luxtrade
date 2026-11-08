@@ -178,6 +178,27 @@ const TEAM_DETAIL = [
     ide: 'Integrasi analitik landing lengkap (butuh analytics engine) · A/B di halaman lain (pricing, blog) · program reward referral 2 arah · notifikasi win-back',
   },
   {
+    id: 'KEVIN', name: 'Kevin', jabatan: 'Growth Hunter · Pemburu Lead & Komentar', divisi: 'Growth & Eksperimen', color: '#d97706',
+    model: 'Claude Haiku 5.5 (Mortera) → Llama 3.3 70B (Groq) → templat deterministik',
+    shift: 'Sentinel tiap 15 menit (kerja 24 jam, throttle internal — run sehat tanpa LLM) · hunt komentar IG maks tiap 2 jam',
+    baca: 'profiles (signup 6j/24j/7h) · growth_leads (lead CS bot) · market_alerts (sinyal VIP) · trades 24 jam · komentar IG postingan sendiri via Graph API resmi',
+    tugas: [
+      'Pantau kekeringan pertumbuhan dari angka RIIL — signup, lead baru, sinyal, trade (anti alarm palsu)',
+      'PEMBURU KOMENTAR IG: pantau komentar postingan sendiri (Graph API resmi, patuh ToS) → klasifikasi 7 niat → balas aman otomatis (maks 5/run & 15/hari WIB) → propek minat-harga lapor Bos via Discord',
+      'Social proof jujur buat CS bot & landing — member, trade, sinyal 7 hari (tanpa angka karangan)',
+      'Hook sapaan proaktif CS bot tiap hari — nada sesuai kondisi traffic & data hari ini',
+      'Email welcome personal utk lead baru → draf masuk Antrean ACC Bos (tidak pernah kirim sendiri)',
+      'Alarm kekeringan ke Discord + saran konkret (maks tiap 12 jam)',
+    ],
+    lapor: 'Laporan hunt & sentinel → Discord Bos + Memori Kantor + memori pribadinya (panel ini)',
+    batas: [
+      'Tidak pernah DM/komentar ke akun orang lain — hanya postingan milik sendiri (patuh ToS IG)',
+      'Email cuma DRAF — terkirim hanya setelah Bos ACC di Antrean Eksekusi',
+      'Tanpa janji profit — angka hanya dari data riil; run sepi = diam (hemat kuota)',
+    ],
+    ide: 'Balas semua intent pakai LLM (kuota lebih longgar) · hunt komentar TikTok (butuh API resmi) · follow-up email bertahap otomatis',
+  },
+  {
     id: 'CEO', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
     model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
@@ -231,6 +252,7 @@ function GodChip({ id }: { id: string }) {
 const BRIGHT: Record<string, string> = {
   '#059669': '#34d399', '#0d9488': '#2dd4bf', '#be185d': '#f472b6', '#7c3aed': '#a78bfa',
   '#b45309': '#fbbf24', '#0891b2': '#22d3ee', '#ea580c': '#fb923c', '#334155': '#cbd5e1', '#94a3b8': '#cbd5e1',
+  '#d97706': '#fbbf24',
 }
 
 /* ---------- filter emoji untuk teks DINAMIS dari API ----------
@@ -571,6 +593,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         return data?.nba?.text
           ? { tone: 'ok', text: `Prioritas hari ini: ${trunc(noEmoji(data.nba.text), 84)}` }
           : { tone: 'idle', text: 'Briefing 08:00 WIB otomatis' }
+      case 'KEVIN':
+        return { tone: 'ok', text: 'Sentinel tiap 15 menit · hunt komentar IG maks tiap 2 jam — lapor Discord & memori' }
       default:
         return { tone: 'idle', text: '' }
     }
@@ -586,7 +610,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
     { id: 'COO', name: 'Bagas', role: 'COO · Jualan', live: coo ? (coo.pending > 0 ? `${coo.pending} draf nunggu ACC` : 'Antrean jualan bersih') : 'Hot lead → email PRO', has: !!coo },
     { id: 'DA', name: 'Dewi', role: 'Data Analyst', live: da?.insight ? trunc(noEmoji(da.insight), 64) : 'Insight harian 08:00 WIB', has: !!da },
     { id: 'GH', name: 'Farhan', role: 'Growth Hacker', live: gh?.experiments?.length ? `${gh.experiments.length} eksperimen siap dieksekusi` : 'Eksperimen harian 08:00 WIB', has: !!gh },
-    { id: 'struktur', name: 'Tim AI', role: 'Struktur & Jabatan', live: '8 karyawan · tugas, jadwal, memori & batas kemampuan', has: true },
+    { id: 'KEVIN', name: 'Kevin', role: 'Growth Hunter · Pemburu Komentar', live: 'Sentinel 15 mnt · Hunt IG 2 jam', has: true },
+    { id: 'struktur', name: 'Tim AI', role: 'Struktur & Jabatan', live: '9 karyawan · tugas, jadwal, memori & batas kemampuan', has: true },
   ] as const
 
   const pick = (id: string) => {
@@ -659,14 +684,14 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         <div className="flex-1 min-h-0 overflow-y-auto kscroll pr-0.5">
           {room === 'overview' ? (
             <div className={`${PANEL} p-4 flex flex-col gap-2`}>
-              <b className="text-teal-200 text-[13px]">Kantor CEO — 8 karyawan AI siap</b>
+              <b className="text-teal-200 text-[13px]">Kantor CEO — 9 karyawan AI siap</b>
               <div className="text-white/65 text-[11.5px] leading-relaxed">
                 Pilih karyawan di dock bawah untuk masuk ruangannya · klik karakter di kantor 3D juga bisa — kamera langsung terbang ke meja dia.
               </div>
               <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
                 <b>Karyawan AI tetap kerja 24/7 walau kantor ini tidak dibuka</b> — cron otomatis: briefing 08:00 WIB, watchdog tiap 15 mnt, laporan Senin 10:00. Semua hasil masuk Discord.
               </div>
-              <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Alexander (CEO)</div>
+              <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Kevin (Growth Hunter) · Alexander (CEO)</div>
               {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
               <PendingActionsQueue />
             </div>
@@ -1240,6 +1265,32 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 Sumber: funnel profiles (pendaftar, PRO, referral, onboarding, aktivasi) + insight Dewi.<br />
                 Eksperimen = usulan — Bos yang pilih mana yang dieksekusi minggu ini.
               </div>
+            </div>
+          ) : room === 'KEVIN' ? (
+            /* ============ RUANG GROWTH HUNTER — Kevin ============
+               Karyawan "kerja saat zero-traffic": growth sentinel (tiap 15
+               mnt) + pemburu komentar IG (maks tiap 2 jam). Tanpa panel
+               data terpisah — semua laporan masuk Discord Bos; memori
+               kerjanya terbaca lewat kartu di bawah (mem:agent:kevin). */
+            <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
+              <div className="text-[15px] font-bold text-white mb-0.5">RUANG GROWTH HUNTER — Kevin</div>
+              <div className="text-white/50 text-[11px] mb-3 leading-relaxed">
+                Tugas: memantau kekeringan pertumbuhan dari angka riil, mengisi hook &amp; social proof CS bot, menulis draf email welcome lead baru, dan <b className="text-amber-300">memburu komentar IG postingan sendiri</b> (Graph API resmi, patuh ToS — klasifikasi niat, balas aman otomatis maks 5/run &amp; 15/hari, propek minat-harga dilaporkan).
+              </div>
+              <div className="rounded-xl bg-amber-400/10 border border-amber-300/25 px-3 py-2 text-[11px] text-amber-100/90 mb-3">
+                Jadwal: sentinel tiap 15 menit + hunt IG maks tiap 2 jam (throttle internal — run sepi tanpa LLM, hemat kuota). Laporan lengkap selalu masuk channel Discord Bos.
+              </div>
+              {(() => {
+                const kevin = TEAM_DETAIL.find(mm => mm.id === 'KEVIN')
+                return kevin ? (
+                  <EmployeeCard
+                    m={kevin}
+                    open={openStaff === 'KEVIN'}
+                    onToggle={() => setOpenStaff(openStaff === 'KEVIN' ? null : 'KEVIN')}
+                    live={liveOf('KEVIN')}
+                  />
+                ) : null
+              })()}
             </div>
           ) : room === 'struktur' ? (
             /* ============ RUANG STRUKTUR — Jabatan & Pekerjaan Tiap Karyawan ============ */

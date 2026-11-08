@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { getCronAdmin } from '@/lib/cron-supabase'
 import { extractEmail, clipLeadMessage } from '@/lib/growth-sentinel'
+import { callLLM, getLLMChainStatus, getLLMProviderName, type ConversationTurn } from '@/lib/ai-llm'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
 export const dynamic = 'force-dynamic'
@@ -182,9 +182,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
     }
 
-    // Check Gemini availability
-    if (!await isGeminiAvailableAsync()) {
-      console.error('[chat API] GEMINI_API_KEY not configured')
+    // ── OTAK CS BOT: RANTAI SELF-HEALING (bukan Gemini doang) ──
+    // FIX produksi 2026-11-08: dulu langsung geminiChat → Gemini free tier
+    // cuma 20 req/hari → 429 seharian penuh → POST /api/chat 500 ke user
+    // asli (Gombong, Safari). Sekarang: callLLM = Mortera (berbayar, prioritas)
+    // → Groq → Gemini → OpenRouter, dengan cooldown per-provider + auto-discover
+    // model. 429 satu provider = otomatis pindah, bot TIDAK mogok.
+    if ((await getLLMProviderName()) === 'template') {
+      console.error('[chat API] Tidak ada LLM API key (MORTERA/GROQ/GEMINI/OPENROUTER)')
       return NextResponse.json({
         response: language === 'en'
           ? "Sorry, AI service is not configured. Please contact Telegram @Risxyiee."
@@ -207,26 +212,31 @@ export async function POST(req: NextRequest) {
     const growth = await buildGrowthContext()
     const systemPrompt = SYSTEM_PROMPT + growth.block
 
-    // Build Gemini messages from history
-    const geminiMessages = [
-      ...history.map(msg => ({
-        role: msg.role as 'user' | 'model',
-        parts: [{ text: msg.content }]
+    // Riwayat chat → ConversationTurn (role 'model' = jawaban AI sebelumnya)
+    const turns: ConversationTurn[] = [
+      ...history.map((msg): ConversationTurn => ({
+        role: msg.role === 'model' ? 'assistant' : 'user',
+        content: msg.content,
       })),
-      { role: 'user' as const, parts: [{ text: message }] }
+      { role: 'user', content: message },
     ]
 
-    // Call Gemini
-    const result = await geminiChat(geminiMessages, {
-      model: 'gemini-2.5-flash',
-      temperature: 0.7,
-      maxTokens: 1024,
-      systemInstruction: systemPrompt,
-      timeoutMs: 30000,
-    })
+    // Panggil rantai LLM self-healing (riwayat utuh, bukan di-flatten)
+    const result = await callLLM(systemPrompt, turns, 1024)
 
-    const aiResponse = result.text ||
-      (language === 'en' ? "Sorry, I couldn't process that. Please try again." : "Maaf, gagal memproses. Coba lagi ya.")
+    if (!result || !result.text?.trim()) {
+      // Semua provider gagal (429/402/auth/mati) — pesan ramah, BUKAN 500 mentah
+      console.error('[chat API] Semua provider LLM gagal:', (result?.notes || []).join(' | '))
+      return NextResponse.json({
+        response: language === 'en'
+          ? "Sorry, our AI assistant is resting for a moment. Try again soon or contact Telegram @Risxyiee."
+          : "Maaf, asisten AI kami lagi istirahat sebentar. Coba lagi beberapa saat atau hubungi Telegram @Risxyiee.",
+        aiUnavailable: true,
+      }, { status: 503 })
+    }
+
+    const aiResponse = result.text
+    console.log(`[chat API] jawab via ${result.provider}/${result.model}`)
 
     // ── GROWTH: tangkap lead kalau visitor menitipkan email ──
     // Deteksi server-side (regex di lib murni) — bot tidak perlu "tool";
@@ -258,7 +268,7 @@ export async function POST(req: NextRequest) {
       conversations.set(sessionId, updatedHistory)
     }
 
-    return NextResponse.json({ response: aiResponse, leadCaptured })
+    return NextResponse.json({ response: aiResponse, leadCaptured, via: `${result.provider}/${result.model}` })
   } catch (error: any) {
     // Descriptive error logging for Cloudflare Workers diagnostics
     console.error('[chat API] Error:', {
@@ -287,11 +297,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Health check
+// Health check — status rantai provider (transparan, bukan cuma "ok")
 export async function GET() {
+  let chain: Awaited<ReturnType<typeof getLLMChainStatus>> = []
+  try { chain = await getLLMChainStatus() } catch { /* diagnostik opsional */ }
   return NextResponse.json({
-    status: await isGeminiAvailableAsync() ? 'ok' : 'not_configured',
-    provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    status: chain.some((c) => c.ok) ? 'ok' : 'no_provider_available',
+    provider: 'chain: mortera → groq → gemini → openrouter (self-healing)',
+    chain,
   })
 }

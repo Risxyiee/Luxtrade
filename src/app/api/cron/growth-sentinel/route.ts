@@ -101,7 +101,12 @@ async function callKevin(
 }
 
 /* ── METRIK dari data RIIL (graceful kalau tabel belum ada) ──────────── */
-async function sinceIso(hours: number): Promise<string> {
+/* FIX [object Promise]: dulu fungsi ini `async` lalu dipakai di template
+   literal (`created_at.gte.${sinceIso(6)}`) TANPA await → URL filter
+   Supabase berisi "[object Promise]" → 400 di SEMUA hitungan waktu
+   (signup 6j/24j/7h, lead 24j, sinyal, trade) — produksi terbukti di
+   log CF 2026-11-08. Tidak ada await di dalamnya → sync murni. */
+function sinceIso(hours: number): string {
   return new Date(Date.now() - hours * 3600_000).toISOString()
 }
 
@@ -318,6 +323,12 @@ async function rememberOffice(admin: SupabaseClient, content: Record<string, unk
     const text = typeof content.lesson === 'string' ? content.lesson : 'laporan growth'
     list.unshift({ at: new Date().toISOString(), who: 'Growth Kevin', text: clip(text, 165) })
     await kvSet(admin, 'mem:list', JSON.stringify(list.slice(0, 24)))
+    // Memori pribadi Kevin — kartu karyawan di Kantor CEO (mem-agent?agent=kevin)
+    let own: Array<{ at: string; who: string; text: string }> = []
+    try { own = JSON.parse((await kvGet(admin, 'mem:agent:kevin')) || '[]') } catch { /* reset */ }
+    if (!Array.isArray(own)) own = []
+    own.unshift({ at: new Date().toISOString(), who: 'Growth Kevin', text: clip(text, 240) })
+    await kvSet(admin, 'mem:agent:kevin', JSON.stringify(own.slice(0, 20)))
   } catch { /* non-kritis */ }
 }
 

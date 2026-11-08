@@ -45,6 +45,40 @@ export interface LLMResult {
   notes?: string[]
 }
 
+/** Satu giliran bicara untuk panggilan KONVERSASI (multi-turn, mis. CS bot
+ *  dengan riwayat chat). 'assistant' = jawaban AI sebelumnya. */
+export interface ConversationTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** Input user prompt: string biasa (pola lama, semua caller existing)
+ *  ATAU array giliran percakapan (pola baru — riwayat chat utuh). */
+export type LLMUserInput = string | ConversationTurn[]
+
+function toTurns(u: LLMUserInput): ConversationTurn[] {
+  if (typeof u === 'string') return [{ role: 'user', content: u }]
+  return (Array.isArray(u) ? u : [])
+    .filter((t) => t && typeof t.content === 'string' && t.content.trim())
+    .map((t) => ({ role: t.role === 'assistant' ? ('assistant' as const) : ('user' as const), content: t.content }))
+}
+
+/** Konversi turns → `contents` Gemini: role 'model' utk assistant, gabung
+ *  turn berurutan se-role (Gemini rewel), konten pertama WAJIB 'user'. */
+function toGeminiContents(u: LLMUserInput): Array<{ role: 'user' | 'model'; parts: { text: string }[] }> {
+  const merged: Array<{ role: 'user' | 'model'; parts: { text: string }[] }> = []
+  for (const t of toTurns(u)) {
+    const role = t.role === 'assistant' ? ('model' as const) : ('user' as const)
+    const last = merged[merged.length - 1]
+    if (last && last.role === role) last.parts[0].text += '\n\n' + t.content
+    else merged.push({ role, parts: [{ text: t.content }] })
+  }
+  if (!merged.length || merged[0].role === 'model') {
+    merged.unshift({ role: 'user', parts: [{ text: '(lanjutkan percakapan)' }] })
+  }
+  return merged
+}
+
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
@@ -193,11 +227,14 @@ export interface LLMCallOpts {
 }
 
 /**
- * Panggil LLM dengan system + user prompt. Returns null jika tidak ada
- * API key ataupun semua provider gagal — caller harus punya fallback.
- * Diagnosa kenapa gagal = getLastLLMDiag().
+ * Panggil LLM dengan system prompt + user prompt ATAU riwayat percakapan
+ * (ConversationTurn[] — dipakai CS bot supaya self-healing juga berlaku di
+ * chat multi-turn; produksi 2026-11-08: Gemini free tier habis kuota →
+ * /api/chat 500 padahal rantai bisa mengambil alih). Returns null jika
+ * tidak ada API key ataupun semua provider gagal — caller harus punya
+ * fallback. Diagnosa kenapa gagal = getLastLLMDiag().
  */
-export async function callLLM(systemPrompt: string, userPrompt: string, maxTokens = 800, opts?: LLMCallOpts): Promise<LLMResult | null> {
+export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, maxTokens = 800, opts?: LLMCallOpts): Promise<LLMResult | null> {
   const notes: string[] = []
   lastCallDiag = notes
 
@@ -257,7 +294,7 @@ async function callOpenAICompatible(
   models: string[],
   score: (id: string) => number,
   systemPrompt: string,
-  userPrompt: string,
+  userPrompt: LLMUserInput,
   maxTokens: number,
   notes: string[],
   temperature = 0.8,
@@ -296,7 +333,7 @@ async function callOpenAIModel(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  userPrompt: string,
+  userPrompt: LLMUserInput,
   maxTokens: number,
   notes: string[],
   temperature = 0.8,
@@ -314,7 +351,7 @@ async function callOpenAIModel(
         model,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          ...toTurns(userPrompt).map((t) => ({ role: t.role, content: t.content })),
         ],
         temperature,
         // Reasoning model (gpt-oss dll) butuh budget besar — reasoning-nya
@@ -384,7 +421,7 @@ async function callOpenAIModel(
   }
 }
 
-async function callGroq(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
+async function callGroq(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
   return callOpenAICompatible('groq', 'https://api.groq.com/openai/v1', apiKey, [GROQ_MODEL, ...GROQ_FALLBACKS], groqScore, systemPrompt, userPrompt, maxTokens, notes)
 }
 
@@ -398,7 +435,7 @@ const morteraScore = (id: string) => {
   return (/haiku/i.test(id) ? 50 : 0) + (/sonnet/i.test(id) ? 30 : 0) + (/terra/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 10 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
 }
 
-async function callMortera(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[], modelOverride?: string): Promise<LLMResult | null> {
+async function callMortera(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], modelOverride?: string): Promise<LLMResult | null> {
   const chain = [...new Set([modelOverride?.trim() || MORTERA_MODEL, MORTERA_MODEL, ...MORTERA_FALLBACKS])]
   return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, chain, morteraScore, systemPrompt, userPrompt, maxTokens, notes)
 }
@@ -411,7 +448,7 @@ async function callMortera(apiKey: string, systemPrompt: string, userPrompt: str
  * percobaan (tampilkan supaya 'jatuh ke templat' SELALU ada penjelasannya). */
 export async function callMorteraDirect(
   systemPrompt: string,
-  userPrompt: string,
+  userPrompt: LLMUserInput,
   maxTokens = 1024,
   notes: string[] = [],
   temperature = 0.8,
@@ -425,7 +462,7 @@ export async function callMorteraDirect(
   return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
 }
 
-async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
+async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
   return callOpenAICompatible('openrouter', 'https://openrouter.ai/api/v1', apiKey, [OPENROUTER_MODEL, ...OPENROUTER_FALLBACKS], openrouterScore, systemPrompt, userPrompt, maxTokens, notes)
 }
 
@@ -433,7 +470,7 @@ async function callGeminiModel(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  userPrompt: string,
+  userPrompt: LLMUserInput,
   maxTokens: number,
   notes: string[],
 ): Promise<{ ok: boolean; result?: LLMResult; model404?: boolean }> {
@@ -445,7 +482,7 @@ async function callGeminiModel(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          contents: toGeminiContents(userPrompt),
           generationConfig: {
             temperature: 0.8,
             maxOutputTokens: Math.max(maxTokens, 4000),
@@ -502,7 +539,7 @@ async function callGeminiModel(
   }
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
   let saw404 = false
   for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACKS]) {
     const r = await callGeminiModel(apiKey, model, systemPrompt, userPrompt, maxTokens, notes)

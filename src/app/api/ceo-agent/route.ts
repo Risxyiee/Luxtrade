@@ -361,8 +361,12 @@ const WHO_AGENT_KEY: Record<string, string> = {
   'CMO Sinta': 'cmo', 'CEO Alexander': 'ceo', 'CSO Maya': 'cso', 'CTO Raka': 'cto',
   'DA Dewi': 'da', 'GH Farhan': 'gh', 'CFO Putri': 'cfo', 'COO Bagas': 'coo',
   'Maya × Sinta': 'cso',
+  /* Kevin (Growth Hunter — growth-sentinel + comment-hunter) nulis memori
+     langsung dari route cron-nya dengan who 'Growth Kevin' — dipetakan ke
+     sini supaya kartu karyawannya di Kantor CEO punya memori pribadi. */
+  'Growth Kevin': 'kevin',
 }
-const AGENT_MEM_KEYS = ['coo', 'cto', 'cso', 'cmo', 'cfo', 'ceo', 'da', 'gh']
+const AGENT_MEM_KEYS = ['coo', 'cto', 'cso', 'cmo', 'cfo', 'ceo', 'da', 'gh', 'kevin']
 const AGENT_MEM_MAX = 20
 
 async function memAdd(e: Env, who: string, text: string): Promise<void> {

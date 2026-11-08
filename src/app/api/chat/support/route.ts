@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { callLLM, getLLMChainStatus, getLLMProviderName, type ConversationTurn } from '@/lib/ai-llm'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -98,9 +98,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
     }
 
-    // Check Gemini availability
-    if (!await isGeminiAvailableAsync()) {
-      console.error('[chat/support API] GEMINI_API_KEY not configured')
+    // ── OTAK: RANTAI SELF-HEALING (fix Gemini 429 free tier — sama dgn /api/chat) ──
+    if ((await getLLMProviderName()) === 'template') {
+      console.error('[chat/support API] Tidak ada LLM API key (MORTERA/GROQ/GEMINI/OPENROUTER)')
       return NextResponse.json({
         response: language === 'en'
           ? "Sorry, AI service is not configured. Please contact Telegram @Risxyiee."
@@ -154,26 +154,29 @@ export async function POST(req: NextRequest) {
     // Build system prompt with user context
     const systemPrompt = getSystemPrompt(userContext)
 
-    // Build Gemini messages from history
-    const geminiMessages = [
-      ...history.map(msg => ({
-        role: msg.role as 'user' | 'model',
-        parts: [{ text: msg.content }]
+    // Riwayat chat → ConversationTurn untuk rantai LLM (bukan Gemini doang)
+    const turns: ConversationTurn[] = [
+      ...history.map((msg): ConversationTurn => ({
+        role: msg.role === 'model' ? 'assistant' : 'user',
+        content: msg.content,
       })),
-      { role: 'user' as const, parts: [{ text: message }] }
+      { role: 'user', content: message },
     ]
 
-    // Call Gemini
-    const result = await geminiChat(geminiMessages, {
-      model: 'gemini-2.5-flash',
-      temperature: 0.7,
-      maxTokens: 1024,
-      systemInstruction: systemPrompt,
-      timeoutMs: 30000,
-    })
+    // Panggil rantai LLM self-healing: Mortera → Groq → Gemini → OpenRouter
+    const result = await callLLM(systemPrompt, turns, 1024)
 
-    const aiResponse = result.text ||
-      (language === 'en' ? "Sorry, I couldn't process that. Please try again." : "Maaf, gagal memproses. Coba lagi ya.")
+    if (!result || !result.text?.trim()) {
+      console.error('[chat/support API] Semua provider LLM gagal:', (result?.notes || []).join(' | '))
+      return NextResponse.json({
+        response: language === 'en'
+          ? "Sorry, our AI assistant is resting for a moment. Try again soon or contact Telegram @Risxyiee."
+          : "Maaf, asisten AI kami lagi istirahat sebentar. Coba lagi beberapa saat atau hubungi Telegram @Risxyiee.",
+        aiUnavailable: true,
+      }, { status: 503 })
+    }
+
+    const aiResponse = result.text
 
     // Save to history
     const updatedHistory = [
@@ -188,7 +191,7 @@ export async function POST(req: NextRequest) {
       conversations.set(sessionId, updatedHistory)
     }
 
-    return NextResponse.json({ response: aiResponse })
+    return NextResponse.json({ response: aiResponse, via: `${result.provider}/${result.model}` })
   } catch (error: any) {
     console.error('[chat/support API] Error:', {
       name: error?.name || 'Unknown',
@@ -216,12 +219,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Health check
+// Health check — status rantai provider
 export async function GET() {
+  let chain: Awaited<ReturnType<typeof getLLMChainStatus>> = []
+  try { chain = await getLLMChainStatus() } catch { /* diagnostik opsional */ }
   return NextResponse.json({
-    status: await isGeminiAvailableAsync() ? 'ok' : 'not_configured',
-    provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    status: chain.some((c) => c.ok) ? 'ok' : 'no_provider_available',
+    provider: 'chain: mortera → groq → gemini → openrouter (self-healing)',
     type: 'dashboard-support',
+    chain,
   })
 }
