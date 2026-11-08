@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
-import { sendAlertTriggers, sanitizeSymbol, normalizePineInterval } from '@/lib/pine-alert-runner'
+import { sendAlertTriggers, sanitizeSymbol, normalizePineInterval, persistEvalHealth } from '@/lib/pine-alert-runner'
 import type { AlertTrigger, RunnerUser } from '@/lib/pine-alert-runner'
 
 export const dynamic = 'force-dynamic'
@@ -92,9 +92,13 @@ export async function POST(request: NextRequest) {
 
     if (!r?.ok) {
       /* Evaluasi gagal di runner (compile error user, candle kosong, dsb.)
-         — dicatat utk visibilitas, TIDAK fatal. */
+         — dicatat utk visibilitas, TIDAK fatal. Migrasi 044: verdict
+         gagal disimpan ke langganan → UI menampilkan ALASAN NYATA ke
+         user (dulu hanya di log GHA → user merasa "skrip tidak jalan"). */
       groupsErr++
-      details.push({ scriptId, symbol, interval, ok: false, error: String(r?.error || 'evaluasi gagal').slice(0, 200) })
+      const errText = String(r?.error || 'evaluasi gagal').slice(0, 200)
+      details.push({ scriptId, symbol, interval, ok: false, error: errText })
+      try { await persistEvalHealth(supabase, { scriptId, symbol, interval }, { ok: false, error: errText }) } catch { /* non-kritis */ }
       continue
     }
 
@@ -120,6 +124,10 @@ export async function POST(request: NextRequest) {
     if (!triggers.length || !users.length) {
       groupsOk++
       details.push({ scriptId, symbol, interval, ok: true, sent: 0 })
+      /* Migrasi 044: skrip JALAN tanpa sinyal → tandai ok. Ini jawaban
+         "skrip beneran jalan ga si?" — UI menampilkan "jalan, kondisi
+         belum terpicu" alih-alih diam. */
+      try { await persistEvalHealth(supabase, { scriptId, symbol, interval }, { ok: true }) } catch { /* non-kritis */ }
       continue
     }
 
@@ -129,6 +137,8 @@ export async function POST(request: NextRequest) {
       groupsOk++
       details.push({ scriptId, symbol, interval, ok: true, sent: res.sent })
 
+      /* Migrasi 044: evaluasi ok + kapan terakhir ada sinyal */
+      try { await persistEvalHealth(supabase, { scriptId, symbol, interval }, { ok: true }) } catch { /* non-kritis */ }
       /* info best-effort: kapan terakhir ada sinyal (paritas dgn cron CF) */
       try {
         await supabase

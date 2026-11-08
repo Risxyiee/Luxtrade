@@ -43,15 +43,33 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseAdmin()
     if (!supabase) return NextResponse.json({ error: 'Server belum terhubung Supabase (service role)' }, { status: 500 })
 
-    const [subsRes, isPro] = await Promise.all([
-      supabase
+    /* Migrasi 044 (kolom kesehatan evaluasi): kalau kolom belum ada
+       (SQL 044 belum dijalankan) → JANGAN biarkan seluruh daftar
+       langganan gagal; ulangi TANPA kolom health (pola resilient). */
+    let subsData: any[] | null = null
+    let subsErr: { message: string } | null = null
+    {
+      const r = await supabase
         .from('pine_alert_subscriptions')
-        .select('id, script_id, script_kind, symbol, timeframe, enabled, created_at')
+        .select('id, script_id, script_kind, symbol, timeframe, enabled, created_at, last_eval_at, last_eval_ok, last_eval_error')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(50),
-      readIsPro(userId),
-    ])
+        .limit(50)
+      if (r.error && /last_eval/i.test(r.error.message || '')) {
+        const r2 = await supabase
+          .from('pine_alert_subscriptions')
+          .select('id, script_id, script_kind, symbol, timeframe, enabled, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        subsData = r2.data; subsErr = r2.error
+      } else {
+        subsData = r.data; subsErr = r.error
+      }
+    }
+    const subsRes = { data: subsData, error: subsErr }
+
+    const isPro = await readIsPro(userId)
 
     if (subsRes.error) {
       const msg = /pine_alert_subscriptions/i.test(subsRes.error.message)
@@ -83,7 +101,7 @@ export async function GET(request: NextRequest) {
       scriptId: r.script_id,
       scriptKind: r.script_kind || 'protected',
       scriptName: nameOf.get(r.script_id) || 'Script',
-      /* FIX run GHA #42: langganan yang menunjuk skrip sudah dihapus
+      /* FIX 2026-11-05: langganan yang menunjuk skrip sudah dihapus
          (yatim) ditandai orphan → UI Notifikasi bisa menampilkannya
          dengan label "(skrip terhapus)" + tombol hapus, tidak lagi
          tersembunyi dan "dilewati diam-diam" oleh engine. */
@@ -92,6 +110,12 @@ export async function GET(request: NextRequest) {
       interval: r.timeframe,
       enabled: r.enabled === true,
       createdAt: r.created_at,
+      /* Migrasi 044 — bukti nyata evaluasi runner utk UI:
+         lastEvalOk true = skrip beneran dieksekusi engine;
+         false = gagal (lastEvalError = alasan); null = belum dirun. */
+      lastEvalAt: r.last_eval_at ?? null,
+      lastEvalOk: r.last_eval_ok ?? null,
+      lastEvalError: r.last_eval_error ?? null,
     }))
 
     return NextResponse.json({

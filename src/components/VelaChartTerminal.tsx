@@ -457,7 +457,12 @@ interface PineScriptRow { id: string; name: string; source: string }
 interface QuotaBadge { isPro: boolean; used: number; limit: number | null; remaining: number | null }
 
 /* ---------- Alert otomatis Pine (Task 44 — klik 🔔 aktif 24 jam) ---------- */
-interface AlertSubRow { id: string; scriptId: string; scriptName: string; scriptKind?: 'protected' | 'pine'; symbol: string; interval: string; enabled: boolean; orphan?: boolean }
+interface AlertSubRow {
+  id: string; scriptId: string; scriptName: string; scriptKind?: 'protected' | 'pine'; symbol: string; interval: string; enabled: boolean; orphan?: boolean
+  /* Migrasi 044 — bukti evaluasi runner: true = skrip beneran dieksekusi
+     engine; false = gagal (lastEvalError); null/undefined = belum dirun */
+  lastEvalAt?: string | null; lastEvalOk?: boolean | null; lastEvalError?: string | null
+}
 const ALERT_TFS: Array<{ v: string; label: string }> = [
   { v: '5m', label: '5 Menit' }, { v: '15m', label: '15 Menit' }, { v: '30m', label: '30 Menit' },
   { v: '1h', label: '1 Jam' }, { v: '2h', label: '2 Jam' }, { v: '4h', label: '4 Jam' },
@@ -471,6 +476,32 @@ const TF_TO_ALERT: Record<string, string> = {
 function tfToAlert(tf: string): string {
   const t = String(tf || '').trim()
   return TF_TO_ALERT[t] || (/^\d+m$|^\d+h$|^1d$|^1w$/.test(t) ? t : '1h')
+}
+
+/* Migrasi 044 — bukti nyata "skrip beneran jalan ga si?": tiap baris
+   langganan menampilkan hasil evaluasi runner TERAKHIR (ok / gagal +
+   alasan engine / belum pernah dirun) — bukan janji. */
+function alertHealthLine(s: AlertSubRow): { text: string; cls: string } {
+  const when = s.lastEvalAt
+    ? (() => {
+        const ms = Date.now() - new Date(s.lastEvalAt as string).getTime()
+        if (!Number.isFinite(ms) || ms < 0) return ''
+        const m = Math.floor(ms / 60_000)
+        if (m < 1) return 'baru saja'
+        if (m < 60) return `${m} mnt lalu`
+        const h = Math.floor(m / 60)
+        if (h < 24) return `${h} jam lalu`
+        return `${Math.floor(h / 24)} hari lalu`
+      })()
+    : ''
+  if (s.lastEvalOk === true) {
+    return { text: `✅ Skrip beneran dievaluasi engine${when ? ` · cek ${when}` : ''} — jalan normal, nunggu kondisi sinyal terpicu`, cls: 'text-emerald-300/85' }
+  }
+  if (s.lastEvalOk === false) {
+    const err = String(s.lastEvalError || 'alasan tidak diketahui').slice(0, 160)
+    return { text: `❌ Engine GAGAL menjalankan skrip${when ? ` (${when})` : ''}: ${err} — perbaiki skrip lalu simpan ulang`, cls: 'text-red-300/90' }
+  }
+  return { text: '⏳ Belum ada evaluasi — runner mengeksekusi skrip ini otomatis tiap ±5 menit', cls: 'text-white/45' }
 }
 /** Hasil test alert → kalimat manusiawi untuk dialog.
     FIX: dulu run gagal (candle kosong / engine error) TETAP tampil
@@ -1811,30 +1842,36 @@ export default function VelaChartTerminal({
               <div className="text-[10px] text-white/40 uppercase tracking-wider">Semua langganan ({alertSubs.length})</div>
               <div className="max-h-44 overflow-y-auto kscroll space-y-1 pr-0.5">
                 {alertSubs.map((s) => (
-                  <div key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-sky-400' : 'bg-white/20'}`} aria-hidden="true" />
-                    <span className="text-[11px] text-white/80 flex-1 min-w-0 truncate">
-                      {s.orphan ? <span className="text-red-300/90">⚠️ {s.scriptName} (skrip terhapus)</span> : s.scriptName}
-                      <span className="text-white/45"> · {s.symbol} · {s.interval}</span>
-                    </span>
-                    {!s.orphan && (
-                      <>
-                        <button
-                          onClick={() => testAlertSub(s)}
-                          disabled={alertSaving}
-                          className="text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-200/90 hover:bg-sky-400/15 disabled:opacity-50"
-                          title="Jalankan pengecekan sinyal sekarang"
-                        >⚡</button>
-                        <button
-                          onClick={() => saveAlertSub({ scriptId: s.scriptId, scriptKind: s.scriptKind, symbol: s.symbol, interval: s.interval, enabled: !s.enabled })}
-                          disabled={alertSaving}
-                          className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-white/60 hover:text-white disabled:opacity-50"
-                        >{s.enabled ? 'Off' : 'On'}</button>
-                      </>
-                    )}
-                    <button onClick={() => deleteAlertSub(s.id)} disabled={alertSaving} aria-label={`Hapus langganan ${s.symbol} ${s.interval}`} className="text-white/35 hover:text-red-300 disabled:opacity-50 shrink-0">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div key={s.id} className="rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-sky-400' : 'bg-white/20'}`} aria-hidden="true" />
+                      <span className="text-[11px] text-white/80 flex-1 min-w-0 truncate">
+                        {s.orphan ? <span className="text-red-300/90">⚠️ {s.scriptName} (skrip terhapus)</span> : s.scriptName}
+                        <span className="text-white/45"> · {s.symbol} · {s.interval}</span>
+                      </span>
+                      {!s.orphan && (
+                        <>
+                          <button
+                            onClick={() => testAlertSub(s)}
+                            disabled={alertSaving}
+                            className="text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-200/90 hover:bg-sky-400/15 disabled:opacity-50"
+                            title="Jalankan pengecekan sinyal sekarang"
+                          >⚡</button>
+                          <button
+                            onClick={() => saveAlertSub({ scriptId: s.scriptId, scriptKind: s.scriptKind, symbol: s.symbol, interval: s.interval, enabled: !s.enabled })}
+                            disabled={alertSaving}
+                            className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-white/60 hover:text-white disabled:opacity-50"
+                          >{s.enabled ? 'Off' : 'On'}</button>
+                        </>
+                      )}
+                      <button onClick={() => deleteAlertSub(s.id)} disabled={alertSaving} aria-label={`Hapus langganan ${s.symbol} ${s.interval}`} className="text-white/35 hover:text-red-300 disabled:opacity-50 shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {!s.orphan && (() => {
+                      const h = alertHealthLine(s)
+                      return <div className={`text-[10px] leading-snug mt-1 pl-3 ${h.cls}`}>{h.text}</div>
+                    })()}
                   </div>
                 ))}
               </div>

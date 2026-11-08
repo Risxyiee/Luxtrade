@@ -33,11 +33,19 @@
 //                 proaktif narik user baru: social proof, hook CS bot,
 //                 email welcome lead, alarm kekeringan; cooldown internal
 //                 hemat LLM — run sehat = tanpa panggilan LLM)
+//               + SEO FACTORY (karyawan Farhan mode pabrik: terbit 2–3
+//                 halaman blog SEO terprogram/hari dari DATA RIIL —
+//                 harga/sinyal/kalender; throttle internal 1/run,
+//                 maks 3/hari WIB)
+//               + COMMENT HUNTER (pemburu komentar IG: pantau komentar
+//                 postingan sendiri via Graph API → klasifikasi niat →
+//                 balas aman otomatis (maks 5/run & 15/hari) + lapor
+//                 prospek ke Discord; hunt maks tiap 2 jam)
 const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/vip-signals', '/api/cron/growth-sentinel'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/vip-signals', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
 }
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
@@ -62,6 +70,11 @@ const VIP_SIGNALS_TIMEOUT_MS = 90_000
 /* growth-sentinel: baca metrik (8 count) + MAKS 1 aksi — aksi cs-hook/
    lead-welcome butuh 1 panggilan LLM (Mortera timeout 60 dtk) → 90 dtk. */
 const GROWTH_SENTINEL_TIMEOUT_MS = 90_000
+/* seo-factory: kumpul data riil (harga/sinyal/kalender) + 1 insert →
+   60 dtk cukup; comment-hunter: Graph API 5 media × 2 call + maks 5
+   balasan + 1 LLM opsional → 90 dtk. */
+const SEO_FACTORY_TIMEOUT_MS = 60_000
+const COMMENT_HUNTER_TIMEOUT_MS = 90_000
 const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
 const timeoutFor = (route: string) =>
   ceoRoute(route)
@@ -72,6 +85,10 @@ const timeoutFor = (route: string) =>
         ? VIP_SIGNALS_TIMEOUT_MS
       : route.startsWith('/api/cron/growth-sentinel')
         ? GROWTH_SENTINEL_TIMEOUT_MS
+      : route.startsWith('/api/cron/seo-factory')
+        ? SEO_FACTORY_TIMEOUT_MS
+      : route.startsWith('/api/cron/comment-hunter')
+        ? COMMENT_HUNTER_TIMEOUT_MS
       : route.startsWith('/api/cron/prop-firm-guard')
         ? PROP_GUARD_TIMEOUT_MS
         : route.startsWith('/api/cron/ig-metrics')

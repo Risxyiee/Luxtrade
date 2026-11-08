@@ -21,7 +21,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { readIsPro } from '@/lib/user-quota'
-import { runAlertGroup, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
+import { runAlertGroup, persistEvalHealth, sanitizeSymbol, normalizePineInterval, type RunnerScript } from '@/lib/pine-alert-runner'
 import { pushToUser } from '@/lib/push-notify'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
        Sekarang: dianggap sukses + push TES 🧪 di langkah 6 tetap
        dikirim → jalur Pine→HP terbukti langsung dari produksi. */
     if (!out.ok && !out.engineDeferred) {
+      /* Migrasi 044: verdict gagal RIIL juga disimpan ke kesehatan
+         langganan — dialog alert langsung menampilkan alasannya. */
+      try { await persistEvalHealth(supabase, { scriptId: scriptIdRaw, symbol, interval }, { ok: false, error: out.error }) } catch { /* non-kritis */ }
       return NextResponse.json({
         ok: false,
         error: out.error || 'Evaluasi alert gagal',
@@ -160,6 +163,11 @@ export async function POST(request: NextRequest) {
         }, { status: 502 })
       }
     }
+
+    /* Migrasi 044: evaluasi ok (skrip beneran dieksekusi / didelegasikan
+       ke GHA) → tandai kesehatan supaya dialog langganan menampilkan
+       bukti nyata, bukan janji. */
+    try { await persistEvalHealth(supabase, { scriptId: scriptIdRaw, symbol, interval }, { ok: true }) } catch { /* non-kritis */ }
 
     return NextResponse.json({
       ok: true,

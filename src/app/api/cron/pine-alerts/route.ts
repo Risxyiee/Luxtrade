@@ -25,7 +25,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
-import { runAlertGroup } from '@/lib/pine-alert-runner'
+import { runAlertGroup, persistEvalHealth } from '@/lib/pine-alert-runner'
 import { buildAlertGroups } from '@/lib/pine-alert-groups'
 
 export const dynamic = 'force-dynamic'
@@ -89,11 +89,22 @@ async function handle(request: NextRequest) {
         groupRuns++
         if (!out.ok) {
           /* engineDeferred = keterbatasan runtime workerd (codegen
-             dilarang) — BUKAN error; runner GHA yang menangani. */
+             dilarang) — BUKAN error; runner GHA yang menangani.
+             Kesehatan evaluasi TIDAK ditulis di sini (biar verdict
+             beneran dari engine GHA, bukan "tidak bisa jalan"). */
           if (out.engineDeferred) deferredEngine++
-          else errors++
+          else {
+            errors++
+            /* Migrasi 044: verdict gagal RIIL (compile error user, dll.)
+               disimpan → UI langganan menampilkan alasannya. */
+            await persistEvalHealth(supabase, g, { ok: false, error: out.error })
+          }
           continue
         }
+        /* Migrasi 044: skrip beneran dieksekusi → tandai ok (walaupun
+           belum ada sinyal — "jalan, kondisi belum terpicu" justru
+           informasi yang selama ini hilang dari user). */
+        await persistEvalHealth(supabase, g, { ok: true })
         sent += out.sent
         if (out.triggers.length) {
           triggeredSubs++

@@ -97,6 +97,35 @@ export function sanitizeSymbol(raw: string): string {
 const CODEGEN_ERROR_RE = /code generation|disallowed for this context|evalerror/i
 
 /* ============================================================
+   KESEHATAN EVALUASI (migrasi 044) — BUKTI nyata "skrip beneran
+   jalan": tiap verdict runner (GHA/cron CF/tombol tes) disimpan
+   ke langganan grup (script, symbol, timeframe) supaya UI bisa
+   menampilkan kapan terakhir dievaluasi + ok/error engine.
+   Resilient: kolom belum ada (migrasi belum dijalankan) → diabaikan
+   diam (pola last_trigger_at).
+   ============================================================ */
+export async function persistEvalHealth(
+  supabase: any,
+  g: { scriptId: string; symbol: string; interval: string },
+  verdict: { ok: boolean; error?: string },
+): Promise<void> {
+  if (!supabase) return
+  try {
+    await supabase
+      .from('pine_alert_subscriptions')
+      .update({
+        last_eval_at: new Date().toISOString(),
+        last_eval_ok: verdict.ok,
+        last_eval_error: verdict.ok ? null : String(verdict.error || 'evaluasi gagal').slice(0, 300),
+      })
+      .eq('script_id', g.scriptId)
+      .eq('symbol', g.symbol)
+      .eq('timeframe', g.interval)
+      .eq('enabled', true)
+  } catch { /* dekoratif — jangan pernah gagalkan run */ }
+}
+
+/* ============================================================
    Dedupe lapis-1 in-memory (per isolat) — cadangan bila tabel
    pine_alert_log belum ada / error. Sama pola dengan compile-pine.
    ============================================================ */
@@ -175,11 +204,15 @@ export async function sendAlertTriggers(
       if (!isNew) { reason = 'sudah terkirim di bar ini'; continue }
 
       /* ── Push layar HP — tampil otomatis walau app tertutup.
-         Dedupe bar sudah dijaga pine_alert_log di atas → dedupe:false. */
+         Dedupe bar sudah dijaga pine_alert_log di atas → dedupe:false.
+         FIX "sinyalnya bukan dari pine saya": JUDUL sekarang memuat
+         NAMA SKRIP sumbernya (bukan cuma label generik) dan ISI memuat
+         PESAN ASLI skrip (t.message dari alert()/strategy engine) —
+         user langsung tahu sinyal ini lahir dari skrip siapa. */
       if (supabase) {
         const push = await pushToUser(supabase, u.userId, {
-          title: `${signalEmoji(t.signal)} ${t.signal.toUpperCase()} — ${symbol} ${interval}`,
-          body: `${script.name}${t.price ? ` · Harga ~${t.price}` : ''}`,
+          title: `${signalEmoji(t.signal)} ${t.signal.toUpperCase()} · ${script.name}`.slice(0, 90),
+          body: `${symbol} ${interval}${t.price ? ` · ~${t.price}` : ''}${t.message && t.message.trim() && t.message.trim().toUpperCase() !== t.signal ? ` · ${t.message.trim().slice(0, 120)}` : ''}`,
           tag: `pine-${script.id}-${symbol}-${t.signal}`,
           type: 'trade',
           url: '/dashboard',
