@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { getSelfFetch } from '@/lib/cloudflare-bindings'
 import {
-  evaluateCustomIndicator,
+  evaluateCloses,
   broadcastVipSignal,
   getMarketListenerStatus,
   type PriceTick,
@@ -19,9 +19,10 @@ import {
  * 15 menit yang MENUMPANG slot cron 15-menitan yang sudah ada (CF Free
  * maks 5 cron trigger — slot tidak boleh nambah; lihat
  * worker-entry.ts). Harganya diambil dari /api/candles (SELF
- * binding anti-522, pola price-alerts) → otak indikator yang SAMA
- * dengan jalur WS: evaluateCustomIndicator() di
- * src/services/marketListener.ts.
+ * binding anti-522, pola price-alerts): 80 candle 15m (±20 jam) →
+ * closes → otak indikator yang SAMA dengan jalur WS: evaluateCloses()
+ * di src/services/marketListener.ts (EMA9/21 cross + filter RSI14 —
+ * stateless, cocok untuk isolate Workers yang selalu baru).
  *
  * Sinyal valid → Web Push ke seluruh user PRO (Arah/Entry/SL/TP)
  * + log ke tabel market_alerts — semuanya di broadcastVipSignal().
@@ -62,10 +63,20 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
   return process.env.NODE_ENV === 'development'
 }
 
-/** Harga terakhir XAU/USD — via /api/candles (SELF binding anti-522) */
-async function fetchLastPrice(): Promise<{ price: number; symbol: string } | null> {
+/** Candle 15m XAU/USD — via /api/candles (SELF binding anti-522).
+ *  80 bar (±20 jam) cukup utk EMA21 + RSI14 + deteksi cross. */
+const CANDLE_INTERVAL = '15m'
+const CANDLE_LIMIT = 80
+
+async function fetchCandles(): Promise<{
+  price: number
+  symbol: string
+  closes: number[]
+} | null> {
   try {
-    const quoteUrl = `${SITE_URL}/api/candles?symbol=${encodeURIComponent(SYMBOL)}&interval=5m&limit=1`
+    const quoteUrl =
+      `${SITE_URL}/api/candles?symbol=${encodeURIComponent(SYMBOL)}` +
+      `&interval=${CANDLE_INTERVAL}&limit=${CANDLE_LIMIT}`
     const selfFetch = await getSelfFetch()
     const res = selfFetch
       ? await selfFetch(quoteUrl, { signal: AbortSignal.timeout(12_000) })
@@ -73,10 +84,16 @@ async function fetchLastPrice(): Promise<{ price: number; symbol: string } | nul
     if (!res.ok) return null
     const json = await res.json()
     const bars = Array.isArray(json?.data) ? json.data : []
+    if (!bars.length) return null
+    const closes: number[] = []
+    for (const b of bars) {
+      const c = Number(b?.close)
+      if (Number.isFinite(c) && c > 0) closes.push(c)
+    }
     const last = bars[bars.length - 1]
     const price = Number(last?.close)
-    if (!Number.isFinite(price) || price <= 0) return null
-    return { price, symbol: String(last?.symbol || 'XAU/USD') }
+    if (!closes.length || !Number.isFinite(price) || price <= 0) return null
+    return { price, symbol: String(last?.symbol || 'XAU/USD'), closes }
   } catch {
     return null
   }
@@ -92,10 +109,10 @@ async function handle(request: NextRequest): Promise<NextResponse> {
 
   try {
     const demo = request.nextUrl.searchParams.get('demo') === '1'
-    const quote = await fetchLastPrice()
+    const quote = await fetchCandles()
     if (!quote) {
       return NextResponse.json(
-        { ok: false, error: 'harga XAU/USD tidak tersedia (upstream gagal) — coba lagi nanti' },
+        { ok: false, error: 'candle XAU/USD tidak tersedia (upstream gagal) — coba lagi nanti' },
         { status: 502 }
       )
     }
@@ -107,7 +124,8 @@ async function handle(request: NextRequest): Promise<NextResponse> {
       source: demo ? 'demo' : 'poll',
     }
 
-    // ── OTAK (satu-satunya): indikator pribadi Bos ──
+    // ── OTAK (satu-satunya): EMA9/21 cross + RSI filter di atas
+    //    closes candle 15m — stateless, aman utk isolate baru ──
     let signal: SignalPayload
     try {
       signal = demo
@@ -119,7 +137,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
             sl: Number((quote.price - 5.5).toFixed(2)),
             tp: Number((quote.price + 15.0).toFixed(2)),
           }
-        : evaluateCustomIndicator(tick)
+        : evaluateCloses(tick.symbol, quote.closes, quote.price)
     } catch (e) {
       return NextResponse.json(
         { ok: false, error: `indikator error: ${e instanceof Error ? e.message : String(e)}` },

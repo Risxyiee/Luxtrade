@@ -80,7 +80,7 @@ export interface SignalPayload {
 export interface VipBroadcastResult {
   /** true = sinyal diteruskan ke pipeline push (terlepas dari jumlah penerima) */
   sent: boolean
-  skipped?: 'cooldown' | 'disabled' | 'no-supabase' | 'db-error' | 'invalid-levels'
+  skipped?: 'cooldown' | 'rearm' | 'disabled' | 'no-supabase' | 'db-error' | 'invalid-levels'
   /** Jumlah user PRO yang ≥1 push-nya sukses terkirim */
   receivers?: number
   /** Jumlah user PRO yang gagal kirim (subscription error, dsb.) */
@@ -114,6 +114,14 @@ export const VIP_SIGNAL_COOLDOWN_MS = Math.max(
   Number(process.env.VIP_SIGNAL_COOLDOWN_MS || 60_000) || 60_000
 )
 
+/** Re-arm: sinyal SEARAH yang sama untuk simbol sama maks 1× per window
+ *  (default 4 jam) — cross yang sama tak boleh spam cron 15-menitan.
+ *  Arah BERLAWANAN (cross balik) tetap langsung boleh lewat. */
+export const VIP_SIGNAL_REARM_MS = Math.max(
+  VIP_SIGNAL_COOLDOWN_MS,
+  Number(process.env.VIP_SIGNAL_REARM_MS || 4 * 60 * 60_000) || 4 * 60 * 60_000
+)
+
 /** Kill-switch darurat: VIP_SIGNALS_ENABLED=false mematikan broadcast */
 function signalsEnabled(): boolean {
   return String(process.env.VIP_SIGNALS_ENABLED ?? 'true').toLowerCase() !== 'false'
@@ -123,10 +131,10 @@ function signalsEnabled(): boolean {
 const fmt = (n: number): string => Number(n).toFixed(2)
 
 /* ════════════════════════════════════════════════════════════════
-   🧠 OTAK SINYAL — evaluateCustomIndicator
+   🧠 OTAK SINYAL — evaluateCloses (murni & stateless) + wrapper WS
    ════════════════════════════════════════════════════════════════ */
 
-/** Buffer tick terakhir per simbol — bahan hitung EMA/RSI/structure */
+/** Buffer tick terakhir per simbol — bahan jalur WS (Node) */
 const tickBuffers = new Map<string, number[]>()
 const TICK_BUFFER_MAX = 600
 
@@ -138,45 +146,141 @@ function pushTick(symbol: string, price: number): number[] {
   return buf
 }
 
-/**
- * 🧠 TEMPAT LOGIKA INDIKATOR PRIBADI BOS — satu-satunya fungsi yang
- * perlu diubah. Dipakai BERSAMA oleh jalur WS (Node) dan jalur cron
- * REST (Cloudflare Workers), jadi cukup isi DI SINI sekali.
- *
- * ATURAN MAIN:
- *   - WAJIB return objek SignalPayload (isTriggered, action, entryPrice, sl, tp).
- *   - isTriggered=true hanya saat sinyal valid; SL/TP WAJIB logis:
- *       BUY  → sl < entryPrice < tp
- *       SELL → tp < entryPrice < sl
- *     broadcastVipSignal() menolak sinyal dengan level kacau (guard
- *     'invalid-levels') supaya bug indikator tidak menembak notif
- *     sampah ke seluruh user PRO.
- *   - Fungsi ini dipanggil PER TICK (WS) / PER 15 MENIT (cron) —
- *     jangan di dalamnya melakukan fetch jaringan atau async kerja.
- *
- * CONTOH STRUKTUR (nonaktif — silakan ganti dengan rumus pribadi):
- *
- *   const buf = pushTick(tick.symbol, tick.price)      // buffer tersedia
- *   if (buf.length < 21) return noSignal(tick)         // data kurang
- *   // hitung EMA dari buf, lalu contoh sinyal:
- *   // if (e9 > e21) return { isTriggered: true, action: 'BUY',
- *   //     entryPrice: tick.price,
- *   //     sl: Number((tick.price - 5.50).toFixed(2)),
- *   //     tp: Number((tick.price + 15.00).toFixed(2)) }
- *   // if (e9 < e21) return { isTriggered: true, action: 'SELL',
- *   //     entryPrice: tick.price,
- *   //     sl: Number((tick.price + 5.50).toFixed(2)),
- *   //     tp: Number((tick.price - 15.00).toFixed(2)) }
- */
-export function evaluateCustomIndicator(tick: PriceTick): SignalPayload {
-  // Catat tick ke buffer (berguna saat Bos mengisi logika di atas)
-  pushTick(tick.symbol, tick.price)
+/** EMA (exponential moving average) seri — indeks terakhir = terbaru */
+export function emaSeries(values: number[], period: number): number[] {
+  if (values.length < period) return []
+  const k = 2 / (period + 1)
+  const out: number[] = []
+  let prev = values.slice(0, period).reduce((a, b) => a + b, 0) / period // SMA seed
+  out.push(prev)
+  for (let i = period; i < values.length; i++) {
+    prev = values[i] * k + prev * (1 - k)
+    out.push(prev)
+  }
+  return out
+}
 
-  /* ══════════════════════════════════════════════════════════════
-     TODO(BOS): tempel logika indikator pribadi DI SINI.
-     Sementara default: TIDAK ADA sinyal (aman — nol notif spam).
-     ══════════════════════════════════════════════════════════════ */
-  return noSignal(tick)
+/** RSI (Wilder) seri — indeks terakhir = terbaru; flat series → 50 */
+export function rsiSeries(values: number[], period: number): number[] {
+  if (values.length <= period) return []
+  let gain = 0
+  let loss = 0
+  for (let i = 1; i <= period; i++) {
+    const d = values[i] - values[i - 1]
+    if (d >= 0) gain += d
+    else loss -= d
+  }
+  let avgG = gain / period
+  let avgL = loss / period
+  const out: number[] = []
+  const wilder = (g: number, l: number): number =>
+    l === 0 ? 100 : 100 - 100 / (1 + g / l)
+  out.push(wilder(avgG, avgL))
+  for (let i = period + 1; i < values.length; i++) {
+    const d = values[i] - values[i - 1]
+    avgG = (avgG * (period - 1) + Math.max(d, 0)) / period
+    avgL = (avgL * (period - 1) + Math.max(-d, 0)) / period
+    out.push(wilder(avgG, avgL))
+  }
+  return out
+}
+
+/* Strategi default (GANTI BEBAS — cukup edit fungsi ini):
+   ─ Sinyal = CROSS EVENT EMA9 × EMA21 (golden → BUY, death → SELL).
+     Karena mendeteksi PERISTIWA (bukan level), sinyal LANGKA — tidak
+     menembak berulang selama tren, cocok untuk cron 15-menitan yang
+     isolatenya selalu baru (tanpa memori antar-run).
+   ─ Filter RSI14: BUY dibatalkan saat overbought (RSI ≥ 72), SELL
+     dibatalkan saat oversold (RSI ≤ 28) — jangan kejar ujung gerak.
+   ─ Level: SL 0,30% dari entry, TP 0,90% (risk:reward 1:3) — wajar
+     untuk scalping XAU/USD timeframe 15m.
+   Butuh ≥ 30 close (EMA21 + RSI14 + ruang cross). */
+const MIN_CLOSES = 30
+const SL_PCT = 0.003
+const TP_PCT = 0.009
+
+/**
+ * 🧠 OTAK SINYAL — murni, stateless, dipakai BERSAMA jalur WS (Node)
+ * dan jalur cron REST (Cloudflare Workers). `closes` = urut LAMA→BARU.
+ *
+ * Bos bisa mengganti isi fungsi ini kapan saja dengan rumus pribadi —
+ * kontrak return tetap SignalPayload dan guard `signalLevelsValid`
+ * tetap menjaga notif sampah tidak lolos.
+ */
+export function evaluateCloses(
+  symbol: string,
+  closes: number[],
+  lastPrice?: number
+): SignalPayload {
+  const price = Number.isFinite(lastPrice) && Number(lastPrice) > 0
+    ? Number(lastPrice)
+    : closes[closes.length - 1]
+  const blank = (): SignalPayload => ({
+    isTriggered: false, action: 'BUY', entryPrice: price || 0, sl: 0, tp: 0,
+  })
+  if (!closes.length || closes.length < MIN_CLOSES || !Number.isFinite(price) || price <= 0) {
+    return blank()
+  }
+
+  const e9 = emaSeries(closes, 9)
+  const e21 = emaSeries(closes, 21)
+  const rsi = rsiSeries(closes, 14)
+  if (e9.length < 2 || e21.length < 2 || !rsi.length) return blank()
+
+  const i = e9.length - 1
+  const j = e21.length - 1
+  const r = rsi[rsi.length - 1]
+  if (!Number.isFinite(r)) return blank()
+
+  // Kedua seri EMA berakhir di bar yang sama (close terakhir) →
+  // prev = selisih di bar kedua-terakhir, curr = di bar terakhir.
+  const e21Prev = e21[j - 1] ?? e21[j]
+  const prevDiff = e9[i - 1] - e21Prev
+  const currDiff = e9[i] - e21[j]
+
+  const round2 = (n: number): number => Number(n.toFixed(2))
+
+  // Golden cross + tidak overbought → BUY
+  if (prevDiff <= 0 && currDiff > 0 && r < 72) {
+    return {
+      isTriggered: true,
+      action: 'BUY',
+      entryPrice: round2(price),
+      sl: round2(price * (1 - SL_PCT)),
+      tp: round2(price * (1 + TP_PCT)),
+    }
+  }
+  // Death cross + tidak oversold → SELL
+  if (prevDiff >= 0 && currDiff < 0 && r > 28) {
+    return {
+      isTriggered: true,
+      action: 'SELL',
+      entryPrice: round2(price),
+      sl: round2(price * (1 + SL_PCT)),
+      tp: round2(price * (1 - TP_PCT)),
+    }
+  }
+  return blank()
+}
+
+/**
+ * Jalur WS (Node): per tick → push ke buffer → jalankan otak yang
+ * SAMA (evaluateCloses) di atas isi buffer + gerbang arah anti-whipsaw
+ * (tidak menembak dua kali berurutan dengan arah sama — menghitung
+ * cross event pada tick mentah bisa bolak-balik dalam satu bar).
+ * Fungsi ini TIDAK dipakai jalur cron (Workers) — di sana route
+ * memanggil evaluateCloses langsung dengan closes candle 15m.
+ */
+let lastFiredAction: 'BUY' | 'SELL' | null = null
+
+export function evaluateCustomIndicator(tick: PriceTick): SignalPayload {
+  const buf = pushTick(tick.symbol, tick.price)
+  const signal = evaluateCloses(tick.symbol, buf, tick.price)
+  if (signal.isTriggered) {
+    if (signal.action === lastFiredAction) return noSignal(tick)
+    lastFiredAction = signal.action
+  }
+  return signal
 }
 
 /** Sinyal kosong yang tetap memenuhi kontrak tipe */
@@ -200,20 +304,28 @@ export function signalLevelsValid(s: SignalPayload): boolean {
 let lastBroadcastAt = 0
 let missingTableWarned = false
 
-/** Cooldown aktif? Cek in-memory (cepat) + baris terakhir DB (tahan tik ganda antar-isolate) */
+/** Cooldown aktif? Cek in-memory (cepat) + baris terakhir DB (tahan tik ganda
+ *  antar-isolate). Re-arm: arah SAMA untuk simbol sama ditahan lebih lama
+ *  (default 4 jam) — arah berlawanan tidak terpengaruh. */
 async function isCooldownActive(
-  admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>
+  admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>,
+  symbol: string,
+  action: 'BUY' | 'SELL'
 ): Promise<boolean> {
   if (lastBroadcastAt && Date.now() - lastBroadcastAt < VIP_SIGNAL_COOLDOWN_MS) return true
   try {
     const { data, error } = await admin
       .from('market_alerts')
-      .select('created_at')
+      .select('created_at, action, symbol')
       .order('created_at', { ascending: false })
       .limit(1)
     if (!error && data?.[0]?.created_at) {
       const t = new Date(String(data[0].created_at)).getTime()
-      if (Number.isFinite(t) && Date.now() - t < VIP_SIGNAL_COOLDOWN_MS) return true
+      if (Number.isFinite(t)) {
+        const age = Date.now() - t
+        if (age < VIP_SIGNAL_COOLDOWN_MS) return true
+        if (String(data[0].symbol) === symbol && String(data[0].action) === action && age < VIP_SIGNAL_REARM_MS) return true
+      }
     }
   } catch { /* DB belum siap → biarkan lewat, jangan blok sinyal */ }
   return false
@@ -240,7 +352,7 @@ export async function broadcastVipSignal(
   const admin = await getSupabaseAdminAsync()
   if (!admin) return { sent: false, skipped: 'no-supabase' }
 
-  if (await isCooldownActive(admin)) return { sent: false, skipped: 'cooldown' }
+  if (await isCooldownActive(admin, tick.symbol, signal.action)) return { sent: false, skipped: 'cooldown' }
 
   const emoji = signal.action === 'BUY' ? '🟢' : '🔴'
   const payload = {
@@ -492,7 +604,7 @@ export function stopMarketListener(): void {
 
 export interface MarketListenerStatus {
   state: ListenerState
-  mode: 'ws+poll' | 'poll-only'
+  mode: 'ws+poll' | 'poll'
   symbols: string[]
   ticks: number
   lastTickAt: number | null
