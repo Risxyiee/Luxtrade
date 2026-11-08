@@ -114,13 +114,43 @@ async function postInstagram(c: MetaCreds, caption: string, imageUrl?: string): 
   return { posted: true, platform: 'instagram', id: String(publish.json?.id || creationId) }
 }
 
-/** Post NYATA ke Facebook Page feed (teks polos didukung). */
+/** Post NYATA ke Facebook Page feed (teks polos didukung).
+ *
+ * FIX ERROR BOS: "feed gagal: Graph HTTP 403 — (#200) If posting to a
+ * group, requires app being installed in the group, and either
+ * publish_to_groups permission…" → artinya FACEBOOK_PAGE_ID yang
+ * diset bos adalah ID **GRUP** Facebook, bukan ID **PAGE/Halaman**.
+ * Posting ke grup via API butuh app di-install di grup itu + izin
+ * publish_to_groups (setup manual di FB — kode tidak bisa menyembuhkan).
+ * Penanganan 2 lapis di sini:
+ *   1. AUTO-HEAL: coba POST /me/feed memakai token apa adanya — kalau
+ *      token-nya memang token Page (non-expiring), post tetap masuk
+ *      ke halaman walau PAGE_ID-nya salah/kosong.
+ *   2. Kalau tetap gagal → reason berisi DIAGNOSA + CARA FIX dalam
+ *      bahasa Indonesia (bukan cuma error mentah Graph). */
 async function postFacebook(c: MetaCreds, message: string): Promise<MetaPostResult> {
   if (!c.fbToken || !c.fbPageId)
     return { posted: false, platform: 'facebook', reason: 'token FB belum diset (FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID)' }
   const feed = await graphPost(`${c.fbPageId}/feed`, c.fbToken, { message: message.slice(0, 5000) })
-  if (!feed.ok) return { posted: false, platform: 'facebook', reason: `feed gagal: ${feed.err}` }
-  return { posted: true, platform: 'facebook', id: String(feed.json?.id || '') }
+  if (feed.ok) return { posted: true, platform: 'facebook', id: String(feed.json?.id || '') }
+
+  /* Kasus khusus: ID menunjuk GRUP FB (error #200 publish_to_groups). */
+  if (/publish_to_groups|posting to a group|app being installed in the group/i.test(feed.err)) {
+    /* 1) Auto-heal: token Page valid → /me/feed tetap posting ke halaman. */
+    const me = await graphPost('me/feed', c.fbToken, { message: message.slice(0, 5000) })
+    if (me.ok) {
+      return { posted: true, platform: 'facebook', id: String(me.json?.id || '') }
+    }
+    /* 2) Tetap gagal → diagnosa lengkap + langkah perbaikan. */
+    return {
+      posted: false,
+      platform: 'facebook',
+      reason: 'FACEBOOK_PAGE_ID adalah ID GRUP Facebook, bukan ID Page/Halaman. ' +
+        'Posting ke grup butuh app di-install di grup + izin publish_to_groups. ' +
+        `CARA FIX: (a) ganti FACEBOOK_PAGE_ID dgn ID Halaman FB (lihat about page → Page ID), ATAU (b) install app Meta di grup + beri izin publish_to_groups. Detail: feed gagal: ${feed.err} · fallback /me: ${me.err}`,
+    }
+  }
+  return { posted: false, platform: 'facebook', reason: `feed gagal: ${feed.err}` }
 }
 
 /**

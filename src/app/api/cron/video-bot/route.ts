@@ -19,8 +19,9 @@ import {
  * v3 — GABUNGAN TikTok + Instagram (permintaan Bos):
  *   Tugas karyawan Sinta sekarang SATU pipeline dua platform: video Remotion
  *   yang sama dirender runner (GitHub Actions) lalu:
- *     • TikTok  → Content Posting API (job sinta-video)
- *     • Instagram Reels → /api/cron/ig-video-post (19–20 WIB, 2 hari sekali)
+ *     • TikTok  → Content Posting API (job sinta-video) — kalau app approved
+ *     • Instagram Reels → /api/cron/ig-video-post (18–19 WIB, Senin–Jumat;
+ *       sementara SEMUA hari IG dulu — TikTok belum approved)
  *
  * v3 — OTAKNYA MAKAN DATA KONTEN ASLI (bukan lagi spekulasi):
  *   1. tiktok_posts        → video TikTok Bos yang TERBUKTI perform (views/likes)
@@ -724,7 +725,13 @@ async function handle(request: NextRequest) {
   let source = 'default'
   let llmMeta: Record<string, unknown> = { provider: 'template', notes: [] as string[] }
   try {
-    const res = await callLLM(SYSTEM_PROMPT, userPrompt, 1600)
+    /* PERMINTAAN BOS: "konten remotion make api berbayar aja biar bagus"
+       → otak konten Sinta pakai model Mortera PREMIUM (Sonnet — kualitas
+       tulisan kelas atas, bukan Haiku). Gagal/404/saldo habis → callLLM
+       otomatis jatuh ke rantai gratis (Groq/Gemini/OpenRouter) — konten
+       tidak pernah hangus. Override via env MORTERA_MODEL_CONTENT. */
+    const contentModel = process.env.MORTERA_MODEL_CONTENT || 'claude-sonnet-5.5'
+    const res = await callLLM(SYSTEM_PROMPT, userPrompt, 1600, { morteraModel: contentModel })
     if (res?.text) {
       llmMeta = { provider: res.provider, model: res.model, notes: res.notes || [] }
       const parsed = extractJson<VideoSpec>(res.text)

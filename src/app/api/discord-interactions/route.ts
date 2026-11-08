@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { callMorteraDirect } from '@/lib/ai-llm'
 
 /**
  * POST /api/discord-interactions
@@ -100,7 +101,7 @@ async function verifyDiscordSignature(req: NextRequest, rawBody: string): Promis
   } catch { return false }
 }
 
-/* ---------- Alexander menjawab (Llama 3.1 8B → Gemini → jawaban jujur) ---------- */
+/* ---------- Alexander menjawab (Mortera → OpenRouter → Gemini → jujur) ---------- */
 async function alexanderAnswer(question: string): Promise<string> {
   /* Konteks: briefing terakhir + NBA — Bos sering tanya "prioritas apa?" */
   let ctx = ''
@@ -117,6 +118,13 @@ async function alexanderAnswer(question: string): Promise<string> {
     'maks 120 kata. Kalau ditanya angka/prioritas, pakai data briefing di bawah. Kalau tidak tahu, jujur dan sarankan buka Ruang Rapat di /kantor-ceo. ' +
     'Jangan pakai format markdown berat — Discord biasa saja.' + ctx
 
+  /* LAPIS 1 — MORTERA (berbayar — permintaan Bos: "api karyawan ai ke
+     mortera SEMUA, fallback gratis"). */
+  const morNotes: string[] = []
+  const mor = await callMorteraDirect(sys, question, 512, morNotes, 0.6).catch(() => null)
+  if (mor?.text) return mor.text
+
+  /* LAPIS 2 — OpenRouter (katalog hidup) — cadangan gratis. */
   const orKey = envGet('OPENROUTER_API_KEY')
   /* Task 35: model lama (llama-3.1-8b:free) 404 — bot /bos pakai katalog hidup.
      Task 35c: inkling DIBUANG (403 policy-blocked) → Nemotron Ultra 550B. */

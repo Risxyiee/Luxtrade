@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCronAdmin, fetchAllRows, isMissingTableError } from '@/lib/cron-supabase'
-import { callLLM, extractJson, getLLMProviderName, type LLMResult } from '@/lib/ai-llm'
+import { callLLM, callMorteraDirect, extractJson, getLLMProviderName, type LLMResult } from '@/lib/ai-llm'
 import { getEnvVar } from '@/lib/cloudflare-bindings'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import {
@@ -82,11 +82,14 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
 
 // ─── AI: racik email jualan PRO ────────────────────────────────────────────
 /* ═══ SOP MULTI-AGENT — model resmi BAGAS (COO) ═══
-/* ═══ SOP MULTI-AGENT — model resmi BAGAS (COO) ═══
    Task 35: llama-3.1-8b:free & glm-4-flash MATI di OpenRouter (404) —
    dulu inilah penyebab email Bagas selalu templat. Kini: Gemma 4 MoE
    (utama) → rantai cadangan model gratis hidup → templat statis
-   buildTemplateDraft (fail-safe tetap ada). */
+   buildTemplateDraft (fail-safe tetap ada).
+   PERMINTAAN BOS ("ubah api karyawan ai ke mortera SEMUA, fallback
+   gratis"): MORTERA dulu di depan — Claude/GPT kelas berbayar; rantai
+   OpenRouter :free di bawah hanya jadi cadangan kalau Mortera gagal
+   (saldo habis 402 / auth / rate-limit — cooldown ditangani ai-llm). */
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const BAGAS_MODEL = 'google/gemma-4-26b-a4b-it:free'
 const BAGAS_FALLBACK_MODELS = [
@@ -102,6 +105,14 @@ async function getOpenRouterKey(): Promise<string> {
 }
 
 async function callBagas(systemPrompt: string, userPrompt: string, maxTokens = 600): Promise<LLMResult | null> {
+  /* LAPIS 1 — MORTERA (berbayar, kelas Claude/GPT). Notes ditampung supaya
+     kalau Mortera gagal lalu OpenRouter yang jawab, alasan Mortera tetap
+     tercatat di result.notes (diagnosa jujur). */
+  const morNotes: string[] = []
+  const mor = await callMorteraDirect(systemPrompt, userPrompt, Math.max(maxTokens, 1024), morNotes)
+  if (mor) return { text: mor.text, provider: 'mortera', model: mor.model }
+
+  /* LAPIS 2 — OpenRouter rantai model hidup (:free) — cadangan. */
   const key = (await getOpenRouterKey()).trim()
   if (!key) return null
   for (const model of [process.env.OR_MODEL_COO?.trim() || BAGAS_MODEL, ...BAGAS_FALLBACK_MODELS]) {
@@ -134,7 +145,7 @@ async function callBagas(systemPrompt: string, userPrompt: string, maxTokens = 6
         console.error(`[ai-coo-agent] OpenRouter ${model} returned empty content`)
         continue
       }
-      return { text, provider: 'openrouter', model }
+      return { text, provider: 'openrouter', model, notes: morNotes.length ? morNotes : undefined }
     } catch (err: any) {
       console.error(`[ai-coo-agent] OpenRouter ${model} error:`, err?.message || err)
     }

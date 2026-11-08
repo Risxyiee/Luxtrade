@@ -7,14 +7,17 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 #  sabtu minggu libur"
 #
 # Aturan berlaku:
-#   • JADWAL  : SENIN–JUMAT 19:10 WIB (12:10 UTC). Sabtu/Minggu LIBUR.
+#   • JADWAL  : SENIN–JUMAT 18:10 WIB (11:10 UTC). Sabtu/Minggu LIBUR.
+#     (Permintaan Bos: "posting konten mau tiktok atau ig dijam 18-19
+#      wib senin sampe jumat — tiktok belum bisa lewat api resmi,
+#      sementara ig dulu")
 #   • 1 konten/hari — rotasi platform otomatis:
-#       Senin / Rabu / Jumat → Instagram Reels
-#       Selasa / Kamis       → TikTok (kalau app belum approved atau
-#         upload gagal → FALLBACK otomatis ke IG Reels, konten tidak
-#         hangus)
+#       SEMUA HARI → Instagram Reels dulu (window server 18–19 WIB);
+#         Sel/Kam tetap COBA TikTok dulu, tapi karena app TikTok belum
+#         approved → fallback IG otomatis di bawah (konten tidak hangus).
+#         Begitu app TikTok approved, Sel/Kam otomatis balik ke TikTok.
 #   • Window + cadence tetap divalidasi SERVER (ig-video-post: window
-#     19–20 WIB, jeda minimal 20 jam) — runner cuma eksekutor.
+#     18–19 WIB, jeda minimal 20 jam) — runner cuma eksekutor.
 #   • Carousel IG: MANUAL only (Run workflow → carousel ✔) — sesuai
 #     "1 konten aja sehari".
 #   • 🎵 MUSIK LATAR: public/music/bg.mp3 (SoundHelix — bebas hak
@@ -50,12 +53,12 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 on:
   schedule:
-    # 12:10 UTC = 19:10 WIB — Senin–Jumat saja (1-5). Sabtu/Minggu LIBUR (Bos).
-    - cron: '10 12 * * 1-5'
+    # 11:10 UTC = 18:10 WIB — Senin–Jumat saja (1-5). Sabtu/Minggu LIBUR (Bos).
+    - cron: '10 11 * * 1-5'
   workflow_dispatch:
     inputs:
       force:
-        description: 'Lewati window 19-20 WIB & cadence (tes manual)'
+        description: 'Lewati window 18-19 WIB & cadence (tes manual)'
         type: boolean
         required: false
         default: false
@@ -189,18 +192,21 @@ jobs:
           test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
           echo "Ukuran video : $(du -h /tmp/luxtrade-video.mp4 | cut -f1)"
 
-      # 🎛️ ROTASI PLATFORM — Sen/Rab/Jum = IG · Sel/Kam = TikTok (1 konten/hari)
-      - name: 🎛️ Putuskan platform hari ini (Sen/Rab/Jum=IG · Sel/Kam=TikTok)
+      # 🎛️ ROTASI PLATFORM — semua hari IG dulu (TikTok belum approved);
+      #    Sel/Kam tetap nyoba token TikTok — kalau nanti approved, otomatis
+      #    balik ke TikTok tanpa ubah file ini.
+      - name: 🎛️ Putuskan platform hari ini (IG dulu · TikTok kalau app sudah approved)
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           PROD_URL="${PROD_URL%/}"
-          DOW=$(date -u +%u) # 1=Senin..5=Jumat (cron cuma 1-5; 19:10 WIB = hari sama dgn UTC)
+          DOW=$(date -u +%u) # 1=Senin..5=Jumat (cron cuma 1-5; 18:10 WIB = hari sama dgn UTC)
           case "$DOW" in
-            1|3|5) PLATFORM="ig" ;;
-            2|4)   PLATFORM="tiktok" ;;
-            *)     PLATFORM="ig" ;; # jaga-jaga kalau dijalankan manual di akhir pekan
+            # PERMINTAAN BOS: "tiktok belum bisa lewat api resmi — sementara ig dulu"
+            # → SEMUA hari giliran IG. Begitu TikTok approved, restore baris
+            #   berikut: 2|4) PLATFORM="tiktok" ;;
+            *) PLATFORM="ig" ;;
           esac
           echo "Hari ke-$DOW → giliran platform: $PLATFORM"
 
@@ -291,8 +297,8 @@ jobs:
             -d "$(jq -n --arg c "${CAPTION:-}" --arg p "${PUBLISH_ID:-}" '{caption:$c, publishId:$p}')" \
             "$PROD_URL/api/tiktok/report" || echo "⚠️ lapor katalog tiktok gagal (best-effort, dilewati)"
 
-      # 📸 IG Reels — giliran Sen/Rab/Jum ATAU fallback dari TikTok yang gagal
-      - name: 📸 Posting ke Instagram Reels (19–20 WIB · server putuskan window/cadence)
+      # 📸 IG Reels — jalur utama SEMUA hari (18:10 WIB) ATAU fallback dari TikTok yang gagal
+      - name: 📸 Posting ke Instagram Reels (18–19 WIB · server putuskan window/cadence)
         if: env.PLATFORM == 'ig' || env.IG_FALLBACK == 'true'
         env:
           PROD_URL: ${{ secrets.PROD_URL }}

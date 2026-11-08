@@ -183,19 +183,28 @@ export async function getLLMChainStatus(): Promise<{ provider: string; ok: boole
 let lastCallDiag: string[] = []
 export function getLastLLMDiag(): string[] { return lastCallDiag }
 
+export interface LLMCallOpts {
+  /** Override model Mortera UNTUK PANGGILAN INI saja — dipakai tugas
+   *  yang butuh kualitas tulisan premium (mis. konten Remotion Sinta
+   *  → 'claude-sonnet-5.5', permintaan Bos: "make api berbayar biar
+   *  bagus"). Gagal/404 → otomatis turun ke MORTERA_FALLBACKS lalu
+   *  rantai gratis seperti biasa. */
+  morteraModel?: string
+}
+
 /**
  * Panggil LLM dengan system + user prompt. Returns null jika tidak ada
  * API key ataupun semua provider gagal — caller harus punya fallback.
  * Diagnosa kenapa gagal = getLastLLMDiag().
  */
-export async function callLLM(systemPrompt: string, userPrompt: string, maxTokens = 800): Promise<LLMResult | null> {
+export async function callLLM(systemPrompt: string, userPrompt: string, maxTokens = 800, opts?: LLMCallOpts): Promise<LLMResult | null> {
   const notes: string[] = []
   lastCallDiag = notes
 
   /* PRIORITAS 1 — Mortera Cloud (deposit Rupiah, model kelas Claude/GPT). */
   const morteraKey = await getMorteraKey()
   if (morteraKey && !isCool('mortera')) {
-    const res = await callMortera(morteraKey, systemPrompt, userPrompt, maxTokens, notes)
+    const res = await callMortera(morteraKey, systemPrompt, userPrompt, maxTokens, notes, opts?.morteraModel)
     if (res) return { ...res, notes: notes.length ? notes : undefined }
     if (!isCool('mortera')) cool('mortera', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('mortera'))
@@ -389,8 +398,9 @@ const morteraScore = (id: string) => {
   return (/haiku/i.test(id) ? 50 : 0) + (/sonnet/i.test(id) ? 30 : 0) + (/terra/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 10 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
 }
 
-async function callMortera(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[]): Promise<LLMResult | null> {
-  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes)
+async function callMortera(apiKey: string, systemPrompt: string, userPrompt: string, maxTokens: number, notes: string[], modelOverride?: string): Promise<LLMResult | null> {
+  const chain = [...new Set([modelOverride?.trim() || MORTERA_MODEL, MORTERA_MODEL, ...MORTERA_FALLBACKS])]
+  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', apiKey, chain, morteraScore, systemPrompt, userPrompt, maxTokens, notes)
 }
 
 /** Panggil Mortera LANGSUNG — tanpa rotasi ke provider lain. Untuk route yang

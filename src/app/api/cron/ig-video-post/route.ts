@@ -20,16 +20,18 @@ import {
  *   POST /{page-id}/media?media_type=REELS&video_url=&caption=
  *   → poll FINISHED (1–5 menit) → /media_publish?creation_id=
  *
- * ATURAN JADWAL + ACC (permintaan Bos, update Nov 2026):
- *   • "uploud tiap jam 7-8, 1 konten aja sehari, sabtu minggu libur"
+ * ATURAN JADWAL + ACC (permintaan Bos, update terakhir):
+ *   • "posting konten jam 18-19 WIB senin sampe jumat — tiktok belum bisa
+ *     lewat api resmi, sementara ig dulu" → window digeser dari 19–20
+ *     ke 18:00–18:59 WIB (runner jalan 18:10 WIB, Senin–Jumat).
  *   • "nunggu saya acc" → DEFAULT MODE = APPROVAL:
  *       runner kirim draft → ai_pending_actions (PUBLISH_IG_REEL) →
  *       Bos ACC di Kantor CEO → Antrean Eksekusi → /api/execute-action
  *       → publish REELS. (Set env IG_AUTO_POST="true" utk mode lama)
- *   • Window posting: 19:00–20:59 WIB (runner jalan 19:10 WIB, Senin–Jumat)
  *   • Cadence: 1x/hari (guard: Reels published terakhir ≥ 20 jam lalu)
- *   • Rotasi platform dikelola runner: Sen/Rab/Jum → IG Reels,
- *     Sel/Kam → TikTok (kalau TikTok gagal/belum approved → fallback IG)
+ *   • Rotasi platform dikelola runner: semua hari → IG dulu (TikTok
+ *     auto-fallback ke IG sampai app TikTok approved — perilaku sama,
+ *     cuma penjelasan yang diperbarui)
  *   ?force=true → lewati window + cadence (TIDAK melewati ACC)
  *
  * FIX 2026-11-07 "auto post IG error": GitHub Actions sering MENUNDA
@@ -46,7 +48,7 @@ import {
  *   2. Validasi input
  *   3. Mode APPROVAL: draft selalu disimpan (window/cadence tidak
  *      membuang konten lagi — catatan lateRunNote bila telat)
- *   4. Mode AUTO: window 19–21 WIB + cadence 20 jam → skipped (honest)
+ *   4. Mode AUTO: window 18–19 WIB + cadence 20 jam → skipped (honest)
  *   5. ensureFreshToken (token > 55 hari → refresh otomatis 60 hari)
  *   6. Enqueue instagram_posts (media_type REELS, source sinta-video)
  *   7. Publish inline (poll sampai 6 menit). Timeout → row 'publishing'
@@ -60,16 +62,16 @@ export const dynamic = 'force-dynamic'
 /** Jeda minimum antar Reels: 20 jam — konten IG max 1x/hari (Senin–Jumat).
  *  Dulu 44 jam (2 hari sekali); Bos minta harian: "1 konten aja sehari". */
 const MIN_GAP_MS = 20 * 60 * 60 * 1000
-/** Window jam WIB yang diizinkan: 19 dan 20 (permintaan Bos: jam 19–20). */
-const WINDOW_HOURS_WIB = [19, 20]
+/** Window jam WIB yang diizinkan: 18 dan 19 (permintaan Bos: jam 18–19). */
+const WINDOW_HOURS_WIB = [18, 19]
 
-/** 19:00 WIB berikutnya (≥ after) — 19:00 WIB = 12:00 UTC.
+/** 18:00 WIB berikutnya (≥ after) — 18:00 WIB = 11:00 UTC.
  *  Sabtu/Minggu DILEWATI (permintaan Bos: "sabtu minggu libur") —
  *  video buatan Jumat yang telat dieksekusi Sabtu dini hari tetap
- *  tayang Senin 19:00 WIB, bukan Sabtu/Minggu. */
+ *  tayang Senin 18:00 WIB, bukan Sabtu/Minggu. */
 function nextWindowStartWib(after: Date = new Date()): Date {
   const d = new Date(
-    Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate(), 12, 0, 0)
+    Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate(), 11, 0, 0)
   )
   if (d.getTime() <= after.getTime()) d.setUTCDate(d.getUTCDate() + 1)
   while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1)
@@ -206,7 +208,7 @@ export async function POST(request: NextRequest) {
           ...(topicMeta ? { topic: topicMeta } : {}),
           renderNote: 'remotion 9:16 + musik latar — ACC Bos → publish REELS',
           requestedWib: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
-          ...(offWindow ? { lateRunNote: `Runner jalan di luar window (${hour}:00 WIB, jadwal 19–21 WIB — kemungkinan delay antrean GitHub Actions). Draft tetap disimpan — ACC Bos menentukan momen tayang.` } : {}),
+          ...(offWindow ? { lateRunNote: `Runner jalan di luar window (${hour}:00 WIB, jadwal 18–19 WIB — kemungkinan delay antrean GitHub Actions). Draft tetap disimpan — ACC Bos menentukan momen tayang.` } : {}),
         },
         status: 'pending',
       })
@@ -236,13 +238,13 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  /* ── 3) MODE AUTO: window 19–20 WIB + cadence 1x/hari (kecuali force) ──
+  /* ── 3) MODE AUTO: window 18–19 WIB + cadence 1x/hari (kecuali force) ──
      FIX "auto post IG error" (lanjutan 2026-11-07): GHA TERBUKTI telat
      2 hari beruntun (jadwal 19:10 WIB dieksekusi 02:18 & 02:52 WIB).
      Dulu: di luar window → skip → video hasil render (±2 menit CPU
      runner) DIBUANG → antrean kosong terus → IG tak pernah kebagian
      konten. Sekarang video TIDAK PERNAH dibuang: di luar window /
-     cadence → masuk antrean dgn scheduled_for = window 19:00 WIB
+     cadence → masuk antrean dgn scheduled_for = window 18:00 WIB
      berikutnya (lewati Sabtu/Minggu) yang memenuhi jeda 20 jam —
      ig-auto-post (09:00/19:00/20:30 WIB) yang publish saat jatuh tempo. */
   const hourAuto = wibHourNow()
@@ -271,7 +273,7 @@ export async function POST(request: NextRequest) {
       ? nextWindowStartWib(new Date(cadenceMs)).getTime()
       : base.getTime()
     const alasan = !inWindow
-      ? `di luar window (${hourAuto}:00 WIB — jadwal 19:00–20:59 WIB)`
+      ? `di luar window (${hourAuto}:00 WIB — jadwal 18:00–18:59 WIB)`
       : `cadence 1x/hari (jeda 20 jam — Reels terakhir ${((Date.now() - (lastMs || 0)) / 3_600_000).toFixed(1)} jam lalu)`
     const { data: sched, error: schedErr } = await admin
       .from('instagram_posts')
@@ -288,7 +290,7 @@ export async function POST(request: NextRequest) {
           ...(topicMeta ? { topic: topicMeta } : {}),
           renderBy: 'sinta (cmo) — remotion 9:16',
           scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
-          scheduleNote: `runner ${alasan} → video dijadwalkan (tidak dibuang) — window 19–21 WIB, libur Sabtu/Minggu`,
+          scheduleNote: `runner ${alasan} → video dijadwalkan (tidak dibuang) — window 18–19 WIB, libur Sabtu/Minggu`,
         },
         scheduled_for: new Date(schedMs).toISOString(),
       })

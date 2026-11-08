@@ -28,6 +28,7 @@
  */
 
 import { bagasCooldownSince, bagasCooldownOrFilter, contactsFromTaskRows, emailsFromActionRows } from '@/lib/bagas-cooldown'
+import { callMorteraDirect } from '@/lib/ai-llm'
 
 /* ================= ENV RESOLUTION ================= */
 
@@ -181,10 +182,32 @@ export interface OrJsonResult { laporan?: string; proposed_action?: any; ai_mode
  * BOS LIHAT ALASANNYA di dashboard — tidak ada error yang ditelan).
  */
 export async function orJson(systemPrompt: string, userPrompt: string, model: string, agentTag: string, maxTokens = 800, cfg?: SbConfig): Promise<OrJsonResult> {
+  /* LAPIS 1 — MORTERA (berbayar — permintaan Bos: "api karyawan ai ke
+     mortera SEMUA, fallback gratis"). Kontrak JSON sama: hasil di-parse
+     jalur ekstraksi yang identik dengan OpenRouter di bawah. Notes
+     kegagalan Mortera ditampung utk diagnosa jujur. */
+  const morNotes: string[] = []
+  const mor = await callMorteraDirect(systemPrompt, userPrompt, Math.max(maxTokens, 1024), morNotes, 0.6)
+  if (mor?.text) {
+    const cleanedMor = mor.text.replace(/```json|```/gi, '').trim()
+    const sMor = cleanedMor.indexOf('{')
+    const eMor = cleanedMor.lastIndexOf('}')
+    if (sMor >= 0 && eMor > sMor) {
+      try {
+        return { ...(JSON.parse(cleanedMor.slice(sMor, eMor + 1)) as OrJsonResult), ai_model: `mortera/${mor.model}` }
+      } catch (x: any) {
+        morNotes.push(`mortera JSON rusak: ${String(x?.message || x).slice(0, 80)}`)
+      }
+    } else {
+      morNotes.push('mortera respons tanpa JSON')
+    }
+  }
+
+  /* LAPIS 2 — OpenRouter rantai model hidup (:free) — cadangan. */
   const key = envGet('OPENROUTER_API_KEY')
   if (!key) {
-    console.error(`[agent-proposals:${agentTag}] OPENROUTER_API_KEY tidak tersedia — proposal pakai templat data riil`)
-    return { ai_error: 'OPENROUTER_API_KEY tidak tersedia di server' }
+    console.error(`[agent-proposals:${agentTag}] Mortera gagal (${morNotes.join(' | ') || 'tanpa detail'}) & OPENROUTER_API_KEY tidak tersedia — proposal pakai templat data riil`)
+    return { ai_error: `Mortera gagal (${morNotes.join(' | ') || 'tanpa detail'}) — OPENROUTER_API_KEY juga tidak tersedia di server` }
   }
   let chain = [...new Set([model, ...OR_LIVE_CHAIN])].filter(Boolean)
   /* Circuit breaker (Task 35c) — konvensi kunci `or:sick:<model>` SAMA dengan
