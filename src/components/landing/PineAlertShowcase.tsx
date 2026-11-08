@@ -5,12 +5,14 @@
  * PineAlertShowcase — "video" animasi fitur Pine Script® + Alert
  * ============================================================
  * Storyboard 11 detik (loop = remount panel tiap 11s):
- *   0.0–5.6s  candle TERBENTUK LIVE tick-demi-tick (random-walk,
- *             wick memanjang, volume tumbuh, harga axis ikut) —
- *             FIX Bos: "dilandingpage gerakan candle nya kurang
- *             realistis" → dulu candle statis muncul bergiliran,
- *             sekarang bergerak seperti chart sungguhan. Tiap
- *             loop = data BARU (seed acak per siklus).
+ *   0.0s      chart LANGSUNG PENUH — 10 candle riwayat + volume tampil
+ *             instan saat t=0 (FIX Bos "masih sama/jelek": dulu chart
+ *             mulai KOSONG dan candle merayap 2-3 batang kecil di tepi
+ *             kiri ±5 detik → kelihatan rusak & kosong).
+ *   0.0–5.6s  LIMA candle terakhir terbentuk LIVE tick-demi-tick
+ *             (random-walk, wick memanjang, volume tumbuh, harga axis
+ *             ikut) — ala chart sungguhan yang sedang streaming.
+ *             Tiap loop = data BARU (seed acak per siklus).
  *   2.0–5.0s  editor Pine — kode ngetik sendiri (typewriter)
  *   4.95s     tombol Compile "ditekan"
  *   5.3–7.0s  garis indikator MENGGAMBAR DIRINYA (+ komet biru
@@ -399,11 +401,14 @@ function LiveChartLayer({ candles, seed, inView }: { candles: Candle[]; seed: nu
     return () => cancelAnimationFrame(raf)
   }, [inView, candles])
 
-  /* posisi kontinu → candle selesai + candle yang sedang terbentuk
-     (done di-clamp penuh + guard candles[done] — double safety) */
+  /* posisi kontinu → candle selesai + candle yang sedang terbentuk.
+     t hanya menggerakkan 5 candle LIVE; 10 candle riwayat LANGSUNG
+     selesai di t=0 → chart penuh sejak frame pertama (tidak pernah
+     kosong). done di-clamp penuh + guard candles[done] — double safety. */
   const pos = t / TICKS_PER_CANDLE
-  const done = Math.min(Math.max(Math.floor(pos), 0), candles.length)
-  const frac = pos - done
+  const liveDone = Math.min(Math.max(Math.floor(pos), 0), LIVE_COUNT)
+  const done = Math.min(HISTORY_COUNT + liveDone, candles.length)
+  const frac = pos - liveDone
   const view: Array<Candle & { live?: boolean }> = candles.slice(0, done).map((c) => ({ ...c }))
   const forming = done < candles.length ? candles[done] : undefined
   if (forming) view.push({ ...liveCandle(forming, frac, t, seed), live: true })
@@ -480,16 +485,23 @@ const DX = 42          // jarak antar candle
 const BW = 18          // lebar badan candle
 const VOL_BASE = 372   // garis dasar bar volume
 
-/* Clock engine: durasi DIHITUNG dari satuan tick lama — 6 tick/candle ×
-   15 candle × 63ms ≈ 5.7s — supaya timing flash breakout (5.7s),
-   indikator (5.3s) & push notif (6.9s) tetap sinkron. Gerakannya kini
-   KONTINU via requestAnimationFrame (lihat LiveChartLayer): fraksi
-   antar-tick diinterpolasi mulus, bukan 6 lompatan diskrit. */
+/* Clock engine: durasi DIHITUNG dari satuan tick lama — 5 candle live ×
+   18 tick × 63ms ≈ 5.7s — supaya timing flash breakout (5.7s),
+   indikator (5.3s) & push notif (6.9s) tetap sinkron persis seperti
+   versi lama (15×6×63ms = 5.67s). Yang BERUBA: hanya 5 candle terakhir
+   (incl. breakout) yang terbentuk live; 10 candle pertama = RIWAYAT yang
+   langsung penuh sejak t=0 → chart gak pernah kosong (dulu 4-5 detik
+   pertama tiap siklus chart cuma berisi 2-3 candle mungil merayap di
+   tepi kiri — Bos bilang "masih sama & jelek"). Gerakannya KONTINU via
+   requestAnimationFrame (lihat LiveChartLayer): fraksi antar-tick
+   diinterpolasi mulus, bukan lompatan diskrit. */
 const TICK_MS = 63
-const TICKS_PER_CANDLE = 6
+const TICKS_PER_CANDLE = 18
 const PRE_COUNT = 14
 const CANDLE_COUNT = PRE_COUNT + 1 // + breakout
-const TOTAL_TICKS = CANDLE_COUNT * TICKS_PER_CANDLE
+const HISTORY_COUNT = 10                          // candle riwayat — instan di t=0
+const LIVE_COUNT = CANDLE_COUNT - HISTORY_COUNT   // 5 candle live (incl. breakout)
+const TOTAL_TICKS = LIVE_COUNT * TICKS_PER_CANDLE
 
 type Candle = { x: number; o: number; c: number; wt: number; wb: number; vol: number }
 

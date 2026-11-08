@@ -42,9 +42,6 @@ const steps = {
       /* varian TIGHT (ruang kosong atas/bawah dipotong) — hero tetap
          pakai file asli */
       img: '/images/landing/trade-list-tight.webp',
-      floatingCards: [
-        { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
-      ],
     },
     {
       num: 'STEP 04',
@@ -93,9 +90,6 @@ const steps = {
       /* varian TIGHT (ruang kosong atas/bawah dipotong) — hero tetap
          pakai file asli */
       img: '/images/landing/trade-list-tight.webp',
-      floatingCards: [
-        { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
-      ],
     },
     {
       num: 'STEP 04',
@@ -152,17 +146,31 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
               <div className={!step.rightSide ? 'md:order-1' : ''}>
                 {step.visual === 'upload' && step.img && (
                   /* FIX Bos: screenshot panduan dulu punya ruang kosong besar
-                     atas/bawah + badge menimpa tabel → jelek. Sekarang pakai
-                     varian tight (tabel memenuhi layar) & badge pindah KE
-                     BAWAH phone — tidak menutupi konten lagi. */
-                  <div className="glass-lux p-8 min-h-[300px] flex flex-col items-center justify-center relative">
-                    <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
+                     atas/bawah + badge menimpa tabel → jelek. V2: varian
+                     tight + komposisi BARU — phone lebih besar di kiri,
+                     kolom chip hasil ekstraksi di kanan mengisi ruang kartu
+                     yang dulu kosong ±70% (dulu cuma phone kecil + 1 badge
+                     di bawah → kartu tampak hampa). */
+                  <div className="glass-lux p-6 md:p-8 min-h-[300px] flex flex-col md:flex-row items-center justify-center gap-5 md:gap-7 relative overflow-hidden">
+                    {/* glow ambient — mengisi ruang gelap kartu */}
+                    <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle at 26% 40%, rgba(34,211,238,0.10), transparent 62%)' }} />
+                    <div className="phone-mockup w-40 sm:w-44 md:w-52 hover:scale-105 transition-transform duration-300 relative shrink-0">
                       <Image src={step.img} alt="Auto Jurnal Screenshot MT5" width={1080} height={1214} quality={100} loading="lazy" className="w-full h-auto" />
                     </div>
-                    <div className="mt-5 bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span className="font-mono text-xs text-emerald-400">Data Extracted: +$340.20</span>
+                    <div className="relative flex flex-col items-stretch gap-3 w-full max-w-[260px] md:w-auto md:flex-1">
+                      <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span className="font-mono text-xs text-emerald-400">Data Extracted: +$340.20</span>
+                        </div>
+                      </div>
+                      <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.4s' }}>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Pair terdeteksi</p>
+                        <p className="text-sm text-white font-bold font-mono mt-0.5">XAUUSD · SELL</p>
+                      </div>
+                      <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.8s' }}>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Entry → Exit</p>
+                        <p className="text-sm text-cyan-300 font-bold font-mono mt-0.5">2,384.5 → 2,350.3</p>
                       </div>
                     </div>
                   </div>
@@ -183,21 +191,28 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                 )}
 
                 {step.visual === 'journal' && step.img && (
-                  /* FIX Bos: sama seperti STEP 01 — tag jangan menimpa tabel
-                     di layar phone → pindah ke bawah phone */
-                  <div className="glass-lux p-8 min-h-[300px] flex flex-col items-center justify-center relative">
-                    <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
+                  /* FIX Bos: sama seperti STEP 01 — komposisi BARU: phone
+                     lebih besar + kolom chip jurnal di kanan (dulu tag kecil
+                     di bawah phone → kartu tampak hampa). */
+                  <div className="glass-lux p-6 md:p-8 min-h-[300px] flex flex-col md:flex-row items-center justify-center gap-5 md:gap-7 relative overflow-hidden">
+                    <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle at 26% 40%, rgba(52,211,153,0.09), transparent 62%)' }} />
+                    <div className="phone-mockup w-40 sm:w-44 md:w-52 hover:scale-105 transition-transform duration-300 relative shrink-0">
                       <Image src={step.img} alt="Histori Trade" width={600} height={687} quality={100} loading="lazy" />
                     </div>
-                    {step.floatingCards?.map((card, ci) => (
-                      <div key={ci} className="mt-5 bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.5s' }}>
-                        {card.tag ? (
-                          <span className="bg-emerald-500/20 text-emerald-400 rounded-full px-2 py-0.5 text-[10px] font-mono">Tag: gold</span>
-                        ) : (
-                          <p className={`text-xl ${card.color} font-bold`}>{card.value}</p>
-                        )}
+                    <div className="relative flex flex-col items-stretch gap-3 w-full max-w-[260px] md:w-auto md:flex-1">
+                      <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Tag setup</span>
+                        <span className="bg-emerald-500/20 text-emerald-400 rounded-full px-2.5 py-0.5 text-[10px] font-mono">gold</span>
                       </div>
-                    ))}
+                      <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.4s' }}>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Emosi dicatat</p>
+                        <p className="text-sm text-white font-bold font-mono mt-0.5">FOMO ⚠️ terdeteksi</p>
+                      </div>
+                      <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.8s' }}>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Sesi & alasan entry</p>
+                        <p className="text-sm text-cyan-300 font-bold font-mono mt-0.5">New York · breakout</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
