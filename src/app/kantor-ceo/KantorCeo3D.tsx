@@ -303,8 +303,8 @@ export default function KantorCeo3D() {
       const bubEl=document.createElement('div');bubEl.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none';mount.appendChild(bubEl)
       const hud=document.createElement('div')
       hud.innerHTML=`<div id="kclock" class="kg"><div id="ktime">09:00</div><div id="kphase">Jam kerja</div><div id="kbar"><i id="kfill"></i></div>
-        <button id="klive" class="kbtn on">WIB Langsung</button><button data-s="6" class="kbtn">Cepat 1×</button><button data-s="18" class="kbtn">Cepat 3×</button><button id="kskip" class="kbtn">Lompat 21:30</button></div>
-        <div id="khint" class="kg">Geser = putar · scroll = zoom · klik karyawan = buka ruangannya · klik laptop CEO = briefing beneran · tim lembur 24/7 tanpa istirahat</div>
+        <button id="klive" class="kbtn on">WIB Langsung</button><button data-s="6" class="kbtn">Cepat 1×</button><button data-s="18" class="kbtn">Cepat 3×</button><button id="kskip" class="kbtn">Lompat 21:50</button></div>
+        <div id="khint" class="kg">Geser = putar · scroll = zoom · klik karyawan = buka ruangannya · klik laptop CEO = briefing beneran · jam kerja 08:00–22:00 · jam 22:00 tim tidur, 07:00 bangun</div>
         <div id="ktoast" class="kg"></div>
         <div id="ktip" class="kg"><b>—<span></span></b><div></div></div>`
       mount.appendChild(hud)
@@ -312,16 +312,19 @@ export default function KantorCeo3D() {
       const toastEl=$t('#ktoast');let toastTO
       const showToast=msg=>{toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTO);toastTO=setTimeout(()=>toastEl.classList.remove('show'),4200)}
 
+      /* ---------- jam kerja sim (menit WIB): bangun 07:00 · kerja 08:00 · TIDUR 22:00 ---------- */
+      const WAKE=420,WORKSTART=480,SLEEPT=1320
+      const isNight=m=>m>=SLEEPT||m<WAKE
       /* ---------- tim = 5 agen + CEO ---------- */
       const CAST=[
-        {name:'Raka',job:'CTO',title:'CTO Agent · IT & QA',lazy:.25,shirt:'#0e7490',skin:'#c68642',hair:'#111',desk:[-11,-6.5],room:'back',accent:'#14b8a6'},
-        {name:'Sinta',job:'CMO',title:'CMO Agent · Copywriter',lazy:.6,shirt:'#7c3aed',skin:'#e0ac69',hair:'#2b1b12',desk:[-2.75,-6.5],room:'back',accent:'#8b5cf6'},
-        {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-11,3],room:'front',accent:'#ec4899'},
-        {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#b45309',skin:'#f1c27d',hair:'#3b2314',desk:[-2.75,3],room:'front',accent:'#f59e0b'},
-        {name:'Bagas',job:'COO',title:'COO Agent · Jualan',lazy:.7,shirt:'#059669',skin:'#e0ac69',hair:'#241c12',desk:[9.5,-6.5],room:'back',accent:'#10b981'},
-        {name:'Dewi',job:'DA',title:'Data Analyst · Pola Trading',lazy:.45,shirt:'#0891b2',skin:'#f1c27d',hair:'#241c12',desk:[3,3],room:'front',accent:'#06b6d4'},
-        {name:'Farhan',job:'GH',title:'Growth Hacker · Eksperimen',lazy:.65,shirt:'#ea580c',skin:'#c68642',hair:'#111',desk:[6.5,3],room:'front',accent:'#f97316'},
-        {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155'}]
+        {name:'Raka',job:'CTO',title:'CTO Agent · IT & QA',lazy:.25,shirt:'#0e7490',skin:'#c68642',hair:'#111',desk:[-11,-6.5],room:'back',accent:'#14b8a6',bed:[-14.4,-8.2]},
+        {name:'Sinta',job:'CMO',title:'CMO Agent · Copywriter',lazy:.6,shirt:'#7c3aed',skin:'#e0ac69',hair:'#2b1b12',desk:[-2.75,-6.5],room:'back',accent:'#8b5cf6',bed:[.2,-8.2]},
+        {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-11,3],room:'front',accent:'#ec4899',bed:[-14.4,1.2]},
+        {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#b45309',skin:'#f1c27d',hair:'#3b2314',desk:[-2.75,3],room:'front',accent:'#f59e0b',bed:[.2,1.2]},
+        {name:'Bagas',job:'COO',title:'COO Agent · Jualan',lazy:.7,shirt:'#059669',skin:'#e0ac69',hair:'#241c12',desk:[9.5,-6.5],room:'back',accent:'#10b981',bed:[13,-7.4]},
+        {name:'Dewi',job:'DA',title:'Data Analyst · Pola Trading',lazy:.45,shirt:'#0891b2',skin:'#f1c27d',hair:'#241c12',desk:[3,3],room:'front',accent:'#06b6d4',bed:[-13.4,10.7],dorm:1},
+        {name:'Farhan',job:'GH',title:'Growth Hacker · Eksperimen',lazy:.65,shirt:'#ea580c',skin:'#c68642',hair:'#111',desk:[6.5,3],room:'front',accent:'#f97316',bed:[-11.5,10.7],dorm:1},
+        {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155',bed:[2.6,-8.4]}]
       const PHASES=['Cek Sistem & Bug','Hitung User','Analisis Data','Draf TikTok','Cek Kuota','Eksperimen Growth','Follow-up Jualan','Kirim Briefing']
       const PHASE_JOB=['CTO','CSO','DA','CMO','CFO','GH','COO','CEO']
       const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','DA':'Olah trades 30 hari: win rate, pair & sesi teraktif','CMO':'Generate draf TikTok via OpenRouter','CFO':'Pantau kuota Gemini anti-429','GH':'Ukur funnel & rancang eksperimen minggu ini','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Susun Morning Briefing via Llama 3.1 8B'}
@@ -332,6 +335,9 @@ export default function KantorCeo3D() {
       const INC={active:false,next:60+rnd(0,60),endT:0,boostT:0}
 
       const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0},{p:[12.5,4.8],y:PI/2,sit:0},{p:[15.4,2.9],y:PI/2,sit:0},{p:[15.4,4.7],y:PI/2,sit:0}]
+      /* destinasi jalan-jalan siang (patroli realistis antar ruangan) + koordinat kasur nap cadangan */
+      const WALKS=[[8.6,1.4],[4.3,7.9],[4.2,1.5],[7,1.4],[12.5,4.4]]
+      const NAPW=[-9.6,9.2,'nap']
       const OBST=[];CAST.forEach(c=>OBST.push({x:c.desk[0],z:c.desk[1],hw:c.ceo?1.3:.9,hd:.45}))
       OBST.push({x:10,z:2.6,hw:1.2,hd:.5},{x:10,z:5.4,hw:1.2,hd:.5},{x:10,z:4,hw:.6,hd:.3},{x:13.7,z:4,hw:.4,hd:1.7},{x:15.2,z:1,hw:.2,hd:.2},{x:-13.5,z:-4.5,hw:.6,hd:.3},{x:-9,z:6,hw:1.5,hd:.7},{x:7.6,z:-4,hw:.3,hd:.3},{x:-7.6,z:-6,hw:.3,hd:.3},{x:7.6,z:9,hw:.3,hd:.3},{x:-3,z:10,hw:.3,hd:.3})
       // dinding kamar (segmen dengan celah pintu di depan tiap meja) — jalan kaki otomatis lewat pintu
@@ -341,6 +347,40 @@ export default function KantorCeo3D() {
       wsegV(-6.5,-10,-2.5);wsegV(-6.5,-.5,6.5);wsegV(1,-10,-2.5);wsegV(1,-.5,6.5)
       /* Ruang COO (baru — pindahan dari /admin/ai-staff): kaca ke-5 di sisi kanan belakang */
       wsegV(8.5,-10,-2.5);wseg(8.5,10.1,-2.5);wseg(11.7,13.5,-2.5)
+      /* ── NAVIGASI KAKI (malam 8 Nov, laporan Bos: "karyawan diem diruangan gabisa jalan") ──
+         Bug lama: waypoint menembus dinding kaca (mis. rute lapor Raka→CEO menembus dinding
+         z=-2.5 di segmen x[-10.2,-3.55]) → collision-slide mendorong balik TIAP frame →
+         jalan di tempat selamanya. Kini SEMUA rute lewat celah pintu beneran.
+         Geometri: semua ruangan berada di sisi UTARA dinding pintunya
+         (belakang: dinding z=-2.5, dalam ruangan z=-3.45 · depan: dinding z=6.5, dalam z=5.55). */
+      const DOORS={CTO:[-11,-2.5],CMO:[-2.75,-2.5],COO:[10.9,-2.5],CSO:[-11,6.5],CFO:[-2.75,6.5]}
+      const ROOM_DOOR={CTO:'CTO',CMO:'CMO',CSO:'CSO',CFO:'CFO',COO:'COO'}
+      /* keluar ruangan → titik terbuka (tx,tz). cc: waypoint [x,z,noCollide?] —
+         noCollide=1 untuk kaki terakhir menaiki kasur (biar tidak didorong OBST kasur). */
+      const navOut=(c,tx,tz)=>{const door=DOORS[ROOM_DOOR[c.job]]
+        if(!door)return c.ceo?[[tx,tz]]:[[c.desk[0]+2.4,c.desk[1]+(c.room==='front'?2.8:-2.4)],[tx,tz]]
+        const[dx,dz]=door,wp=[[dx,dz-.95],[dx,dz+.95]]
+        if(dz<0&&dx<=1)wp.push([3,-1.55])
+        if(dz>0)wp.push([7.8,7.45])
+        wp.push([3,.9],[tx,tz]);return wp}
+      /* dari area terbuka (atau dari kasur sendiri kalau inside=true) → masuk ruangan → (tx,tz) */
+      const navHome=(c,tx,tz,inside)=>{const door=DOORS[ROOM_DOOR[c.job]]
+        if(!door){
+          if(c.ceo)return[[tx,tz]]
+          if(c.dorm)return inside
+            ?[[c.bed[0],9,1],[7.8,7.45],[7.8,.9],[c.desk[0]+2.4,c.desk[1]+2.8],[tx,tz]]
+            :[[c.desk[0]+2.4,c.desk[1]+2.8],[tx,tz]]
+          return[[c.desk[0]+2.4,c.desk[1]+(c.room==='front'?2.8:-2.4)],[tx,tz]]}
+        const[dx,dz]=door,back=dz<0,wp=[]
+        if(inside)wp.push([dx,dz+.95])
+        else if(back){if(dx>1)wp.push([dx,.9]);else wp.push([3,.9],[3,-1.55])}
+        else wp.push([7.8,.9],[7.8,7.45])
+        wp.push([dx,dz+.95],[dx,dz-.95],[tx,tz]);return wp}
+      /* rute ke kasur: masuk kamar (kalau perlu lewat lorong) → tepi kasur → naik kasur (nc) */
+      const navToBed=(c,inside)=>{const b=c.bed
+        if(c.dorm)return[[7.8,.9],[7.8,7.45],[b[0],7.45,1],[b[0],9.3,1],[b[0],b[1]-.15,1]]
+        const wp=navHome(c,b[0],b[1]+1.55,inside)
+        wp.push([b[0],b[1]+.15,1]);return wp}
       const POSE={deep:{tp:.08,hp:.2,ra:[-.6,.08,-1],la:[-.6,.08,-1]},phone:{tp:-.28,hp:.62,ra:[-.7,.05,-1.5],la:[-.7,.05,-1.5]},
         stretch:{tp:-.2,hp:-.25,ra:[-2.9,.3,-.2],la:[-2.9,.3,-.2]},scratch:{tp:0,hp:-.05,ra:[-.7,.05,-1.5],la:[-2.3,.45,-1.9]},
         chat:{tp:0,hp:0,ra:[-.3,.1,-.7],la:[-.2,.1,-.4]},drink:{tp:-.05,hp:-.1,ra:[-1.8,.1,-1.9],la:[-.2,.1,-.4]},think:{tp:.05,hp:.08,ra:[-.7,.05,-1.5],la:[-1.1,.25,-2.2]},stand:{tp:0,hp:0,ra:[0,.08,-.08],la:[0,.08,-.08]}}
@@ -356,8 +396,9 @@ export default function KantorCeo3D() {
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu'}
       /* SKILL TINGKAT DEWA — keahlian andalan tiap karyawan (tampil di balon pikiran) */
       const GOD={CTO:'Self-Healing Infra',CSO:'Mind-Reader Retensi',CMO:'Viral Script Engine',CFO:'Anti-429 Oracle',COO:'Lead Magnet Radar',DA:'Data Clairvoyance',GH:'Growth Infinity',CEO:'Neural Command'}
-      /* Kalimat shift malam — lembur 24/7, tidak ada istirahat tidur (permintaan Bos) */
-      const NIGHT2=['Lembur tengah malam — AI tidak kenal capek','Ruang tidur? Hiasan aja, kami tidak tidur','Jam segini pun situs tetap kupantau','Shift malam: data besok sudah kusiapkan','Halo emas di kepala = tanda tingkat dewa','Kopi boleh, pulang tidak ada di kamusku']
+      /* Kalimat shift malam (sekarang: lembur SORE sampai jam tidur 22:00) + kalimat tidur */
+      const NIGHT2=['Sore ini gas terus sampai jam tidur','Jam 22:00 nanti tidur — sekarang fokus dulu','Malam ini tidur di kantor, kasur personal tiap ruangan','Shift sore: data besok sudah kusiapkan','Halo emas di kepala = tanda tingkat dewa','Kopi sore dulu, jam 22:00 rehat total']
+      const SLEEP2=['Zzz…','Zzz… mimpi XAU tembus 2400','Zzz… besok gas komnen lagi','Zzz… recharge baterai AI','Zzz… jangan berisik, Bos masih di ruangan','Zzz… alarm pasang 07:00']
       let tNow=0
       /* ---- STATUS NYATA dari API (bukan panggung) ----
          Kalau data live ada, karakter lapor hasil kerja ASLI, bukan kalimat tempelan. */
@@ -418,15 +459,19 @@ export default function KantorCeo3D() {
         if(INC.boostT>tNow){if(c.job==='CTO')return 'Hotfix jalan — deploy sebentar lagi'
           if(c.job==='CSO')return 'Siapkan email sapaan kalau di-ACC'
           return 'Tim lagi hotfix, aku fokus kerjaanku'}
+        if(S.stage==='sleeping')return S.napUntil?'Power nap sebentar — alarm pasang':SLEEP2[Math.floor(tNow/6+c.i)%SLEEP2.length]
+        if(S.stage==='bedrest')return 'Santai di kasur, scroll hp dulu'
+        if(S.night&&S.stage==='lounge')return 'Malam-malam ngopi santai, bentar lagi tidur'
+        if(S.night&&S.stage==='walking')return 'Udah jam 22:00 — antre ke kamar tidur'
         if(S.leaving)return 'Beres-beres, mau pulang'
         if(S.arriving)return 'Selamat pagi! Baru sampai'
-        if(S.stage==='rising')return S.ret?'Kembali ke meja — lanjut kerja':'Pindah posisi sebentar'
-        if(S.stage==='walking')return S.goal?'Jalan ke pantry':'Kembali ke meja'
+        if(S.stage==='rising')return S.night?'Berangkat ke kamar':(C.min<WORKSTART?'Bangun! Sarapan & stretching dulu':'Kembali ke meja — lanjut kerja')
+        if(S.stage==='walking')return S.dest&&S.dest[2]==='nap'?'Mau power nap sebentar':S.night?'Menuju kamar tidur':(C.min<WORKSTART?'Menuju meja — pagi baru bangun':S.goal?'Jalan-jalan cek kantor':'Balik ke meja')
         if(S.stage==='lounge')return S.sub==='chat'?'Ngobrol sambil ngopi':S.coffee?'Ngopi dulu':'Istirahat sejenak'
         if(S.stage==='sitting')return 'Duduk lagi…'
         if(S.stage==='seated'&&S.sub==='deep'){
           /* 24/7: shift malam → selingi kalimat lembur + pamer skill dewa */
-          if((C.min<420||C.min>=960)&&Math.floor(tNow/9+c.i)%4===3)return NIGHT2[Math.floor(tNow/13+c.i)%NIGHT2.length]
+          if((C.min>=960&&C.min<SLEEPT)&&Math.floor(tNow/9+c.i)%4===3)return NIGHT2[Math.floor(tNow/13+c.i)%NIGHT2.length]
           if(Math.floor(tNow/11+c.i)%5===4)return 'SKILL DEWA: '+GOD[c.job]
           if(c.job===PHASE_JOB[PROJ.ph])return PHASE_TASK[c.job]+' · '+Math.round(PROJ.prog)+'%'
           /* tampilkan status NYATA kalau ada (bukti agen kerja beneran),
@@ -461,7 +506,8 @@ export default function KantorCeo3D() {
       // hook debug (dipakai QA otomatis; ringan, tak berpengaruh ke UI)
       // + toast() → React side bisa kirim notifikasi ke scene (hasil kerja beneran)
       const __prevOpen=(window as any).__kceo?.openSheet /* jangan timbul bridge openSheet milik RuangCeoDashboard */
-      window.__kceo={focus:focusRoom,toast:showToast,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on,camset:(x,y,z,tx,ty,tz)=>{camera.position.set(x,y,z);controls.target.set(tx,ty,tz);FOCUS.on=false},...(__prevOpen?{openSheet:__prevOpen}:{})}
+      window.__kceo={focus:focusRoom,toast:showToast,cam:()=>camera.position.toArray().map(v=>Math.round(v*10)/10),tgt:()=>controls.target.toArray().map(v=>Math.round(v*10)/10),focusing:()=>FOCUS.on,camset:(x,y,z,tx,ty,tz)=>{camera.position.set(x,y,z);controls.target.set(tx,ty,tz);FOCUS.on=false},
+        dbg:()=>E.map(S=>({n:S.cfg.name,st:S.stage,nm:S.nmode,x:+S.x.toFixed(1),z:+S.z.toFixed(1),spd:+S.speed.toFixed(2),nwp:S.wp.length,wp0:S.wp[0]?[+S.wp[0][0].toFixed(1),+S.wp[0][1].toFixed(1),S.wp[0][2]||0]:null,night:S.night,lie:+S.lieA.toFixed(2),bt:S.bedTime,wk:S.wake})),...(__prevOpen?{openSheet:__prevOpen}:{})}
 
       const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.7,...o})
       const glow=(c,i=3)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:i})
@@ -478,19 +524,25 @@ export default function KantorCeo3D() {
       const accL=new THREE.PointLight(EM,1.2,18);accL.position.set(1.5,3,-8.4);scene.add(accL)
       const pl2=new THREE.PointLight(PU,.9,18);pl2.position.set(6,2.5,-5);scene.add(pl2)
       const ceilGlows=[];const lampMs=[]
-      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#a8a0d5'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#2d3250'),cT=new THREE.Color()
+      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#a8a0d5'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#2d3250'),cBgSleep=new THREE.Color('#171a2e'),cT=new THREE.Color()
       const dayFactor=m=>m<300?0:m<420?(m-300)/120:m<870?1:m<1020?1-(m-870)/150:0
-      let dayF=null
+      let dayF=null,sleepF=0
       const lightTick=dt=>{
         const d=dayFactor(C.min);if(dayF===null)dayF=d;dayF=dm(dayF,d,.6,dt)
-        sun.intensity=.22+1.05*dayF;cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
-        amb.intensity=.55+.45*dayF;cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
-        sp1.intensity=1.9*(.4+.6*dayF);sp2.intensity=1.6*(.4+.6*dayF)
-        /* 24/7: lampu kantor TETAP NYALA malam hari — lembur terlihat dari luar */
-        ceilGlows.forEach(m=>m.emissiveIntensity=.85+.35*dayF)
-        /* lampu meja menyala saat malam — tiap meja hangat oranye lembur */
-        lampMs.forEach(m=>m.emissiveIntensity=.25+2.6*(1-dayF))
-        cT.copy(cBgD).lerp(cBgN,1-dayF);scene.background.copy(cT);scene.fog.color.copy(cT)}
+        /* jam tidur (22:00–07:00): kantor meredup pelan-pelan — sisa lampu tidur nyala */
+        sleepF=dm(sleepF,isNight(C.min)?1:0,.45,dt)
+        sun.intensity=(.22+1.05*dayF)*(1-sleepF*.85);cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
+        amb.intensity=(.55+.45*dayF)*(1-sleepF*.45);cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
+        sp1.intensity=1.9*(.4+.6*dayF)*(1-sleepF*.8);sp2.intensity=1.6*(.4+.6*dayF)*(1-sleepF*.8)
+        accL.intensity=1.2*(1-sleepF*.7);pl2.intensity=.9*(1-sleepF*.6)
+        /* lampu plafon padam hampir total saat jam tidur — dulu: nyala 24/7 */
+        ceilGlows.forEach(m=>m.emissiveIntensity=(.85+.35*dayF)*(1-sleepF*.88))
+        /* lampu meja padam saat owner tidur (dulu: menyala semalaman) */
+        lampMs.forEach(m=>m.emissiveIntensity=(.25+2.6*(1-dayF))*(1-sleepF*.92))
+        /* lampu tidur di sisi kasur — menghangat saat jam tidur */
+        bedLamps.forEach(m=>m.emissiveIntensity=.25+1.9*sleepF)
+        cT.copy(cBgD).lerp(cBgN,1-dayF);if(sleepF>.01)cT.lerp(cBgSleep,sleepF*.85)
+        scene.background.copy(cT);scene.fog.color.copy(cT)}
 
       /* ---------- lantai, dinding, neon ---------- */
       const floor=new THREE.Mesh(new THREE.PlaneGeometry(34,24),M('#d9dde6',{roughness:.5,metalness:.04}));floor.rotation.x=-PI/2;floor.position.x=1.5;floor.receiveShadow=true;scene.add(floor)
@@ -583,7 +635,8 @@ export default function KantorCeo3D() {
       agM.position.set(4.3,2.4,11.97);agM.rotation.y=PI;scene.add(agM)
 
       /* ---------- RUANG TIDUR AI — pojok kiri depan (permintaan Bos).
-         Kasur lengkap 3 buah, TAPI selalu rapi: karyawan AI tidak tidur — lembur 24/7. ---------- */
+         Dorm DA & Farhan (meja mereka open-space) + 1 kasur nap cadangan.
+         Malam 8 Nov: jam tidur resmi 22:00 — kasur DIPAKAI, bukan hiasan. ---------- */
       roomAcc(-11.5,9.5,'#ec4899','#fbe3ef')
       const bedM=M('#8b5e3c',{roughness:.7}),matM=M('#e7d7c4',{roughness:.9}),pilM=M('#fdfdfd',{roughness:.9}),blnM=M('#7c3aed',{roughness:.85})
       for(const bx of[-13.4,-11.5,-9.6]){
@@ -591,8 +644,8 @@ export default function KantorCeo3D() {
         box(1.15,.5,.08,bedM,bx,.4,11.8);box(.6,.1,.35,pilM,bx,.41,11.3);box(.98,.06,1.15,blnM,bx,.39,10.05)
         OBST.push({x:bx,z:10.7,hw:.6,hd:1.2})
         cyl(.05,.35,M('#3f3f46'),bx+.78,.18,11.45,scene);sph(.07,glow('#ffd9a0',1.4),bx+.78,.42,11.45,scene)}
-      /* MES TIDUR AI — mesin kapsul tidur (permintaan Bos). Merah menyala "SIAGA"
-         tapi TIDAK PERNAH dipakai: tim lembur 24/7, kasur sebelah pun kosong. */
+      /* MES TIDUR AI — mesin kapsul tidur (permintaan Bos). Kini DIPAKAI tiap malam:
+         Dewi & Farhan tidur di sini jam 22:00, lampu kapsul nyala lembut. */
       const mesT=M('#2a1420',{roughness:.35,metalness:.4}),mesGlass=M('#ec4899',{roughness:.15,emissive:'#ec4899',emissiveIntensity:.75})
       box(.95,1.35,1.5,mesT,-8,.68,10.9);box(.7,1.05,1.3,mesGlass,-8,1.15,10.9) /* kapsul + jendela menyala */
       box(.95,.12,1.5,M('#111'),-8,1.42,10.9) /* tutup mesin */
@@ -601,20 +654,42 @@ export default function KantorCeo3D() {
       const msc=document.createElement('canvas');msc.width=512;msc.height=160;const msg=msc.getContext('2d')
       msg.fillStyle='#140a12';msg.fillRect(0,0,512,160);msg.strokeStyle='#ec4899';msg.lineWidth=8;msg.strokeRect(4,4,504,152)
       msg.fillStyle='#f9a8d4';msg.font='bold 44px system-ui';msg.textAlign='center';msg.fillText('MES TIDUR AI',256,58)
-      msg.fillStyle='#6ee7b7';msg.font='bold 30px monospace';msg.fillText('STANDBY 24/7 — tak pernah dipakai',256,104)
-      msg.fillStyle='#9ca3af';msg.font='22px monospace';msg.fillText('tim lebih suka lembur 😤',256,138)
+      msg.fillStyle='#6ee7b7';msg.font='bold 30px monospace';msg.fillText('DIPAKAI TIAP MALAM — jam 22:00',256,104)
+      msg.fillStyle='#9ca3af';msg.font='22px monospace';msg.fillText('Dewi & Farhan tidur di kapsul 🛏️',256,138)
       const msT=new THREE.CanvasTexture(msc);msT.colorSpace=THREE.SRGBColorSpace
       const msM=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.53),new THREE.MeshBasicMaterial({map:msT}))
       msM.position.set(-8,2.05,10.55);msM.rotation.y=PI;scene.add(msM) /* marquee melayang di atas mesin, menghadap ruangan */
       neon('RUANG TIDUR AI',3,.7,44,-11.5,2.6,11.98,PI,'#ec4899')
-      /* papan kecil: kasur cuma hiasan — tim tidak pernah pakai */
+      /* papan kecil: jadwal tidur resmi tim */
       const ntC=document.createElement('canvas');ntC.width=512;ntC.height=128;const ntg=ntC.getContext('2d')
       ntg.fillStyle='#fff8f0';ntg.fillRect(0,0,512,128);ntg.strokeStyle='#d6c8b4';ntg.lineWidth=6;ntg.strokeRect(6,6,500,116)
-      ntg.fillStyle='#7a4a2b';ntg.font='bold 33px system-ui';ntg.textAlign='center';ntg.fillText('Kosong 24/7 — AI tidak tidur',256,54)
-      ntg.font='23px system-ui';ntg.fillText('kasur hiasan · tim lembur 24 jam',256,96)
+      ntg.fillStyle='#7a4a2b';ntg.font='bold 33px system-ui';ntg.textAlign='center';ntg.fillText('Jam tidur 22:00 — bangun 07:00',256,54)
+      ntg.font='23px system-ui';ntg.fillText('kasur personal di tiap ruangan kantor',256,96)
       const ntT=new THREE.CanvasTexture(ntC);ntT.colorSpace=THREE.SRGBColorSpace
       const ntM=new THREE.Mesh(new THREE.PlaneGeometry(2.5,.62),new THREE.MeshBasicMaterial({map:ntT}))
       ntM.position.set(-11.5,1.55,11.97);ntM.rotation.y=PI;scene.add(ntM)
+
+      /* ---------- KASUR PERSONAL tiap ruangan (malam 8 Nov, permintaan Bos:
+         "kamar disetiap ruangan kantor, jam 10 malem selesai biar AI bisa tidur
+         atau santai") — Raka/Sinta/Maya/Putri/Bagas/Alexander tidur di kamar
+         sendiri; Dewi & Farhan (open-space) di dorm RUANG TIDUR AI. ---------- */
+      const bedLamps=[]
+      const bedBuild=(x,z,acc)=>{
+        box(1.15,.22,2.3,M('#8b5e3c',{roughness:.7}),x,.11,z)
+        box(1.02,.14,2.1,M('#e7d7c4',{roughness:.9}),x,.29,z)
+        box(1.15,.5,.08,M('#8b5e3c'),x,.4,z-1.11)            /* headboard sisi utara */
+        box(.6,.1,.35,pilM,x,.41,z-.65)                       /* bantal */
+        box(.98,.06,1.15,M(acc,{roughness:.85}),x,.39,z+.575) /* selimut warna divisi */
+        OBST.push({x,z,hw:.62,hd:1.2})
+        box(.34,.34,.34,M('#4a4038'),x+.78,.17,z-1.02)        /* nakas */
+        const lm=new THREE.MeshStandardMaterial({color:'#3d3d46',emissive:'#ffd9a0',emissiveIntensity:.25});bedLamps.push(lm)
+        sph(.06,lm,x+.78,.44,z-1.02,scene)}                   /* lampu tidur hangat */
+      bedBuild(-14.4,-8.2,'#0d9488')   /* Raka — RUANG CTO */
+      bedBuild(.2,-8.2,'#8b5cf6')      /* Sinta — RUANG CMO */
+      bedBuild(-14.4,1.2,'#db2777')    /* Maya — RUANG CSO */
+      bedBuild(.2,1.2,'#d97706')       /* Putri — RUANG CFO */
+      bedBuild(13,-7.4,'#059669')      /* Bagas — RUANG COO */
+      bedBuild(2.6,-8.4,'#7c3aed')     /* Alexander — CEO SUITE */
 
       /* ---------- infrastruktur ---------- */
       const rackLeds=[]
@@ -666,7 +741,7 @@ export default function KantorCeo3D() {
         const tgt=38+PROJ.done*2+(C.brk?-9:0)+(INC.active?-14:0)+Math.sin(C.min/230)*7
         SITE.vis+=(tgt-SITE.vis)*.06+rnd(-1.1,1.1);SITE.vis=clamp(SITE.vis,3,240)
         SITE.day=Math.max(0,SITE.day+rnd(.2,.9)+(INC.active?-1:0))
-        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m<420||m>=960?'Lembur 24/7 — tetap kerja':C.brk?'Jam istirahat dilewati — tetap kerja':m>=840?'Mode fokus sore':'Jam kerja'),tot=projTot()
+        const g=bg,m=C.min,st=INC.active?'! Insiden live — hotfix':(m>=SLEEPT||m<WAKE?'Jam tidur — tim recharge 😴':m<WORKSTART?'Pagi — briefing jam 08:00':C.brk?'Istirahat siang — jalan-jalan & ngopi':m>=1140?'Mode fokus sore':'Jam kerja'),tot=projTot()
         g.fillStyle='#04120c';g.fillRect(0,0,1024,512);g.fillStyle='#0a2a1d';g.fillRect(0,0,1024,84)
         g.fillStyle='#10f5a0';g.font='bold 40px system-ui,sans-serif';g.fillText('PAPAN KINERJA KANTOR LUXTRADE',32,56)
         g.fillStyle='#9fb3ad';g.font='32px system-ui,sans-serif';g.fillText('Harga Emas (XAUUSD)',32,140)
@@ -713,7 +788,7 @@ export default function KantorCeo3D() {
         box(w,.02,.02,glow(PU),d[0],.755,d[1]+.45,scene,false);box(.45,.02,.15,M('#0a0a0f'),d[0],.79,d[1]+.22)
         cyl(.04,.1,M(Math.random()<.5?'#e5e7eb':'#7c3aed'),d[0]+rnd(.55,.8)*(Math.random()<.5?1:-1),.84,d[1]+rnd(-.1,.2),scene)
         box(.2,.015,.28,M('#d1d5db'),d[0]+rnd(-.8,-.5),.79,d[1]+rnd(-.05,.2),scene)
-        /* lampu meja — emissive naik saat malam (lembur 24/7) */
+        /* lampu meja — menyala saat senja/malam kerja, padam saat jam tidur */
         {const lx=d[0]+(cfg.ceo?1.05:.72)*(d[0]<0?1:-1)
           cyl(.05,.03,M('#2a2a33'),lx,.79,d[1]-.26,scene)
           const armL=box(.028,.3,.028,M('#2a2a33'),lx,.93,d[1]-.31,scene);armL.rotation.x=.55
@@ -759,8 +834,10 @@ export default function KantorCeo3D() {
         R.mug=at(R.rE,G(),0,-.3,.02)
         cyl(.035,.08,M('#e5e7eb',{roughness:.4}),0,0,0,R.mug,10)
         const mh=new THREE.Mesh(new THREE.TorusGeometry(.026,.007,6,12),M('#e5e7eb',{roughness:.4}));mh.position.set(.045,0,0);mh.rotation.y=PI/2;R.mug.add(mh);R.mug.visible=false
-        /* 24/7: arr=0 & dep=1e9 — selalu hadir, TIDAK PERNAH pulang (permintaan Bos) */
-        const S={pace:rnd(.85,1.15),fat:0,arr:0,dep:1e9,cfg,R,chair,mats,d,seatZ,x:d[0],z:seatZ,yaw:PI,sit:1,ch:0,speed:0,ph:rnd(0,6),wph:0,wp:[],stage:'seated',goal:false,delay:rnd(0,2000),sub:'deep',until:0,glow:1,chatWith:null,speaking:false,report:false,ret:false,reportT:0,spot:SPOTS[i]||SPOTS[4]}
+        /* arr=0 & dep=1e9 — selalu hadir di kantor (tinggal di asrama kantor);
+           jam tidur 22:00 → kasur personal, bangun 07:00 (permintaan Bos 8 Nov) */
+        const S={pace:rnd(.85,1.15),fat:0,arr:0,dep:1e9,cfg,R,chair,mats,d,seatZ,x:d[0],z:seatZ,yaw:PI,sit:1,ch:0,speed:0,ph:rnd(0,6),wph:0,wp:[],stage:'seated',goal:false,delay:rnd(0,2000),sub:'deep',until:0,glow:1,chatWith:null,speaking:false,report:false,ret:false,reportT:0,spot:SPOTS[i]||SPOTS[4],
+          night:false,nmode:null,bedTime:SLEEPT+(i*23)%35,wake:WAKE+(i*29)%50,lieA:0,preRouted:false,walkCd:0,dest:null,napUntil:0,bedInside:false,sleepX:0,sleepZ:0,sleepYaw:0,sleepLie:0,napWake:null}
         E.push(S)})
 
       /* ---------- bubble nama ---------- */
@@ -773,7 +850,11 @@ export default function KantorCeo3D() {
       /* FIX JAM: WIB Langsung = default SELALU — jam kantor ikut waktu nyata.
          Dulu: di luar jam kerja (07:15–14:45) jam dipaksa mulai 06:51 + tombol
          'Cepat 1×' auto-aktif → jam terlihat "balik ke jam 7" lalu jalan cepat. */
-      C.min=wibNow()
+      C.min=wibNow();C.wasNight=isNight(C.min)
+      /* Buka halaman saat jam tidur (22:00–07:00) → semua langsung tergeletak di kasurnya */
+      if(isNight(C.min))E.forEach(S=>{S.night=true;S.stage='sleeping'
+        S.lieA=S.sleepLie=S.cfg.dorm?PI/2:-PI/2;S.sleepX=S.cfg.bed[0];S.sleepZ=S.cfg.bed[1]+(S.cfg.dorm?-.15:.15)
+        S.sleepYaw=S.cfg.dorm?PI:0;S.x=S.sleepX;S.z=S.sleepZ;S.yaw=S.sleepYaw;S.sit=0;S.ch=1;S.until=1e9})
       INC.next=C.min+rnd(40,90)
       let sel=null,hov=null
 
@@ -786,14 +867,45 @@ export default function KantorCeo3D() {
         if(S.reportT&&t<S.reportT&&S.stage==='seated'){S.sub='chat';if(S.chatWith==null)S.chatWith=0;S.until=Math.max(S.until,t+1)}
         let best=99,bx=0,bz=1
         E.forEach((o,k)=>{if(k===i||o.stage==='away')return;const dx=o.x-S.x,dz=o.z-S.z,dd=Math.hypot(dx,dz);if(dd<best){best=dd;bx=dx;bz=dz}if(S.stage==='walking'&&dd<.95&&dd>.01){S.x-=dx/dd*(.95-dd)*dt*6;S.z-=dz/dd*(.95-dd)*dt*6}})
-        if(!S.init){S.init=1;if(C.min<S.arr||C.min>S.dep){S.stage='away';R.root.visible=false;S.chair.position.z=seatZ+.85;S.ch=1}}
+        if(!S.init){S.init=1;S.walkCd=t+rnd(25,70);if(C.min<S.arr||C.min>S.dep){S.stage='away';R.root.visible=false;S.chair.position.z=seatZ+.85;S.ch=1}}
         if(S.stage==='away'){if(C.min>=S.arr&&C.min<S.dep){Object.assign(S,{stage:'walking',arriving:true,leaving:false,x:18,z:.8,sit:0,goal:false,wp:[[8,.8],[3,.8],[3,zC],[d[0],zC],[d[0],seatZ]]});R.root.visible=true;if(Math.random()<.6&&cfg.job!=='CEO'){const pp=S.spot.p;S.goal=true;S.coffee=t+rnd(25,70);S.wp=[[8,.8],S.spot.sit?[8,pp[1]]:[12.3,.8],pp]}}else return}
         if(S.stage==='seated'&&C.min>S.dep&&C.min<S.dep+240&&!S.leaving){S.leaving=true;S.stage='rising'}
-        /* 24/7 TANPA ISTIRAHAT: tidak ada trip pantry, tidak ada istirahat siang,
-           tidak ada jam pulang — karyawan AI tinggal di meja, lembur sampai pagi */
-        const inSeat=S.stage==='seated'
+        const night=isNight(C.min),inSeat=S.stage==='seated'
+        /* ═══ JAM TIDUR 22:00 (permintaan Bos 8 Nov): berangkalan ke kamar —
+           60% tidur, sisanya santai (hp di kasur / ngopi malam dulu di pantry).
+           Yang sedang jalan di luar → trigger menyusul begitu duduk lagi. */
+        if(!S.night&&night&&C.min>=S.bedTime&&(inSeat||S.stage==='lounge')){
+          S.night=true;S.bedInside=inSeat;S.goal=false;S.ret=false;S.report=false;S.dest=null
+          S.chatWith=null;S.napUntil=0;S.stage='rising';S.preRouted=true
+          const roll=Math.random()
+          if(roll<.6||cfg.dorm){S.nmode='sleep';S.sleepX=cfg.bed[0];S.sleepZ=cfg.bed[1]+(cfg.dorm?-.15:.15)
+            S.sleepYaw=cfg.dorm?PI:0;S.sleepLie=cfg.dorm?PI/2:-PI/2;S.wp=navToBed(cfg,inSeat)}
+          else if(roll<.83){S.nmode='bedsit';S.sleepX=cfg.bed[0];S.sleepZ=cfg.bed[1];S.sleepYaw=0;S.sleepLie=0;S.wp=navToBed(cfg,inSeat)}
+          else{S.nmode='nsip';const sp=SPOTS[i%4];S.spot={p:sp.p,y:sp.y,sit:sp.sit}
+            S.coffee=t+rnd(45,85);S.goal=true;S.wp=navOut(cfg,sp.p[0],sp.p[1])}}
+        /* ═══ BANGUN 07:00 bergiliran — sebagian ngopi dulu di pantry, lalu ke meja */
+        if(S.night&&!night&&C.min>=S.wake&&C.min<SLEEPT){
+          S.night=false;S.nmode=null;S.goal=false;S.coffee=0;S.stage='rising';S.preRouted=true;S.until=1e9
+          if(Math.random()<.4){const sp=SPOTS[(i+2)%4];S.spot={p:sp.p,y:sp.y,sit:sp.sit}
+            S.coffee=t+rnd(8,18);S.goal=true;S.wp=navOut(cfg,sp.p[0],sp.p[1])}
+          else S.wp=navHome(cfg,d[0],seatZ,true)}
+        /* power nap selesai (alarm) / tidur saat flag malam hilang (lompatan jam) → balik meja */
+        if(S.stage==='sleeping'&&(S.napUntil?t>S.napUntil:!S.night)){
+          S.napUntil=0;S.stage='rising';S.preRouted=true
+          S.wp=S.napWake||navHome(cfg,d[0],seatZ,S.bedInside);S.napWake=null}
+        if(S.stage==='bedrest'&&(!S.night||C.min>=S.wake)&&C.min<SLEEPT){
+          S.night=false;S.nmode=null;S.stage='rising';S.preRouted=true;S.until=1e9
+          S.wp=navHome(cfg,d[0],seatZ,true)}
         if((inSeat||S.stage==='lounge')&&t>S.until){const lz=cfg.lazy+(C.min>=840?.4:0),r=Math.random()
           if(S.stage==='lounge'){S.sub=r<.55?'chat':r<.8?'drink':'phone';S.until=t+rnd(4,8)}
+        else if(inSeat&&!night&&C.min>WORKSTART+30&&C.min<SLEEPT-90&&t>(S.walkCd||0)&&r<.3+lz*.25){
+          /* PATROLI SIANG (fix "diem terus kaya patung"): jalan keluar ruangan LEWAT
+             PINTU — pantry / ruang rapat / lab tetangga — atau power nap cadangan */
+          S.walkCd=t+rnd(150,330);S.goal=true;S.bedInside=false
+          const w=Math.random()<.07?NAPW:WALKS[Math.floor(Math.random()*WALKS.length)]
+          S.dest=w
+          S.wp=w[2]==='nap'?navOut(cfg,7.8,7.45).concat([[-9.6,7.45,1],[-9.6,9.2,1]]):navOut(cfg,w[0],w[1])
+          S.preRouted=true;S.stage='rising'}
           else if(['stretch','scratch','think','drink'].includes(S.sub)){S.sub=r<.5?'phone':'deep';S.until=t+rnd(5,10)}
           else if(r<.12+lz*.3+(S.fat||0)+(C.min>780&&C.min<840?.12:0)+(C.min>=840?.3:0)){S.fat=0;S.sub=Math.random()<.4?(Math.random()<.5?'stretch':'scratch'):'phone';S.until=t+(S.sub==='phone'?rnd(5,10):rnd(2.5,3.5))}
           else if(r<.4+lz*.1&&best<5.6){
@@ -809,17 +921,26 @@ export default function KantorCeo3D() {
         if(S.sub!==S.lastSub){S.lastSub=S.sub;S.tapOn=S.sub==='phone'&&Math.random()<.6}
         if(S.chatWith!=null){const a=Math.min(i,S.chatWith),b=Math.max(i,S.chatWith)
           S.speaking=Math.floor(t/2.4)%2===0?i===a:i===b}else S.speaking=false
-        const sx=d[0]+2,p=S.spot.p;let sitT=1,yawT=S.yaw,pose='stand',sp=0
+        const sx=d[0]+2;let sitT=1,yawT=S.yaw,pose='stand',sp=0
         if(inSeat){pose=S.sub;yawT=PI}
-        else if(S.stage==='rising'){sitT=0;if(S.sit<.1){S.stage='walking';S.hold=t+rnd(.5,2);const m=S.spot.sit?[8,p[1]]:[12.3,.8]
-          const side=cfg.room==='back'||cfg.room==='front'
-          S.wp=S.leaving?(side?[[sx,seatZ],[sx,zC],[3,zC],[3,.8],[18,.8]]:[[sx,seatZ],[sx,.8],[18,.8]])
-            :S.report?[[sx,seatZ],[sx,zC],[7.5,zC],[7.5,-5.4]]
-            :S.ret?[[7.5,-5.4],[7.5,zC],[sx,zC],[sx,seatZ]]
-            :S.goal?(side?[[sx,seatZ],[sx,zC],[3,zC],[3,.8],[8,.8],m,p]:[[sx,seatZ],[sx,.8],[8,.8],m,p])
-            :(side?[[8,.8],[3,.8],[3,zC],[sx,zC],[sx,seatZ]]:[[8,.8],[d[0]+2,.8],[d[0]+2,seatZ]])}}
+        else if(S.stage==='rising'){sitT=0;if(S.sit<.1){S.stage='walking';S.hold=t+rnd(.5,2)
+          /* rute kaki lewat PINTU (nav*) — fix lama: waypoint nembus dinding kaca →
+             collision-slide mendorong balik terus → stuck jalan di tempat */
+          if(S.preRouted)S.preRouted=false
+          else if(S.leaving)S.wp=[[sx,seatZ],[sx,zC],[3,zC],[3,.8],[18,.8]]
+          else if(S.report)S.wp=navOut(cfg,7.5,-5.4)
+          else if(S.ret){S.wp=navHome(cfg,d[0],seatZ);S.ret=false}
+          else if(S.night)S.wp=navToBed(cfg,S.bedInside)
+          else if(S.goal){const w=S.dest||WALKS[0];S.spot={p:[w[0],w[1]],y:PI,sit:0};S.wp=navOut(cfg,w[0],w[1])}
+          else S.wp=navHome(cfg,d[0],seatZ)}}
         else if(S.stage==='walking'){sitT=0;const g=S.wp[0]
-          if(!g){if(S.leaving){S.stage='away';S.leaving=false;R.root.visible=false}else if(S.report){S.stage='report';S.until=0}else{S.stage=S.goal?'lounge':'sitting';S.ret=false;S.arriving=false;S.until=0}}
+          if(!g){if(S.leaving){S.stage='away';S.leaving=false;R.root.visible=false}else if(S.report){S.stage='report';S.until=0}
+            else if(S.dest&&S.dest[2]==='nap'){S.stage='sleeping';S.napUntil=t+rnd(20,40);S.until=1e9
+              S.sleepX=S.dest[0];S.sleepZ=10.55;S.sleepYaw=PI;S.sleepLie=PI/2
+              S.napWake=[[-9.6,9,1],[-9.6,7.45],[7.8,7.45],[7.8,.9]].concat(navHome(cfg,d[0],seatZ));S.dest=null}
+            else if(S.nmode==='sleep'){S.stage='sleeping';S.until=1e9}
+            else if(S.nmode==='bedsit'){S.stage='bedrest';S.until=1e9}
+            else{S.stage=S.goal?'lounge':'sitting';S.ret=false;S.arriving=false;S.until=0;S.dest=null}}
           else if(t>=(S.hold||0)){const dx=g[0]-S.x,dz=g[1]-S.z,dd=Math.hypot(dx,dz);if(dd<.15)S.wp.shift();else{sp=Math.min(1.35*S.pace,dd*2+.3);yawT=Math.atan2(dx,dz);S.x+=dx/dd*S.speed*dt;S.z+=dz/dd*S.speed*dt}}}
         else if(S.stage==='report'){sitT=0;pose='chat';S.chatWith=4
           yawT=Math.atan2(E[4].x-S.x,E[4].z-S.z)
@@ -828,14 +949,22 @@ export default function KantorCeo3D() {
             INC.active=false;INC.boostT=t+45;INC.next=C.min+rnd(140,260)
             showToast('Hotfix dikerjakan — CTO & tim mode serius')}}
         else if(S.stage==='sitting'){yawT=PI;S.x=dm(S.x,d[0],3,dt);S.z=dm(S.z,seatZ,3,dt);if(S.sit>.96&&Math.hypot(S.x-d[0],S.z-seatZ)<.03){S.stage='seated';S.arriving=false;S.until=0}}
-        else if(S.stage==='lounge'){if(S.coffee&&t>S.coffee){S.coffee=0;S.goal=false;S.stage='rising'}const q=S.spot;sitT=q.sit;pose=S.sub;S.x=dm(S.x,q.p[0],3,dt);S.z=dm(S.z,q.p[1],3,dt);yawT=q.sit?q.y:(best<99?Math.atan2(bx,bz):q.y)}
-        if(S.stage==='walking'&&S.wp.length>1)for(const o of OBST){const dx=S.x-o.x,dz=S.z-o.z,px=o.hw+.3-Math.abs(dx),pz=o.hd+.3-Math.abs(dz);if(px>0&&pz>0){if(px<pz)S.x+=Math.sign(dx||1)*px*Math.min(1,dt*8);else S.z+=Math.sign(dz||1)*pz*Math.min(1,dt*8)}}
+        else if(S.stage==='sleeping'){sitT=0;pose='stand';S.x=dm(S.x,S.sleepX,2.2,dt);S.z=dm(S.z,S.sleepZ,2.2,dt);yawT=S.sleepYaw}
+        else if(S.stage==='bedrest'){sitT=1;pose='phone';S.x=dm(S.x,S.sleepX,3,dt);S.z=dm(S.z,S.sleepZ+.8,3,dt);yawT=0}
+        else if(S.stage==='lounge'){if(S.coffee&&t>S.coffee){S.coffee=0;S.goal=false;S.stage='rising'
+          if(S.night){S.nmode='sleep';S.bedInside=false;S.preRouted=true;S.wp=navToBed(cfg,false)
+            S.sleepX=cfg.bed[0];S.sleepZ=cfg.bed[1]+(cfg.dorm?-.15:.15);S.sleepYaw=cfg.dorm?PI:0;S.sleepLie=cfg.dorm?PI/2:-PI/2}}
+          const q=S.spot;sitT=q.sit;pose=S.sub;S.x=dm(S.x,q.p[0],3,dt);S.z=dm(S.z,q.p[1],3,dt);yawT=q.sit?q.y:(best<99?Math.atan2(bx,bz):q.y)}
+        if(S.stage==='walking'&&S.wp.length>1&&!(S.wp[0][2]))for(const o of OBST){const dx=S.x-o.x,dz=S.z-o.z,px=o.hw+.3-Math.abs(dx),pz=o.hd+.3-Math.abs(dz);if(px>0&&pz>0){if(px<pz)S.x+=Math.sign(dx||1)*px*Math.min(1,dt*8);else S.z+=Math.sign(dz||1)*pz*Math.min(1,dt*8)}}
         S.sit=dm(S.sit,sitT,3.2,dt);S.speed=dm(S.speed,sp,3,dt);S.ch=dm(S.ch,(S.stage==='seated'||S.stage==='sitting')?0:1,2.4,dt)
         S.yaw=dma(S.yaw,yawT,S.stage==='walking'?5:3,dt)
         const wk=S.speed/1.35;S.wph+=S.speed*dt*5
-        const P=POSE[pose]||POSE.stand,br=Math.sin(t*1.45+ph)
+        const P=POSE[pose]||POSE.stand,br=S.stage==='sleeping'?Math.sin(t*1.05+ph)*.4:Math.sin(t*1.45+ph)
         R.root.position.set(S.x,0,S.z);R.root.rotation.y=S.yaw
+        /* tergeletak di kasur saat jam tidur (rotasi halus — flop ke kasur) */
+        S.lieA=dma(S.lieA,S.stage==='sleeping'?S.sleepLie:0,2.2,dt);R.root.rotation.x=S.lieA
         R.hips.position.y=.92-.37*S.sit+Math.abs(Math.sin(S.wph))*.03*wk;R.hips.position.x=Math.sin(t*.3+ph)*.012*S.sit
+        if(S.stage==='sleeping')R.hips.position.y=dm(R.hips.position.y,.46,4,dt)
         R.chest.scale.set(1+br*.012,1+br*.02,1+br*.012)
         R.sh.position.y=.55+br*.012;R.sh.rotation.z=Math.sin(t*.23+ph)*Math.sin(t*.11+ph*2)*.07
         let ty=0,hy=(Math.sin(t*.7+ph)+Math.sin(t*1.9+ph*2)*.5)*(pose==='deep'?.05:.09),hpx=P.hp+Math.sin(t*1.1+ph)*.025+(pose==='deep'?Math.sin(t*7+ph)*.008:0)
@@ -848,7 +977,7 @@ export default function KantorCeo3D() {
         const tor=R.torso,hd=R.head
         tor.rotation.x=dm(tor.rotation.x,P.tp+(pose==='deep'?Math.sin(t*.35+ph)*.02:0),4,dt);tor.rotation.y=dm(tor.rotation.y,ty,3.5,dt)
         hd.rotation.y=dm(hd.rotation.y,hy,5,dt);hd.rotation.x=dm(hd.rotation.x,hpx,5,dt);hd.rotation.z=Math.sin(t*.5+ph)*.03
-        const bl=(t*.31+ph)%1<.05?.08:1
+        const bl=S.stage==='sleeping'?.05:(t*.31+ph)%1<.05?.08:1
         R.eyes.forEach(({e,pu})=>{e.scale.y=bl
           pu.position.x=clamp(hy*.009,-.007,.007);pu.position.y=clamp(-hpx*.007,-.005,.005)})
         R.brows.forEach((b,k)=>{const up=(S.sub==='chat'||hov===i)?.011:(S.sub==='deep'?-.004:0)
@@ -899,7 +1028,7 @@ export default function KantorCeo3D() {
       const mode=b=>hud.querySelectorAll('.kbtn').forEach(x=>x.classList.toggle('on',x===b))
       hud.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{C.live=false;C.speed=+b.dataset.s;mode(b)})
       $t('#klive').onclick=e=>{C.live=true;mode(e.currentTarget)}
-      $t('#kskip').onclick=e=>{C.live=false;C.min=1290;mode(e.currentTarget) /* 21:30 — lihat lembur malam */}
+      $t('#kskip').onclick=e=>{C.live=false;C.min=1310;mode(e.currentTarget) /* 21:50 — 10 menit sebelum jam tidur 22:00 */}
       mode(C.live?$t('#klive'):hud.querySelector('[data-s="6"]'))
 
       const onResize=()=>{const w=mount.clientWidth||innerWidth,h=mount.clientHeight||innerHeight
@@ -913,9 +1042,13 @@ export default function KantorCeo3D() {
         if(C.live){const w=new Date(Date.now()+25200000);C.min=w.getUTCHours()*60+w.getUTCMinutes()+w.getUTCSeconds()/60}else{C.min+=dt*C.speed;if(C.min>=1440)C.min=420 /* siklus penuh 24 jam — shift malam ikut tampil */}
         const b=C.min>=660&&C.min<780
         if(b!==C.brk){C.brk=b;C.at=performance.now()
-          showToast(b?' 11:00 — Jam istirahat DILEWATI: mode lembur 24/7, tim tetap di meja':'13:00 — Jam istirahat selesai (dilewati) — tim tidak pernah bergerak dari meja')}
+          showToast(b?' 11:00 — Jam istirahat: yang lapang jalan-jalan & ngopi dulu':'13:00 — Jam istirahat selesai — kembali ke meja')}
+        const nightNow=isNight(C.min)
+        if(nightNow!==C.wasNight){C.wasNight=nightNow
+          if(nightNow)showToast('22:00 — JAM TIDUR 🛏️ Tim berangkalan ke kamar masing-masing, lampu meredup')
+          else showToast('07:00 — BANGUN! Rutinitas pagi, briefing jam 08:00')}
         if(!INC.active&&C.min>INC.next){
-          if(E[0].stage==='seated'&&E[4].stage==='seated'){ /* insiden 24/7 — juga tengah malam */
+          if(E[0].stage==='seated'&&E[4].stage==='seated'&&C.min>=WORKSTART&&C.min<SLEEPT-20){ /* insiden jam kerja saja — malam tim tidur */
             INC.active=true;const R0=E[0]
             R0.report=true;R0.goal=false;R0.coffee=0;R0.until=1e9;R0.stage='rising'
             E[4].reportT=t+19;E[4].until=1e9
@@ -951,7 +1084,9 @@ export default function KantorCeo3D() {
           hov=(o&&o.userData.emp!==undefined)?o.userData.emp:null}
         uiT-=dt
         if(uiT<=0){uiT=.15;$t('#ktime').textContent=fmt(C.min)+' WIB';drawWall()
-          const ph=$t('#kphase');ph.textContent=C.brk?'Waktu istirahat ':(INC.active?' Insiden — hotfix!':(C.min<420||C.min>=960?'Lembur 24/7 — tetap kerja ':'Jam kerja'));ph.style.color=INC.active?'#ef4444':(C.brk?'#fbbf24':EM)
+          const nph=isNight(C.min),ph=$t('#kphase')
+          ph.textContent=INC.active?' Insiden — hotfix!':nph?'Jam tidur — bangun 07:00':(C.min<WORKSTART?'Pagi — briefing 08:00':C.brk?'Waktu istirahat ':'Jam kerja 08:00–22:00')
+          ph.style.color=INC.active?'#ef4444':(nph?'#a78bfa':(C.brk?'#fbbf24':EM))
           $t('#kfill').style.width=clamp(C.min/1440*100,0,100)+'%'}
         if(sel!==null){const S=E[sel];v.set(S.x,2,S.z).project(camera);tip.style.opacity=1
           tip.style.transform=`translate(${(v.x*.5+.5)*innerWidth-110}px,${(-v.y*.5+.5)*innerHeight-135}px)`
@@ -963,10 +1098,12 @@ export default function KantorCeo3D() {
         frame++})
 
       setLoaded(true)
-      setTimeout(()=>showToast('luxtradee.web.id LIVE — 7 AI Karyawan + CEO mode lembur 24/7'),1500)
+      setTimeout(()=>showToast('Kantor LIVE — 7 AI + CEO · jam kerja 08:00–22:00 · jam 22:00 jam tidur 🛏️'),1500)
       const wibMin=wibNow()
-      if(wibMin<435||wibMin>=885)
-        setTimeout(()=>showToast(fmt(wibMin)+' WIB — malam ini tim TETAP DI KANTOR: lembur 24/7, tanpa istirahat tidur. Kasur di Ruang Tidur AI cuma hiasan.'),4200)
+      if(isNight(wibMin))
+        setTimeout(()=>showToast(fmt(wibMin)+' WIB — tim lagi tidur di kamar masing-masing, bangun 07:00. Coba "Lompat 21:50" + Cepat 3× buat nonton jam tidur.'),4200)
+      else if(wibMin<WORKSTART)
+        setTimeout(()=>showToast(fmt(wibMin)+' WIB — tim baru bangun, briefing jam 08:00'),4200)
 
       /* ---------- cleanup ---------- */
       cleanup=()=>{
