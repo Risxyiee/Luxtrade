@@ -130,6 +130,20 @@ async function handle(request: NextRequest): Promise<NextResponse> {
   try {
     const demo = request.nextUrl.searchParams.get('demo') === '1'
 
+    /* ── FLUSH TIER FREE (freemium baru) ──
+       Sinyal yang diantrikan broadcastVipSignal 15 menit lalu kini
+       jatuh tempo → push ke seluruh user free. Jalan SEBELUM gerbang
+       pasar supaya antrian tetap menipis walau pasar tutup (di dalam
+       flush, sinyal saat pasar tutup justru dibuang — basi).
+       Non-fatal: kegagalan apa pun tidak boleh mengganggu jalur PRO. */
+    let freeFlush: { flushed: number; dropped: number; receivers: number } | null = null
+    try {
+      const { flushDueFreeSignals } = await import('@/services/marketListener')
+      freeFlush = await flushDueFreeSignals()
+    } catch (err) {
+      console.warn('[cron/vip-signals] flush free gagal (non-fatal):', err instanceof Error ? err.message : err)
+    }
+
     /* ── GERBANG KALENDER PASAR (keluhan Bos 8 Nov 2026, Minggu) ──
        Gerbang "bar basi" di bawah hanya melindungi bila upstream
        menyediakan timestamp bar (lastClosedAtSec > 0); kalau tidak,
@@ -144,6 +158,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
         triggered: false,
         skipped: 'market-closed-calendar',
         symbol: 'XAU/USD',
+        freeFlush,
         engine: getMarketListenerStatus(),
         elapsed_ms: Date.now() - startTime,
       })
@@ -178,6 +193,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
         symbol: tick.symbol,
         price: tick.price,
         last_closed_bar_age_min: Math.round(barAgeSec / 60),
+        freeFlush,
         engine: getMarketListenerStatus(),
         elapsed_ms: Date.now() - startTime,
       })
@@ -210,6 +226,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
         triggered: false,
         symbol: tick.symbol,
         price: tick.price,
+        freeFlush,
         engine: getMarketListenerStatus(),
         elapsed_ms: Date.now() - startTime,
       })
@@ -226,6 +243,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
       price: tick.price,
       signal: { action: signal.action, entry: signal.entryPrice, sl: signal.sl, tp: signal.tp },
       broadcast: result,
+      freeFlush,
       elapsed_ms: Date.now() - startTime,
     })
   } catch (e) {

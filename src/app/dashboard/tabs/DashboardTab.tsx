@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
-  Sparkles, AlertTriangle, Clock, BarChart3, Plus,
+  Sparkles, AlertTriangle, Clock, BarChart3, Plus, Upload,
   Trophy, Flame, Loader2, CreditCard, Shield
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -718,8 +718,8 @@ function DashboardTab({
                 transition={{ duration: 0.5, delay: 0.35 }}
               >
                 {language === 'id'
-                  ? 'Mulai catat trade pertamamu untuk melihat statistik dan insight'
-                  : 'Start logging your first trade to unlock powerful statistics and insights'}
+                  ? 'Upload screenshot atau laporan MT4/MT5 — AI isi otomatis, 30 detik langsung kelihatan statistiknya'
+                  : 'Upload a screenshot or MT4/MT5 report — AI fills it in, see your stats in 30 seconds'}
               </motion.p>
 
               {/* CTA Buttons */}
@@ -736,6 +736,19 @@ function DashboardTab({
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   {language === 'id' ? 'Tambah Trade Pertama' : 'Add Your First Trade'}
+                </Button>
+
+                {/* CTA impor — pintu kedua ke wizard yang sama (Impor Cepat
+                   ada di langkah 1). Copy jualan: 30 detik, AI isi otomatis,
+                   jurnal gratis selamanya (freemium baru). */}
+                <Button
+                  onClick={() => setAddTradeOpen(true)}
+                  variant="outline"
+                  size="lg"
+                  className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 hover:border-cyan-400/60 transition-all duration-300 px-8 py-6 text-base"
+                >
+                  <Upload className="w-5 h-5 mr-2" />
+                  {language === 'id' ? 'Impor Screenshot / MT4-MT5' : 'Import Screenshot / MT4-MT5'}
                 </Button>
 
                 <button

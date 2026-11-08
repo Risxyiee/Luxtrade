@@ -63,8 +63,6 @@ export const createImportHandlers = ({
   setImportParsing,
   updateImportedTrade,
   removeImportedTrade,
-  isPro,
-  setPlanSelectionModalOpen,
   getAuthHeaders,
   fetchData
 }: ImportHandlersProps) => {
@@ -139,11 +137,8 @@ export const createImportHandlers = ({
       return
     }
 
-    if (!isPro) {
-      setPlanSelectionModalOpen(true)
-      return
-    }
-    
+    /* Freemium baru: import = input jurnal = gratis selamanya.
+       Gerbang Pro lama dihapus (keputusan Bos — tembok cuma di fitur AI). */
     setCsvImporting(true)
     try {
       const res = await fetch('/api/import', {
@@ -345,11 +340,8 @@ export const createImportHandlers = ({
       return
     }
 
-    if (!isPro) {
-      setPlanSelectionModalOpen(true)
-      return
-    }
-    
+    /* Freemium baru: import = input jurnal = gratis selamanya.
+       Gerbang Pro lama dihapus (keputusan Bos — tembok cuma di fitur AI). */
     setImportParsing(true)
     try {
       const res = await fetch('/api/import', {

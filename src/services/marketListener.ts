@@ -40,6 +40,7 @@
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { pushToUsers } from '@/lib/push-notify'
 import { isXauLikeSymbol, isXauMarketOpen } from '@/lib/market-hours'
+import { kvGet, kvSet } from '@/lib/kv-cache'
 
 /* ════════════════════════════════════════════════════════════════
    TIPE KETAT — kontrak publik engine
@@ -455,7 +456,164 @@ export async function broadcastVipSignal(
     `[vip-signal] ${signal.action} ${tick.symbol} @ ${fmt(signal.entryPrice)} ` +
     `SL ${fmt(signal.sl)} TP ${fmt(signal.tp)} → ${receivers} user PRO${failed ? `, ${failed} gagal` : ''}`
   )
+
+  /* FREEMIUM BARU — user FREE dapat sinyal yang SAMA dengan jeda 15
+     menit (strategi ala ChatGPT: yang dibatasi kecepatannya, bukan
+     isinya). Antrian di KV lintas-isolate; cron 15-menitan berikutnya
+     (flushDueFreeSignals) yang menge-drop ke user free. demo TIDAK
+     diantrikan — sinyal palsu tak boleh sampai ke user mana pun. */
+  if (!opts?.demo) {
+    try {
+      await enqueueFreeSignal(payload)
+    } catch (err) {
+      console.warn('[vip-signal] antrian free gagal (non-fatal):', err instanceof Error ? err.message : err)
+    }
+  }
+
   return { sent: true, receivers, failed, alertId }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TIER FREE — SINYAL TUNDA 15 MENIT (antrian KV lintas-isolate)
+   ════════════════════════════════════════════════════════════════
+   broadcastVipSignal() mengantrikan payload sinyal + due = now+15m.
+   /api/cron/vip-signals (slot cron 15-menitan yang sudah ada) memanggil
+   flushDueFreeSignals() di awal tiap run → sinyal jatuh tempo di-push
+   ke seluruh user free. Tanpa KV (dev tanpa binding) semua no-op aman.
+   Sinyal basi (>45 mnt) atau masuk saat pasar tutup → DIBUANG, bukan
+   ditunda — sama seperti gerbang "bar basi" user PRO (keluhan Bos:
+   notifikasi sinyal saat pasar tutup tak bisa ditrade). */
+
+const FREE_Q_KEY = 'vip-free-q'
+const FREE_SIG_PREFIX = 'vip-free-sig:'
+const FREE_DELAY_MS = 15 * 60_000
+const FREE_SIG_TTL_SEC = 2 * 3600 // KV TTL item & antrian: 2 jam
+const FREE_SIG_MAX_AGE_MS = 45 * 60_000 // lebih tua = basi, buang
+const FREE_Q_MAX_ITEMS = 20 // batas aman antrian (15-menitan, jarang >1)
+
+interface FreeSignalItem {
+  k: string
+  due: number
+}
+
+interface FreeSignalPayload {
+  title: string
+  body: string
+  icon: string
+  tag: string
+  type: string
+  url: string
+  urgency: string
+  created: number
+}
+
+/** Antrikan payload sinyal untuk tier free — due sekarang + 15 menit. */
+async function enqueueFreeSignal(payload: {
+  title: string
+  body: string
+  icon: string
+  tag: string
+  type: string
+  url: string
+  urgency: string
+}): Promise<void> {
+  const now = Date.now()
+  const item: FreeSignalPayload = { ...payload, created: now }
+  const key = `${FREE_SIG_PREFIX}${now}`
+
+  const saved = await kvSet(key, item, { ttl: FREE_SIG_TTL_SEC })
+  if (!saved) return // KV tidak tersedia (dev) — tier free skip diam
+
+  const q = (await kvGet<{ items: FreeSignalItem[] }>(FREE_Q_KEY))?.items ?? []
+  q.push({ k: key, due: now + FREE_DELAY_MS })
+  // Cap antrian: buang tertua (kron 15-menitan praktis tak pernah
+  // menumpuk — cooldown global 30 menit membatasi laju sinyal)
+  while (q.length > FREE_Q_MAX_ITEMS) q.shift()
+  await kvSet(FREE_Q_KEY, { items: q }, { ttl: FREE_SIG_TTL_SEC })
+  console.log(`[vip-signal] antrian free +1 (due ${new Date(now + FREE_DELAY_MS).toISOString()})`)
+}
+
+/**
+ * Kirim semua sinyal free yang jatuh tempo ke seluruh user free.
+ * Dipanggil di awal tiap run /api/cron/vip-signals. Semua kegagalan
+ * non-fatal — jalur sinyal PRO TIDAK boleh terganggu.
+ */
+export async function flushDueFreeSignals(): Promise<{
+  flushed: number
+  dropped: number
+  receivers: number
+}> {
+  const q = (await kvGet<{ items: FreeSignalItem[] }>(FREE_Q_KEY))?.items ?? []
+  if (q.length === 0) return { flushed: 0, dropped: 0, receivers: 0 }
+
+  const now = Date.now()
+  const due = q.filter((i) => i.due <= now)
+  const keep = q.filter((i) => i.due > now)
+  if (due.length === 0) return { flushed: 0, dropped: 0, receivers: 0 }
+
+  /* Pasar tutup → sinyal tak bisa ditrade: buang semua yang jatuh
+     tempo (jangan ditunda sampai Senin — basi). */
+  if (!isXauMarketOpen()) {
+    await kvSet(FREE_Q_KEY, { items: keep }, { ttl: FREE_SIG_TTL_SEC })
+    return { flushed: 0, dropped: due.length, receivers: 0 }
+  }
+
+  const admin = await getSupabaseAdminAsync()
+  if (!admin) return { flushed: 0, dropped: 0, receivers: 0 } // item tinggal — dicoba run berikutnya
+
+  // User free = profile TANPA is_pro (null maupun false) — filter di JS
+  // karena `neq` PostgREST meng-exclude baris NULL.
+  const { data: profiles, error } = await admin
+    .from('profiles')
+    .select('id, is_pro')
+    .limit(2000)
+  if (error) {
+    console.warn('[vip-signal] flush free: query profiles gagal:', error.message)
+    return { flushed: 0, dropped: 0, receivers: 0 }
+  }
+  const freeIds = ((profiles ?? []) as { id: string; is_pro: boolean | null }[])
+    .filter((p) => !p.is_pro)
+    .map((p) => String(p.id))
+
+  let flushed = 0
+  let dropped = 0
+  let receivers = 0
+
+  for (const item of due) {
+    const sig = await kvGet<FreeSignalPayload>(item.k)
+    // Item hilang dari KV (expired/evicted) ATAU basi >45 mnt → buang
+    if (!sig || now - sig.created > FREE_SIG_MAX_AGE_MS) {
+      dropped++
+      continue
+    }
+
+    if (freeIds.length) {
+      const results = await pushToUsers(
+        admin,
+        freeIds,
+        {
+          /* Judul beda dari tier PRO — jujur soal delay, sekaligus
+             jaring promo: "Pro dapat ini real-time". */
+          title: (sig.title || '📈 Sinyal Luxtradee') + ' (Gratis · tunda 15 mnt)',
+          body: `${sig.body}\n⚡ Buka PRO → sinyal ini masuk real-time`,
+          icon: sig.icon || '/icon-192x192.png',
+          tag: 'vip-signal-free',
+          type: 'trade' as const,
+          url: sig.url || '/',
+          urgency: 'normal' as const,
+        },
+        { delayMs: 50, dedupe: false }
+      )
+      const ok = results.filter((r) => r.sent > 0).length
+      receivers += ok
+      console.log(`[vip-signal] flush free: "${sig.title}" → ${ok} user free`)
+    }
+    flushed++
+  }
+
+  // Tulis balik antrian tanpa item yang sudah diproses
+  await kvSet(FREE_Q_KEY, { items: keep }, { ttl: FREE_SIG_TTL_SEC })
+  return { flushed, dropped, receivers }
 }
 
 /* ════════════════════════════════════════════════════════════════
