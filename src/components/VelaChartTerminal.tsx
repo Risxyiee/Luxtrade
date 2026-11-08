@@ -385,8 +385,30 @@ function ensureProtectedNativeRegistered(register: (d: any) => void) {
 
 /* ---------- Template awal editor ---------- */
 const PINE_TEMPLATE = `//@version=6
-indicator("Luxtradee Skrip Saya", overlay=true)
-plot(ta.ema(close, 20), color=color.orange, linewidth=2)`
+strategy("Luxtradee Sinyal Entry Saya", overlay=true)
+
+// ── Contoh sinyal: persilangan EMA 9 × EMA 21 ──────────────
+// Ganti logika di bawah dengan rumus milikmu sendiri.
+emaCepat = ta.ema(close, 9)
+emaLambat = ta.ema(close, 21)
+
+plot(emaCepat, color=color.orange, linewidth=2)
+plot(emaLambat, color=color.aqua, linewidth=2)
+
+beli = ta.crossover(emaCepat, emaLambat)   // sinyal BUY
+jual = ta.crossunder(emaCepat, emaLambat)  // sinyal SELL
+
+// ── Entry otomatis: muncul di chart + jadi push HP via 🔔 ──
+if beli
+    strategy.entry("Long", strategy.long)
+if jual
+    strategy.entry("Short", strategy.short)
+
+// ── SL 1% / TP 3% otomatis (ubah sesuai gaya tradingmu) ───
+if strategy.position_size > 0
+    strategy.exit("Keluar Long", from_entry="Long", stop=close * 0.99, limit=close * 1.03)
+if strategy.position_size < 0
+    strategy.exit("Keluar Short", from_entry="Short", stop=close * 1.01, limit=close * 0.97)`
 
 /* ============================================================
    AUTO-SAVE INDIKATOR (localStorage) — permintaan Bos:
