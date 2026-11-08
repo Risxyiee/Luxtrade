@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { getCronAdmin } from '@/lib/cron-supabase'
 import { extractEmail, clipLeadMessage } from '@/lib/growth-sentinel'
-import { callLLM, getLLMChainStatus, getLLMProviderName, type ConversationTurn } from '@/lib/ai-llm'
+import { callLLM, getLLMChainStatus, getLLMProviderName, getLastLLMDiag, type ConversationTurn } from '@/lib/ai-llm'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
 export const dynamic = 'force-dynamic'
@@ -225,13 +225,16 @@ export async function POST(req: NextRequest) {
     const result = await callLLM(systemPrompt, turns, 1024)
 
     if (!result || !result.text?.trim()) {
-      // Semua provider gagal (429/402/auth/mati) — pesan ramah, BUKAN 500 mentah
-      console.error('[chat API] Semua provider LLM gagal:', (result?.notes || []).join(' | '))
+      // Semua provider gagal (429/402/auth/mati) — pesan ramah + DIAGNOSA
+      // transparan (SOP karyawan: 'jatuh ke templat SELALU ada penjelasannya')
+      const diag = getLastLLMDiag().slice(0, 8)
+      console.error('[chat API] Semua provider LLM gagal:', diag.join(' | '))
       return NextResponse.json({
         response: language === 'en'
           ? "Sorry, our AI assistant is resting for a moment. Try again soon or contact Telegram @Risxyiee."
           : "Maaf, asisten AI kami lagi istirahat sebentar. Coba lagi beberapa saat atau hubungi Telegram @Risxyiee.",
         aiUnavailable: true,
+        diag,
       }, { status: 503 })
     }
 
