@@ -13,6 +13,21 @@ interface ChatMessage {
   content: string
 }
 
+interface GrowthHook {
+  greeting: string
+  chips: string[]
+  generatedAt?: string
+}
+
+/** Amunisi proaktif dari Growth Sentinel (karyawan Kevin) — fallback statis. */
+const FALLBACK_HOOK: GrowthHook = {
+  greeting: '',
+  chips: ['Lihat sinyal terbaru 📊', 'Cara mulai gratis? 🆓'],
+}
+
+const TEASER_DELAY_MS = 12_000 // sapa visitor setelah 12 detik menjelajah
+const TEASER_SESSION_KEY = 'cs_teaser_done_v1'
+
 function generateSessionId(): string {
   return 'cs_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
 }
@@ -25,15 +40,52 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
   const [sessionId] = useState(generateSessionId)
   const [showWelcome, setShowWelcome] = useState(true)
   const [mobileCtaVisible, setMobileCtaVisible] = useState(false)
+  // ── GROWTH: hook proaktif + teaser bubble ──
+  const [hook, setHook] = useState<GrowthHook | null>(null)
+  const [showTeaser, setShowTeaser] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const MAX_INPUT_LENGTH = 500
 
-  // Welcome message
-  const welcomeMessage = language === 'id'
-    ? 'Halo! 👋 Ada yang bisa dibantu? Tanya apa aja tentang LuxTradee.'
-    : 'Hi! 👋 How can I help? Ask anything about LuxTradee.'
+  // Welcome message — pakai hook sentinel kalau sudah ada (pintu depan hidup)
+  const welcomeMessage = (language === 'id'
+    ? (hook?.greeting || 'Halo! 👋 Ada yang bisa dibantu? Tanya apa aja tentang LuxTradee.')
+    : (hook?.greeting || 'Hi! 👋 How can I help? Ask anything about LuxTradee.'))
+
+  const chips = hook?.chips?.length ? hook.chips : FALLBACK_HOOK.chips
+
+  // ── GROWTH: muat hook + jadwalkan teaser proaktif (1× per sesi) ──
+  useEffect(() => {
+    let cancelled = false
+    const alreadyTeased = (() => {
+      try { return sessionStorage.getItem(TEASER_SESSION_KEY) === '1' } catch { return true }
+    })()
+
+    const timer = setTimeout(async () => {
+      if (cancelled) return
+      try {
+        const res = await fetch('/api/growth/cs-hook')
+        if (res.ok && !cancelled) {
+          const data = await res.json()
+          if (data?.hook?.greeting) {
+            setHook({ greeting: data.hook.greeting, chips: data.hook.chips || FALLBACK_HOOK.chips })
+          }
+        }
+      } catch { /* offline — fallback chips tetap jalan */ }
+      if (!cancelled && !alreadyTeased && !document.hidden) {
+        setShowTeaser(true)
+        try { sessionStorage.setItem(TEASER_SESSION_KEY, '1') } catch { /* private mode */ }
+        // Teaser menghilang sendiri setelah 25 detik kalau diabaikan
+        setTimeout(() => { if (!cancelled) setShowTeaser(false) }, 25_000)
+      }
+    }, TEASER_DELAY_MS)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [])
 
   // Check if mobile CTA is visible to adjust positioning
   useEffect(() => {
@@ -74,12 +126,14 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
     }
   }, [isLoading, isOpen])
 
-  const sendMessage = useCallback(async () => {
-    const trimmed = input.trim()
+  /** Kirim teks ke bot (dipakai input manual & chip quick-reply proaktif). */
+  const sendText = useCallback(async (text: string) => {
+    const trimmed = text.trim()
     if (!trimmed || isLoading) return
 
-    // Dismiss welcome on first user message
+    // Dismiss welcome & teaser saat visitor mulai ngobrol
     if (showWelcome) setShowWelcome(false)
+    setShowTeaser(false)
 
     const userMsg: ChatMessage = { role: 'user', content: trimmed }
     setMessages(prev => [...prev, userMsg])
@@ -112,7 +166,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
       clearTimeout(timeoutId)
 
       // Parse response
-      let data: { response?: string; error?: string; limited?: boolean }
+      let data: { response?: string; error?: string; limited?: boolean; leadCaptured?: boolean }
       try {
         data = await res.json()
       } catch {
@@ -147,6 +201,13 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
       const botMsg: ChatMessage = { role: 'assistant', content: data.response || '...' }
       setMessages(prev => [...prev, botMsg])
 
+      // GROWTH: email lead tersimpan → konfirmasi kecil biar visitor yakin
+      if (data.leadCaptured) {
+        toast.success(language === 'en'
+          ? 'Email noted! We\'ll send you free signals 📬'
+          : 'Email tercatat! Sinyal & tips gratis segera meluncur 📬')
+      }
+
       if (data.limited) {
         toast.warning(language === 'en' ? 'Chat limit reached' : 'Batas chat tercapai')
       }
@@ -158,7 +219,9 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
       // CRITICAL: Always reset isLoading so input is never permanently locked
       setIsLoading(false)
     }
-  }, [input, isLoading, sessionId, language, showWelcome])
+  }, [isLoading, sessionId, language, showWelcome])
+
+  const sendMessage = useCallback(() => sendText(input), [sendText, input])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -172,6 +235,50 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
 
   return (
     <>
+      {/* GROWTH: Teaser proaktif — bot menyapa dulu (hook dari Growth Sentinel) */}
+      {showTeaser && !isOpen && (
+        <div
+          className={`fixed ${bottomOffset} right-4 z-40 mb-16 w-72 sm:w-80 rounded-2xl bg-[#0a0a14]/95 border border-white/[0.08] backdrop-blur-xl shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300`}
+          role="status"
+          aria-label="Pesan sambutan CS LuxTradee"
+        >
+          <button
+            onClick={() => setShowTeaser(false)}
+            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Tutup pesan"
+          >
+            <X className="w-3 h-3 text-white/60" />
+          </button>
+          <div className="px-4 pt-3 pb-2.5">
+            <div className="flex items-start gap-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                🤖
+              </div>
+              <p className="text-sm text-gray-200 leading-snug pr-4">
+                {hook?.greeting || welcomeMessage}
+              </p>
+            </div>
+            {/* Quick-reply chips — 1 klik = langsung ngobrol */}
+            <div className="flex flex-wrap gap-1.5 mt-2.5 pl-8">
+              {chips.slice(0, 3).map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => {
+                    setIsOpen(true)
+                    setShowTeaser(false)
+                    setShowWelcome(false)
+                    sendText(chip)
+                  }}
+                  className="text-xs px-2.5 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-gray-200 hover:bg-white/[0.12] hover:border-white/[0.2] transition-colors cursor-pointer"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat Panel */}
       {isOpen && (
         <div
@@ -280,7 +387,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
       {/* Floating Button */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => { setIsOpen(true); setShowTeaser(false) }}
           className={`fixed ${bottomOffset} right-4 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group`}
           aria-label="Open chat"
         >

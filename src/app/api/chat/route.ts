@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { geminiChat, isGeminiAvailableAsync } from '@/lib/gemini'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { getCronAdmin } from '@/lib/cron-supabase'
+import { extractEmail, clipLeadMessage } from '@/lib/growth-sentinel'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
 export const dynamic = 'force-dynamic'
@@ -37,9 +39,110 @@ GAYA JAWAB:
 - Pakai emoji secukupnya
 - Kalau ga yakin, arahkan ke Telegram @Risxyiee atau Discord`
 
+/**
+ * PROAKTIF (Growth Engine — karyawan Kevin/ Sentinel): CS bot bukan cuma
+ * nunggu ditanya — dia dikasih amunisi harian (hook + angka RIIL) oleh
+ * cron /api/cron/growth-sentinel via agent_kv, plus misi menangkap lead
+ * (visitor yang tertarik → minta email → tabel growth_leads → draf email
+ * welcome masuk antrean ACC Bos). Semua angka yang boleh dikutip bot
+ * HANYA dari blok DATA RIIL di bawah (anti-halusinasi).
+ */
+async function buildGrowthContext(): Promise<{ block: string; hookGreeting: string }> {
+  const admin = await getCronAdmin()
+  if (!admin) return { block: '', hookGreeting: '' }
+  let hookGreeting = ''
+  try {
+    const { data } = await admin
+      .from('agent_kv')
+      .select('key, value')
+      .in('key', ['growth:cs-hook', 'growth:social-proof'])
+    const rows = (data || []) as Array<{ key: string; value: string }>
+    const hookRow = rows.find(r => r.key === 'growth:cs-hook')
+    const proofRow = rows.find(r => r.key === 'growth:social-proof')
+    const lines: string[] = []
+    if (hookRow) {
+      try {
+        const hook = JSON.parse(hookRow.value) as { greeting?: string; note?: string }
+        if (hook.greeting) {
+          hookGreeting = String(hook.greeting).slice(0, 200)
+          lines.push(`Hook sapaan hari ini (jadikan nada pembuka kamu saat relevan): "${hookGreeting}"`)
+        }
+      } catch { /* KV korup → skip */ }
+    }
+    if (proofRow) {
+      try {
+        const proof = JSON.parse(proofRow.value) as { members?: number; signals7d?: number | null }
+        if (typeof proof.members === 'number' && proof.members >= 0) {
+          lines.push(`- Total member Luxtradee: ${proof.members}`)
+        }
+        if (typeof proof.signals7d === 'number' && proof.signals7d >= 0) {
+          lines.push(`- Sinyal VIP 7 hari terakhir: ${proof.signals7d}`)
+        }
+      } catch { /* skip */ }
+    }
+    if (!lines.length) return { block: '', hookGreeting: '' }
+    return {
+      block: `\n\nDATA RIIL LUXTRADEE HARI INI (boleh dikutip PERSIS — DILARANG mengarang angka lain):\n${lines.map(l => `- ${l}`).join('\n')}` +
+        `\n\nMISI MENANGKAP LEAD (hormati ritme percakapan — jangan maksa):\n` +
+        `- Kalau visitor terlihat tertarik (tanya fitur/harga/sinyal, chat sudah 2+ bolak-balik), tawarkan: "Mau aku kirim sinyal & tips harian gratis? Tinggal kasih email kamu aja 📬"\n` +
+        `- Kalau visitor memberi email → ucapkan terima kasih singkat + bilang tim kami akan kirim sinyal & undangan daftar gratis (https://luxtradee.web.id/auth/signup). JANGAN minta data lain (no telp/alamat).\n` +
+        `- Kalau visitor menolak → jangan tanya lagi, lanjut bantu pertanyaannya.`,
+      hookGreeting,
+    }
+  } catch { /* agent_kv belum ada → tanpa konteks */ }
+  return { block: '', hookGreeting: '' }
+}
+
 // In-memory conversation store
 const conversations = new Map<string, Array<{role: 'user' | 'model'; content: string}>>()
 const MAX_MESSAGES = 20
+
+// Anti-spam lead: 1 sesi cukup menitipkan 1 email (set in-memory, Workers
+// isolate boleh hilang — dedupe final oleh UNIQUE(email) di growth_leads)
+const leadCapturedSessions = new Set<string>()
+
+/**
+ * Simpan lead ke growth_leads (tabel migrasi 043). Dedupe: email UNIQUE —
+ * kalau sudah pernah, update pesan pertama HANYA jika lead masih 'new'.
+ * Return 'inserted' | 'known' | 'error'.
+ */
+async function captureLead(
+  email: string, sessionId: string, message: string, language: string, uaHint: string,
+): Promise<'inserted' | 'known' | 'error'> {
+  const admin = await getCronAdmin()
+  if (!admin) return 'error'
+  try {
+    const { data: existing } = await admin
+      .from('growth_leads').select('id, status').eq('email', email).limit(1)
+    const row = (existing as Array<{ id: string; status: string }> | null)?.[0]
+    if (row) {
+      if (row.status === 'new') {
+        await admin.from('growth_leads')
+          .update({ first_message: clipLeadMessage(message) || undefined })
+          .eq('id', row.id)
+      }
+      return 'known'
+    }
+    const { error } = await admin.from('growth_leads').insert({
+      email,
+      source: 'cs-bot',
+      language,
+      first_message: clipLeadMessage(message),
+      session_id: sessionId.slice(0, 80),
+      ua_hint: uaHint.slice(0, 60),
+      status: 'new',
+    })
+    if (error) {
+      console.warn('[chat API] captureLead insert gagal:', error.message?.slice(0, 120))
+      return 'error'
+    }
+    return 'inserted'
+  } catch (err) {
+    // Tabel belum ada (SQL 043 belum jalan) → senyap, bot tetap jawab
+    console.warn('[chat API] captureLead error (tabel 043 belum ada?):', err instanceof Error ? err.message.slice(0, 120) : err)
+    return 'error'
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -100,6 +203,10 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // ── GROWTH: konteks proaktif (hook + social proof RIIL dari sentinel) ──
+    const growth = await buildGrowthContext()
+    const systemPrompt = SYSTEM_PROMPT + growth.block
+
     // Build Gemini messages from history
     const geminiMessages = [
       ...history.map(msg => ({
@@ -114,12 +221,29 @@ export async function POST(req: NextRequest) {
       model: 'gemini-2.5-flash',
       temperature: 0.7,
       maxTokens: 1024,
-      systemInstruction: SYSTEM_PROMPT,
+      systemInstruction: systemPrompt,
       timeoutMs: 30000,
     })
 
     const aiResponse = result.text ||
       (language === 'en' ? "Sorry, I couldn't process that. Please try again." : "Maaf, gagal memproses. Coba lagi ya.")
+
+    // ── GROWTH: tangkap lead kalau visitor menitipkan email ──
+    // Deteksi server-side (regex di lib murni) — bot tidak perlu "tool";
+    // email yang muncul di pesan visitor = izin eksplisit dihubungi.
+    let leadCaptured: boolean = false
+    const emailInMsg = extractEmail(message)
+    if (emailInMsg && !leadCapturedSessions.has(sessionId)) {
+      const outcome = await captureLead(
+        emailInMsg, sessionId, message, language,
+        req.headers.get('user-agent') || '',
+      )
+      if (outcome === 'inserted' || outcome === 'known') {
+        leadCapturedSessions.add(sessionId)
+        leadCaptured = true
+        console.log(`[chat API] lead ${outcome === 'inserted' ? 'BARU' : 'dikenal'} tersimpan: ${emailInMsg.replace(/(.{2}).+(@.*)/, '$1***$2')}`)
+      }
+    }
 
     // Save to history
     const updatedHistory = [
@@ -134,7 +258,7 @@ export async function POST(req: NextRequest) {
       conversations.set(sessionId, updatedHistory)
     }
 
-    return NextResponse.json({ response: aiResponse })
+    return NextResponse.json({ response: aiResponse, leadCaptured })
   } catch (error: any) {
     // Descriptive error logging for Cloudflare Workers diagnostics
     console.error('[chat API] Error:', {

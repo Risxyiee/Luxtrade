@@ -124,6 +124,38 @@ async function executePayload(actionType: string, payload: Record<string, any>, 
       return { ok: true, detail: `Terkirim ${okCount}/${emails.length} email${failCount ? ` — gagal ${failCount}: ${errs.slice(0, 2).join(' | ')}` : ''}${skippedUnsub ? ` — ${skippedUnsub} dilewati (unsubscribe)` : ''}${skippedBounce ? `, ${skippedBounce} dilewati (bounce)` : ''}` }
     }
 
+    /* ── EMAIL welcome lead baru (Kevin/Growth Sentinel — migrasi 043) ──
+       Visitor landing yang menitipkan email ke CS bot → draf masuk
+       antrean ini. ACC Bos → kirim via Resend → lead status 'emailed'.
+       Suppression tetap dihormati (bounce list) — email lead bukan user,
+       tapi kalau pernah bounce jangan ganggu lagi. */
+    case 'GROWTH_WELCOME_EMAIL': {
+      const cfgMail = sbConfig()
+      const to = String(payload?.lead?.email || '').toLowerCase().trim()
+      const leadId = String(payload?.lead?.leadId || '')
+      if (!to.includes('@')) return { ok: false, detail: 'payload.lead.email tidak valid' }
+      const subject = String(payload.subject || 'Sinyal & tips trading gratis dari Luxtradee').slice(0, 160)
+      const body = String(payload.body || '').trim()
+      if (body.length < 20) return { ok: false, detail: 'payload.body terlalu pendek' }
+      try {
+        const rawSig = await kvGetKey(cfgMail, `open:${to}`)
+        if (rawSig && (JSON.parse(rawSig) as { bounced?: boolean }).bounced) {
+          return { ok: true, detail: 'Dilewati — email pernah bounce (suppression)' }
+        }
+      } catch { /* fail-open */ }
+      const r = await sendEmail({ to, subject, html: simpleHtml(body) })
+      if (!r.success) return { ok: false, detail: `Resend gagal: ${r.error || 'unknown'}` }
+      await kvIncrKey(cfgMail, `resend_sent:${wibDay()}`)
+      // Tandai lead 'emailed' (tabel opsional — gagal tidak membatalkan email)
+      try {
+        const sb = await getCronAdmin()
+        if (sb && leadId) {
+          await sb.from('growth_leads').update({ status: 'emailed', notes: 'email welcome terkirim (ACC Bos)' }).eq('id', leadId)
+        }
+      } catch { /* non-kritis */ }
+      return { ok: true, detail: `Email welcome terkirim ke ${to.replace(/(.{2}).+(@.*)/, '$1***$2')}` }
+    }
+
     /* ── Konten (Sinta) → Instagram/Facebook ATAU blog ── */
     case 'PUBLISH_CONTENT': {
       const platform = String(payload.platform || 'ig').toLowerCase()
