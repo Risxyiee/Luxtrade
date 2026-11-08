@@ -17,7 +17,9 @@ const steps = {
       desc: 'Upload screenshot MetaTrader (MT5) atau TradingView. Sistem langsung membaca pair, harga entry, exit, dan hasil P/L dalam hitungan detik.',
       rightSide: true,
       visual: 'upload',
-      img: '/images/guide/auto-journal-example-v2.webp',
+      /* varian TIGHT (ruang kosong atas/bawah dipotong) khusus landing —
+         file asli tetap dipakai guide dialog dashboard */
+      img: '/images/landing/auto-journal-tight.webp',
     },
     {
       num: 'STEP 02',
@@ -37,7 +39,9 @@ const steps = {
       desc: 'Catat kondisi psikologis, sesi market (London/New York), dan alasan setup sebelum tombol eksekusi ditekan.',
       rightSide: true,
       visual: 'journal',
-      img: '/screenshot-trades-v2.webp',
+      /* varian TIGHT (ruang kosong atas/bawah dipotong) — hero tetap
+         pakai file asli */
+      img: '/images/landing/trade-list-tight.webp',
       floatingCards: [
         { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
       ],
@@ -64,7 +68,9 @@ const steps = {
       desc: 'Upload MetaTrader (MT5) or TradingView screenshots. The system instantly reads the pair, entry price, exit, and P/L result in seconds.',
       rightSide: true,
       visual: 'upload',
-      img: '/images/guide/auto-journal-example-v2.webp',
+      /* varian TIGHT (ruang kosong atas/bawah dipotong) khusus landing —
+         file asli tetap dipakai guide dialog dashboard */
+      img: '/images/landing/auto-journal-tight.webp',
     },
     {
       num: 'STEP 02',
@@ -84,7 +90,9 @@ const steps = {
       desc: 'Record your psychological state, market session (London/New York), and setup reasoning before hitting the execute button.',
       rightSide: true,
       visual: 'journal',
-      img: '/screenshot-trades-v2.webp',
+      /* varian TIGHT (ruang kosong atas/bawah dipotong) — hero tetap
+         pakai file asli */
+      img: '/images/landing/trade-list-tight.webp',
       floatingCards: [
         { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
       ],
@@ -143,11 +151,15 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
               {/* Visual */}
               <div className={!step.rightSide ? 'md:order-1' : ''}>
                 {step.visual === 'upload' && step.img && (
-                  <div className="glass-lux p-8 min-h-[300px] flex items-center justify-center relative">
+                  /* FIX Bos: screenshot panduan dulu punya ruang kosong besar
+                     atas/bawah + badge menimpa tabel → jelek. Sekarang pakai
+                     varian tight (tabel memenuhi layar) & badge pindah KE
+                     BAWAH phone — tidak menutupi konten lagi. */
+                  <div className="glass-lux p-8 min-h-[300px] flex flex-col items-center justify-center relative">
                     <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
-                      <Image src={step.img} alt="Auto Jurnal Screenshot MT5" width={1080} height={1920} quality={100} loading="lazy" className="w-full h-auto" />
+                      <Image src={step.img} alt="Auto Jurnal Screenshot MT5" width={1080} height={1214} quality={100} loading="lazy" className="w-full h-auto" />
                     </div>
-                    <div className="absolute bottom-4 right-4 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
+                    <div className="mt-5 bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         <span className="font-mono text-xs text-emerald-400">Data Extracted: +$340.20</span>
@@ -171,12 +183,14 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                 )}
 
                 {step.visual === 'journal' && step.img && (
-                  <div className="glass-lux p-8 min-h-[300px] flex items-center justify-center relative">
+                  /* FIX Bos: sama seperti STEP 01 — tag jangan menimpa tabel
+                     di layar phone → pindah ke bawah phone */
+                  <div className="glass-lux p-8 min-h-[300px] flex flex-col items-center justify-center relative">
                     <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
-                      <Image src={step.img} alt="Histori Trade" width={1080} height={1920} quality={100} loading="lazy" />
+                      <Image src={step.img} alt="Histori Trade" width={600} height={687} quality={100} loading="lazy" />
                     </div>
                     {step.floatingCards?.map((card, ci) => (
-                      <div key={ci} className={`absolute ${card.position} bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux`} style={{ animationDelay: '0.5s' }}>
+                      <div key={ci} className="mt-5 bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.5s' }}>
                         {card.tag ? (
                           <span className="bg-emerald-500/20 text-emerald-400 rounded-full px-2 py-0.5 text-[10px] font-mono">Tag: gold</span>
                         ) : (

@@ -112,23 +112,21 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
   }, [inView])
 
   /* ============================================================
-     MESIN CANDLE LIVE (random-walk + tick realistis)
+     MESIN CANDLE LIVE (random-walk + interpolasi kontinu)
      - seed acak per siklus (remount) → gerakan beda tiap loop.
      - seed=0 saat SSR/hidrasi → deterministik, bebas mismatch.
+     - Waktu & interpolasi dihitung di <LiveChartLayer/> via
+       requestAnimationFrame (sinkron refresh layar 60/120Hz).
+       FIX Bos "gerakan candle kurang smooth": dulu setInterval 63ms
+       (±16 langkah/detik, TIDAK selaras frame layar) → gerakan
+       patah-patah. Sekarang fraksi tick diinterpolasi mulus per
+       frame — parent pun TIDAK ikut re-render tiap frame.
      ============================================================ */
   const [seed, setSeed] = useState(0)
-  const [tick, setTick] = useState(0)
-  const reduceRef = useRef(false)
 
   useEffect(() => {
-    /* sesi browser: randomize seed + hormati reduced-motion */
+    /* sesi browser: randomize seed */
     setSeed(Math.floor(Math.random() * 2 ** 30))
-    try {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        reduceRef.current = true
-        setTick(TOTAL_TICKS)
-      }
-    } catch { /* diam */ }
   }, [])
 
   /* FIX "gerakannya kurang": dulu tick TIDAK PERNAH direset saat siklus
@@ -138,15 +136,7 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
   useEffect(() => {
     if (cycle === 0) return
     setSeed(Math.floor(Math.random() * 2 ** 30))
-    setTick(reduceRef.current ? TOTAL_TICKS : 0)
   }, [cycle])
-
-  useEffect(() => {
-    if (!inView) return
-    if (tick >= TOTAL_TICKS) return
-    const id = setInterval(() => setTick((v) => Math.min(v + 1, TOTAL_TICKS)), TICK_MS)
-    return () => clearInterval(id)
-  }, [inView, tick >= TOTAL_TICKS])
 
   const candles = useMemo(() => genCandles(mulberry32(seed)), [seed])
 
@@ -167,15 +157,9 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
     return { path, len, last: pts[pts.length - 1] }
   }, [candles])
 
-  /* state live: candle selesai + candle yang sedang terbentuk */
-  const done = Math.min(Math.floor(tick / TICKS_PER_CANDLE), candles.length)
-  const prog = ((tick % TICKS_PER_CANDLE) + 1) / TICKS_PER_CANDLE
-  const view: Array<Candle & { live?: boolean }> = candles.slice(0, done).map((c) => ({ ...c }))
-  if (done < candles.length) view.push({ ...liveCandle(candles[done], prog, tick, seed), live: true })
-  const last = view[view.length - 1]
-  const lpBull = last ? last.c < last.o : true // y kecil = harga tinggi → bullish
-  const lpY = last ? last.c : RES_Y
-  const lpText = priceFromY(lpY)
+  /* candle live, volume & tag harga → dipindah ke <LiveChartLayer/>
+     (state per-frame diisolasi di subtree kecil supaya 60fps mulus
+     tanpa ikut me-render editor/teks/push tiap frame) */
 
   return (
     <section className="relative py-16 md:py-24 px-4 overflow-hidden" aria-label="Demo fitur Pine Script dan alert otomatis">
@@ -266,45 +250,8 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
                   ))}
                   <line x1="0" x2="648" y1="372" y2="372" stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
 
-                  {/* ===== CANDLE + VOLUME + HARGA LIVE (tick realistis) ===== */}
-                  <g className="lxs-live-wrap">
-                    {/* bar volume — tumbuh bareng candle */}
-                    {view.map((c, i) => (
-                      <rect
-                        key={`vol${i}`}
-                        x={c.x} width={BW}
-                        y={VOL_BASE - c.vol} height={c.vol} rx="2"
-                        fill={candleColor(c)} fillOpacity={i === candles.length - 1 ? 0.55 : 0.22}
-                      />
-                    ))}
-
-                    {/* candles — wick memanjang & body tumbuh tiap tick */}
-                    {view.map((c, i) => {
-                      const isBreak = i === candles.length - 1
-                      const bull = c.c < c.o
-                      return (
-                        <g key={`cd${i}`}>
-                          <line x1={c.x + BW / 2} x2={c.x + BW / 2} y1={c.wt} y2={c.wb} stroke={isBreak ? '#4ade80' : candleColor(c)} strokeWidth="1.6" />
-                          <rect
-                            x={c.x} width={BW}
-                            y={Math.min(c.o, c.c)}
-                            height={Math.max(2, Math.abs(c.c - c.o))}
-                            rx="2"
-                            fill={isBreak ? '#4ade80' : candleColor(c)}
-                            style={c.live
-                              ? { filter: bull ? 'drop-shadow(0 0 6px rgba(74,222,128,0.6))' : 'drop-shadow(0 0 6px rgba(248,113,113,0.6))' }
-                              : undefined}
-                          />
-                        </g>
-                      )
-                    })}
-
-                    {/* garis last-price putus-putus + tag harga axis kanan
-                        (UPDAT SETIAP TICK — ala TradingView sungguhan) */}
-                    <line x1="0" x2="648" y1={lpY} y2={lpY} stroke="rgba(147,197,253,0.3)" strokeWidth="1" strokeDasharray="3 4" />
-                    <rect x="652" y={lpY - 9} width="56" height="18" rx="4" fill={lpBull ? '#10b981' : '#ef4444'} />
-                    <text x="680" y={lpY + 3.5} textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#ffffff">{lpText}</text>
-                  </g>
+                  {/* ===== CANDLE + VOLUME + HARGA LIVE (rAF 60fps) ===== */}
+                  <LiveChartLayer candles={candles} seed={seed} inView={inView} />
 
                   {/* area di bawah indikator (fade-in setelah garis selesai) */}
                   <path className="lxs-ind-area" d={`${ind.path} L ${ind.last[0]} 372 L ${candles[0].x + BW / 2} 372 Z`} fill="url(#lxs-ind-area)" />
@@ -411,6 +358,102 @@ export default function PineAlertShowcase({ language = 'id' }: { language?: 'id'
   )
 }
 
+/* ============================================================
+   LiveChartLayer — layer candle hidup (dipisah dari parent).
+   Satu-satunya bagian yang re-render per frame (subtree kecil ±50
+   node) — editor, teks & push notif tidak ikut. Waktu diambil dari
+   requestAnimationFrame → selalu sinkron refresh layar (60/120Hz)
+   → gerakan mulus tanpa jank (dulu setInterval 63ms ≈ 16fps asinkron
+   = patah-patah). Satuan waktu TETAP "tick" 63ms lama supaya timing
+   breakout (≈5.6s) & CSS (flash 5.7s, push 6.9s) tidak bergeser;
+   fraksi antar-tick diinterpolasi kontinu di liveCandle.
+   ============================================================ */
+function LiveChartLayer({ candles, seed, inView }: { candles: Candle[]; seed: number; inView: boolean }) {
+  /* t = posisi kontinu dalam satuan tick lama (1 tick = 63ms): 0..TOTAL_TICKS */
+  const [t, setT] = useState(0)
+  const reduceRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        reduceRef.current = true
+        setT(TOTAL_TICKS)
+      }
+    } catch { /* diam */ }
+  }, [])
+
+  useEffect(() => {
+    if (!inView || reduceRef.current) return
+    let raf = 0
+    const t0 = performance.now()
+    const loop = (now: number) => {
+      /* clamp 0..TOTAL (bukan cuma atas!) — timestamp rAF BISA sedikit
+         lebih awal dari performance.now() saat efek terpasang (frame
+         alignment) → elapsed negatif → done = -1 → candles[-1] =
+         undefined → crash. Fix Bos: section mendadak kosong. */
+      const next = Math.min(Math.max((now - t0) / TICK_MS, 0), TOTAL_TICKS)
+      setT(next)
+      if (next < TOTAL_TICKS) raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [inView, candles])
+
+  /* posisi kontinu → candle selesai + candle yang sedang terbentuk
+     (done di-clamp penuh + guard candles[done] — double safety) */
+  const pos = t / TICKS_PER_CANDLE
+  const done = Math.min(Math.max(Math.floor(pos), 0), candles.length)
+  const frac = pos - done
+  const view: Array<Candle & { live?: boolean }> = candles.slice(0, done).map((c) => ({ ...c }))
+  const forming = done < candles.length ? candles[done] : undefined
+  if (forming) view.push({ ...liveCandle(forming, frac, t, seed), live: true })
+  const last = view[view.length - 1]
+  const lpBull = last ? last.c < last.o : true // y kecil = harga tinggi → bullish
+  const lpY = last ? last.c : RES_Y
+  const lpText = priceFromY(lpY)
+
+  return (
+    <g className="lxs-live-wrap">
+      {/* bar volume — tumbuh bareng candle */}
+      {view.map((c, i) => (
+        <rect
+          key={`vol${i}`}
+          x={c.x} width={BW}
+          y={VOL_BASE - c.vol} height={c.vol} rx="2"
+          fill={candleColor(c)} fillOpacity={i === candles.length - 1 ? 0.55 : 0.22}
+        />
+      ))}
+
+      {/* candles — wick memanjang & body tumbuh MULUS tiap frame */}
+      {view.map((c, i) => {
+        const isBreak = i === candles.length - 1
+        const bull = c.c < c.o
+        return (
+          <g key={`cd${i}`}>
+            <line x1={c.x + BW / 2} x2={c.x + BW / 2} y1={c.wt} y2={c.wb} stroke={isBreak ? '#4ade80' : candleColor(c)} strokeWidth="1.6" />
+            <rect
+              x={c.x} width={BW}
+              y={Math.min(c.o, c.c)}
+              height={Math.max(2, Math.abs(c.c - c.o))}
+              rx="2"
+              fill={isBreak ? '#4ade80' : candleColor(c)}
+              style={c.live
+                ? { filter: bull ? 'drop-shadow(0 0 6px rgba(74,222,128,0.6))' : 'drop-shadow(0 0 6px rgba(248,113,113,0.6))' }
+                : undefined}
+            />
+          </g>
+        )
+      })}
+
+      {/* garis last-price putus-putus + tag harga axis kanan
+          (ikut harga terakhir SETIAP FRAME — ala TradingView sungguhan) */}
+      <line x1="0" x2="648" y1={lpY} y2={lpY} stroke="rgba(147,197,253,0.3)" strokeWidth="1" strokeDasharray="3 4" />
+      <rect x="652" y={lpY - 9} width="56" height="18" rx="4" fill={lpBull ? '#10b981' : '#ef4444'} />
+      <text x="680" y={lpY + 3.5} textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#ffffff">{lpText}</text>
+    </g>
+  )
+}
+
 /* ---------- Typewriter: 1 span per karakter, reveal berdelay ---------- */
 function TypeWriter({ text }: { text: string }) {
   /* Mulai ngetik di detik ke-2 (2.0s), selesai ±5.0s (pas sebelum Compile) */
@@ -437,10 +480,11 @@ const DX = 42          // jarak antar candle
 const BW = 18          // lebar badan candle
 const VOL_BASE = 372   // garis dasar bar volume
 
-/* Live tick engine: 6 tick per candle × 15 candle. 15×6×63ms ≈ 5.7s →
-   timing flash breakout (5.7s), indikator (5.3s) & push notif (6.9s)
-   tetap sinkron — tiap candle terbentuk 6 langkah dgn path bridge
-   noise + wick flicker (lihat liveCandle). */
+/* Clock engine: durasi DIHITUNG dari satuan tick lama — 6 tick/candle ×
+   15 candle × 63ms ≈ 5.7s — supaya timing flash breakout (5.7s),
+   indikator (5.3s) & push notif (6.9s) tetap sinkron. Gerakannya kini
+   KONTINU via requestAnimationFrame (lihat LiveChartLayer): fraksi
+   antar-tick diinterpolasi mulus, bukan 6 lompatan diskrit. */
 const TICK_MS = 63
 const TICKS_PER_CANDLE = 6
 const PRE_COUNT = 14
@@ -502,30 +546,44 @@ function genCandles(rnd: () => number): Candle[] {
   return cs
 }
 
-/* Candle yang sedang TERBENTUK — gerakan tick ala chart asli (dipoles
-   permintaan Bos: "lumayan tapi dipoles dikit untuk candle & gerakannya"):
+/* Candle yang sedang TERBENTUK — gerakan MULUS 60fps (dipoles lagi
+   permintaan Bos: "gerakan candle kurang smooth"):
    - PATH: ease-out open→close + BRIDGE NOISE — derau acak yang meluruh
      ke 0 saat candle close (price bridge sungguhan: harga boleh
      menyimpang di tengah jalan tapi SELALU sampai di close).
+   - NOISE DI-BLEND MULUS: dulu noise berganti diskrit tiap tick 63ms
+     → lompatan patah-patah. Sekarang dua sampel RNG (tick k & k+1)
+     di-interpolasi smoothstep antar tick → gerak lancar, ritme "tick"
+     63ms-nya tetap terasa ala chart sungguhan.
+   - KONTINUITAS UJUNG: di frac→1 semua nilai tepat sama dengan candle
+     "done" (base=close, wick=final, volume=penuh) → NOL lompatan saat
+     candle selesai; di frac→0 candle lahir dari sliver 2px.
    - VOLATILITAS PER-CANDLE: body besar (apalagi breakout) → tick
      lebih liar; candle doji → tick tenang. Ala volatility cluster.
-   - WICK FLICKER: tick yang mendorong lebih tinggi/rendah memanjangkan
-     sumbu sesaat — tapi TIDAK PERNAH melewati wick final datanya.
-   - VOLUME: menumpuk tidak rata (ada tick sepi & sibuk) ala order flow.
-   Semua deterministik (seed+tick) → SSR/hidrasi aman, gerak beda tiap
+   - WICK FLICKER: noise mendorong sumbu memanjang sesaat — TIDAK
+     PERNAH melewati wick final datanya.
+   Semua deterministik (seed + t) → SSR/hidrasi aman, gerak beda tiap
    siklus (seed baru per remount). */
-function liveCandle(c: Candle, prog: number, tick: number, seed: number): Candle {
-  const pe = 1 - (1 - prog) * (1 - prog) // ease-out
-  const env = Math.sin(Math.PI * prog) // 0 di ujung → derau hilang saat close
-  /* RNG per-tick deterministik — 3 putaran: path, flicker, volume */
-  const rr = mulberry32((seed ^ Math.imul(tick + 1, 2654435761)) >>> 0)
-  const n1 = rr() - 0.5
-  const n2 = rr()
-  const n3 = rr()
+function liveCandle(c: Candle, frac: number, t: number, seed: number): Candle {
+  const pe = 1 - (1 - frac) * (1 - frac) // ease-out open→close
+  const env = Math.sin(Math.PI * frac) // 0 di ujung → derau hilang saat close
+  /* dua sampel RNG tick bersebelahan (k & k+1) — 3 putaran: path, flicker, volume */
+  const draw = (k: number) => {
+    const rr = mulberry32((seed ^ Math.imul(k + 1, 2654435761)) >>> 0)
+    return [rr() - 0.5, rr(), rr()] as const
+  }
+  const k0 = Math.floor(t)
+  const tf = t - k0
+  const bl = tf * tf * (3 - 2 * tf) // smoothstep antar tick (mulus, tanpa kejutan)
+  const A = draw(k0)
+  const B = draw(k0 + 1)
+  const n1 = A[0] + (B[0] - A[0]) * bl
+  const n2 = A[1] + (B[1] - A[1]) * bl
+  const n3 = A[2] + (B[2] - A[2]) * bl
   /* volatilitas ikut tubuh candle (px) — breakout jauh lebih hidup */
   const vola = 2.0 + Math.min(9, Math.abs(c.c - c.o) * 0.14)
   const base = c.o + (c.c - c.o) * pe + n1 * 2 * vola * (1 - pe) * env
-  /* wick live: tumbuh ease-out + flicker per-tick (clamp ke wick final) */
+  /* wick live: tumbuh ease-out + flicker antar tick (clamp ke wick final) */
   const bodyTop = Math.min(c.o, base)
   const bodyBot = Math.max(c.o, base)
   const fUp = Math.max(0, n2 - 0.55) * 5.2 * env
@@ -533,7 +591,10 @@ function liveCandle(c: Candle, prog: number, tick: number, seed: number): Candle
   const wt = Math.max(c.wt, bodyTop - (bodyTop - c.wt) * pe - fUp)
   const wb = Math.min(c.wb, bodyBot + (c.wb - bodyBot) * pe + fDn)
   const cur = Math.min(wb, Math.max(wt, base))
-  const vol = Math.min(c.vol, c.vol * prog * (0.82 + n3 * 0.36))
+  /* volume menumpuk tidak rata (ala order flow) — wobble meluruh ke 1
+     saat candle close supaya flip live→done tidak melompat */
+  const wobble = 1 - (1 - (0.82 + n3 * 0.36)) * env
+  const vol = Math.min(c.vol, c.vol * frac * wobble)
   return { x: c.x, o: c.o, c: cur, wt, wb, vol }
 }
 
