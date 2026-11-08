@@ -44,7 +44,7 @@ const SCHEDULED_CODE = `
      - 0 3 Senin   = 10:00 WIB (weekly-summary + CEO weekly)
      - tiap 15 menit = econ-calendar + watchdog + agent sweep + pine-alerts
        + price-alerts + prop-firm-guard + vip-signals (Real-time Alert
-       Engine — jalur produksi karena `ws` tak jalan di Workers) */
+       Engine — jalur produksi karena ws tak jalan di Workers) */
   async scheduled(event, env, ctx) {
     const CRON_ROUTES = {
       '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth'],
