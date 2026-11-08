@@ -42,13 +42,15 @@ const SCHEDULED_CODE = `
      - 0 1 harian  = 08:00 WIB (daily-reminder + downgrade + COO + CEO briefing/analyst/growth + AUTO-ACC)
      - 0 3 harian  = 10:00 WIB (re-engage + downgrade)
      - 0 3 Senin   = 10:00 WIB (weekly-summary + CEO weekly)
-     - tiap 15 menit = econ-calendar + watchdog + agent sweep + pine-alerts (backup GHA 5 menit) */
+     - tiap 15 menit = econ-calendar + watchdog + agent sweep + pine-alerts
+       + price-alerts + prop-firm-guard + vip-signals (Real-time Alert
+       Engine — jalur produksi karena `ws` tak jalan di Workers) */
   async scheduled(event, env, ctx) {
     const CRON_ROUTES = {
       '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth'],
       '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
       '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-      '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts'],
+      '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/vip-signals'],
     }
     const routes = CRON_ROUTES[event.cron]
     if (!routes) { console.warn('[cron] No routes mapped for:', event.cron); return }
@@ -66,7 +68,10 @@ const SCHEDULED_CODE = `
           if (cronSecret) headers['Authorization'] = 'Bearer ' + cronSecret
           const res = await fetch(siteUrl + path, {
             method: 'GET', headers,
-            signal: AbortSignal.timeout(isCeo ? 120000 : 30000),
+            // vip-signals: broadcast push ke seluruh user PRO butuh 90 dtk
+            signal: AbortSignal.timeout(
+              route.includes('vip-signals') ? 90000 : (isCeo ? 120000 : 30000)
+            ),
           })
           if (!res.ok) console.error('[cron]', route, '→', res.status)
           else console.log('[cron]', route, 'OK:', (await res.text()).slice(0, 200))

@@ -524,3 +524,22 @@ model PushSubscription {
   @@index([userId])
   @@map("push_subscriptions")
 }
+
+// Log sinyal VIP Real-time Alert Engine (lihat src/services/marketListener.ts).
+// Runtime produksi membaca/menulis tabel ini via Supabase service-role
+// (Prisma mati di CF Workers) — migrasi SQL: supabase-migrations/041_market_alerts.sql
+model MarketAlert {
+  id             String   @id @default(uuid())
+  symbol         String   @default("XAU/USD")
+  action         String // BUY | SELL
+  entryPrice     Float    @map("entry_price")
+  sl             Float
+  tp             Float
+  triggerPrice   Float?   @map("trigger_price")
+  source         String   @default("ws-listener") // ws-listener | poll | demo
+  broadcastCount Int      @default(0) @map("broadcast_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("market_alerts")
+}

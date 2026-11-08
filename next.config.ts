@@ -41,7 +41,12 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
-  serverExternalPackages: [],
+  // 'ws' — WebSocket Node untuk marketListener (Sinyal VIP): biarkan
+  // external (require runtime dari node_modules), jangan di-bundle.
+  // 'web-push' — lib Node murni (http/https/agent-base): kalau di-bundle
+  // ke bundel instrumentation, resolusi 'http' gagal (Module not found).
+  // Keduanya CF-safe karena hanya dieksekusi di Node runtime.
+  serverExternalPackages: ['ws', 'web-push'],
 
   images: {
     unoptimized: true,

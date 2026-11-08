@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getLLMChainStatus, getLastLLMDiag } from '@/lib/ai-llm'
+import { getMarketListenerStatus } from '@/services/marketListener'
 
 /**
  * GET /api/health — health check PUBLIK (dipakai uptime monitor + probe
@@ -29,6 +30,11 @@ export async function GET() {
   let lastDiag: string[] = []
   try { lastDiag = getLastLLMDiag() } catch { /* diagnostik opsional */ }
 
+  // 9 Nov 2026: status Real-time Alert Engine (Sinyal VIP) — state
+  // listener WS/mode cron, konfigurasi cooldown. Tanpa secret, aman publik.
+  let vipSignals: ReturnType<typeof getMarketListenerStatus> | null = null
+  try { vipSignals = getMarketListenerStatus() } catch { /* diagnostik opsional */ }
+
   return NextResponse.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -36,5 +42,6 @@ export async function GET() {
     message: 'Server is running',
     llm,
     lastDiag: lastDiag.length ? lastDiag : ['(belum ada panggilan LLM di isolate ini)'],
+    vipSignals,
   })
 }
