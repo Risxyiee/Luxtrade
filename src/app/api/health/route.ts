@@ -16,7 +16,7 @@ import { getMarketListenerStatus } from '@/services/marketListener'
  * 8 Nov 2026 (v2): tambah `lastDiag` — catatan rotasi panggilan callLLM
  * TERAKHIR (model dicoba, HTTP status, auto-discover, cooldown). Inilah
  * jawaban "kok karyawan jatuh ke templat?" TANPA harus login: kalau ada
- * baris `mortera model claude-haiku-5.5 mati → coba cadangan` berarti
+ * baris `mortera model claude-haiku-5-5 mati → coba cadangan` berarti
  * model-ID salah (auto-discover langsung menyembuhkan); `402` = saldo;
  * `429` = rate-limit. Tanpa nilai key / data user — aman publik.
  */

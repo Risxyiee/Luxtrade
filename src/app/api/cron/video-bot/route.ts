@@ -730,7 +730,7 @@ async function handle(request: NextRequest) {
        tulisan kelas atas, bukan Haiku). Gagal/404/saldo habis → callLLM
        otomatis jatuh ke rantai gratis (Groq/Gemini/OpenRouter) — konten
        tidak pernah hangus. Override via env MORTERA_MODEL_CONTENT. */
-    const contentModel = process.env.MORTERA_MODEL_CONTENT || 'claude-sonnet-5.5'
+    const contentModel = process.env.MORTERA_MODEL_CONTENT || 'claude-sonnet-5-5'
     const res = await callLLM(SYSTEM_PROMPT, userPrompt, 1600, { morteraModel: contentModel })
     if (res?.text) {
       llmMeta = { provider: res.provider, model: res.model, notes: res.notes || [] }

@@ -86,9 +86,13 @@ const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-7
    Claude Haiku 5.5 (Rp 394/1.182 per 1M — termurah kelas Claude, ~Rp 63/hari
    untuk volume karyawan) → Claude Sonnet 5.5 (Rp 2.955/14.775, premium)
    → GPT-6.1 Terra (Rp 985/4.925). Fable/Opus SENGAJA di-veto (Rp 10rb-55rb
-   input per 1M — 25-140x Haiku, tidak ada tugas karyawan yang butuh). */
-const MORTERA_MODEL = process.env.MORTERA_MODEL || 'claude-haiku-5.5'
-const MORTERA_FALLBACKS = ['claude-sonnet-5.5', 'gpt-6.1-terra']
+   input per 1M — 25-140x Haiku, tidak ada tugas karyawan yang butuh).
+   FIX 2026-11-08 (diag produksi /api/health): katalog asli Mortera memakai
+   DASH bukan TITIK — 'claude-haiku-5-5' hidup (kena 429 = namanya ADA),
+   'claude-haiku-5.5' selalu 404. Nama salah = 2× round-trip 404 sia-sia
+   sebelum auto-discover menemukan nama yang benar → sekarang langsung benar. */
+const MORTERA_MODEL = process.env.MORTERA_MODEL || 'claude-haiku-5-5'
+const MORTERA_FALLBACKS = ['claude-sonnet-5-5', 'gpt-6.1-terra']
 /** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
 const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
@@ -220,7 +224,7 @@ export function getLastLLMDiag(): string[] { return lastCallDiag }
 export interface LLMCallOpts {
   /** Override model Mortera UNTUK PANGGILAN INI saja — dipakai tugas
    *  yang butuh kualitas tulisan premium (mis. konten Remotion Sinta
-   *  → 'claude-sonnet-5.5', permintaan Bos: "make api berbayar biar
+   *  → 'claude-sonnet-5-5', permintaan Bos: "make api berbayar biar
    *  bagus"). Gagal/404 → otomatis turun ke MORTERA_FALLBACKS lalu
    *  rantai gratis seperti biasa. */
   morteraModel?: string
@@ -376,8 +380,15 @@ async function callOpenAIModel(
         return { ok: false, model404: true } // model hilang → model berikutnya
       }
       if (res.status === 429) {
-        notes.push(`${label} 429 rate-limit (model ${model}) → cooldown + pindah provider`)
-        cool(label, COOLDOWN_MS_LIMIT)
+        /* TRANSPARANSI (keluhan Bos: "udah isi saldo kok masih error?"):
+           429 ≠ selalu kuota harian — bisa RPM per-menit, bisa key akun
+           lain, bisa saldo belum aktif. Pesan ASLI provider masuk diag
+           supaya sebabnya terlihat di /api/health tanpa buka log CF.
+           Retry-After (detik) dihormati, dibatasi maks 10 menit. */
+        const raSec = Number(res.headers.get('retry-after'))
+        const hint = errBody.replace(/\s+/g, ' ').trim().slice(0, 140)
+        notes.push(`${label} 429 rate-limit (model ${model})${hint ? ` — provider: ${hint}` : ''} → cooldown + pindah provider`)
+        cool(label, Number.isFinite(raSec) && raSec > 0 ? Math.min(raSec * 1000, COOLDOWN_MS_LIMIT) : COOLDOWN_MS_LIMIT)
         return { ok: false, hardStop: true }
       }
       if (res.status === 401 || res.status === 403) {
@@ -388,7 +399,10 @@ async function callOpenAIModel(
       if (res.status === 402) {
         // Khusus Mortera: wallet habis — capek coba model lain, lompat
         // provider; rantai free mengambil alih sampai Bos top-up.
-        notes.push(`${label} 402 saldo/wallet habis → cooldown 60 menit + rantai free mengambil alih`)
+        // Pesan asli provider ikut dicatat → kalau Bos SUDAH top-up tapi
+        // masih 402, sebabnya kelihatan langsung (mis. key akun yang lain).
+        const hint = errBody.replace(/\s+/g, ' ').trim().slice(0, 140)
+        notes.push(`${label} 402 saldo/wallet habis${hint ? ` — provider: ${hint}` : ''} → cooldown 60 menit + rantai free mengambil alih`)
         cool(label, COOLDOWN_MS_AUTH)
         return { ok: false, hardStop: true }
       }
