@@ -27,11 +27,66 @@ interface CacheEntry {
 
 // ─── In-Memory Cache ────────────────────────────────────────────────────────
 let calendarCache: CacheEntry | null = null;
-// 2h serve window — the calendar is WEEKLY data (only actuals update intraday),
-// and nfs.faireconomy.media rate-limits shared Cloudflare Workers egress IPs.
-// A longer window means far fewer upstream hits (max ~12/day instead of ~48).
-const CACHE_DURATION = 2 * 60 * 60 * 1000;
+// 6h serve window (FIX 8 Nov, setuju Bos: "cache 6 jam + sumber cadangan") —
+// kalender adalah data MINGGUAN (cuma kolom actual yang berubah intraday),
+// dan nfs.faireconomy.media rate-limit IP egress CF yang dipakai bersama.
+// 6 jam = maks ~4 hit upstream/hari — sisa tick cron dilayani cache.
+const CACHE_DURATION = 6 * 60 * 60 * 1000;
 const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
+
+// ─── Negative-cache sumber mati/rate-limit ────────────────────────────
+// BUKTI LOG CF 8 Nov (Bos): ff_calendar_nextweek.json 404 DITABUK lagi
+// TIAP cron walau sudah pasti 404 selamanya → request + log merah sia-sia
+// tiap 15 menit. Solusi: sumber yang gagal permanen (404) TIDAK dicoba
+// lagi selama 6 jam; yang 429 (rate-limit) diam 30 menit. Mem = cepat
+// dalam isolate; KV = koordinasi antar-isolate (isolate cron tiap tick
+// bisa selalu baru).
+const SRC_CD_KV_KEY = 'economic_calendar_source_cooldown';
+const SRC_CD_404_MS = 6 * 60 * 60 * 1000; // 6 jam — 404 tidak akan sembuh sendiri
+const SRC_CD_429_MS = 30 * 60 * 1000;     // 30 menit — rate-limit biasanya lewat
+const sourceCooldownMem: Record<string, { until: number; reason: string }> = {};
+
+async function getSourceCooldownKV(): Promise<Record<string, { until: number; reason: string }>> {
+  try {
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
+    if (!kv) return {};
+    const raw = await kv.get(SRC_CD_KV_KEY, 'text');
+    if (!raw) return {};
+    return JSON.parse(raw) as Record<string, { until: number; reason: string }>;
+  } catch { return {}; }
+}
+
+async function setSourceCooldownKV(map: Record<string, { until: number; reason: string }>): Promise<void> {
+  try {
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
+    if (!kv) return;
+    await kv.put(SRC_CD_KV_KEY, JSON.stringify(map), { expirationTtl: 7 * 24 * 60 * 60 });
+  } catch { /* KV tidak tersedia — mem saja sudah membantu */ }
+}
+
+/** Catat kegagalan sumber + simpan ke mem & KV (await — cepat, ≤1×/6 jam). */
+async function markSourceFailed(source: string, status: number): Promise<void> {
+  const ttlMs = status === 404 ? SRC_CD_404_MS : SRC_CD_429_MS;
+  const reason = status === 404 ? 'HTTP 404 (file tidak disediakan lagi)' : `HTTP ${status} (rate-limit)`;
+  const entry = { until: Date.now() + ttlMs, reason };
+  sourceCooldownMem[source] = entry;
+  try {
+    const cur = await getSourceCooldownKV();
+    cur[source] = entry;
+    await setSourceCooldownKV(cur);
+  } catch { /* KV gagal — mem cukup */ }
+  console.warn(`[EconCalendar] Negative-cache ${source} ${Math.round(ttlMs / 60000)} menit (${reason})`);
+}
 
 // Last-known-good KV cache: survives long upstream outages (7 days).
 // When ALL live sources fail, we serve this instead of the synthetic fallback.
@@ -86,12 +141,29 @@ function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
 
 // ─── 1. Faireconomy.media / ForexFactory JSON (FREE, no API key, works from CF Workers) ──
 async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
+  // NEGATIVE-CACHE: sumber yang baru saja 404/429 TIDAK ditabuk lagi
+  // (cron berhenti buang waktu + log tetap bersih). Cek mem dulu,
+  // lalu KV (isolate cron bisa selalu baru).
+  const cdMem = sourceCooldownMem['faireconomy'];
+  if (cdMem && Date.now() < cdMem.until) {
+    throw new Error(`dilewati negative-cache (${cdMem.reason} s/d ${new Date(cdMem.until).toISOString()})`);
+  }
+  const cdKV = (await getSourceCooldownKV())['faireconomy'];
+  if (cdKV && Date.now() < cdKV.until) {
+    sourceCooldownMem['faireconomy'] = cdKV;
+    throw new Error(`dilewati negative-cache KV (${cdKV.reason} s/d ${new Date(cdKV.until).toISOString()})`);
+  }
+
   // IMPORTANT: Faireconomy.media rate-limits requests without a Referer header
   // from forexfactory.com — we must include it to bypass the 429 block.
-  // Try both thisweek and nextweek endpoints for more data coverage.
+  // FIX 8 Nov 2026: ff_calendar_nextweek.json DIHAPUS dari daftar —
+  // 404 PERMANEN (bukti log CF Bos: tiap cron menabrak 404; file memang
+  // sudah tidak disediakan nfs.faireconomy.media). thisweek.json MASIH
+  // HIDUP — terverifikasi langsung: HTTP 200, JSON valid, 101 event
+  // (10 high/medium impact). Satu URL ini sudah cukup — early-return
+  // cascade butuh ≥15 event dan mingguan biasanya berisi 60-100 event.
   const urls = [
     'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
-    'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
   ];
   const events: CalendarEvent[] = [];
 
@@ -125,7 +197,12 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
           console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status} ${res.statusText} (attempt ${attempt})`);
           // 429 = rate-limited (IP egress CF dipakai bersama) dan
           // 404 = file tidak ada → retry tidak akan mengubah hasil.
-          if (res.status === 429 || res.status === 404) statusFail = true;
+          if (res.status === 429 || res.status === 404) {
+            statusFail = true;
+            // NEGATIVE-CACHE: jangan tabuk lagi — 404 diam 6 jam,
+            // 429 diam 30 menit (lihat markSourceFailed).
+            void markSourceFailed('faireconomy', res.status).catch(() => {});
+          }
           continue;
         }
         const data = await res.json();
