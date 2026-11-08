@@ -506,13 +506,13 @@ export interface MarketListenerStatus {
 
 export function getMarketListenerStatus(): MarketListenerStatus {
   const rt = runtime()
-  const isNode =
-    typeof process !== 'undefined' &&
-    !!process.versions &&
-    String((process.versions as Record<string, string>).node || '') !== ''
+  /* Mode = apa yang BENAR-BENAR jalan, bukan sekadar kapabilitas:
+     di CF Workers shim unenv membuat process.versions.node terbaca
+     walau ws mustahil jalan — ikuti state listener, jangan env. */
+  const wsActive = rt.state === 'connecting' || rt.state === 'open' || rt.state === 'reconnecting'
   return {
     state: rt.state,
-    mode: isNode ? 'ws+poll' : 'poll-only',
+    mode: wsActive ? 'ws+poll' : 'poll',
     symbols: [...VIP_SYMBOLS],
     ticks: rt.ticks,
     lastTickAt: rt.lastTickAt || null,
