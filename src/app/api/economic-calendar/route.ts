@@ -167,6 +167,55 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
   ];
   const events: CalendarEvent[] = [];
 
+  /* Parser item ff_calendar — dipakai jalur langsung & mirror (anti duplikat 40 baris). */
+  const pushItem = (item: any): boolean => {
+    const currency = (item.country || '').toUpperCase();
+    if (!currency || currency.length > 4) return false;
+    // Skip "All" or non-currency entries
+    if (currency === 'ALL' || currency.length < 2) return false;
+
+    const impactStr = String(item.impact || '').toLowerCase();
+    const impact: 'high' | 'medium' | 'low' =
+      impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' :
+      impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
+    // Skip "Holiday" impact entries
+    if (impactStr === 'holiday') return false;
+
+    const eventTitle = (item.title || 'Economic Event').trim();
+    if (!eventTitle || eventTitle.length < 3) return false;
+
+    // Parse date — format: "2026-10-21T02:00:00-04:00"
+    let eventDate = new Date().toISOString().split('T')[0];
+    let eventTime = '08:30';
+    if (item.date) {
+      try {
+        const d = new Date(item.date);
+        if (!isNaN(d.getTime())) {
+          // Convert to UTC for consistency
+          eventDate = d.toISOString().split('T')[0];
+          eventTime = d.toISOString().substring(11, 16);
+        }
+      } catch {}
+    }
+
+    const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
+    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) return false;
+
+    events.push({
+      id: 'fe-' + events.length + '-' + currency + '-' + eventDate,
+      date: eventDate,
+      time: eventTime,
+      dateTime: buildDateTime(eventDate, eventTime),
+      currency,
+      impact,
+      event: eventTitle,
+      actual: item.actual != null ? String(item.actual) : undefined,
+      forecast: item.forecast != null ? String(item.forecast) : '',
+      previous: item.previous != null ? String(item.previous) : '',
+    });
+    return true;
+  };
+
   // FIX 6 Nov (cron notify timeout → 500): retry HANYA untuk error
   // jaringan (fetch throw). Retry saat 429/404 JELAS BURUK:
   // rate-limiter faireconomy justru makin marah (6 request sia-sia
@@ -208,57 +257,63 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
         const data = await res.json();
         if (!Array.isArray(data) || data.length === 0) continue;
 
-        for (const item of data) {
-          const currency = (item.country || '').toUpperCase();
-          if (!currency || currency.length > 4) continue;
-          // Skip "All" or non-currency entries
-          if (currency === 'ALL' || currency.length < 2) continue;
-
-          const impactStr = String(item.impact || '').toLowerCase();
-          const impact: 'high' | 'medium' | 'low' =
-            impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' :
-            impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
-          // Skip "Holiday" impact entries
-          if (impactStr === 'holiday') continue;
-
-          const eventTitle = (item.title || 'Economic Event').trim();
-          if (!eventTitle || eventTitle.length < 3) continue;
-
-          // Parse date — format: "2026-10-21T02:00:00-04:00"
-          let eventDate = new Date().toISOString().split('T')[0];
-          let eventTime = '08:30';
-          if (item.date) {
-            try {
-              const d = new Date(item.date);
-              if (!isNaN(d.getTime())) {
-                // Convert to UTC for consistency
-                eventDate = d.toISOString().split('T')[0];
-                eventTime = d.toISOString().substring(11, 16);
-              }
-            } catch {}
-          }
-
-          const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
-          if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
-
-          events.push({
-            id: 'fe-' + events.length + '-' + currency + '-' + eventDate,
-            date: eventDate,
-            time: eventTime,
-            dateTime: buildDateTime(eventDate, eventTime),
-            currency,
-            impact,
-            event: eventTitle,
-            actual: item.actual != null ? String(item.actual) : undefined,
-            forecast: item.forecast != null ? String(item.forecast) : '',
-            previous: item.previous != null ? String(item.previous) : '',
-          });
-        }
+        for (const item of data) pushItem(item);
       } catch (err: any) {
         console.warn(`[EconCalendar] Faireconomy fetch error: ${err.message}`);
       }
     } // end urls loop
   } // end attempts loop
+
+  /* ── MIRROR TERAKHIR (tambahan malam 8 Nov, laporan Bos): proxy publik
+     allorigins.win meneruskan ff_calendar_thisweek.json lewat IP yang BERBEDA
+     dari egress Cloudflare → sering lolos saat jalur langsung kena 429.
+     Proxy gratis = flaky (bisa 200, bisa 522/timeout) → HANYA dicoba kalau
+     jalur langsung gagal total, validasi JSON ketat (body 522 berupa teks →
+     res.json() throw → ditangkap), dan punya cooldown negatifnya sendiri
+     30 menit supaya cron tidak mengganjal proxy tiap tick. */
+  if (events.length === 0) {
+    const mirKey = 'faireconomy-mirror';
+    const mMem = sourceCooldownMem[mirKey];
+    if (mMem && Date.now() < mMem.until) {
+      throw new Error(`mirror dilewati negative-cache (${mMem.reason})`);
+    }
+    const mKV = (await getSourceCooldownKV())[mirKey];
+    if (mKV && Date.now() < mKV.until) {
+      sourceCooldownMem[mirKey] = mKV;
+      throw new Error(`mirror dilewati negative-cache KV (${mKV.reason})`);
+    }
+    try {
+      const murl = 'https://api.allorigins.win/raw?url=' +
+        encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+      const mres = await fetch(murl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!mres.ok) throw new Error('mirror HTTP ' + mres.status);
+      const mdata = await mres.json();
+      if (!Array.isArray(mdata) || mdata.length === 0) throw new Error('mirror body bukan array kalender');
+      for (const item of mdata) pushItem(item);
+      if (events.length > 0) {
+        console.log('[EconCalendar] Faireconomy via MIRROR: ' + events.length + ' events');
+      } else {
+        throw new Error('mirror array valid tapi 0 event lolos filter');
+      }
+    } catch (merr: any) {
+      // 30 menit saja (bukan 6 jam) — kegagalan proxy sifatnya sementara,
+      // data aslinya masih hidup besok.
+      const entry = { until: Date.now() + SRC_CD_429_MS, reason: `mirror flaky: ${String(merr.message || merr).slice(0, 80)}` };
+      sourceCooldownMem[mirKey] = entry;
+      try {
+        const cur = await getSourceCooldownKV();
+        cur[mirKey] = entry;
+        await setSourceCooldownKV(cur);
+      } catch { /* KV gagal — mem cukup */ }
+      console.warn('[EconCalendar] Mirror gagal: ' + String(merr.message || merr).slice(0, 120));
+    }
+  }
 
   if (events.length === 0) throw new Error('No events from Faireconomy (thisweek returned empty or rate-limited)');
   console.log('[EconCalendar] Faireconomy SUCCESS: ' + events.length + ' events');
