@@ -6,6 +6,7 @@ import {
   ensureFreshToken,
   postToInstagram,
   validateIgPostInput,
+  getIgConfig,
   IG_CAPTION_MAX,
   IG_DAILY_CAP,
 } from '@/lib/instagram'

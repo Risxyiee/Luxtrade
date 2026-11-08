@@ -97,14 +97,14 @@ async function handle(request: NextRequest) {
             errors++
             /* Migrasi 044: verdict gagal RIIL (compile error user, dll.)
                disimpan → UI langganan menampilkan alasannya. */
-            await persistEvalHealth(supabase, g, { ok: false, error: out.error })
+            await persistEvalHealth(supabase, { scriptId: g.script.id, symbol: g.symbol, interval: g.interval }, { ok: false, error: out.error })
           }
           continue
         }
         /* Migrasi 044: skrip beneran dieksekusi → tandai ok (walaupun
            belum ada sinyal — "jalan, kondisi belum terpicu" justru
            informasi yang selama ini hilang dari user). */
-        await persistEvalHealth(supabase, g, { ok: true })
+        await persistEvalHealth(supabase, { scriptId: g.script.id, symbol: g.symbol, interval: g.interval }, { ok: true })
         sent += out.sent
         if (out.triggers.length) {
           triggeredSubs++

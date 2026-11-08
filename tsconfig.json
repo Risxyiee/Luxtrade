@@ -42,6 +42,9 @@
     "src/lib/__tests__",
     "scripts",
     "skills",
-    "examples"
+    "examples",
+    "remotion-video",
+    "mini-services",
+    "_archive"
   ]
 }

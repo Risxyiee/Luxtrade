@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { buildAlertGroups } from '@/lib/pine-alert-groups'
 import { fetchServerCandles } from '@/lib/market/server-candles'
+import type { AlertRule } from '@/lib/pine-engine-core'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,18 @@ async function handle(request: NextRequest) {
   if (!supabase) return NextResponse.json({ error: 'Supabase service role tidak tersedia' }, { status: 503 })
 
   const built = await buildAlertGroups(supabase)
-  const groups = []
+  const groups: Array<{
+    scriptId: string
+    scriptName: string
+    source: string
+    alertRules: AlertRule[] | null
+    symbol: string
+    interval: string
+    candleSource: string | null
+    candleError?: string
+    bars: Array<{ time: number; open: number; high: number; low: number; close: number }>
+    users: Array<{ userId: string; sinceSec?: number }>
+  }> = []
   for (const g of built.groups.slice(0, MAX_GROUPS)) {
     let bars: Array<{ time: number; open: number; high: number; low: number; close: number }> = []
     let candleSource: string | null = null

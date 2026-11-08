@@ -54,9 +54,6 @@ export interface RunnerUser {
   sinceSec?: number
 }
 
-/* AlertTrigger dipakai lintas modul — dari core */
-export type { AlertTrigger }
-
 export interface RunnerOutcome {
   ok: boolean
   error?: string
