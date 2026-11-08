@@ -305,8 +305,14 @@ async function callOpenAICompatible(
   for (const model of models) {
     const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
     if (r.ok && r.result) return r.result
-    if (r.hardStop) return null
     if (r.model404) sawModel404 = true
+    /* FIX 2026-11-08 (produksi nyata): dulu 429 → LANGSUNG `return null` —
+       padahal model sebelumnya 404 (katalog provider berganti, contoh
+       Mortera: claude-haiku-5.5 & claude-sonnet-5.5 mati) → AUTO-DISCOVER
+       tak pernah jalan → provider "mati" sampai deploy ulang. Sekarang
+       hardStop cuma menghentikan loop; discover tetap dicoba kalau ada
+       indikasi 404 lebih dulu. */
+    if (r.hardStop) break
   }
   /* AUTO-DISCOVER: semua model hardcoded mati → tanya provider langsung.
      Coba hingga 3 kandidat terbaik (skor tertinggi dulu). */
@@ -318,7 +324,7 @@ async function callOpenAICompatible(
       for (const alt of fresh) {
         const r = await callOpenAIModel(label, baseUrl, apiKey, alt, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
         if (r.ok && r.result) return r.result
-        if (r.hardStop) return null
+        if (r.hardStop) break
       }
     } else if (!alts.length) {
       notes.push(`${label} auto-discover tidak menemukan kandidat layak`)
