@@ -267,7 +267,7 @@ export const TOPIC_POOL: TopicEntry[] = [
   // promo-fitur
   { topic: 'Screenshot → jurnal kecatat otomatis: begini cara kerjanya (soft-sell)', angle: 'promo-fitur' },
   { topic: 'Guard prop firm: alert masuk SEBELUM drawdown breach, bukan sesudah (soft-sell)', angle: 'promo-fitur' },
-  { topic: 'Sinyal Entry/SL/TP realtime ke layar HP — kamu tidur, agen tetap jaga (soft-sell)', angle: 'promo-fitur' },
+  { topic: 'Sinyal Entry/SL/TP otomatis ke layar HP — kamu tidur, agen tetap jaga (soft-sell) — JANGAN janji "realtime" (amanat Bos)', angle: 'promo-fitur' },
   // promo-cta
   { topic: 'PRO Rp49.000/bulan: 8 agen AI + jurnal otomatis — hitung balik modalnya (hard-sell)', angle: 'promo-cta' },
 ]
@@ -340,10 +340,10 @@ const FALLBACK_LIBRARY: VideoSpecLite[] = [
     caption: 'PRO Rp49.000/bulan — 8 agen AI + jurnal otomatis. Cek link di bio 👆',
     hashtags: ['trading', 'xauusd', 'tradingindonesia', 'goldtrader', 'luxtrade'],
     igCaption:
-      'Masih nebak-nebak arah harga? 🎯\n\nLuxtrade pantau pasar 24 jam pakai 8 agen AI — sinyal masuk langsung ke HP kamu, dan setiap trade kamu otomatis kejurnal cuma dari screenshot.\n\n✅ Sinyal Entry/SL/TP realtime (push ke layar HP)\n✅ Jurnal otomatis dari screenshot\n✅ Guard prop firm — alert sebelum drawdown breach\n\nPRO mulai Rp49.000/bulan. Hitung sendiri: satu entry bagus biasanya cukup buat balik modal setahun. Link di bio 🔗\n\n#trading #xauusd #goldtrader #tradingindonesia #tradingjournal #smc #ict #propfirm #tradingapp #luxtrade',
+      'Masih nebak-nebak arah harga? 🎯\n\nLuxtrade pantau pasar 24 jam pakai 8 agen AI — sinyal masuk langsung ke HP kamu, dan setiap trade kamu otomatis kejurnal cuma dari screenshot.\n\n✅ Sinyal Entry/SL/TP otomatis (push ke layar HP)\n✅ Jurnal otomatis dari screenshot\n✅ Guard prop firm — alert sebelum drawdown breach\n\nPRO mulai Rp49.000/bulan. Hitung sendiri: satu entry bagus biasanya cukup buat balik modal setahun. Link di bio 🔗\n\n#trading #xauusd #goldtrader #tradingindonesia #tradingjournal #smc #ict #propfirm #tradingapp #luxtrade',
     scenes: [
       { kind: 'hook', title: 'MASIH NEBAK-NEBAK?', sub: 'banyak trader kalah karena tebak-tebakan', vo: 'Harga naik turun, kamu masih nebak-nebak sendiri?' },
-      { kind: 'point', title: 'LUXTRADE', sub: 'sinyal AI langsung ke HP kamu', vo: 'Kenalin, Luxtrade. Sinyal trading otomatis, langsung ke HP kamu.' },
+      { kind: 'point', title: 'LUXTRADE', sub: 'sinyal AI otomatis ke HP kamu', vo: 'Kenalin, Luxtrade. Sinyal trading otomatis, langsung ke HP kamu.' },
       { kind: 'stat', title: '8 AGEN AI', sub: 'pantau pasar 24 jam nonstop', vo: 'Delapan agen AI pantau pasar dua puluh empat jam, nonstop.' },
       { kind: 'point', title: 'TINGGAL EKSEKUSI', sub: 'alert masuk, kamu tinggal eksekusi', vo: 'Alert masuk, kamu tinggal eksekusi. Tanpa drama.' },
       { kind: 'cta', title: 'LUXTRADE', sub: 'PRO mulai Rp49rb/bulan — link di bio', vo: 'Luxtrade. Trading lebih tenang mulai hari ini. Cek link di bio!' },

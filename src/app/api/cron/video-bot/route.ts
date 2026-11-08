@@ -293,7 +293,7 @@ function buildSignalSpec(signal: SignalData): VideoSpec {
       { kind: 'hook', title: win ? 'TP KEBELI 🎯' : 'DISIPLIN SL 🛡️', sub: `sinyal ${signal.side} ${signal.symbolLabel} dari engine luxtrade`, vo: win ? `Take profit kebeli. Sinyal ${signal.side} gold dari engine Luxtrade.` : `Stop loss nyala sesuai rencana. Ini sinyal ${signal.side} gold dari Luxtrade.` },
       { kind: 'chart', title: signal.side === 'LONG' ? 'LONG SEJAK ENTRY' : 'SHORT SEJAK ENTRY', sub: `entry ${signal.entry.toLocaleString('id-ID')} → exit ${signal.exit.toLocaleString('id-ID')}`, vo: `Entry di ${signal.entry.toLocaleString('id-ID', { minimumFractionDigits: 2 })}, keluar di ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}.` },
       { kind: 'stat', title: `${pctText}`, sub: win ? 'hasil per gerakan ini — tercatat otomatis di jurnal' : 'risiko terkendali — SL jalan sesuai rencana', vo: win ? `Hasilnya ${pctText.replace('%', ' persen')}. Tercatat otomatis di jurnal.` : `Risikonya terkendali, ${pctText.replace('%', ' persen')}. SL jalan sesuai rencana.` },
-      { kind: 'cta', title: 'MAU SINYAL KE HP?', sub: 'alert entry/sl/tp realtime — link di bio', vo: 'Mau sinyal begini masuk ke layar HP kamu? Cek link di bio.' },
+      { kind: 'cta', title: 'MAU SINYAL KE HP?', sub: 'alert entry/sl/tp otomatis ke HP — link di bio', vo: 'Mau sinyal begini masuk ke layar HP kamu? Cek link di bio.' },
     ],
   }
 }

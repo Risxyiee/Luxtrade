@@ -1,6 +1,7 @@
 /**
  * ============================================================
- * marketListener — REAL-TIME ALERT ENGINE (Sinyal VIP Luxtradee)
+ * marketListener — ALERT ENGINE Sinyal VIP Luxtradee
+ * (produksi CF Workers: cron poll 15-menitan · dev/VPS: WS tick-by-tick)
  * ============================================================
  * Mendengarkan harga tick-by-tick XAU/USD dari WebSocket Twelve
  * Data, memproses ke indikator custom `evaluateCustomIndicator()`,
@@ -457,11 +458,12 @@ export async function broadcastVipSignal(
     `SL ${fmt(signal.sl)} TP ${fmt(signal.tp)} → ${receivers} user PRO${failed ? `, ${failed} gagal` : ''}`
   )
 
-  /* FREEMIUM BARU — user FREE dapat sinyal yang SAMA dengan jeda 15
-     menit (strategi ala ChatGPT: yang dibatasi kecepatannya, bukan
-     isinya). Antrian di KV lintas-isolate; cron 15-menitan berikutnya
-     (flushDueFreeSignals) yang menge-drop ke user free. demo TIDAK
-     diantrikan — sinyal palsu tak boleh sampai ke user mana pun. */
+  /* FREEMIUM BARU — user FREE dapat sinyal yang SAMA dengan jeda satu
+     siklus cron (±15–30 menit). Antrian di KV lintas-isolate; cron
+     15-menitan berikutnya (flushDueFreeSignals) yang menge-drop ke
+     user free. demo TIDAK diantrikan — sinyal palsu tak boleh sampai
+     ke user mana pun. CATATAN COPY: jangan janjikan kecepatan di
+     notifikasi (amanat Bos — tunggu terbukti dulu). */
   if (!opts?.demo) {
     try {
       await enqueueFreeSignal(payload)
@@ -474,7 +476,7 @@ export async function broadcastVipSignal(
 }
 
 /* ════════════════════════════════════════════════════════════════
-   TIER FREE — SINYAL TUNDA 15 MENIT (antrian KV lintas-isolate)
+   TIER FREE — SINYAL TUNDA SATU SIKLUS CRON (antrian KV lintas-isolate)
    ════════════════════════════════════════════════════════════════
    broadcastVipSignal() mengantrikan payload sinyal + due = now+15m.
    /api/cron/vip-signals (slot cron 15-menitan yang sudah ada) memanggil
@@ -592,10 +594,13 @@ export async function flushDueFreeSignals(): Promise<{
         admin,
         freeIds,
         {
-          /* Judul beda dari tier PRO — jujur soal delay, sekaligus
-             jaring promo: "Pro dapat ini real-time". */
-          title: (sig.title || '📈 Sinyal Luxtradee') + ' (Gratis · tunda 15 mnt)',
-          body: `${sig.body}\n⚡ Buka PRO → sinyal ini masuk real-time`,
+          /* Laporan Bos: "jangan janjiin sinyal masuk realtime — belum
+             pernah nyoba, nunggu dulu". Jadi TANPA janji kecepatan
+             apa pun: label cuma menjelaskan status tier free
+             (tertunda — faktanya memang di-drop cron berikutnya),
+             tanpa klaim "Pro real-time" dan tanpa hook promo. */
+          title: (sig.title || '📈 Sinyal Luxtradee') + ' (Gratis · tertunda)',
+          body: sig.body,
           icon: sig.icon || '/icon-192x192.png',
           tag: 'vip-signal-free',
           type: 'trade' as const,
