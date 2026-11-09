@@ -32,8 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Switch } from '@/components/ui/switch'
-import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3, SlidersHorizontal, Eye } from 'lucide-react'
+import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3 } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import { STRATEGY_PNL_TYPE, registerStrategyPnlNative, type StrategyPnlTrade } from '@/components/vela/StrategyPnlIndicator'
@@ -150,11 +149,11 @@ function emitProtectedStats(key: string, stats: ProtectedStats) {
 const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[]; visuals?: ProtectedVisuals }>()
 
 /* ============================================================
-   TOGGLE TAMPILAN CHART (permintaan Bos: "biar bisa disetting
-   apa aja yg muncul dichart") — setiap kategori visual indikator
-   Eksklusif bisa dinyalakan/dimatikan dari tombol ⚙ Tampilan di
-   toolbar. Pilihan tersimpan di localStorage & berlaku INSTAN
-   (semua instance aktif langsung re-emit tanpa refetch server).
+   TOGGLE TAMPILAN CHART — ala tab "Styles" di Settings TradingView:
+   dialog Settings ASLI chart (legenda indikator → ikon ⚙) punya tab
+   Styles berisi switch per kategori visual (plotshape/label/bgcolor/
+   line.new/box.new/table/trade). Tersimpan per skrip di localStorage
+   + berlaku INSTAN (instance langsung re-emit tanpa refetch server).
    ============================================================ */
 export interface VisualToggles {
   plots: boolean        // garis indikator (plot/EMA level dsb.)
@@ -171,6 +170,9 @@ const DEFAULT_TOGGLES: VisualToggles = {
   lines: true, boxes: true, tables: true, trades: true,
 }
 const TOGGLES_LS_KEY = 'ltx-visual-toggles-v1'
+/* Override PER SKRIP — tiap indikator Eksklusif punya setelan Styles
+   sendiri (kayak TradingView: setiap indikator punya Styles sendiri). */
+const TOGGLES_SCRIPT_LS_KEY = 'ltx-visual-toggles-scripts-v1'
 
 export function loadVisualToggles(): VisualToggles {
   try {
@@ -185,8 +187,61 @@ export function loadVisualToggles(): VisualToggles {
   } catch { return { ...DEFAULT_TOGGLES } }
 }
 
-/* State modul (dibaca saat emit — bukan React state, supaya re-emit
-   dari timer/live tick selalu pakai nilai TERBARU). */
+function loadScriptToggleOverrides(): Record<string, VisualToggles> {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(TOGGLES_SCRIPT_LS_KEY) : null
+    if (!raw) return {}
+    const j = JSON.parse(raw)
+    if (!j || typeof j !== 'object') return {}
+    const out: Record<string, VisualToggles> = {}
+    for (const [k, v] of Object.entries(j)) {
+      if (!v || typeof v !== 'object') continue
+      const t: any = {}
+      let ok = false
+      for (const key of Object.keys(DEFAULT_TOGGLES) as Array<keyof VisualToggles>) {
+        if (typeof (v as any)[key] === 'boolean') { t[key] = (v as any)[key]; ok = true }
+      }
+      if (ok) out[k] = t
+    }
+    return out
+  } catch { return {} }
+}
+
+function saveScriptToggleOverrides(map: Record<string, VisualToggles>) {
+  try { window.localStorage.setItem(TOGGLES_SCRIPT_LS_KEY, JSON.stringify(map)) } catch { /* diam */ }
+}
+
+/** Toggle efektif utk satu skrip: override per skrip → fallback global. */
+function effectiveToggles(scriptKey: string): VisualToggles {
+  const ov = loadScriptToggleOverrides()[String(scriptKey)]
+  return ov ? { ...loadVisualToggles(), ...ov } : loadVisualToggles()
+}
+
+/* Schema input Styles-tab — WAJIB sinkron dgn VisualToggles (kunci
+   `vis<Capitalized>`). Dipakai descriptor indikator terproteksi supaya
+   dialog Settings ASLI chart (vela) merender tab "Styles" persis
+   TradingView: switch bawaan chart, grup, urutan rapi. */
+const VIS_TOGGLE_SCHEMA: Array<{ key: keyof VisualToggles; inputKey: string; title: string; group: string }> = [
+  { key: 'markers', inputKey: 'visMarkers', title: 'Panah sinyal BUY/SELL (plotshape)', group: 'Sinyal' },
+  { key: 'labels', inputKey: 'visLabels', title: 'Label teks (label.new)', group: 'Sinyal' },
+  { key: 'trades', inputKey: 'visTrades', title: 'Garis Entry → Exit + TP/SL', group: 'Sinyal' },
+  { key: 'plots', inputKey: 'visPlots', title: 'Garis indikator (plot)', group: 'Elemen gambar' },
+  { key: 'lines', inputKey: 'visLines', title: 'Garis level (line.new)', group: 'Elemen gambar' },
+  { key: 'boxes', inputKey: 'visBoxes', title: 'Kotak zona (box.new)', group: 'Elemen gambar' },
+  { key: 'tables', inputKey: 'visTables', title: 'Tabel on-chart (table.new)', group: 'Elemen gambar' },
+  { key: 'backgrounds', inputKey: 'visBackgrounds', title: 'Latar belakang sesi (bgcolor)', group: 'Elemen gambar' },
+]
+
+/** Nilai input `vis*` dari toggle tersimpan — dikirim saat addNativeIndicator
+ *  supaya checkbox dialog Styles langsung menampilkan nilai yang benar. */
+function togglesToInputs(scriptKey: string): Record<string, boolean> {
+  const t = effectiveToggles(scriptKey)
+  const out: Record<string, boolean> = {}
+  for (const s of VIS_TOGGLE_SCHEMA) out[s.inputKey] = t[s.key]
+  return out
+}
+
+/* State modul (fallback global — instance tanpa override pakai ini). */
 let moduleToggles: VisualToggles = { ...DEFAULT_TOGGLES }
 if (typeof window !== 'undefined') moduleToggles = loadVisualToggles()
 
@@ -321,17 +376,50 @@ function buildVisualDrawings(
         ...(typeof (bx as any).textColor === 'string' ? { textColor: (bx as any).textColor } : {}),
       })
     })
-    ;(tg.tables ? (visuals.tables || []) : []).forEach((tb, i) => {
-      if (!tb || typeof tb !== 'object') return
-      tables.push({ ...(tb as any), id: `ltxv-${scriptId}-t${i}`, paneId: 'price', overlay: true })
+    ;(tg.tables ? (visuals.tables || []) : []).forEach((tb: any, i) => {
+      /* Renderer vela MENEBAK cells.some(...) — tabel tanpa cells =
+         Runtime TypeError = SELURUH chart gagal dimuat. Sanitasi ketat
+         ke format DrawingTable sebelum masuk emit. */
+      if (!tb || typeof tb !== 'object' || !Array.isArray(tb.cells)) return
+      const POSITIONS = ['top_left', 'top_center', 'top_right', 'middle_left', 'middle_center', 'middle_right', 'bottom_left', 'bottom_center', 'bottom_right']
+      const columns = Math.max(1, Math.round(Number(tb.columns) || (tb.cells[0]?.length ?? 1)))
+      const cellOf = (c: any) => {
+        if (!c || typeof c !== 'object' || c.merged) return null
+        return {
+          text: String(c.text ?? ''),
+          ...(typeof c.textColor === 'string' ? { textColor: c.textColor } : {}),
+          ...(typeof c.bgColor === 'string' ? { bgColor: c.bgColor } : {}),
+          hAlign: ['left', 'center', 'right'].includes(c.hAlign) ? c.hAlign : 'center',
+          vAlign: ['top', 'center', 'bottom'].includes(c.vAlign) ? c.vAlign : 'center',
+          textSize: ['auto', 'tiny', 'small', 'normal', 'large', 'huge'].includes(c.textSize) || Number.isFinite(Number(c.textSize)) ? c.textSize : 'normal',
+          fontFamily: c.fontFamily === 'monospace' ? 'monospace' : 'default',
+          bold: c.bold === true,
+          italic: c.italic === true,
+        }
+      }
+      tables.push({
+        id: `ltxv-${scriptId}-t${i}`,
+        paneId: 'price',
+        overlay: true,
+        position: POSITIONS.includes(tb.position) ? tb.position : 'top_right',
+        columns,
+        rows: Math.max(1, Math.round(Number(tb.rows) || tb.cells.length)),
+        ...(typeof tb.bgColor === 'string' ? { bgColor: tb.bgColor } : {}),
+        ...(typeof tb.frameColor === 'string' ? { frameColor: tb.frameColor } : {}),
+        frameWidth: Number.isFinite(Number(tb.frameWidth)) ? Number(tb.frameWidth) : 0,
+        ...(typeof tb.borderColor === 'string' ? { borderColor: tb.borderColor } : {}),
+        borderWidth: Number.isFinite(Number(tb.borderWidth)) ? Number(tb.borderWidth) : 0,
+        cells: tb.cells.map((row: any[]) => Array.from({ length: columns }, (_, c) => cellOf(row?.[c]))),
+        merges: Array.isArray(tb.merges) ? tb.merges : [],
+      })
     })
   } catch { /* dekoratif — jangan guncang chart */ }
   return { labels, backgrounds, lines, boxes, tables }
 }
 
-export function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = [], visuals?: ProtectedVisuals) {
+export function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = [], visuals?: ProtectedVisuals, tgOverride?: VisualToggles) {
   try {
-    const tg = moduleToggles // toggle Tampilan saat ini (Bos: "apa aja yg muncul")
+    const tg = tgOverride || moduleToggles // toggle Styles instance ini (fallback global)
     const barsArr: Array<{ time: number }> = typeof ctx?.bars === 'function' ? ctx.bars() : []
     /* BUCKET-TOLERANT MATCHING (fix "pine ga ada Entry/SL/TP"):
        dulu nilai plot di-match ke bar dgn kesamaan waktu PERSIS —
@@ -419,7 +507,7 @@ export function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: s
     if (visuals) {
       try {
         const fullBars: any[] = typeof ctx?.bars === 'function' ? ctx.bars() : []
-        const { labels: visLabels, backgrounds: visBackgrounds, lines: visLines, boxes: visBoxes, tables: visTables } = buildVisualDrawings(visuals, scriptId, fullBars)
+        const { labels: visLabels, backgrounds: visBackgrounds, lines: visLines, boxes: visBoxes, tables: visTables } = buildVisualDrawings(visuals, scriptId, fullBars, tg)
         if (visLabels.length) labels.push(...visLabels)
         if (visBackgrounds.length) backgroundsArr.push(...visBackgrounds)
         if (visLines.length) lines.push(...visLines)
@@ -454,6 +542,10 @@ function createProtectedInstance() {
   let lastTrades: ProtectedTrade[] = [] // visual garis/label per trade
   let lastVisuals: ProtectedVisuals | null = null // plotshape/bgcolor/label.new dari server
   let lastBarsSig = '' // anti re-emit sia-sia saat bars tak berubah
+  /* Toggle tab Styles MILIK instance ini (per skrip — ala TradingView:
+     setiap indikator punya Styles sendiri). Fallback global bila
+     skrip belum punya override. */
+  let curToggles: VisualToggles = { ...DEFAULT_TOGGLES }
   const reemitTimers: ReturnType<typeof setTimeout>[] = []
 
   /* Kunci run dari ctx — simbol bisa berprefiks provider (buang sebelum ':'). */
@@ -473,7 +565,7 @@ function createProtectedInstance() {
   const scheduleReEmits = () => {
     clearTimers()
     for (const d of [700, 1800, 3500, 6000]) {
-      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey, lastTrades, lastVisuals || undefined) } catch { /* diam */ } }, d))
+      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey, lastTrades, lastVisuals || undefined, curToggles) } catch { /* diam */ } }, d))
     }
   }
 
@@ -486,8 +578,8 @@ function createProtectedInstance() {
       const sig = `${barsArr.length}:${barsArr[0]?.time ?? 0}:${barsArr[barsArr.length - 1]?.time ?? 0}`
       if (sig === lastBarsSig) return
       lastBarsSig = sig
-      emitProtectedPlots(c, lastPlots, scriptKey, lastTrades, lastVisuals || undefined)
-    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey, lastTrades, lastVisuals || undefined) } catch { /* diam */ } }
+      emitProtectedPlots(c, lastPlots, scriptKey, lastTrades, lastVisuals || undefined, curToggles)
+    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey, lastTrades, lastVisuals || undefined, curToggles) } catch { /* diam */ } }
   }
 
   const run = async (force: boolean) => {
@@ -575,6 +667,7 @@ function createProtectedInstance() {
     start: (c: any, inputs: Record<string, any>) => {
       ctx = c
       scriptKey = String(inputs?.scriptId || inputs?.slug || '')
+      curToggles = scriptKey ? effectiveToggles(scriptKey) : { ...DEFAULT_TOGGLES }
       lastPlots = null
       lastTrades = []
       lastVisuals = null
@@ -603,7 +696,25 @@ function createProtectedInstance() {
     onViewport: () => { if (lastPlots && ctx) maybeEmit(ctx) },
     setInputs: (i: Record<string, any>) => {
       const s = String(i?.scriptId || i?.slug || '')
-      if (s && s !== scriptKey) { scriptKey = s; lastPlots = null; lastTrades = []; lastBarsSig = ''; lastRunKey = ''; run(true) }
+      if (s && s !== scriptKey) { scriptKey = s; curToggles = effectiveToggles(s); lastPlots = null; lastTrades = []; lastBarsSig = ''; lastRunKey = ''; run(true); return }
+      /* Tab Styles (ala TradingView): toggle visual berubah → simpan
+         override PER SKRIP + re-emit INSTAN tanpa refetch server. */
+      let changed = false
+      const next: VisualToggles = { ...curToggles }
+      for (const st of VIS_TOGGLE_SCHEMA) {
+        const v = i?.[st.inputKey]
+        if (typeof v === 'boolean' && v !== next[st.key]) { next[st.key] = v; changed = true }
+      }
+      if (changed && scriptKey) {
+        curToggles = next
+        try {
+          const map = loadScriptToggleOverrides()
+          map[String(scriptKey)] = { ...next }
+          saveScriptToggleOverrides(map)
+        } catch { /* diam */ }
+        const c = ctx
+        if (c && lastPlots) { lastBarsSig = ''; maybeEmit(c) }
+      }
     },
     suspend: () => { /* tetap hidup — data murah dari cache */ },
     resume: () => {
@@ -628,8 +739,27 @@ function ensureProtectedNativeRegistered(register: (d: any) => void) {
     paneHint: 'price',
     overlay: true,
     multiInstance: true,
-    inputsSchema: () => [{ key: 'scriptId', type: 'text', defval: '', title: 'Script ID', visible: false } as any],
-    defaultInputs: () => ({ scriptId: '' }),
+    /* Dialog Settings ASLI chart (ikon ⚙ di legenda indikator — persis
+       TradingView):
+       - tab "Inputs"  : scriptId disembunyikan (gate `when` tak pernah
+                         lolos → baris hidden, nilai tetap dipakai)
+       - tab "Styles"  : switch per kategori visual — pengguna memilih
+                         apa saja yang muncul di chart ala TradingView. */
+    inputsSchema: () => [
+      {
+        key: 'scriptId', type: 'text', defval: '', title: 'Script ID',
+        when: { key: 'scriptId', equals: '__hidden__' }, // gate tak pernah lolos → hidden
+      } as any,
+      ...VIS_TOGGLE_SCHEMA.map((s) => ({
+        key: s.inputKey,
+        type: 'bool',
+        defval: true,
+        title: s.title,
+        group: s.group,
+        tab: 'Styles',
+      } as any)),
+    ],
+    defaultInputs: () => ({ scriptId: '', ...Object.fromEntries(VIS_TOGGLE_SCHEMA.map((s) => [s.inputKey, true])) }),
     create: createProtectedInstance,
   })
 }
@@ -1089,15 +1219,9 @@ export default function VelaChartTerminal({
   /* ---------- Upgrade paywall dialog ---------- */
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
 
-  /* ---------- Tampilan chart (toggle kategori visual — Bos: "biar
-     bisa disetting apa aja yg muncul dichart") ---------- */
-  const [visualOpen, setVisualOpen] = useState(false)
-  const [toggles, setToggles] = useState<VisualToggles>(() => loadVisualToggles())
-  const updateToggle = (key: keyof VisualToggles, v: boolean) => {
-    const next = { ...toggles, [key]: v }
-    setToggles(next)
-    applyVisualToggles(next) // simpan + repaint semua indikator aktif
-  }
+  /* Setelan "apa aja yg muncul di chart" sekarang lewat dialog Settings
+     ASLI chart (ikon ⚙ di legenda indikator Eksklusif → tab Styles,
+     persis TradingView) — bukan dialog React terpisah. */
 
   /* ---------- Preset indikator (chip) — free 1 · pro 3 ---------- */
   const [activePresets, setActivePresets] = useState<Record<number, boolean>>({})
@@ -1365,7 +1489,7 @@ export default function VelaChartTerminal({
               setActiveProtected((m) => ({ ...m, [key]: true }))
               continue
             }
-            chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: key } })
+            chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: key, ...togglesToInputs(key) } })
             setActiveProtected((m) => ({ ...m, [key]: true }))
           }
 
@@ -1863,7 +1987,9 @@ export default function VelaChartTerminal({
       if (typeof chart.addNativeIndicator !== 'function') {
         setProtectedMsg('Gagal: terminal belum mendukung indikator eksklusif (update chart).'); return
       }
-      chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
+      /* inputs = scriptId + setelan Styles tersimpan (tab Styles dialog
+         Settings langsung menampilkan nilai aktif — ala TradingView) */
+      chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id, ...togglesToInputs(s.id) } })
       setActiveProtected((m) => ({ ...m, [s.id]: true }))
       setProtectedMsg(s.name + ' tampil di chart. Klik ikon bel di sebelah nama skrip untuk alert otomatis 24 jam ke layar HP.')
     } catch (x: any) {
@@ -1894,12 +2020,6 @@ export default function VelaChartTerminal({
           </Button>
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setPineOpen((v) => !v)}>
             <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
-          </Button>
-          {/* ---------- ⚙ Tampilan: setel apa saja yang muncul di chart
-             (permintaan Bos: "biar bisa disetting apa aja yg muncul
-             dichart") — toggle per kategori visual indikator. ---------- */}
-          <Button size="sm" variant="outline" className="text-xs h-8 border-purple-400/30 text-purple-200 hover:bg-purple-400/10 hover:text-purple-100" onClick={() => setVisualOpen(true)}>
-            <SlidersHorizontal className="w-3.5 h-3.5 mr-1" /> Tampilan
           </Button>
         </div>
       </div>
@@ -2276,53 +2396,9 @@ export default function VelaChartTerminal({
         </div>
       )}
 
-      {/* ---------- Dialog ⚙ TAMPILAN — setel apa saja yang muncul di
-          chart (permintaan Bos). Toggle per kategori visual indikator
-          Eksklusif/terproteksi; tersimpan di localStorage & berlaku
-          INSTAN tanpa muat ulang chart. ---------- */}
-      <Dialog open={visualOpen} onOpenChange={setVisualOpen}>
-        <DialogContent className="max-w-sm bg-[#0a0f16] border-white/10 max-h-[85vh] overflow-y-auto kscroll">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-purple-200 text-base">
-              <Eye className="w-4 h-4" /> Tampilan Chart
-            </DialogTitle>
-            <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
-              Pilih elemen indikator yang ingin muncul di chart. Perubahan langsung berlaku & tersimpan otomatis.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1">
-            {([
-              ['markers', 'Panah sinyal BUY/SELL', 'Tanda plotshape (segitiga/panah) hasil sinyal skrip'],
-              ['labels', 'Label teks harga', 'Kotak label di chart (label.new — teks BUY, level, dst.)'],
-              ['trades', 'Garis Entry → Exit + TP/SL', 'Garis perdagangan strategy + label TP/SL'],
-              ['plots', 'Garis indikator', 'Garis EMA/level hasil plot() skrip'],
-              ['backgrounds', 'Latar sesi (bgcolor)', 'Pewarnaan latar sesi pasar/zona'],
-              ['lines', 'Garis level (line.new)', 'Garis support/resistance/trendline dari skrip'],
-              ['boxes', 'Kotak zona (box.new)', 'Kotak zona supply/demand atau range'],
-              ['tables', 'Tabel on-chart (table.new)', 'Tabel informasi yang digambar skrip di chart'],
-            ] as Array<[keyof VisualToggles, string, string]>).map(([key, title, desc]) => (
-              <label
-                key={key}
-                className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2.5 cursor-pointer hover:bg-white/[0.06] transition-colors"
-              >
-                <span className="flex-1 min-w-0">
-                  <span className="block text-xs font-medium text-white/90">{title}</span>
-                  <span className="block text-[10px] text-white/40 leading-snug">{desc}</span>
-                </span>
-                <Switch
-                  checked={toggles[key]}
-                  onCheckedChange={(v) => updateToggle(key, v)}
-                  aria-label={`${toggles[key] ? 'Sembunyikan' : 'Tampilkan'} ${title}`}
-                  className="shrink-0 data-[state=checked]:bg-purple-500"
-                />
-              </label>
-            ))}
-          </div>
-          <p className="text-[10px] text-white/35 leading-relaxed">
-            Berlaku untuk indikator Eksklusif & terproteksi di chart. Semua elemen kembali tampil bila semua toggle dinyalakan.
-          </p>
-        </DialogContent>
-      </Dialog>
+      {/* Setelan tampilan indikator Eksklusif kini di dialog Settings ASLI
+          chart: klik ikon ⚙ pada legenda "LTX Pro" → tab Styles (ala
+          TradingView) — switch per kategori visual, tersimpan per skrip. */}
 
       {/* ---------- Dialog paywall upgrade ---------- */}
       <Dialog open={!!upgradeMsg} onOpenChange={(v) => !v && setUpgradeMsg(null)}>
