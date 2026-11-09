@@ -41,15 +41,12 @@ export interface SeoPageData {
   lastPrice?: number | null
   /** Perubahan % dalam rentang candle yang diambil — null = tidak tersedia. */
   priceChangePct?: number | null
-  /** Sinyal VIP terakhir dari market_alerts — null = belum ada (ditulis jujur). */
-  lastSignal?: { action: string; symbol: string; createdAt: string } | null
   marketOpen: boolean
   sessionWib: string
   /** Tanggal hari ini zona WIB, format yyyy-mm-dd. */
   todayIso: string
   economicEvents: Array<{ time: string; country: string; title: string; impact: string }>
   memberCount: number
-  signalCount7d: number
 }
 
 /** Nama tambahan biar konten natural bahasa Indonesia (bukan bahasa mesin). */
@@ -380,20 +377,12 @@ export function buildSeoPageHtml(plan: SeoPagePlan, data: SeoPageData): string {
     )
   }
 
-  /* 2) Level & Sinyal Terakhir — jujur, tanpa mengarang level */
-  bagian.push(`<h2>Level &amp; Sinyal Terakhir</h2>`)
-  const sig = data.lastSignal
-  if (sig && sig.action && sig.symbol) {
-    const w = wibParts(sig.createdAt)
-    const kapan = w && w.jam ? `${escapeHtml(w.tanggal)} pukul ${escapeHtml(w.jam)} WIB` : w ? escapeHtml(w.tanggal) : ''
-    bagian.push(
-      `<p>Sinyal VIP terakhir yang dibagikan tim Luxtradee: <strong>${escapeHtml(String(sig.action).toUpperCase())} ${escapeHtml(sig.symbol)}</strong>${kapan ? ` — ${kapan}` : ''}. Detail level (entry, stoploss, takeprofit) tidak dipublikasikan di halaman ini; sinyal lengkap masuk notifikasi HP member PRO begitu terbit.</p>`,
-    )
-  } else {
-    bagian.push(
-      `<p><strong>Belum ada sinyal baru hari ini</strong> untuk ${label} — jujur saja: sampai halaman ini diperbarui (${tanggal}, WIB), tim analisis belum menerbitkan sinyal ${s}. Pantau terus: halaman ini berubah otomatis begitu sinyal baru masuk, dan level lengkap (entry, stoploss, takeprofit) langsung sampai ke notifikasi HP member PRO.</p>`,
-    )
-  }
+  /* 2) Posisi produk — jurnal, bukan jualan sinyal (keputusan Bos 9 Nov).
+     Sinyal/alert di Luxtradee = dari Pine Script milik user sendiri. */
+  bagian.push(`<h2>Jurnal Pintar, Bukan Jualan Sinyal</h2>`)
+  bagian.push(
+    `<p>Luxtradee adalah <strong>jurnal trading</strong>: catat trade (bisa impor CSV/statement MT4–MT5 atau upload screenshot), dan AI membaca pola loss-mu otomatis. Tidak ada sinyal buatan tim yang dibagikan — satu-satunya alert di Luxtradee adalah dari <strong>Pine Script milik kamu sendiri</strong>: tulis indikator/strategimu, aktifkan alert otomatis, dan push Entry/SL/TP masuk HP saat kondisimu terpicu.</p>`,
+  )
 
   /* 3) Konten inti sesuai intent (tiap intent beda — bukan spintax) */
   bagian.push(intentCoreSection(plan, data))
@@ -420,14 +409,10 @@ export function buildSeoPageHtml(plan: SeoPagePlan, data: SeoPageData): string {
 
   /* 5) CTA + social proof angka riil */
   bagian.push(`<h2>Coba Gratis di Luxtradee</h2>`)
-  bagian.push(`<p>Coba gratis di Luxtradee — sinyal otomatis masuk notifikasi HP.</p>`)
+  bagian.push(`<p>Coba gratis di Luxtradee — catat trade-mu, AI baca pola loss-mu otomatis.</p>`)
   const member = Math.max(0, Math.trunc(Number(data.memberCount) || 0))
-  const sig7 = Math.max(0, Math.trunc(Number(data.signalCount7d) || 0))
-  if (member > 0 || sig7 > 0) {
-    const potongan: string[] = []
-    if (member > 0) potongan.push(`<strong>${member} trader</strong> sudah bergabung`)
-    if (sig7 > 0) potongan.push(`<strong>${sig7} sinyal</strong> dibagikan dalam 7 hari terakhir`)
-    bagian.push(`<p>${potongan.join(' dan ')} — angka langsung dari sistem, bukan karangan.</p>`)
+  if (member > 0) {
+    bagian.push(`<p><strong>${member} trader</strong> sudah bergabung — angka langsung dari sistem, bukan karangan.</p>`)
   }
 
   return bagian.join('\n')

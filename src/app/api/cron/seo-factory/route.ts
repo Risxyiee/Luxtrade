@@ -32,9 +32,8 @@ import {
  *      rotasi per hari WIB; plan pertama = target terbit.
  *   3. Data riil per-sumber (try/catch terpisah):
  *      - Harga    : self-fetch /api/candles (bar terakhir = bar berjalan →
- *                   dipakai bar kedua-terakhir, pola vip-signals).
- *      - Sinyal   : market_alerts terakhir (tabel belum ada → null).
- *      - Member   : profiles count; signalCount7d: market_alerts 7 hari.
+ *                   dipakai bar kedua-terakhir).
+ *      - Member   : profiles count.
  *      - Kalender : economic_events ≥ hari ini (tabel mungkin tidak ada →
  *                   [] — error 42P01/does-not-exist DILARANG bikin crash).
  *   4. buildSeoPageHtml + seoInternalLinks → insert blog_posts (kolom isi
@@ -164,23 +163,6 @@ async function fetchHarga(symbol: string): Promise<{ lastPrice: number | null; p
     }
   } catch {
     return { lastPrice: null, priceChangePct: null }
-  }
-}
-
-/** Sinyal VIP terakhir — tabel market_alerts mungkin belum ada (SQL 041). */
-async function fetchSinyalTerakhir(admin: SupabaseClient): Promise<SeoPageData['lastSignal']> {
-  try {
-    const { data, error } = await admin
-      .from('market_alerts')
-      .select('action,symbol,created_at')
-      .order('created_at', { ascending: false })
-      .limit(1)
-    if (error) return null
-    const row = (data as Array<{ action: string; symbol: string; created_at: string }> | null)?.[0]
-    if (!row?.action || !row?.symbol) return null
-    return { action: String(row.action), symbol: String(row.symbol), createdAt: String(row.created_at) }
-  } catch {
-    return null
   }
 }
 
@@ -326,24 +308,20 @@ async function handle(): Promise<NextResponse> {
   const target = plans[0]
 
   /* ── 3. DATA RIIL (paralel; tiap sumber gagal → null/[], bukan mengarang) ── */
-  const [harga, lastSignal, memberCount, signalCount7d, economicEvents] = await Promise.all([
+  const [harga, memberCount, economicEvents] = await Promise.all([
     fetchHarga(target.symbol),
-    fetchSinyalTerakhir(admin),
     hitungBaris(admin, 'profiles'),
-    hitungBaris(admin, 'market_alerts', { col: 'created_at', iso: new Date(Date.now() - 7 * 24 * 3600_000).toISOString() }),
     fetchEventEkonomi(admin, wib.todayIso),
   ])
 
   const pageData: SeoPageData = {
     lastPrice: harga.lastPrice,
     priceChangePct: harga.priceChangePct,
-    lastSignal,
     marketOpen: pasarBuka(wib.weekday, wib.hour),
     sessionWib: sesiWib(wib.hour),
     todayIso: wib.todayIso,
     economicEvents,
     memberCount,
-    signalCount7d,
   }
 
   /* ── 4. Susun HTML + insert resilient (kolom inti = content_body, migrasi 015;
@@ -414,10 +392,8 @@ async function handle(): Promise<NextResponse> {
     todayWib: wib.ymd,
     dataQuality: {
       harga: harga.lastPrice !== null,
-      sinyalTerakhir: !!lastSignal,
       eventEkonomi: economicEvents.length,
       member: memberCount,
-      sinyal7d: signalCount7d,
     },
     discordOk,
     durationMs: Date.now() - startedAt,

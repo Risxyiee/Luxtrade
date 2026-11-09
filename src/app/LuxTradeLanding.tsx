@@ -1500,7 +1500,7 @@ export default function LuxTradeLanding() {
             {[
               {
                 q: language === 'id' ? 'Apakah LuxTrade gratis digunakan?' : 'Is LuxTrade free to use?',
-                a: language === 'id' ? 'Ya! Jurnal trade di LuxTrade unlimited dan gratis selamanya — catat sebanyak apa pun tanpa batas, lengkap dengan grafik performa dan statistik standar. Paket Elite Pro membuka kemampuan cerdas: analisis AI tanpa batas, sinyal prioritas, ekspor data, dan auto-journal.' : 'Yes! Trading journal in LuxTrade is unlimited and free forever — log as many trades as you want with performance charts and standard analytics. Elite Pro unlocks the smart layer: unlimited AI analysis, priority signals, data export, and auto-journal.'
+                a: language === 'id' ? 'Ya! Jurnal trade di LuxTrade unlimited dan gratis selamanya — catat sebanyak apa pun tanpa batas, lengkap dengan grafik performa dan statistik standar. Paket Elite Pro membuka kemampuan cerdas: analisis AI tanpa batas, alert otomatis dari Pine Script milikmu sendiri, ekspor data, dan auto-journal.' : 'Yes! Trading journal in LuxTrade is unlimited and free forever — log as many trades as you want with performance charts and standard analytics. Elite Pro unlocks the smart layer: unlimited AI analysis, auto-alerts from your own Pine Script, data export, and auto-journal.'
               },
               {
                 q: language === 'id' ? 'Bagaimana cara kerja analisis AI?' : 'How does the AI analysis work?',

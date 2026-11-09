@@ -72,12 +72,12 @@ async function buildGrowthContext(): Promise<{ block: string; hookGreeting: stri
     }
     if (proofRow) {
       try {
-        const proof = JSON.parse(proofRow.value) as { members?: number; signals7d?: number | null }
+        const proof = JSON.parse(proofRow.value) as { members?: number; tradesTotal?: number | null }
         if (typeof proof.members === 'number' && proof.members >= 0) {
           lines.push(`- Total member Luxtradee: ${proof.members}`)
         }
-        if (typeof proof.signals7d === 'number' && proof.signals7d >= 0) {
-          lines.push(`- Sinyal VIP 7 hari terakhir: ${proof.signals7d}`)
+        if (typeof proof.tradesTotal === 'number' && proof.tradesTotal >= 0) {
+          lines.push(`- Trade terjurnal user: ${proof.tradesTotal}`)
         }
       } catch { /* skip */ }
     }
@@ -85,9 +85,9 @@ async function buildGrowthContext(): Promise<{ block: string; hookGreeting: stri
     return {
       block: `\n\nDATA RIIL LUXTRADEE HARI INI (boleh dikutip PERSIS — DILARANG mengarang angka lain):\n${lines.map(l => `- ${l}`).join('\n')}` +
         `\n\nMISI MENANGKAP LEAD (hormati ritme percakapan — jangan maksa):\n` +
-        `- Kalau visitor terlihat tertarik (tanya fitur/harga/sinyal, chat sudah 2+ bolak-balik), tawarkan: "Mau aku kirim sinyal & tips harian gratis? Tinggal kasih email kamu aja 📬"\n` +
-        `- Kalau visitor memberi email → ucapkan terima kasih singkat + bilang tim kami akan kirim sinyal & undangan daftar gratis (https://luxtradee.web.id/auth/signup). JANGAN minta data lain (no telp/alamat).\n` +
-        `- Kalau visitor menolak → jangan tanya lagi, lanjut bantu pertanyaannya.`,
+        `- Kalau visitor terlihat tertarik (tanya fitur/harga/jurnal, chat sudah 2+ bolak-balik), tawarkan: "Mau aku kirim tips jurnal & edukasi trading gratis? Tinggal kasih email kamu aja 📬"\n` +
+        `- Kalau visitor memberi email → ucapkan terima kasih singkat + bilang tim kami akan kirim tips jurnal & undangan daftar gratis (https://luxtradee.web.id/auth/signup). JANGAN minta data lain (no telp/alamat).\n` +
+        `- Luxtradee = APLIKASI JURNAL — JANGAN menawarkan/mengarang sinyal buatan tim (sinyal hanya dari Pine Script milik user sendiri, fitur alert otomatis PRO).`,
       hookGreeting,
     }
   } catch { /* agent_kv belum ada → tanpa konteks */ }

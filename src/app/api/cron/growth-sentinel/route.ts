@@ -29,7 +29,7 @@ import {
  *   1. lead-welcome  — lead baru dari CS bot (growth_leads 'new') →
  *                      LLM racik email welcome personal → draf masuk
  *                      ai_pending_actions (ACC Bos → Resend). Cooldown 1 jam.
- *   2. social-proof  — hitung angka RIIL (member, trade, sinyal 7 hari)
+ *   2. social-proof  — hitung angka RIIL (member, trade terjurnal)
  *                      → agent_kv 'growth:social-proof' → dipakai CS bot
  *                      & landing (trust = konversi). Tanpa LLM. Cooldown 2 jam.
  *   3. cs-hook       — LLM tulis hook sapaan proaktif CS bot HARI INI
@@ -104,7 +104,7 @@ async function callKevin(
 /* FIX [object Promise]: dulu fungsi ini `async` lalu dipakai di template
    literal (`created_at.gte.${sinceIso(6)}`) TANPA await → URL filter
    Supabase berisi "[object Promise]" → 400 di SEMUA hitungan waktu
-   (signup 6j/24j/7h, lead 24j, sinyal, trade) — produksi terbukti di
+   (signup 6j/24j/7h, lead 24j, trade) — produksi terbukti di
    log CF 2026-11-08. Tidak ada await di dalamnya → sync murni. */
 function sinceIso(hours: number): string {
   return new Date(Date.now() - hours * 3600_000).toISOString()
@@ -126,41 +126,26 @@ async function countRows(admin: SupabaseClient, table: string, filters: string):
 }
 
 async function gatherMetrics(admin: SupabaseClient): Promise<GrowthMetrics> {
-  const [s6, s24, s7d, leadsNew, leads24h, signalsToday, trades24h, members] = await Promise.all([
+  const [s6, s24, s7d, leadsNew, leads24h, trades24h, members] = await Promise.all([
     countRows(admin, 'profiles', `created_at.gte.${sinceIso(6)}`),
     countRows(admin, 'profiles', `created_at.gte.${sinceIso(24)}`),
     countRows(admin, 'profiles', `created_at.gte.${sinceIso(24 * 7)}`),
     countRows(admin, 'growth_leads', 'status.eq.new'),
     countRows(admin, 'growth_leads', `created_at.gte.${sinceIso(24)}`),
-    countRows(admin, 'market_alerts', `created_at.gte.${sinceIso(24)}`),
     countRows(admin, 'trades', `created_at.gte.${sinceIso(24)}`),
     countRows(admin, 'profiles', ''),
   ])
   const core = [s6, s24, s7d, members]
-  const optional = [leadsNew, leads24h, signalsToday, trades24h]
+  const optional = [leadsNew, leads24h, trades24h]
   return {
     signups6h: Math.max(0, s6), signups24h: Math.max(0, s24), signups7d: Math.max(0, s7d),
-    leadsNew, leads24h, signalsToday, trades24h, members,
+    leadsNew, leads24h, trades24h, members,
     dataIncomplete: core.some(v => v < 0) || optional.every(v => v < 0),
   }
 }
 
 /* ── AKSI: SOCIAL PROOF ──────────────────────────────────────────────── */
 async function runSocialProof(admin: SupabaseClient, m: GrowthMetrics, dry: boolean): Promise<SocialProof> {
-  let lastSignal: SocialProof['lastSignal'] = null
-  let signals7d: number | null = null
-  try {
-    const { count } = await admin
-      .from('market_alerts').select('id', { count: 'exact', head: true })
-      .gte('created_at', sinceIso(24 * 7))
-    signals7d = count ?? 0
-    const { data } = await admin
-      .from('market_alerts').select('symbol, action, created_at')
-      .order('created_at', { ascending: false }).limit(1)
-    const row = (data as Array<{ symbol: string; action: string; created_at: string }> | null)?.[0]
-    if (row) lastSignal = { symbol: row.symbol, action: row.action, createdAt: row.created_at }
-  } catch { /* tabel market_alerts belum ada (SQL 041) — biarkan null */ }
-
   let tradesTotal: number | null = null
   try {
     const { count } = await admin.from('trades').select('id', { count: 'exact', head: true })
@@ -169,7 +154,7 @@ async function runSocialProof(admin: SupabaseClient, m: GrowthMetrics, dry: bool
 
   const proof: SocialProof = {
     members: Math.max(0, m.members),
-    tradesTotal, signals7d, lastSignal,
+    tradesTotal,
     generatedAt: new Date().toISOString(),
   }
   if (!dry) await kvSet(admin, 'growth:social-proof', JSON.stringify(proof))
@@ -183,18 +168,18 @@ Sapaan harus bikin penasaran & relevan HARI INI berdasarkan DATA RIIL yang diber
 
 Output WAJIB JSON murni tanpa markdown fence:
 {"greeting":"...max 160 karakter...","chips":["...max 28 char","...max 28 char"],"note":"1 kalimat alasan hook ini (untuk Bos)"}
-chips = 2 tombol quick-reply yang diklik pengunjung. Chip pertama menggoda lihat sinyal/pasarnya, chip kedua mengarah ke "mulai gratis"/cara kerja.`
+chip pertama menggoda lihat cara kerja jurnal/analitiknya, chip kedua mengarah ke "mulai gratis"/cara kerja.`
 
 async function runCsHook(admin: SupabaseClient, m: GrowthMetrics, drought: DroughtVerdict, dry: boolean): Promise<CsHook> {
   const proofLines = socialProofLines({
-    members: Math.max(0, m.members), tradesTotal: null, signals7d: m.signalsToday >= 0 ? m.signalsToday : null,
-    lastSignal: null, generatedAt: new Date().toISOString(),
+    members: Math.max(0, m.members), tradesTotal: null,
+    generatedAt: new Date().toISOString(),
   })
   const userPrompt =
     `DATA RIIL HARI INI (WIB ${wibDateStr()}):\n` +
     `${proofLines.map(l => `- ${l}`).join('\n') || '- (belum ada data publik)'}\n` +
     `- Kondisi traffic: ${drought.level} (${clip(drought.reasons.join('; '), 140)})\n\n` +
-    `Tulis hook sapaan untuk pengunjung baru hari ini. ${m.signalsToday > 0 ? `Ada ${m.signalsToday} sinyal hari ini — manfaatkan.` : 'Belum ada sinyal hari ini — jangan mengarang angka sinyal.'}`
+    `Tulis hook sapaan untuk pengunjung baru hari ini. ${m.trades24h > 0 ? `Ada ${m.trades24h} trade baru terjurnal hari ini — manfaatkan.` : 'Luxtradee = jurnal trading — JANGAN menawarkan sinyal buatan tim (kami tidak jualan sinyal; sinyal hanya dari Pine Script user).'}`
   const res = await callKevin(HOOK_SYSTEM, userPrompt, 400)
   if (res) {
     const parsed = extractJson<{ greeting?: string; chips?: string[]; note?: string }>(res.text)
@@ -293,7 +278,7 @@ async function runLeadWelcome(admin: SupabaseClient, dry: boolean): Promise<{
 async function runDroughtAlarm(m: GrowthMetrics, drought: DroughtVerdict, dry: boolean): Promise<{ sent: boolean; error?: string }> {
   const proofLines = socialProofLines({
     members: Math.max(0, m.members), tradesTotal: null,
-    signals7d: m.signalsToday >= 0 ? m.signalsToday : null, lastSignal: null, generatedAt: new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
   })
   const msg =
     `🕵️ **GROWTH SENTINEL — ${drought.level.toUpperCase()}**\n` +
@@ -372,7 +357,7 @@ async function handleRequest(request: NextRequest) {
     if (action === 'social-proof') {
       const proof = await runSocialProof(admin, metrics, dry)
       actionData = { proof }
-      notes.push(`social proof disegarkan: ${proof.members} member, sinyal 7 hari ${proof.signals7d ?? '?'}`)
+      notes.push(`social proof disegarkan: ${proof.members} member, ${proof.tradesTotal ?? '?'} trade terjurnal`)
     } else if (action === 'cs-hook') {
       const hook = await runCsHook(admin, metrics, drought, dry)
       actionData = { hook }
@@ -400,7 +385,7 @@ async function handleRequest(request: NextRequest) {
       lesson: `Sentinel ${action}: ${reason}. Signup 24j=${metrics.signups24h}/7h=${metrics.signups7d}, lead baru=${metrics.leadsNew}`,
       level: drought.level, action, metrics: {
         signups24h: metrics.signups24h, signups7d: metrics.signups7d,
-        leadsNew: metrics.leadsNew, signalsToday: metrics.signalsToday,
+        leadsNew: metrics.leadsNew, trades24h: metrics.trades24h,
       },
     })
   }

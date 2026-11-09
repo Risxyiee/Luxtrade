@@ -43,8 +43,8 @@ const FAQ: Array<{ keys: RegExp; id: string; en: string }> = [
   {
     // sinyal / entry / buy / sell / vip
     keys: /sinyal|signal|entry|enter|buy|sell|tp|sl|vip|akurat/i,
-    id: 'Sinyal VIP tayang langsung di dashboard (arah, entry, SL, TP) untuk user PRO — setiap ada peluang di XAU/USD. Daftar dulu gratis, nanti bisa upgrade kapan pun mau ikut sinyal. 📈',
-    en: 'VIP signals appear live on the dashboard (direction, entry, SL, TP) for PRO users on XAU/USD opportunities. Start free and upgrade anytime to follow the signals. 📈',
+    id: 'Luxtradee itu aplikasi JURNAL trading — kami tidak jualan sinyal. Sinyal/alert yang muncul semuanya dari Pine Script milik kamu sendiri (fitur alert otomatis PRO): skrip kamu dievaluasi tiap ±5 menit dan push Entry/SL/TP masuk HP saat terpicu. Daftar gratis, catat trade pertamamu, biarkan AI membaca pola loss-mu. 📓',
+    en: 'Luxtradee is a trading JOURNAL — we do not sell signals. All alerts come from your own Pine Script (PRO auto-alert feature): your script is evaluated every ±5 minutes and Entry/SL/TP pushes land on your phone when it fires. Sign up free, log your first trade, and let AI read your loss patterns. 📓',
   },
   {
     // admin / manusia / cs / bantuan / komplain / refund

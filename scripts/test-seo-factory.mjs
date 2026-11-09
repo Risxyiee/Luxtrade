@@ -49,9 +49,9 @@ const risikoIntent = intent('manajemen-risiko')
 const psikoIntent = intent('psikologi-trading')
 
 const baseData = {
-  lastPrice: null, priceChangePct: null, lastSignal: null,
+  lastPrice: null, priceChangePct: null,
   marketOpen: true, sessionWib: 'London', todayIso: '2026-01-09',
-  economicEvents: [], memberCount: 0, signalCount7d: 0,
+  economicEvents: [], memberCount: 0,
 }
 
 const planXau = mkPlan('XAUUSD', sinyalIntent)
@@ -80,8 +80,8 @@ t('plan lengkap: slug/title/keyword/meta/symbol/intentKey non-kosong', !!a[0].sl
 
 console.log('\n══ 4. buildSeoPageHtml — pembuka, data riil, jujur ══')
 t('html memuat simbol & TANPA tag <html>', htmlSinyal.includes('XAUUSD') && !/<html/i.test(htmlSinyal) && htmlSinyal.includes('<h2>'))
-t('sinyal null → teks jujur "belum ada sinyal baru" + pantau terus', /belum ada sinyal baru/i.test(htmlSinyal) && /pantau terus/i.test(htmlSinyal) && !/\bentry\b[^<]*\d/i.test(htmlSinyal))
-t('CTA penutup persis sesuai spesifikasi', htmlSinyal.includes('Coba gratis di Luxtradee — sinyal otomatis masuk notifikasi HP.'))
+t('halaman tanpa sinyal tim — posisi jurnal tampil, tidak ada klaim "sinyal baru"', /Jurnal Pintar, Bukan Jualan Sinyal/i.test(htmlSinyal) && !/belum ada sinyal baru/i.test(htmlSinyal) && !/\bentry\b[^<]*\d/i.test(htmlSinyal))
+t('CTA penutup persis sesuai spesifikasi', htmlSinyal.includes('Coba gratis di Luxtradee — catat trade-mu, AI baca pola loss-mu otomatis.'))
 t('tanggal hari ini tercantum (9 Januari 2026)', htmlSinyal.includes('9 Januari 2026'))
 const htmlHarga = buildSeoPageHtml(planXau, { ...baseData, lastPrice: 4321.5, priceChangePct: -0.35 })
 t('harga riil terformat id-ID (4.321,50) + arah melemah (0,35%)', htmlHarga.includes('4.321,50') && htmlHarga.includes('melemah') && htmlHarga.includes('0,35%'))
@@ -115,12 +115,11 @@ t('event kosong → bagian kalender TIDAK muncul (dan tanpa tabel di halaman sin
 const htmlEvent = buildSeoPageHtml(planXau, { ...baseData, economicEvents: [{ time: '2026-01-09T13:30:00.000Z', country: 'USD', title: 'CPI YoY', impact: 'high' }] })
 t('event ada → tabel kalender + judul event + jam dikonversi ke WIB (13:30Z → 20.30)', htmlEvent.includes('Kalender Ekonomi Hari Ini') && htmlEvent.includes('CPI YoY') && htmlEvent.includes('USD') && htmlEvent.includes('20.30') && htmlEvent.includes('<table'))
 
-console.log('\n══ 7. Social proof & sinyal terakhir — angka riil saja ══')
-const htmlProof = buildSeoPageHtml(planXau, { ...baseData, memberCount: 42, signalCount7d: 7 })
-t('social proof angka riil >0 tampil (42 trader, 7 sinyal)', htmlProof.includes('42 trader') && htmlProof.includes('7 sinyal'))
+console.log('\n══ 7. Social proof — angka riil saja (posisi jurnal, bukan sinyal) ══')
+const htmlProof = buildSeoPageHtml(planXau, { ...baseData, memberCount: 42 })
+t('social proof angka riil >0 tampil (42 trader)', htmlProof.includes('42 trader'))
 t('social proof nol → TIDAK mengarang angka member', !htmlSinyal.includes('sudah bergabung') && !htmlSinyal.includes('trader</strong>'))
-const htmlSig = buildSeoPageHtml(planXau, { ...baseData, lastSignal: { action: 'buy', symbol: 'XAUUSD', createdAt: '2026-01-09T02:05:00.000Z' } })
-t('sinyal ada → aksi+symbol+konversi WIB (02:05Z → 09.05), tanpa level karangan', /sinyal vip terakhir/i.test(htmlSig) && htmlSig.includes('BUY XAUUSD') && htmlSig.includes('09.05 WIB') && !/\bentry\b\s*[:@=]?\s*\d/i.test(htmlSig))
+t('halaman SEO memuat posisi jurnal — tidak lagi mengklaim sinyal tim', htmlProof.includes('Jurnal Pintar, Bukan Jualan Sinyal') && !/sinyal vip terakhir/i.test(htmlProof))
 
 console.log('\n══ 8. seoInternalLinks — internal linking antar plan ══')
 const plans3 = pickSeoPages([], 3, 20260109)

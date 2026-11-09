@@ -42,7 +42,7 @@ const iso = (msAgo) => new Date(now - msAgo).toISOString()
 
 const baseMetrics = {
   signups6h: 0, signups24h: 0, signups7d: 0,
-  leadsNew: 0, leads24h: 0, signalsToday: 0, trades24h: 0, members: 0,
+  leadsNew: 0, leads24h: 0, trades24h: 0, members: 0,
   dataIncomplete: false,
 }
 
@@ -82,11 +82,11 @@ t('cooldown lead-welcome 1 jam', SENTINEL_COOLDOWNS_MS['lead-welcome'] === 60 * 
 t('cooldown drought-alarm 12 jam', SENTINEL_COOLDOWNS_MS['drought-alarm'] === 12 * H)
 
 console.log('\n══ 3. buildHookFallback — tanpa LLM tetap jalan ══')
-const hook = buildHookFallback({ ...baseMetrics, signalsToday: 2 })
-t('ada 2 sinyal → hook menyebut sinyal', hook.greeting.includes('2 sinyal'))
+const hook = buildHookFallback({ ...baseMetrics, trades24h: 2 })
+t('ada 2 trade terjurnal → hook menyebut trade', hook.greeting.includes('2 trade'))
 t('chips >= 2 & pendek', hook.chips.length >= 2 && hook.chips.every(c => c.length <= 28))
 const hookEmpty = buildHookFallback(baseMetrics)
-t('nol sinyal → hook TIDAK mengarang angka', !/\d+ sinyal/.test(hookEmpty.greeting))
+t('nol trade → hook TIDAK mengarang angka & TIDAK jualan sinyal', !/\d+ sinyal/.test(hookEmpty.greeting) && !/sinyal/i.test(hookEmpty.chips.join(' ')))
 t('model fallback jujur', hookEmpty.model === 'fallback-deterministik')
 
 console.log('\n══ 4. buildWelcomeEmailFallback — email jujur ══')
@@ -95,9 +95,9 @@ const mail = buildWelcomeEmailFallback(lead, null)
 t('subject menyapa nama dari email', mail.subject.includes('Budi'))
 t('body kutip pesan awal lead', mail.body.includes('cocok buat pemula'))
 t('body ada CTA signup nyata', mail.body.includes('https://luxtradee.web.id/auth/signup'))
-const proof = { members: 42, tradesTotal: 1300, signals7d: 5, lastSignal: null, generatedAt: iso(0) }
+const proof = { members: 42, tradesTotal: 1300, generatedAt: iso(0) }
 const mail2 = buildWelcomeEmailFallback(lead, proof)
-t('dengan proof → sebut 5 sinyal minggu ini', mail2.body.includes('5 sinyal VIP'))
+t('dengan proof → sebut 1300 trade terjurnal', mail2.body.includes('1300 trade'))
 
 console.log('\n══ 5. extractEmail — deteksi lead dari chat ══')
 t('email biasa terdeteksi', extractEmail('kirim ke budi.trader@gmail.com ya') === 'budi.trader@gmail.com')

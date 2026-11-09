@@ -39,8 +39,6 @@ export interface GrowthMetrics {
   leadsNew: number
   /** Lead baru 24 jam terakhir (semua status). -1 = tabel belum ada. */
   leads24h: number
-  /** Sinyal VIP ter-broadcast hari ini (market_alerts). -1 = tabel belum ada. */
-  signalsToday: number
   /** Trade baru 24 jam terakhir (user aktif). -1 = tabel tidak terbaca. */
   trades24h: number
   /** Total member (profiles). -1 = tidak terbaca. */
@@ -63,7 +61,7 @@ export interface DroughtVerdict {
  *   quiet    : signup 24 jam ≤ 2 (ramai sepi)
  *   healthy  : sisanya
  * dataIncomplete membatasi ke 'quiet' (jangan alarm palsu karena SQL
- * migrasi belum dijalankan — pelajaran dari tabel market_alerts).
+ * migrasi belum dijalankan — pelajaran dari tabel growth_leads).
  */
 export function detectDrought(m: GrowthMetrics): DroughtVerdict {
   const reasons: string[] = []
@@ -150,8 +148,6 @@ export function pickPlaybook(
 export interface SocialProof {
   members: number
   tradesTotal: number | null
-  signals7d: number | null
-  lastSignal: { symbol: string; action: string; createdAt: string } | null
   generatedAt: string
 }
 
@@ -160,14 +156,6 @@ export function socialProofLines(sp: SocialProof): string[] {
   const lines: string[] = []
   if (sp.members >= 0) lines.push(`Total member Luxtradee: ${sp.members}`)
   if (sp.tradesTotal != null && sp.tradesTotal >= 0) lines.push(`Trade terjurnal user: ${sp.tradesTotal}`)
-  if (sp.signals7d != null && sp.signals7d >= 0) {
-    let s = `Sinyal VIP 7 hari terakhir: ${sp.signals7d}`
-    if (sp.lastSignal) {
-      const when = new Date(sp.lastSignal.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
-      s += ` (terakhir: ${sp.lastSignal.action} ${sp.lastSignal.symbol}, ${when} WIB)`
-    }
-    lines.push(s)
-  }
   return lines
 }
 
@@ -186,13 +174,13 @@ export interface CsHook {
  * LLM gagal / run pertama sebelum sentinel sempat menulis hook.
  */
 export function buildHookFallback(m: GrowthMetrics, now: number = Date.now()): CsHook {
-  const hasSignals = m.signalsToday > 0
-  const greeting = hasSignals
-    ? `Halo! 👋 Ada ${m.signalsToday} sinyal trading baru hari ini. Mau lihat, atau tanya-tanya dulu soal Luxtradee?`
+  const hasTrades = m.trades24h > 0
+  const greeting = hasTrades
+    ? `Halo! 👋 ${m.trades24h} trade baru terjurnal hari ini. Mau tahu cara baca pola trading-mu, atau tanya-tanya dulu soal Luxtradee?`
     : `Halo! 👋 Mau tahu cara trader jurnal semua entry-nya biar nggak FOMO lagi? Tanya aja di sini.`
   return {
     greeting,
-    chips: ['Lihat sinyal terbaru 📊', 'Cara mulai gratis? 🆓'],
+    chips: ['Cara kerja jurnalnya? 📓', 'Mulai gratis? 🆓'],
     note: 'hook fallback deterministik (data riil, tanpa LLM)',
     generatedAt: new Date(now).toISOString(),
     model: 'fallback-deterministik',
@@ -224,18 +212,18 @@ function emailPrefix(email: string): string {
 /** Email welcome fallback (tanpa LLM) — jujur, singkat, ada CTA nyata. */
 export function buildWelcomeEmailFallback(lead: GrowthLead, proof: SocialProof | null, now: number = Date.now()): WelcomeEmailDraft {
   const name = emailPrefix(lead.email)
-  const signalLine = proof && proof.signals7d != null && proof.signals7d > 0
-    ? `Minggu ini saja ada ${proof.signals7d} sinyal VIP XAU/USD yang ter-broadcast ke user PRO.`
-    : `Setiap ada peluang entry XAU/USD, sistem kami broadcast arah + entry + SL/TP ke user PRO.`
+  const journalLine = proof && proof.tradesTotal != null && proof.tradesTotal > 0
+    ? `Trader di Luxtradee sudah menjurnal ${proof.tradesTotal} trade — dan pola loss mereka keluar sendiri lewat analisis AI.`
+    : `Luxtradee itu jurnal trading pintar: catat trade-mu, AI kami yang membaca pola loss-mu (FOMO? overtrading? revenge trading?).`
   return {
     leadId: lead.id,
     email: lead.email,
-    subject: `${name}, ini cara baca sinyal XAU/USD biar nggak nebak-nebak`,
+    subject: `${name}, ini cara jurnal trading biar nggak nebak-nebak`,
     body:
       `Halo ${name},\n\n` +
       `Kamu tadi sempat tanya-tanya di website Luxtradee${lead.first_message ? ` tentang "${lead.first_message.slice(0, 80)}"` : ''}. ` +
       `Senang banget kami bisa bantu.\n\n` +
-      `${signalLine}\n\n` +
+      `${journalLine}\n\n` +
       `Mulai gratis dulu saja: buat akun, catat 3 trade terakhirmu, dan lihat pola loss-mu keluar sendiri oleh AI kami (FOMO? overtrading? revenge trading?).\n\n` +
       `👉 Daftar gratis: https://luxtradee.web.id/auth/signup\n\n` +
       `Kalau ada yang mau ditanya, balas email ini ya — dibalas langsung.\n\nSalam hijau,\nTim Luxtradee`,
