@@ -5,6 +5,7 @@ import { sendAdminNotification } from '@/lib/admin-notify'
 import {
   ensureFreshToken,
   postToInstagram,
+  checkMediaUrlAlive,
   IG_DAILY_CAP,
   type IgConfig,
 } from '@/lib/instagram'
@@ -177,6 +178,39 @@ async function handle(request: NextRequest) {
         failures++
         results.push({ id: row.id, ok: false, error: 'slide carousel hilang dari meta' })
         continue
+      }
+
+      /* Pre-flight: URL media masih hidup? Host media ber-TTL (KV 3 hari,
+         litterbox 72 jam) bisa kedaluwarsa saat baris lama di antrean →
+         IG cuma balik 2207082 "Media upload has failed" yang misterius.
+         4xx = media hilang permanen → failed dgn pesan jelas (retry percuma).
+         Jaringan/5xx = pulih sendiri → kembali pending (tidak buang attempts). */
+      const preflightUrl = isCarousel
+        ? carouselUrls[0]
+        : row.media_type === 'REELS' ? (row.video_url || '') : (row.image_url || '')
+      if (preflightUrl) {
+        const alive = await checkMediaUrlAlive(preflightUrl)
+        if (!alive.alive) {
+          if (alive.status >= 400 && alive.status < 500) {
+            await admin
+              .from('instagram_posts')
+              .update({
+                status: 'failed',
+                error: `media tidak bisa diambil (${alive.error}) — file kedaluwarsa/hilang dari host. Render ulang lalu antre ulang.`,
+              })
+              .eq('id', row.id)
+            failures++
+            results.push({ id: row.id, ok: false, error: `media mati (${alive.error}) — render ulang dulu` })
+            continue
+          }
+          // Status 0 / 5xx — sementara: balik pending, cron berikutnya coba lagi
+          await admin
+            .from('instagram_posts')
+            .update({ status: 'pending', error: `host media sementara tidak bisa diakses (${alive.error || 'HTTP ' + alive.status}) — dicoba lagi cron berikutnya` })
+            .eq('id', row.id)
+          results.push({ id: row.id, ok: false, error: `host media sementara gagal (${alive.error || alive.status}) — dijadwalkan ulang` })
+          continue
+        }
       }
 
       const r = await postToInstagram(cfg, {

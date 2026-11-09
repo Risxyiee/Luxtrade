@@ -12,7 +12,9 @@ import { getCloudflareEnv, getEnvVar } from '@/lib/cloudflare-bindings'
 //   langsung, Content-Type benar, tanpa redirect.
 //
 //   KV free tier: value maks 25MB (video ±5MB aman), TTL dipakai agar
-//   otomatis bersih (3 hari — IG umumnya selesai fetch dalam hitungan menit).
+//   otomatis bersih. 7 hari (dulu 3): draft Reels menunggu ACC Bos di
+//   Antrean Eksekusi bisa berhari-hari — dulu file hilang sebelum diACC
+//   → publish IG gagal misterius. 7 hari + pre-flight cek execute-action.
 //
 // Auth: Bearer CRON_SECRET (fail-closed bila secret belum diset).
 // Body : binary mentah, Content-Type mis. video/mp4 / image/png.
@@ -21,7 +23,7 @@ import { getCloudflareEnv, getEnvVar } from '@/lib/cloudflare-bindings'
 export const dynamic = 'force-dynamic'
 
 const MAX_BYTES = 24 * 1024 * 1024 // 24MB (KV limit 25MB — sisakan ruang)
-const TTL_SECONDS = 3 * 24 * 60 * 60 // 3 hari
+const TTL_SECONDS = 7 * 24 * 60 * 60 // 7 hari (draft ACC bisa nunggu lama)
 
 function extFor(ct: string): string {
   const c = ct.toLowerCase()

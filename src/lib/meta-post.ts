@@ -79,8 +79,87 @@ function graphErrorText(json: any, status: number): string {
   return `Graph HTTP ${status}${m ? ' — ' + String(m).slice(0, 160) : ''}`
 }
 
-/** 1 panggilan Graph API POST (JSON body). */
-async function graphPost(path: string, token: string, body: Record<string, unknown>, timeoutMs = 20_000): Promise<{ ok: true; json: any } | { ok: false; err: string }> {
+/**
+ * Petunjuk perbaikan dalam bahasa Indonesia untuk error Graph yang umum
+ * (Bos harus tahu CARA FIX, bukan cuma teks mentah Graph API).
+ */
+function hintGraphError(json: unknown, status: number, base: string): string {
+  const j = (json || {}) as { error?: { message?: string; code?: number; error_subcode?: number } }
+  const g = j.error || {}
+  const code = Number(g.code || 0)
+  const subcode = Number(g.error_subcode || 0)
+  const msg = String(g.message || '')
+  const low = msg.toLowerCase()
+  let hint = ''
+  if (code === 190) {
+    hint = ' → TOKEN IG kedaluwarsa/tidak valid. CARA FIX: buat token baru (Graph API Explorer → pilih app + izin instagram_basic, instagram_content_publish, pages_show_list → Generate Access Token), lalu update secret INSTAGRAM_ACCESS_TOKEN di Cloudflare dashboard.'
+  } else if (/unsupported post request/i.test(low) || subcode === 33) {
+    hint = ' → INSTAGRAM_USER_ID kemungkinan SALAH (harus ID akun IG PROFESIONAL 17841…, bukan ID halaman FB 1xxxxx). CARA FIX: buka Graph API Explorer → GET /me?fields=instagram_business_account → pakai ID yang muncul.'
+  } else if (subcode === 2207082 || /media upload has failed/i.test(low)) {
+    hint = ' → IG gagal MENGAMBIL file media. Pastikan URL publik https, file .jpg/.png ≤8MB (atau .mp4 video) yang langsung terunduh TANPA redirect/HTML.'
+  } else if (code === 4 || code === 32 || /rate limit/i.test(low)) {
+    hint = ' → Limit IG API tercapai (±25 post/hari). Tunggu dan coba lagi nanti.'
+  } else if (/permission|not authorized|authorize/i.test(low)) {
+    hint = ' → Izin app kurang. Token wajib punya izin instagram_basic + instagram_content_publish + pages_show_list, dan akun IG harus tipe PROFESIONAL (Business/Creator) yang tertaut ke app.'
+  } else if (/expires|expired/i.test(low) && code === 102) {
+    hint = ' → Sesi token habis — buat ulang token di Graph API Explorer.'
+  }
+  const cd = code ? ` [Graph code ${code}${subcode ? ` subcode ${subcode}` : ''}]` : ''
+  return `${base}${cd}${hint}`
+}
+
+/** 1 panggilan Graph API GET (query string). */
+async function graphGet(path: string, token: string, params: Record<string, string>, timeoutMs = 15_000): Promise<{ ok: true; json: any } | { ok: false; err: string; json: any }> {
+  const qs = new URLSearchParams({ ...params, access_token: token })
+  try {
+    const res = await fetch(`${GRAPH}/${path}?${qs}`, { signal: AbortSignal.timeout(timeoutMs) })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, err: graphErrorText(json, res.status), json }
+    return { ok: true, json }
+  } catch (x: any) {
+    return { ok: false, err: `Graph fetch gagal: ${String(x?.message || x).slice(0, 140)}`, json: {} }
+  }
+}
+
+/**
+ * TUNGGU container status FINISHED sebelum media_publish.
+ *
+ * ROOT CAUSE "auto post IG error" (fix 9 Nov 2026): dulu publish
+ * DITEMBAHKAN SEGERA setelah container dibuat — padahal IG wajib container
+ * FINISHED dulu. Kalau publish datang lebih cepat dari proses server IG,
+ * Graph balik error ("media not ready"/code 24 dst) → post gagal padahal
+ * gambarnya valid. Foto biasanya siap dalam hitungan detik → poll 60 dtk.
+ */
+async function waitForContainerReady(
+  c: MetaCreds,
+  creationId: string,
+  opts: { maxWaitMs?: number; intervalMs?: number } = {}
+): Promise<{ ready: true } | { ready: false; reason: string }> {
+  const maxWaitMs = opts.maxWaitMs ?? 60_000
+  const intervalMs = opts.intervalMs ?? 3_000
+  const deadline = Date.now() + maxWaitMs
+  let lastNote = ''
+  while (Date.now() < deadline) {
+    const st = await graphGet(String(creationId), c.igToken, { fields: 'status_code,status' })
+    if (st.ok) {
+      const sc = String(st.json?.status_code || '')
+      if (sc === 'FINISHED') return { ready: true }
+      if (sc === 'ERROR') {
+        return { ready: false, reason: hintGraphError(st.json, 200, `IG menolak media saat diproses: ${String(st.json?.status || st.json?.error?.message || 'ERROR').slice(0, 140)}`) }
+      }
+      lastNote = sc || 'status kosong'
+    } else {
+      // Gagal query status → anggap belum siap, coba lagi sampai deadline
+      lastNote = st.err
+    }
+    await new Promise((r) => setTimeout(r, intervalMs))
+  }
+  return { ready: false, reason: `container belum FINISHED dalam ${Math.round(maxWaitMs / 1000)} detik (status terakhir: ${lastNote || '?'}). Publish dibatalkan supaya tidak menabrak error "media belum siap" — coba lagi.` }
+}
+
+/** 1 panggilan Graph API POST (JSON body). json ikut dibalik saat gagal
+ *  supaya hintGraphError bisa membaca code/subcode Graph. */
+async function graphPost(path: string, token: string, body: Record<string, unknown>, timeoutMs = 20_000): Promise<{ ok: true; json: any } | { ok: false; err: string; json: any }> {
   try {
     const res = await fetch(`${GRAPH}/${path}`, {
       method: 'POST',
@@ -89,29 +168,43 @@ async function graphPost(path: string, token: string, body: Record<string, unkno
       signal: AbortSignal.timeout(timeoutMs),
     })
     const json = await res.json().catch(() => ({}))
-    if (!res.ok) return { ok: false, err: graphErrorText(json, res.status) }
+    if (!res.ok) return { ok: false, err: graphErrorText(json, res.status), json }
     return { ok: true, json }
   } catch (x: any) {
-    return { ok: false, err: `Graph fetch gagal: ${String(x?.message || x).slice(0, 140)}` }
+    return { ok: false, err: `Graph fetch gagal: ${String(x?.message || x).slice(0, 140)}`, json: {} }
   }
 }
 
 /**
- * Post NYATA ke Instagram (image + caption) — 2 langkah:
+ * Post NYATA ke Instagram (image + caption) — 3 langkah:
  * 1) POST /{ig-user-id}/media → creation_id (butuh image_url publik)
- * 2) POST /{ig-user-id}/media_publish {creation_id} → media id
+ * 2) TUNGGU status container FINISHED (wajib — lihat waitForContainerReady)
+ * 3) POST /{ig-user-id}/media_publish {creation_id} → media id + permalink
  */
 async function postInstagram(c: MetaCreds, caption: string, imageUrl?: string): Promise<MetaPostResult> {
   if (!c.igToken || !c.igUserId)
-    return { posted: false, platform: 'instagram', reason: 'token IG belum diset (INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID)' }
+    return { posted: false, platform: 'instagram', reason: 'token IG belum diset (INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID) — set keduanya di Cloudflare Secrets (kadaluarsa? buat token baru via Graph API Explorer dgn izin instagram_content_publish)' }
   const img = (imageUrl || '').trim() || c.igDefaultImage
   const container = await graphPost(`${c.igUserId}/media`, c.igToken, { image_url: img, caption: caption.slice(0, 2200) })
-  if (!container.ok) return { posted: false, platform: 'instagram', reason: `container gagal: ${container.err}` }
+  if (!container.ok) {
+    return { posted: false, platform: 'instagram', reason: hintGraphError(container.json, 0, `container gagal: ${container.err}`) }
+  }
   const creationId = String(container.json?.id || '')
   if (!creationId) return { posted: false, platform: 'instagram', reason: 'container tanpa id' }
+
+  const ready = await waitForContainerReady(c, creationId)
+  if (!ready.ready) return { posted: false, platform: 'instagram', reason: ready.reason }
+
   const publish = await graphPost(`${c.igUserId}/media_publish`, c.igToken, { creation_id: creationId }, 30_000)
-  if (!publish.ok) return { posted: false, platform: 'instagram', reason: `publish gagal: ${publish.err}` }
-  return { posted: true, platform: 'instagram', id: String(publish.json?.id || creationId) }
+  if (!publish.ok) {
+    return { posted: false, platform: 'instagram', reason: hintGraphError(publish.json, 0, `publish gagal: ${publish.err}`) }
+  }
+  const postId = String(publish.json?.id || creationId)
+  /* Permalink best-effort — konfirmasi tambahan bahwa post benar-benar tayang. */
+  let permalink: string | undefined
+  const pl = await graphGet(postId, c.igToken, { fields: 'permalink' })
+  if (pl.ok && pl.json?.permalink) permalink = String(pl.json.permalink)
+  return { posted: true, platform: 'instagram', id: postId, permalink }
 }
 
 /** Post NYATA ke Facebook Page feed (teks polos didukung).

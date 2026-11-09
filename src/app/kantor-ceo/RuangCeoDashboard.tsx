@@ -996,7 +996,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {cmo.basedOn === 'tiktok' ? <div className="text-violet-300 text-[10.5px] mt-0.5">Dianalisis dari {cmo.analyzedPosts} konten TikTok asli lo — pola pemenang ditiru</div> : null}
                   {cmo.posted ? (cmo.posted.posted
                     ? <div className="text-emerald-300 text-[10.5px] mt-0.5">Tayang NYATA di {cmo.posted.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API)</div>
-                    : <div className="text-amber-300/80 text-[10.5px] mt-0.5" title="Set token di Cloudflare Secrets: INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID, atau FACEBOOK_PAGE_TOKEN + FACEBOOK_PAGE_ID">Auto-post belum jalan: {String(cmo.posted.reason || '').slice(0, 80)}</div>) : null}
+                    : <div className="text-amber-300/80 text-[10.5px] mt-0.5 leading-relaxed max-w-full break-words" title={String(cmo.posted.reason || '')}>Auto-post belum jalan: {String(cmo.posted.reason || '').slice(0, 260)}</div>) : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada draf — klik tombol Buat Draf di bawah</div>}
               <div className="mt-3 flex flex-wrap gap-1.5 items-center">

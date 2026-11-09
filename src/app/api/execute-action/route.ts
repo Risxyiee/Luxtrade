@@ -28,7 +28,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { metaAutoPost } from '@/lib/meta-post'
-import { ensureFreshToken, postToInstagram } from '@/lib/instagram'
+import { ensureFreshToken, postToInstagram, checkMediaUrlAlive } from '@/lib/instagram'
 import { getCronAdmin } from '@/lib/cron-supabase'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import {
@@ -302,6 +302,17 @@ async function executePayload(actionType: string, payload: Record<string, any>, 
       const videoUrl = String(payload.videoUrl || '')
       const caption = String(payload.caption || '')
       if (!videoUrl.startsWith('http')) return { ok: false, detail: 'payload.videoUrl tidak valid' }
+      /* Pre-flight: file Reels masih ada di host? Media self-hosted KV
+         ber-TTL 3 hari — draft yang diACC setelah lewat itu pasti gagal
+         di sisi IG (2207082 "Media upload has failed"). Dengan cek ini
+         Bos langsung tahu solusinya: render ulang, jadi tidak buang waktu. */
+      const alive = await checkMediaUrlAlive(videoUrl)
+      if (!alive.alive && alive.status >= 400 && alive.status < 500) {
+        return {
+          ok: false,
+          detail: `Video Reels sudah TIDAK ADA di host (${alive.error}) — file media kedaluwarsa/KV terhapus, jadi tidak mungkin dipublish IG. CARA: jalankan ulang runner video (GitHub Actions "Sinta — Video" → Run workflow) untuk render baru, lalu ACC draft baru di Antrean Eksekusi. Draft lama ini ditolak otomatis.`,
+        }
+      }
       const admin = await getCronAdmin()
       if (!admin) return { ok: false, detail: 'Database tidak tersedia' }
       const tok = await ensureFreshToken(admin)

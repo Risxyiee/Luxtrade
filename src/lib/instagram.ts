@@ -600,6 +600,44 @@ export async function ensureFreshToken(
 }
 
 /* ============================================================
+   Pre-flight: URL media masih hidup?
+   ============================================================
+   Host media self-hosted (KV ig-media-store) + host publik sementara
+   punya TTL — draft yang menunggu ACC/antre berhari-hari bisa hilang.
+   Tanpa pre-flight, IG cuma balik error misterius 2207082 "Media
+   upload has failed" dan attempts terbuang untuk percobaan yang
+   mustahil sukses. */
+
+export interface MediaAliveResult {
+  alive: boolean
+  status: number
+  /** HTTP status string / pesan jaringan kalau tidak hidup. */
+  error?: string
+}
+
+/**
+ * Cek URL media masih bisa diambil (HTTP 200/206) TANPA mengunduh
+ * seluruh file: GET dengan Range bytes=0-0, body langsung dibuang.
+ * Host yang tidak dukung Range tetap balik 200 penuh — kita cancel
+ * body setelah header, jadi hemat bandwidth.
+ */
+export async function checkMediaUrlAlive(url: string): Promise<MediaAliveResult> {
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(12_000),
+    })
+    try { await res.body?.cancel() } catch { /* body kecil / sudah habis */ }
+    if (res.status === 200 || res.status === 206) return { alive: true, status: res.status }
+    return { alive: false, status: res.status, error: `HTTP ${res.status}` }
+  } catch (e) {
+    return { alive: false, status: 0, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/* ============================================================
    Util validasi input antrean
    ============================================================ */
 
