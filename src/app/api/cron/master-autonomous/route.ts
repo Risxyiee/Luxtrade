@@ -784,15 +784,24 @@ Output JSON murni: {"keywords": [{"keyword": "...", "angle": "sudut pandang unik
     const parsed = extractJson<{ keywords?: FarhanKeyword[] }>(kwRes.text)
     keywords = (parsed?.keywords || []).filter(k => k?.keyword).slice(0, 5)
   }
-  // Fallback deterministik (riset gagal → tetap kerja): rotasi topik evergreen
+  // Fallback deterministik (riset gagal → tetap kerja): rotasi topik evergreen.
+  // ANTI "SAMA MULU" (keluhan Bos 9 Nov): dulu urutan TETAP → LLM gagal
+  // berhari-hari = artikel topik sama berulang. Kini urutan dirotasi TANGGAL
+  // → tiap hari fallback memilih topik & angle berbeda dari siklus 8 hari.
   if (!keywords.length) {
-    keywords = [
+    const evergreen = [
       { keyword: 'strategi scalping XAUUSD untuk akun kecil', angle: 'risk per trade 0.5% + killzone London' },
       { keyword: 'kesalahan psikologi trader pemula emas', angle: 'revenge trading & FOMO dengan contoh angka' },
       { keyword: 'cara lolos prop firm challenge emas', angle: 'daily drawdown vs total drawdown' },
       { keyword: 'jurnal trading untuk trader emas', angle: 'data yang wajib dicatat tiap posisi XAUUSD' },
+      { keyword: 'money management trading emas pemula', angle: 'aturan 2% + contoh perhitungan lot' },
+      { keyword: 'beda trading emas spot vs futures untuk pemula', angle: 'risiko leverage & jam sesi' },
+      { keyword: 'cara baca berita emas NFP untuk trading', angle: 'checklist sebelum-jelang-saat-after rilis' },
+      { keyword: 'trading plan harian XAUUSD sederhana', angle: 'template checklist pagi–evaluasi malam' },
     ]
-    console.warn('[master:Farhan] riset keyword LLM gagal — pakai rotasi evergreen')
+    const rot = Math.floor(Date.now() / 86400_000) % evergreen.length
+    keywords = [...evergreen.slice(rot), ...evergreen.slice(0, rot)]
+    console.warn(`[master:Farhan] riset keyword LLM gagal — pakai rotasi evergreen (mulai dari #${rot + 1}: ${keywords[0].keyword})`)
   }
   const chosen = keywords[0]
 
@@ -1557,29 +1566,103 @@ async function agentMaya(admin: SupabaseClient, dry: boolean): Promise<AgentResu
   } catch { /* evaluasi opsional — jangan ganggu tugas utama */ }
 
   const lessons = await officeRecallLessons(admin, 'Maya')
-  const ac = await actorCritic('Maya', {
-    system: MAYA_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-    user: `DATA RIIL: ${activeCount} dari ${totalWithEmail} user aktif 7 hari terakhir (${activeRatio}%). Kandidat win-back hari ini (SATU email per target, urut sesuai daftar):
-${targets.map((t, i) => `${i + 1}. ${t.email} — SEGMENT ${t.segment === 'cold'
-      ? `COLD: daftar ${t.idleDays} hari lalu, belum pernah nyatet trade sekali pun → CTA bantu upload trade PERTAMA`
-      : `PASIF: terakhir nyatet ${t.idleDays} hari lalu → CTA balik ke jurnal`}`).join('\n')}
-Email dikirim personal via Resend — greeting netral tanpa nama (dikirim massal).
 
-Tulis 1 email win-back per target.`,
-    rubric: MAYA_RUBRIC,
-    maxTokens: 1100,
-    temperature: 0.8,
-    passScore: 7,
-    maxRevisions: 1,
-  })
-  if (!ac) return errResult('Maya', 'LLM tidak tersedia — email win-back tidak dibuat', snapshot)
+  /* ═══ ANTI "SAMA MULU" — ROTASI ANGLE HARIAN ═══
+     Keluhan Bos (9 Nov): "kerjaan semuanya sama mulu tiap hari". Dulu SATU
+     prompt generik + temperature saja → gaya email mirip tiap hari. Kini
+     tiap run memakai angle BERBEDA (rotasi tanggal + index target) dan
+     angle-nya DIINJEKSIKAN ke prompt → gaya pembuka/pendekatan benar-benar
+     berganti hari demi hari. Template fallback ikut memakai angle ini. */
+  const MAYA_ANGLES = [
+    { id: 'cerita', intro: 'Buka dengan cerita mini yang relatable (mis. trader sibuk kerja lupa nyatet 2 minggu) TANPA menyebut nama, lalu hubungkan ke CTA.' },
+    { id: 'angka', intro: 'Buka dengan satu observasi jujur tentang kebiasaan trader yang berhenti nyatet (general, tanpa mengarang data user), lalu CTA.' },
+    { id: 'bantuan', intro: 'Buka dengan tawaran bantuan langsung gaya teman ("mau kubantu langkah pertamanya?") — tanpa drama.' },
+    { id: 'misi', intro: 'Bingkai email sebagai MISI KECIL 5 menit hari ini — spesifik, terasa mudah dikerjakan.' },
+    { id: 'rintangan', intro: 'Buka dengan empati ke RINTANGAN terbesar (cold: bingung mulut dari mana; pasif: males mulai lagi), baru CTA mengatasi rintangan itu.' },
+    { id: 'manfaat', intro: 'Buka dengan manfaat KONKRET yang dia lewatkan selama tidak aktif (insight AI dari jurnal, streak, dsb.) tanpa hard-sell.' },
+  ]
+  const dayNum = Math.floor(Date.now() / 86400_000)
+  const angleFor = (i: number) => MAYA_ANGLES[(dayNum + i) % MAYA_ANGLES.length]
 
-  const parsed = extractJson<{ emails?: Array<{ subject?: string; body?: string; html_body?: string }>; subject?: string; body?: string; html_body?: string }>(ac.text)
-  // Fallback kompatibel: format lama 1 email (tanpa array "emails")
-  const emailDrafts = (parsed?.emails?.length ? parsed.emails : (parsed?.subject && parsed?.html_body ? [parsed] : []))
-    .filter(e => e?.subject && e?.html_body)
-  if (!emailDrafts.length) {
-    return errResult('Maya', `JSON email tidak valid (model ${ac.model})`, snapshot)
+  const segmentCta = (t: { segment: 'pasif' | 'cold'; idleDays: number }) => t.segment === 'cold'
+    ? `COLD: daftar ${t.idleDays} hari lalu, belum pernah nyatet trade sekali pun → CTA bantu upload trade PERTAMA`
+    : `PASIF: terakhir nyatet ${t.idleDays} hari lalu → CTA balik ke jurnal`
+
+  /* Fallback DETERMINISTIK per target — dulu LLM gagal → Maya pulang tangan
+     kosong ("LLM tidak tersedia — email tidak dibuat", 8–9 Nov berulang).
+     Kini template dgn data riil + angle harian tetap diproduksi sebagai
+     DRAF (tetap nunggu ACC Bos — tidak ada auto-kirim), berlabel sumber
+     'template' supaya Bos tahu ini bukan hasil LLM. */
+  const TEMPLATE_SUBJECTS: Record<string, string[]> = {
+    cold: [
+      'Satu langkah kecil buat mulai nyatet trade pertama',
+      'Setup pertamamu — kubantu sekalian?',
+      'Misi 5 menit: upload trade pertamamu',
+      'Belum nyangkut? Ini jalan pintas mulai nyatet',
+    ],
+    pasif: [
+      'Jurnalmu masih di sini — lanjut dari posisi terakhir?',
+      'Kangen lihat insight AI dari trade kamu',
+      'Misi 5 menit: satu trade, satu catatan',
+      'Mulai lagi pelan-pelan gak apa-apa',
+    ],
+  }
+  const templateEmail = (t: { email: string; segment: 'pasif' | 'cold'; idleDays: number }, i: number): MayaDraft => {
+    const subjects = TEMPLATE_SUBJECTS[t.segment === 'cold' ? 'cold' : 'pasif']
+    const subject = subjects[(dayNum + i) % subjects.length]
+    const fact = t.segment === 'cold'
+      ? `Kamu daftar Luxtradee sekitar ${t.idleDays} hari lalu, tapi belum ada satu pun trade yang kecatat — dan itu wajar, mulai selalu jadi bagian tersulit.`
+      : `Trade terakhirmu tercatat sekitar ${t.idleDays} hari lalu. Jeda gitu wajar banget — kadang sibuk, kadang males mulai lagi.`
+    const cta = t.segment === 'cold'
+      ? 'Kalau mau, buka dashboard-nya dan coba upload SATU trade pertama — 5 menit juga kelar. Mentok? Balas email ini, bantu langsung.'
+      : 'Coba buka dashboard dan catat SATU trade terakhirmu — sisanya biar AI yang rekap. 5 menit kok.'
+    const html = `<p>Halo trader,</p><p>${fact}</p><p>${cta}</p><p style="margin:18px 0"><a href="https://luxtradee.web.id/dashboard" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Buka Dashboard</a></p><p>Sampai jumpa di jurnal,<br/>Maya — Luxtradee</p>`
+    return { subject, body: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), html_body: html, source: 'template', score: -1 }
+  }
+
+  type MayaDraft = { subject: string; body: string; html_body: string; source: 'llm' | 'template'; score: number; model?: string }
+  const drafts: MayaDraft[] = []
+  let llmDead = false
+
+  for (let i = 0; i < targets.length; i++) {
+    const t = targets[i]
+    const angle = angleFor(i)
+    if (llmDead) { drafts.push(templateEmail(t, i)); continue }
+
+    /* SATU email per panggilan (dulu 2 email + 2 html_body dalam SATU call
+       1100 token → Mortera sering timeout → "LLM tidak tersedia" tiap pagi
+       sementara call pendek Dewi sukses). Output kecil = cepat = jalan di
+       provider free/lambat sekalipun. Timeout 120 dtk (setara Farhan). */
+    const ac = await actorCritic('Maya', {
+      system: MAYA_SYSTEM
+        + `\n\nANGLE HARI INI (WAJIB dipakai sebagai pendekatan utama): ${angle.intro}`
+        + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+      user: `DATA RIIL: ${activeCount} dari ${totalWithEmail} user aktif 7 hari terakhir (${activeRatio}%).
+
+TARGET EMAIL INI (yang ke-${i + 1} dari ${targets.length}): ${t.email} — SEGMENT ${segmentCta(t)}
+Email dikirim personal via Resend — greeting netral tanpa nama.
+
+Tulis SATU email win-back untuk target ini saja.`,
+      rubric: MAYA_RUBRIC,
+      maxTokens: 800,
+      temperature: 0.9,
+      passScore: 7,
+      maxRevisions: 1,
+      timeoutMs: 120_000,
+    })
+    if (!ac) {
+      /* LLM mati total → sisa target jatuh ke template (Maya TETAP kerja) */
+      llmDead = true
+      drafts.push(templateEmail(t, i))
+      continue
+    }
+    const parsed = extractJson<{ subject?: string; body?: string; html_body?: string }>(ac.text)
+    if (parsed?.subject && parsed?.html_body) {
+      drafts.push({ subject: parsed.subject, body: parsed.body || '', html_body: parsed.html_body, source: 'llm', score: ac.score, model: ac.model })
+    } else {
+      /* JSON rusak → template utk target ini (jangan buang seluruh run) */
+      drafts.push(templateEmail(t, i))
+    }
   }
 
   // AUDIT M6: SATU row pending PER TARGET — dulu 1 email massal copy sama
@@ -1588,9 +1671,10 @@ Tulis 1 email win-back per target.`,
   // masuk antrean; cooldown PENUH baru jalan saat terkirim (execute-action).
   let savedCount = 0
   let saveErr = ''
-  for (let i = 0; i < Math.min(emailDrafts.length, targets.length); i++) {
+  let templateCount = 0
+  for (let i = 0; i < Math.min(drafts.length, targets.length); i++) {
     const t = targets[i]
-    const d = emailDrafts[i]
+    const d = drafts[i]
     const { error: insErr } = await admin.from('ai_pending_actions').insert({
       agent_name: 'Maya',
       action_type: 'SEND_WINBACK_EMAIL',
@@ -1599,26 +1683,28 @@ Tulis 1 email win-back per target.`,
         subject: clip(d.subject, 150),
         html_body: String(d.html_body),
         body_plain: clip(d.body || '', 1500),
-        context: { segment: t.segment, idleDays: t.idleDays, activeCount, passiveCount, coldCount, activeRatio },
+        context: { segment: t.segment, idleDays: t.idleDays, activeCount, passiveCount, coldCount, activeRatio, source: d.source, angle: angleFor(i).id, model: d.model || null },
       },
       status: 'pending',
     })
     if (insErr) { saveErr = clip(insErr.message, 140); break }
     await kvSet(admin, `winback:${t.email.toLowerCase()}`, JSON.stringify({ phase: 'draft', at: new Date().toISOString() }))
     savedCount++
+    if (d.source === 'template') templateCount++
   }
   if (savedCount === 0) {
-    return skipResult('Maya', `draf jadi (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi gagal disimpan: ${saveErr}`,
-      { ...snapshot, subject: clip(emailDrafts[0].subject, 90) })
+    return skipResult('Maya', `draf jadi tapi gagal disimpan: ${saveErr}`,
+      { ...snapshot, subject: clip(drafts[0]?.subject || '', 90) })
   }
 
+  const firstScore = drafts.find(d => d.source === 'llm')?.score ?? -1
   await officeRemember(admin, 'Maya', 'critic', {
-    lesson: `Draf win-back ${savedCount}/${targets.length} target (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) — segmen: ${targets.slice(0, savedCount).map(t => t.segment).join(', ')}; subjek pertama "${clip(emailDrafts[0].subject, 60)}"`,
-    score: ac.score, saved: savedCount,
+    lesson: `Draf win-back ${savedCount}/${targets.length} target (LLM ${savedCount - templateCount}, template ${templateCount}; critic ${firstScore < 0 ? 'n/a' : `${firstScore}/10`}) — angle hari ini: ${angleFor(0).id}; subjek pertama "${clip(drafts[0]?.subject || '', 60)}"`,
+    score: firstScore, saved: savedCount,
   })
 
-  return okResult('Maya', `rasio aktif ${activeRatio}% (${activeCount}/${totalWithEmail}) — ${savedCount} email win-back per-segmen nunggu ACC Bos (${targets.slice(0, savedCount).map(t => `${t.email.split('@')[0]}·${t.segment}`).join(', ')})${emailDrafts.length < targets.length ? ` — ${targets.length - emailDrafts.length} target tanpa draf, diulang run berikutnya` : ''} (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`})`,
-    { ...snapshot, criticScore: ac.score, winback30d: { sent: wbSent30, returned: wbReturned30 }, subjects: emailDrafts.slice(0, savedCount).map(e => clip(e.subject, 60)) })
+  return okResult('Maya', `rasio aktif ${activeRatio}% (${activeCount}/${totalWithEmail}) — ${savedCount} email win-back nunggu ACC Bos (${targets.slice(0, savedCount).map(t => `${t.email.split('@')[0]}·${t.segment}`).join(', ')})${templateCount ? ` — ${templateCount} via template (LLM gagal, tetap jujur dilabeli)` : ''} · angle: ${angleFor(0).id}${firstScore >= 0 ? ` · critic ${firstScore}/10` : ''}`,
+    { ...snapshot, criticScore: firstScore, winback30d: { sent: wbSent30, returned: wbReturned30 }, subjects: drafts.slice(0, savedCount).map(e => clip(e.subject, 60)), templateCount, angle: angleFor(0).id })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1740,8 +1826,23 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
   const lessons = await officeRecallLessons(admin, 'Bagas')
   const risetSintaBagas = await risetSintaBlock(admin)
   const dewiBlockBagas = await insightDewiBlock(admin)
+
+  /* ANTI "SAMA MULU" — rotasi angle harian (sama dgn Maya): gaya pitch
+     berganti tiap hari, diinjeksikan ke prompt + dipakai template fallback. */
+  const BAGAS_ANGLES = [
+    { id: 'produk', intro: 'Fokus ke SATU fitur PRO yang paling relevan dgn ritme trading lead (analisa AI unlimited) — tunjukkan hasil nyata yang dia lewatkan.' },
+    { id: 'hemat-waktu', intro: 'Fokus ke waktu: berapa menit per hari yang dia buang nyatet manual vs auto-import + AI rekap.' },
+    { id: 'streak', intro: 'Fokus ke konsistensi & streak: PRO bikin momentum trading-nya terukur, bukan terasa.' },
+    { id: 'tanya', intro: 'Gaya humble: tanya dulu apa yang jadi hambatan upgrade — posisi sebagai partner, bukan salesman.' },
+    { id: 'contoh', intro: 'Buka dengan contoh konkret 1 insight AI dari sebuah trade (ilustrasi generik, bukan mengarang data lead).' },
+  ]
+  const bagasDayNum = Math.floor(Date.now() / 86400_000)
+  const bagasAngle = BAGAS_ANGLES[bagasDayNum % BAGAS_ANGLES.length]
+
   const ac = await actorCritic('Bagas', {
-    system: BAGAS_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+    system: BAGAS_SYSTEM
+      + `\n\nANGLE HARI INI (WAJIB jadi pendekatan utama): ${bagasAngle.intro}`
+      + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
     user: `DATA RIIL hot leads (SATU email per lead, urut sesuai daftar — sebut aktivitas lead paling aktif):
 ${targets.map((t, i) => {
       const sig = sigOf(t.id)
@@ -1755,19 +1856,60 @@ ${targets.map((t, i) => {
 
 Tulis 1 email konversi PRO per lead.${risetSintaBagas}${dewiBlockBagas}`,
     rubric: BAGAS_RUBRIC,
-    maxTokens: 1000,
-    temperature: 0.8,
+    maxTokens: 900,
+    temperature: 0.9,
     passScore: 7,
     maxRevisions: 1,
+    timeoutMs: 120_000,
   })
-  if (!ac) return errResult('Bagas', 'LLM tidak tersedia — email konversi tidak dibuat', snapshot)
 
-  const parsed = extractJson<{ emails?: Array<{ subject?: string; personalized_message?: string; html_body?: string }>; subject?: string; personalized_message?: string; html_body?: string }>(ac.text)
-  // Fallback kompatibel: format lama 1 email (tanpa array "emails")
-  const emailDrafts = (parsed?.emails?.length ? parsed.emails : (parsed?.subject && parsed?.html_body ? [parsed] : []))
-    .filter(e => e?.subject && e?.html_body)
-  if (!emailDrafts.length) {
-    return errResult('Bagas', `JSON email tidak valid (model ${ac.model})`, snapshot)
+  /* Fallback DETERMINISTIK — dulu LLM gagal → Bagas pulang kosong. Kini
+     template dgn angka RIIL lead tetap diproduksi (draf nunggu ACC Bos).
+     Dulu juga SATU call utk SEMUA lead (1000 token, 2-3 html_body) — mudah
+     timeout; output kecil per-lead lebih tahan banting. */
+  const bagasTemplate = (t: typeof targets[number], i: number): { subject: string; personalized_message: string; html_body: string } => {
+    const sig = sigOf(t.id)
+    const isWarm = sig && ((sig.count || 0) + (sig.clicks || 0) > 0)
+    const everPaid = !!t.everPaid
+    const subjects = [
+      isWarm ? 'Masih ragu soal PRO? Bicara jujur yuk' : everPaid ? 'PRO-mu masih relevan — yuk balik' : `${t.trades30d} trade sebulan, ini yang bikin beda`,
+      isWarm ? 'Kamu sudah lihat PRO — apa yang ditunggu?' : everPaid ? 'Fitur yang dulu kamu pakai, makin tajam' : 'Ritme tradingmu bagus — saatnya terukur',
+      isWarm ? 'Satu pertanyaan buat kamu yang sudah lihat PRO' : everPaid ? 'Balik ke PRO — tanpa setup ulang' : 'Auto-import jurnal: hemat 10 menit/hari',
+    ]
+    const subject = subjects[(bagasDayNum + i) % subjects.length]
+    const opener = isWarm
+      ? 'Kamu sudah beberapa kali buka penawaran PRO tapi belum gerak — biasanya karena ragu (harga? waktu? fitur?).'
+      : everPaid
+        ? 'Dulu kamu pernah pakai PRO dan aktif trading — fiturnya sekarang makin tajam.'
+        : `Kamu aktif banget minggu ini (${t.trades7d} trade dalam 7 hari) — ritme segini layak dapat analisa yang lebih dalam.`
+    const html = `<p>Halo ${t.name},</p><p>${opener}</p><p>PRO Luxtradee: analisa AI unlimited dari jurnalmu — Rp49.000/bulan, tanpa kontrak. Semua trade yang sudah kamu catat langsung dianalisa.</p><p style="margin:18px 0"><a href="https://luxtradee.web.id/#pricing" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Lihat PRO</a></p><p>Ada yang mau ditanya dulu? Balas email ini.<br/>Bagas — Luxtradee</p>`
+    return { subject, personalized_message: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), html_body: html }
+  }
+
+  type BagasDraft = { subject: string; personalized_message: string; html_body: string; source: 'llm' | 'template'; score: number; model?: string }
+  const bagasDrafts: BagasDraft[] = []
+  if (!ac) {
+    for (let i = 0; i < targets.length; i++) {
+      const tpl = bagasTemplate(targets[i], i)
+      bagasDrafts.push({ ...tpl, source: 'template', score: -1 })
+    }
+  } else {
+    const parsed = extractJson<{ emails?: Array<{ subject?: string; personalized_message?: string; html_body?: string }>; subject?: string; personalized_message?: string; html_body?: string }>(ac.text)
+    // Fallback kompatibel: format lama 1 email (tanpa array "emails")
+    const emailDrafts = (parsed?.emails?.length ? parsed.emails : (parsed?.subject && parsed?.html_body ? [parsed] : []))
+      .filter(e => e?.subject && e?.html_body)
+    if (emailDrafts.length) {
+      for (let i = 0; i < targets.length; i++) {
+        const d = emailDrafts[i]
+        if (!d) break
+        bagasDrafts.push({ subject: d.subject!, personalized_message: d.personalized_message || '', html_body: d.html_body!, source: 'llm', score: ac.score, model: ac.model })
+      }
+    } else {
+      for (let i = 0; i < targets.length; i++) {
+        const tpl = bagasTemplate(targets[i], i)
+        bagasDrafts.push({ ...tpl, source: 'template', score: -1 })
+      }
+    }
   }
 
   // Kontrak payload SAMA dengan /api/execute-action (SEND_UPGRADE_OFFER) —
@@ -1775,9 +1917,10 @@ Tulis 1 email konversi PRO per lead.${risetSintaBagas}${dewiBlockBagas}`,
   // stats lead lain; kini tiap lead dapat email sesuai segmennya).
   let savedCount = 0
   let saveErr = ''
-  for (let i = 0; i < Math.min(emailDrafts.length, targets.length); i++) {
+  let bagasTemplateCount = 0
+  for (let i = 0; i < bagasDrafts.length; i++) {
     const t = targets[i]
-    const d = emailDrafts[i]
+    const d = bagasDrafts[i]
     const sig = sigOf(t.id)
     const { error: insErr } = await admin.from('ai_pending_actions').insert({
       agent_name: 'Bagas',
@@ -1787,25 +1930,27 @@ Tulis 1 email konversi PRO per lead.${risetSintaBagas}${dewiBlockBagas}`,
         subject: clip(d.subject, 150),
         personalized_message: clip(d.personalized_message || d.html_body, 1200),
         html_body: String(d.html_body),
-        context: [{ email: t.email, trades7d: t.trades7d, trades30d: t.trades30d, everPaid: t.everPaid, opened: sig?.count || 0, clicked: sig?.clicks || 0 }],
+        context: [{ email: t.email, trades7d: t.trades7d, trades30d: t.trades30d, everPaid: t.everPaid, opened: sig?.count || 0, clicked: sig?.clicks || 0, source: d.source, angle: bagasAngle.id }],
       },
       status: 'pending',
     })
     if (insErr) { saveErr = clip(insErr.message, 140); break }
     savedCount++
+    if (d.source === 'template') bagasTemplateCount++
   }
   if (savedCount === 0) {
-    return skipResult('Bagas', `draf jadi (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) tapi gagal disimpan: ${saveErr}`,
-      { ...snapshot, subject: clip(emailDrafts[0].subject, 90) })
+    return skipResult('Bagas', `draf jadi tapi gagal disimpan: ${saveErr}`,
+      { ...snapshot, subject: clip(bagasDrafts[0]?.subject || '', 90) })
   }
 
+  const bagasScore = bagasDrafts.find(d => d.source === 'llm')?.score ?? -1
   await officeRemember(admin, 'Bagas', 'critic', {
-    lesson: `Draf konversi ${savedCount}/${targets.length} lead (critic ${ac.score < 0 ? 'n/a' : `${ac.score}/10`}) — segmen: ${targets.slice(0, savedCount).map(t => sigOf(t.id) && ((sigOf(t.id)!.count || 0) + (sigOf(t.id)!.clicks || 0) > 0) ? 'warm' : t.everPaid ? 'mantan-pembayar' : 'cold').join(', ')}`,
-    score: ac.score, saved: savedCount,
+    lesson: `Draf konversi ${savedCount}/${targets.length} lead (LLM ${savedCount - bagasTemplateCount}, template ${bagasTemplateCount}; critic ${bagasScore < 0 ? 'n/a' : `${bagasScore}/10`}) — angle: ${bagasAngle.id}`,
+    score: bagasScore, saved: savedCount,
   })
 
-  return okResult('Bagas', `${savedCount} draf email konversi PRO per-segmen siap (${targets.slice(0, savedCount).map(t => `${t.name}: ${t.trades7d} trades/7hr`).join(', ')}) — nunggu ACC Bos`,
-    { ...snapshot, criticScore: ac.score, subjects: emailDrafts.slice(0, savedCount).map(e => clip(e.subject, 60)) })
+  return okResult('Bagas', `${savedCount} draf email konversi PRO per-segmen siap (${targets.slice(0, savedCount).map(t => `${t.name}: ${t.trades7d} trades/7hr`).join(', ')})${bagasTemplateCount ? ` — ${bagasTemplateCount} via template (LLM gagal, tetap jujur dilabeli)` : ''} · angle: ${bagasAngle.id} — nunggu ACC Bos`,
+    { ...snapshot, criticScore: bagasScore, subjects: bagasDrafts.slice(0, savedCount).map(e => clip(e.subject, 60)), angle: bagasAngle.id })
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
