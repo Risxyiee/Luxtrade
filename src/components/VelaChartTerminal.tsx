@@ -32,7 +32,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3, SlidersHorizontal, Eye } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import { STRATEGY_PNL_TYPE, registerStrategyPnlNative, type StrategyPnlTrade } from '@/components/vela/StrategyPnlIndicator'
@@ -148,6 +149,65 @@ function emitProtectedStats(key: string, stats: ProtectedStats) {
    mengevaluasi ulang sinyal Entry/SL/TP → push layar HP user Pro. */
 const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[]; visuals?: ProtectedVisuals }>()
 
+/* ============================================================
+   TOGGLE TAMPILAN CHART (permintaan Bos: "biar bisa disetting
+   apa aja yg muncul dichart") — setiap kategori visual indikator
+   Eksklusif bisa dinyalakan/dimatikan dari tombol ⚙ Tampilan di
+   toolbar. Pilihan tersimpan di localStorage & berlaku INSTAN
+   (semua instance aktif langsung re-emit tanpa refetch server).
+   ============================================================ */
+export interface VisualToggles {
+  plots: boolean        // garis indikator (plot/EMA level dsb.)
+  markers: boolean      // panah/tanda plotshape (BUY/SELL triangle)
+  labels: boolean       // label teks label.new (BUY @harga dsb.)
+  backgrounds: boolean  // latar sesi bgcolor
+  lines: boolean        // garis level line.new
+  boxes: boolean        // kotak zona box.new
+  tables: boolean       // tabel on-chart table.new
+  trades: boolean       // garis Entry→Exit + label TP/SL strategy
+}
+const DEFAULT_TOGGLES: VisualToggles = {
+  plots: true, markers: true, labels: true, backgrounds: true,
+  lines: true, boxes: true, tables: true, trades: true,
+}
+const TOGGLES_LS_KEY = 'ltx-visual-toggles-v1'
+
+export function loadVisualToggles(): VisualToggles {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(TOGGLES_LS_KEY) : null
+    if (!raw) return { ...DEFAULT_TOGGLES }
+    const j = JSON.parse(raw)
+    const out = { ...DEFAULT_TOGGLES }
+    for (const k of Object.keys(DEFAULT_TOGGLES) as Array<keyof VisualToggles>) {
+      if (typeof j?.[k] === 'boolean') out[k] = j[k]
+    }
+    return out
+  } catch { return { ...DEFAULT_TOGGLES } }
+}
+
+/* State modul (dibaca saat emit — bukan React state, supaya re-emit
+   dari timer/live tick selalu pakai nilai TERBARU). */
+let moduleToggles: VisualToggles = { ...DEFAULT_TOGGLES }
+if (typeof window !== 'undefined') moduleToggles = loadVisualToggles()
+
+/* Registry instance hidup — toggle berubah → SEMUA langsung repaint. */
+const liveProtectedInstances = new Set<{ forceReemit: () => void }>()
+
+export function applyVisualToggles(next: VisualToggles) {
+  moduleToggles = { ...next }
+  try { window.localStorage.setItem(TOGGLES_LS_KEY, JSON.stringify(next)) } catch { /* diam */ }
+  for (const inst of liveProtectedInstances) {
+    try { inst.forceReemit() } catch { /* diam */ }
+  }
+}
+
+/* Style label yang merupakan SHAPE/markers plotshape (glyph tanpa
+   teks) — sisanya (style label_* / none dengan teks) = label.new teks. */
+const MARKER_STYLES = new Set([
+  'triangleup', 'triangledown', 'cross', 'xcross', 'circle', 'square',
+  'diamond', 'flag', 'arrowup', 'arrowdown', 'xcircles', 'arrowsup', 'arrowsdown',
+])
+
 /**
  * Visual dari server (format model engine — DrawingLabel/Background/
  * DrawingLine/…) dipetakan ke emit native: paneId dipaksa 'price'
@@ -156,11 +216,13 @@ const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[];
  * plotshape marker dari engine datang sebagai label dgn style
  * triangleup/triangledown/cross/… + yloc abovebar/belowbar — persis
  * yang renderer pahami, jadi TIDAK perlu konversi manual lagi.
+ * Kategori di-FILTER sesuai toggle Tampilan (Bos: "apa aja yg muncul").
  */
 function buildVisualDrawings(
   visuals: ProtectedVisuals,
   scriptId: string,
   barsArr: ReadonlyArray<{ time: number }> = [],
+  tg: VisualToggles = moduleToggles,
 ): { labels: any[]; backgrounds: any[]; lines: any[]; boxes: any[]; tables: any[] } {
   const labels: any[] = []
   const backgrounds: any[] = []
@@ -179,8 +241,15 @@ function buildVisualDrawings(
     const cand = [times[lo], times[Math.max(0, lo - 1)]]
     return cand.reduce((best, c) => (Math.abs(c - t) < Math.abs(best - t) ? c : best), cand[0])
   }
+  /* Klasifikasi label: style di MARKER_STYLES (atau glyph tanpa teks)
+     = marker plotshape → gate `markers`; sisanya = label teks
+     label.new → gate `labels`. */
+  const isMarker = (st: string, txt: string) => MARKER_STYLES.has(st) || (!txt && !st.startsWith('label'))
   try {
     (visuals.labels || []).forEach((lb, i) => {
+      const st = String((lb as any).style || 'none')
+      const txt = String((lb as any).text ?? '')
+      if (isMarker(st, txt) ? !tg.markers : !tg.labels) return // toggle kategori
       const x = snapTime(Number((lb as any).x))
       if (!Number.isFinite(x)) return
       labels.push({
@@ -191,8 +260,8 @@ function buildVisualDrawings(
         x,
         y: Number((lb as any).y) || 0,
         yloc: (lb as any).yloc || 'price',
-        text: String((lb as any).text ?? ''),
-        style: (lb as any).style || 'none',
+        text: txt,
+        style: st,
         ...(typeof (lb as any).color === 'string' ? { color: (lb as any).color } : {}),
         ...(typeof (lb as any).textColor === 'string' ? { textColor: (lb as any).textColor } : {}),
         size: (lb as any).size || 'tiny',
@@ -202,7 +271,7 @@ function buildVisualDrawings(
         ...(typeof (lb as any).tooltip === 'string' ? { tooltip: (lb as any).tooltip } : {}),
       })
     })
-    ;(visuals.backgrounds || []).forEach((bg, i) => {
+    ;(tg.backgrounds ? (visuals.backgrounds || []) : []).forEach((bg, i) => {
       const from = snapTime(Number((bg as any).from))
       const toRaw = Number((bg as any).to)
       const to = Number.isFinite(toRaw) ? Math.max(from + 1, snapTime(toRaw)) : from
@@ -210,7 +279,7 @@ function buildVisualDrawings(
       if (!Number.isFinite(from) || !Number.isFinite(to) || typeof color !== 'string') return
       backgrounds.push({ id: `ltxv-${scriptId}-b${i}`, paneId: 'price', from, to, color, overlay: true })
     })
-    ;(visuals.lines || []).forEach((ln, i) => {
+    ;(tg.lines ? (visuals.lines || []) : []).forEach((ln, i) => {
       const x1 = snapTime(Number((ln as any).x1))
       const y1 = Number((ln as any).y1)
       if (!Number.isFinite(x1) || !Number.isFinite(y1)) return
@@ -230,7 +299,7 @@ function buildVisualDrawings(
         arrowRight: false,
       })
     })
-    ;(visuals.boxes || []).forEach((bx, i) => {
+    ;(tg.boxes ? (visuals.boxes || []) : []).forEach((bx, i) => {
       const left = snapTime(Number((bx as any).left))
       const right = snapTime(Number((bx as any).right))
       const top = Number((bx as any).top)
@@ -242,13 +311,17 @@ function buildVisualDrawings(
         overlay: true,
         xloc: (bx as any).xloc || 'bar_time',
         left, right, top, bottom,
+        /* Renderer DrawingBox pakai bgColor (nama sama dgn engine model) */
+        ...(typeof (bx as any).bgColor === 'string' ? { bgColor: (bx as any).bgColor } : {}),
+        ...(typeof (bx as any).backgroundColor === 'string' ? { bgColor: (bx as any).backgroundColor } : {}),
         ...(typeof (bx as any).borderColor === 'string' ? { borderColor: (bx as any).borderColor } : {}),
         ...(typeof (bx as any).borderStyle === 'string' ? { borderStyle: (bx as any).borderStyle } : {}),
         ...(Number.isFinite(Number((bx as any).borderWidth)) ? { borderWidth: Number((bx as any).borderWidth) } : {}),
-        ...(typeof (bx as any).backgroundColor === 'string' ? { backgroundColor: (bx as any).backgroundColor } : {}),
+        ...(typeof (bx as any).text === 'string' ? { text: (bx as any).text } : {}),
+        ...(typeof (bx as any).textColor === 'string' ? { textColor: (bx as any).textColor } : {}),
       })
     })
-    ;(visuals.tables || []).forEach((tb, i) => {
+    ;(tg.tables ? (visuals.tables || []) : []).forEach((tb, i) => {
       if (!tb || typeof tb !== 'object') return
       tables.push({ ...(tb as any), id: `ltxv-${scriptId}-t${i}`, paneId: 'price', overlay: true })
     })
@@ -256,8 +329,9 @@ function buildVisualDrawings(
   return { labels, backgrounds, lines, boxes, tables }
 }
 
-function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = [], visuals?: ProtectedVisuals) {
+export function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = [], visuals?: ProtectedVisuals) {
   try {
+    const tg = moduleToggles // toggle Tampilan saat ini (Bos: "apa aja yg muncul")
     const barsArr: Array<{ time: number }> = typeof ctx?.bars === 'function' ? ctx.bars() : []
     /* BUCKET-TOLERANT MATCHING (fix "pine ga ada Entry/SL/TP"):
        dulu nilai plot di-match ke bar dgn kesamaan waktu PERSIS —
@@ -275,9 +349,10 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
        stepped SL/TP sintetis yang menempel candle & susah dibaca.
        Garis stepped Entry tetap (posisi terbuka menjulur). */
     const hasTradeVisuals = trades.length > 0
-    const series = plots
-      .filter((p) => !hasTradeVisuals || (p.key !== 'StopLoss' && p.key !== 'TakeProfit'))
-      .map((p) => {
+    const series = tg.plots
+      ? plots
+          .filter((p) => !hasTradeVisuals || (p.key !== 'StopLoss' && p.key !== 'TakeProfit'))
+          .map((p) => {
         const m = new Map<number, number | null>()
         for (const d of p.data) if (d.value != null) m.set(snap(d.time), d.value)
         return {
@@ -290,12 +365,13 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
           style: { color: p.color, width: p.key === 'Entry' ? 2 : 1, lineStyle: 'solid' as const },
         }
       })
+      : []
     /* ---- Garis & label per trade (replika line.new/label.new) ----
        Warna = isWin ? color.green : color.red ala Pine Bos; batas
        400 trade terakhir = max_lines_count/max_labels_count Pine. */
     const WIN = '#22ab94'
     const LOSS = '#ef5350'
-    const recent = trades.slice(-400)
+    const recent = tg.trades ? trades.slice(-400) : []
     const lines: any[] = []
     const labels: any[] = []
     const backgroundsArr: any[] = []
@@ -347,19 +423,22 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
         if (visLabels.length) labels.push(...visLabels)
         if (visBackgrounds.length) backgroundsArr.push(...visBackgrounds)
         if (visLines.length) lines.push(...visLines)
-        if (visBoxes.length || visTables.length) {
-          const boxesArr: any[] = visBoxes
-          const tablesArr: any[] = visTables
-          extraDrawings = { ...(boxesArr.length ? { boxes: boxesArr } : {}), ...(tablesArr.length ? { tables: tablesArr } : {}) }
+        extraDrawings = {
+          ...(visBoxes.length ? { boxes: visBoxes } : {}),
+          ...(visTables.length ? { tables: visTables } : {}),
         }
       } catch { /* dekoratif */ }
     }
+    /* PENTING: SEMUA key SELALU dikirim (array kosong saat toggle off) —
+       emit = PATCH: key yang TIDAK dikirim TIDAK menghapus gambar lama
+       (dulu toggle off → key hilang → visual lama nyangkut di chart). */
     ctx?.emit?.({
       series,
-      ...(lines.length ? { lines } : {}),
-      ...(labels.length ? { labels } : {}),
-      ...(backgroundsArr.length ? { backgrounds: backgroundsArr } : {}),
-      ...(extraDrawings || {}),
+      lines,
+      labels,
+      backgrounds: backgroundsArr,
+      boxes: extraDrawings?.boxes || [],
+      tables: extraDrawings?.tables || [],
     })
   } catch { /* jangan biarkan satu emit mengguncang chart */ }
 }
@@ -483,7 +562,16 @@ function createProtectedInstance() {
     } finally { busy = false }
   }
 
-  return {
+  /* Handle instance — didaftarkan ke liveProtectedInstances saat start()
+     supaya toggle Tampilan bisa repaint SEMUA indikator Eksklusif aktif
+     sekaligus (instan, tanpa refetch server). */
+  const handle = {
+    forceReemit: () => {
+      const c = ctx
+      if (!c || !lastPlots) return
+      lastBarsSig = '' // paksa emit walau bars tak berubah
+      maybeEmit(c)
+    },
     start: (c: any, inputs: Record<string, any>) => {
       ctx = c
       scriptKey = String(inputs?.scriptId || inputs?.slug || '')
@@ -492,6 +580,7 @@ function createProtectedInstance() {
       lastVisuals = null
       lastBarsSig = ''
       lastRunKey = ''
+      liveProtectedInstances.add(handle)
       run(true)
     },
     onBars: () => {
@@ -523,8 +612,9 @@ function createProtectedInstance() {
       if (lastPlots && ctxRunKey(c) === lastRunKey) maybeEmit(c)
       else run(false)
     },
-    stop: () => { clearTimers(); ctx = null },
+    stop: () => { clearTimers(); liveProtectedInstances.delete(handle); ctx = null },
   }
+  return handle
 }
 
 let protectedRegistered = false
@@ -998,6 +1088,16 @@ export default function VelaChartTerminal({
 
   /* ---------- Upgrade paywall dialog ---------- */
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
+
+  /* ---------- Tampilan chart (toggle kategori visual — Bos: "biar
+     bisa disetting apa aja yg muncul dichart") ---------- */
+  const [visualOpen, setVisualOpen] = useState(false)
+  const [toggles, setToggles] = useState<VisualToggles>(() => loadVisualToggles())
+  const updateToggle = (key: keyof VisualToggles, v: boolean) => {
+    const next = { ...toggles, [key]: v }
+    setToggles(next)
+    applyVisualToggles(next) // simpan + repaint semua indikator aktif
+  }
 
   /* ---------- Preset indikator (chip) — free 1 · pro 3 ---------- */
   const [activePresets, setActivePresets] = useState<Record<number, boolean>>({})
@@ -1795,6 +1895,12 @@ export default function VelaChartTerminal({
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setPineOpen((v) => !v)}>
             <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
           </Button>
+          {/* ---------- ⚙ Tampilan: setel apa saja yang muncul di chart
+             (permintaan Bos: "biar bisa disetting apa aja yg muncul
+             dichart") — toggle per kategori visual indikator. ---------- */}
+          <Button size="sm" variant="outline" className="text-xs h-8 border-purple-400/30 text-purple-200 hover:bg-purple-400/10 hover:text-purple-100" onClick={() => setVisualOpen(true)}>
+            <SlidersHorizontal className="w-3.5 h-3.5 mr-1" /> Tampilan
+          </Button>
         </div>
       </div>
 
@@ -2169,6 +2275,54 @@ export default function VelaChartTerminal({
           )}
         </div>
       )}
+
+      {/* ---------- Dialog ⚙ TAMPILAN — setel apa saja yang muncul di
+          chart (permintaan Bos). Toggle per kategori visual indikator
+          Eksklusif/terproteksi; tersimpan di localStorage & berlaku
+          INSTAN tanpa muat ulang chart. ---------- */}
+      <Dialog open={visualOpen} onOpenChange={setVisualOpen}>
+        <DialogContent className="max-w-sm bg-[#0a0f16] border-white/10 max-h-[85vh] overflow-y-auto kscroll">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-200 text-base">
+              <Eye className="w-4 h-4" /> Tampilan Chart
+            </DialogTitle>
+            <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
+              Pilih elemen indikator yang ingin muncul di chart. Perubahan langsung berlaku & tersimpan otomatis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            {([
+              ['markers', 'Panah sinyal BUY/SELL', 'Tanda plotshape (segitiga/panah) hasil sinyal skrip'],
+              ['labels', 'Label teks harga', 'Kotak label di chart (label.new — teks BUY, level, dst.)'],
+              ['trades', 'Garis Entry → Exit + TP/SL', 'Garis perdagangan strategy + label TP/SL'],
+              ['plots', 'Garis indikator', 'Garis EMA/level hasil plot() skrip'],
+              ['backgrounds', 'Latar sesi (bgcolor)', 'Pewarnaan latar sesi pasar/zona'],
+              ['lines', 'Garis level (line.new)', 'Garis support/resistance/trendline dari skrip'],
+              ['boxes', 'Kotak zona (box.new)', 'Kotak zona supply/demand atau range'],
+              ['tables', 'Tabel on-chart (table.new)', 'Tabel informasi yang digambar skrip di chart'],
+            ] as Array<[keyof VisualToggles, string, string]>).map(([key, title, desc]) => (
+              <label
+                key={key}
+                className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2.5 cursor-pointer hover:bg-white/[0.06] transition-colors"
+              >
+                <span className="flex-1 min-w-0">
+                  <span className="block text-xs font-medium text-white/90">{title}</span>
+                  <span className="block text-[10px] text-white/40 leading-snug">{desc}</span>
+                </span>
+                <Switch
+                  checked={toggles[key]}
+                  onCheckedChange={(v) => updateToggle(key, v)}
+                  aria-label={`${toggles[key] ? 'Sembunyikan' : 'Tampilkan'} ${title}`}
+                  className="shrink-0 data-[state=checked]:bg-purple-500"
+                />
+              </label>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/35 leading-relaxed">
+            Berlaku untuk indikator Eksklusif & terproteksi di chart. Semua elemen kembali tampil bila semua toggle dinyalakan.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       {/* ---------- Dialog paywall upgrade ---------- */}
       <Dialog open={!!upgradeMsg} onOpenChange={(v) => !v && setUpgradeMsg(null)}>

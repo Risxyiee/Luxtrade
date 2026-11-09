@@ -146,6 +146,8 @@ interface CallAgentOpts {
   timeoutMs?: number
   /** Override model primary (env OR_MODEL_<TAG> tetap menang). */
   model?: string
+  /** INTERNAL — cegah retry rekursif tanpa batas (panggilan ulang ke-2). */
+  noRetry?: boolean
 }
 /**
  * Helper LLM WAJIB semua agen — RANTAI 3 LAPIS (7 Nov: Bos komplain
@@ -248,6 +250,17 @@ async function callAgent(
     return { text: fb.text, model: `${fb.provider}/${fb.model}`, notes: allNotes.length ? allNotes : undefined }
   }
   console.warn(`[master:${agentTag}] SEMUA provider gagal (mortera: ${morNotes.join(' | ') || 'tidak mencoba'}, OpenRouter, Groq, Gemini)`)
+  /* RETRY SEKALI (jeda 20 dtk) — kegagalan TRANSIENT semua provider sering
+     pulih dalam hitungan detik (kasus nyata 8–9 Nov: Maya gagal "LLM tidak
+     tersedia" tiap pagi, tapi panggilan Dewi 1 menit berikutnya SUKSES —
+     rate-limit/timeout sesaat). Satu retry saja (noRetry) supaya hemat
+     subrequest; kalau masih gagal → caller jatuh ke fallback data riil. */
+  if (!opts.noRetry) {
+    await new Promise((r) => setTimeout(r, 20_000))
+    console.warn(`[master:${agentTag}] retry sekali setelah 20 dtk…`)
+    const retry = await callAgent(agentTag, systemPrompt, userPrompt, { ...opts, noRetry: true })
+    if (retry) return retry
+  }
   return null
 }
 

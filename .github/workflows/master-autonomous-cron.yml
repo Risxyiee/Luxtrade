@@ -96,15 +96,24 @@ jobs:
               echo "── RAKA P1 (celah keamanan) ──"
               jq -r '(.agents.Raka.data.p1 // [])[] | "- \(.method) \(.path): \(.note)"' /tmp/wave-resp.json 2>/dev/null || true
             fi
-            grep -q '"success": *true' /tmp/wave-resp.json 2>/dev/null || {
-              echo "❌ $label gagal (HTTP $code) — cek body di atas"
+            # FIX "kerjaan karyawan sama mulu": dulu SATU agen gagal (mis. Maya
+            # LLM sementara / Farhan kualitas draf) → exit 1 → Gelombang 2+3
+            # (Farhan, Sinta, Alexander) DILEWATI SETIAP HARI. Sekarang hanya
+            # kegagalan INFRA (HTTP bukan 200 / koneksi) yang gagal-kan step —
+            # agen yang gagal terlihat di daftar di atas & karyawan lain tetap
+            # bekerja.
+            if [ "$code" != "200" ]; then
+              echo "❌ $label gagal (HTTP $code) — kegagalan infra"
               exit 1
-            }
-            echo "✅ $label selesai"
+            fi
+            echo "✅ $label selesai (agen gagal ada di daftar atas bila ada)"
           }
           kick "?agents=raka,maya,bagas,putri,dewi" "Gelombang 1: Raka + agen data"
 
       - name: "🎬 Gelombang 2/3 — Farhan + Sinta (konten LLM berat)"
+        # SELALU jalan walau Gelombang 1 gagal (infra pun: hasil parsial
+        # lebih baik daripada karyawan konten mingguan tak pernah bekerja)
+        if: always()
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -129,17 +138,21 @@ jobs:
               echo "── AGEN GAGAL ──"
               jq -r '(.agents // {}) | to_entries[] | select(.value.status == "error") | "- \(.key): \(.value.error // "tanpa pesan")"' /tmp/wave-resp.json 2>/dev/null || true
             fi
-            grep -q '"success": *true' /tmp/wave-resp.json 2>/dev/null || {
-              echo "❌ $label gagal (HTTP $code) — cek body di atas"
+            # Konsisten Gelombang 1: hanya infra (HTTP) yang gagal-kan step
+            if [ "$code" != "200" ]; then
+              echo "❌ $label gagal (HTTP $code) — kegagalan infra"
               exit 1
-            }
-            echo "✅ $label selesai"
+            fi
+            echo "✅ $label selesai (agen gagal ada di daftar atas bila ada)"
           }
           # force=true: guard interval 30 menit memblok wave ke-2 dalam run yang
           # sama (wave 1 baru saja mencatat master:lastRun) — aman, tetap ber-auth.
           kick "?agents=farhan,sinta&force=true" "Gelombang 2: Farhan + Sinta"
 
       - name: "👔 Gelombang 3/3 — Alexander (briefing → Discord)"
+        # SELALU jalan — briefing harus terkirim walau gelombang sebelumnya
+        # ada agen yang gagal (Alexander fan-in membaca hasil parsial dari KV)
+        if: always()
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -165,10 +178,10 @@ jobs:
               jq -r '.ceo.briefing.ringkasan // "tidak ada"' /tmp/wave-resp.json 2>/dev/null || true
               jq -r '"NBA: \(.ceo.briefing.next_best_action.judul // "-")"' /tmp/wave-resp.json 2>/dev/null || true
             fi
-            grep -q '"success": *true' /tmp/wave-resp.json 2>/dev/null || {
-              echo "❌ $label gagal (HTTP $code) — cek body di atas"
+            if [ "$code" != "200" ]; then
+              echo "❌ $label gagal (HTTP $code) — kegagalan infra"
               exit 1
-            }
+            fi
             # Hardening: wave 3 WAJIB menghasilkan briefing — kalau ceo null,
             # berarti worker belum deploy versi mode gelombang.
             jq -e '.ceo != null and .ceo.briefing.ringkasan != null' /tmp/wave-resp.json >/dev/null 2>&1 || {
