@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Lock, Grid3X3, BarChart3, Zap } from 'lucide-react'
+import { Grid3X3, BarChart3 } from 'lucide-react'
 
 // Interface
 interface Trade {
@@ -25,15 +23,12 @@ interface Trade {
 }
 
 interface HeatmapTabProps {
-  isPro: boolean
-  onUpgrade: () => void
   trades: Trade[]
   language?: 'id' | 'en'
 }
 
 // Component
-function HeatmapTab({ isPro, onUpgrade, trades, language = 'id' }: HeatmapTabProps) {
-  const { repeatCount } = useMotionSafe()
+function HeatmapTab({ trades, language = 'id' }: HeatmapTabProps) {
   // Calculate heatmap data by day and session
   const dayNames = language === 'id'
     ? ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
@@ -78,24 +73,9 @@ function HeatmapTab({ isPro, onUpgrade, trades, language = 'id' }: HeatmapTabPro
 
   return (
     <div className="space-y-6">
-      {!isPro ? (
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
-          <CardContent className="py-8 text-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: repeatCount }}
-            >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
-            </motion.div>
-            <h3 className="text-lg font-bold text-blue-400 mb-2">{language === 'id' ? 'Heatmap Pasar - Fitur PRO' : 'Market Heatmap - PRO Feature'}</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === 'id' ? 'Visualisasi kekuatan pasar di semua pair' : 'Visualize market strength across all pairs'}</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
-              <Zap className="w-4 h-4 mr-2" /> {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
+      {/* FREEMIUM BARU (9 Nov): heatmap performa = statistik dari trade milik user sendiri
+          = bagian jurnal → GRATIS untuk semua. Gerbang PRO dihapus. */}
+      <div className="space-y-6">
           {/* Day/Session Heatmap */}
           <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
@@ -214,8 +194,7 @@ function HeatmapTab({ isPro, onUpgrade, trades, language = 'id' }: HeatmapTabPro
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

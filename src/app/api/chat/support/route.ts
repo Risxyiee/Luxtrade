@@ -30,7 +30,7 @@ ESCALATION KE ADMIN:
 INFO PRODUK:
 - LuxTradee = jurnal trading AI untuk prop firm traders
 - Paket Gratis: jurnal trade UNLIMITED & GRATIS SELAMANYA (catat manual, impor screenshot/MT4-CSV, grafik performa & statistik standar) — jangan pernah bilang jurnal gratis ada batas
-- Paket PRO/Elite: fitur lapisan cerdas — analisis AI, sinyal VIP, ekspor data, auto-journal (harga cek halaman pricing, jangan sebut angka kalau tak yakin)
+- Paket PRO/Elite: fitur lapisan cerdas — AI chat/insight tanpa batas, weekly report AI, alert dari Pine Script milik user, watchlist & market news, Prop Firm Guard (jurnal & ekspor data sudah GRATIS di plan free; harga cek halaman pricing, jangan sebut angka kalau tak yakin)
 - AI Vision: upload screenshot MT5/TradingView → auto extract data trade
 - AI Pattern Detection: deteksi pola loss berulang (FOMO, overtrading, dll)
 - Payment: Midtrans (QRIS, Virtual Account, e-wallet — via Midtrans Snap)

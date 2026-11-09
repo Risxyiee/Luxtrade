@@ -388,7 +388,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
                 <div class="compare-box compare-free">
                   <div class="compare-title">Free</div>
                   <ul style="list-style: none; padding: 0; margin: 0; color: #9ca3af; font-size: 14px;">
-                    <li style="padding: 8px 0;">10 trades/month</li>
+                    <li style="padding: 8px 0;">UNLIMITED journal entries — free forever</li>
                     <li style="padding: 8px 0;">10 AI queries</li>
                     <li style="padding: 8px 0;">Basic features</li>
                   </ul>

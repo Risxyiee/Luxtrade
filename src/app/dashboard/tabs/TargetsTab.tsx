@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Lock, Zap, Pencil, Check, X, RotateCcw } from 'lucide-react'
+import { Pencil, Check, X, RotateCcw } from 'lucide-react'
 
 // Interfaces
 interface Analytics {
@@ -43,8 +41,6 @@ interface Trade {
 }
 
 interface TargetsTabProps {
-  isPro: boolean
-  onUpgrade: () => void
   language: string
   analytics: Analytics | null
   trades: Trade[]
@@ -55,8 +51,7 @@ const DEFAULT_TARGETS = { daily: 100, weekly: 500, monthly: 2000, winRate: 70 }
 const TARGETS_KEY = 'luxtradee-targets'
 
 // Component
-function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTabProps) {
-  const { repeatCount } = useMotionSafe()
+function TargetsTab({ language, analytics, trades }: TargetsTabProps) {
   // Editable target state
   const [customTargets, setCustomTargets] = useState(DEFAULT_TARGETS)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -114,23 +109,7 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
     { id: 4, name: language === "id" ? "Target Win Rate" : "Win Rate Target", target: customTargets.winRate, current: currentWinRate, unit: "%" },
   ]
 
-  if (!isPro) {
-    return (
-      <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
-        <CardContent className="py-8 text-center">
-          <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: repeatCount }}>
-            <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
-          </motion.div>
-          <h3 className="text-lg font-bold text-blue-400 mb-2">{language === "id" ? "Target - Fitur PRO" : "Targets - PRO Feature"}</h3>
-          <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === "id" ? "Tetapkan dan lacak target trading Anda" : "Set and track your trading goals"}</p>
-          <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
-            <Zap className="w-4 h-4 mr-2" /> {language === "id" ? "Upgrade ke PRO" : "Upgrade to PRO"}
-          </Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
+  // FREEMIUM BARU (9 Nov): target = alat jurnal (goal setting dari data sendiri) → GRATIS. Gerbang PRO dihapus.
   return (
     <div className="space-y-4">
       {targets.map((target) => {

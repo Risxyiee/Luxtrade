@@ -242,7 +242,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'score' && (
-            <TradingScore analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+            <TradingScore analytics={analytics} trades={trades} />
           )}
 
           {activeTab === 'report' && (
@@ -254,11 +254,11 @@ export default function TabContent({
           )}
 
           {activeTab === 'psychology' && (
-            <PsychologyTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} language={language} />
+            <PsychologyTab trades={trades} language={language} />
           )}
 
           {activeTab === 'heatmap' && (
-            <HeatmapTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} language={language} />
+            <HeatmapTab trades={trades} language={language} />
           )}
 
           {activeTab === 'calendar' && (
@@ -278,7 +278,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'targets' && (
-            <TargetsTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} analytics={analytics} trades={trades} />
+            <TargetsTab language={language} analytics={analytics} trades={trades} />
           )}
 
           {activeTab === 'achievements' && hasMounted && (

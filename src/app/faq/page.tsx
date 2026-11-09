@@ -31,7 +31,7 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
     items: [
       {
         question: 'Apakah ada versi gratis?',
-        answer: 'Ya, LuxTradee menyediakan paket gratis dengan fitur dasar termasuk 10 jurnal transaksi per bulan, grafik performa standar, dan kalkulator risiko pemula.',
+        answer: 'Ya! Jurnal transaksi UNLIMITED gratis selamanya — termasuk analitik lengkap (heatmap, psikologi, trading score, target), impor CSV/MT4/screenshot, dan ekspor data. Tembok upgrade cuma di fitur AI (10x chat gratis, unlimited dengan PRO).',
       },
       {
         question: 'Apa saja keuntungan paket Elite Pro?',

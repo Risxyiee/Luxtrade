@@ -31,7 +31,7 @@ const FAQ: Array<{ keys: RegExp; id: string; en: string }> = [
   {
     // harga / berapa / premium / bayar / plan / langganan
     keys: /harga|berapa|biaya|premium|bayar|plan|paket|langganan|berlangganan|price|upgrade|pro\??.*(harga|biaya)|murah/i,
-    id: 'Luxtradee ada plan GRATIS — jurnal trade UNLIMITED & gratis selamanya (catat manual, impor screenshot/MT4-CSV, grafik performa & statistik) — dan PRO untuk lapisan cerdasnya: analisis AI, sinyal VIP, ekspor data, auto-journal. Detail lengkap di halaman pricing ya! 😊',
+    id: 'Luxtradee ada plan GRATIS — jurnal trade UNLIMITED & gratis selamanya (catat manual, impor screenshot/MT4-CSV, semua analitik: heatmap/psikologi/score/target, ekspor CSV/PDF) — dan PRO untuk lapisan cerdasnya: AI chat & insight tanpa batas, weekly report AI, alert dari Pine Script milikmu, watchlist & Prop Firm Guard. Detail lengkap di halaman pricing ya! 😊',
     en: "Luxtradee has a FREE plan — unlimited trading journal, free forever (manual logging, screenshot/MT4-CSV import, performance charts & stats) — plus PRO for the smart layer: AI analysis, VIP signals, data export, auto-journal. See the pricing page for details! 😊",
   },
   {

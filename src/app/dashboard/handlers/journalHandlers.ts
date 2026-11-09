@@ -53,11 +53,9 @@ export const createJournalHandlers = ({
         setJournalForm({ title: '', content: '', mood: '', market_condition: '' })
         fetchData(true)
       } else {
-        if (data.code === 'JOURNAL_LIMIT_EXCEEDED') {
-          toast.error(language === 'id' ? 'Batas jurnal bulanan tercapai. Upgrade ke Pro!' : 'Monthly journal limit reached. Upgrade to Pro!')
-        } else {
-          toast.error(data.error || (language === 'id' ? 'Gagal menambahkan jurnal' : 'Failed to add entry'))
-        }
+        // FREEMIUM BARU (9 Nov): limit jurnal sudah dihapus server-side —
+        // cabang JOURNAL_LIMIT_EXCEEDED dihapus karena tidak mungkin terjadi lagi.
+        toast.error(data.error || (language === 'id' ? 'Gagal menambahkan jurnal' : 'Failed to add entry'))
       }
     } catch {
       toast.error(language === 'id' ? 'Gagal menambahkan jurnal' : 'Failed to add journal entry')

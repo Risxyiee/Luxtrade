@@ -160,24 +160,15 @@ export function ExportButtons({
               <Receipt className="w-3 h-3 inline mr-1" />
               {language === 'id' ? 'Pajak' : 'Tax'}
             </DropdownMenuLabel>
-            {isPro ? (
-              <DropdownMenuItem
-                onClick={async () => { await exportTaxReportPDF(trades, username) }}
-                className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
-              >
-                <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
-                <span>{t.taxReport}</span>
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                disabled
-                className="text-lux-text-muted dark:text-gray-500 cursor-not-allowed"
-              >
-                <BarChart3 className="w-4 h-4 mr-2" />
-                <span>{t.taxReport}</span>
-                <span className="ml-auto text-[10px] text-amber-400/60 font-medium">{t.taxReportPro}</span>
-              </DropdownMenuItem>
-            )}
+            {/* FREEMIUM BARU (9 Nov): ekspor data milik sendiri = bagian jurnal → GRATIS
+                (dulu tax report PDF terkunci Pro — CSV sudah gratis, PDF cuma format beda) */}
+            <DropdownMenuItem
+              onClick={async () => { await exportTaxReportPDF(trades, username) }}
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
+            >
+              <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
+              <span>{t.taxReport}</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-blue-500/10" />
           </>
         )}

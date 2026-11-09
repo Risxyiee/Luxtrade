@@ -73,37 +73,5 @@ async function computeIsUserPro(userId: string): Promise<boolean> {
   }
 }
 
-/**
- * Count user's journal entries for current month.
- */
-export async function countUserJournalsThisMonth(userId: string): Promise<number> {
-  try {
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-    const supabaseAdmin = getSupabaseAdmin()
-    if (!supabaseAdmin) {
-      console.error('❌ [countUserJournalsThisMonth] Supabase admin client not available')
-      return 0
-    }
-
-    const { count, error } = await supabaseAdmin
-      .from('journal_entries')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .gte('created_at', startOfMonth.toISOString())
-
-    if (error) {
-      console.error('❌ [countUserJournalsThisMonth] Failed to query journal_entries:', error.message)
-      return 0
-    }
-
-    return count ?? 0
-  } catch (error) {
-    console.error('❌ [countUserJournalsThisMonth] Unexpected error for user', userId, ':', error)
-    return 0
-  }
-}
-
-/** Free user limits */
-export const FREE_JOURNAL_LIMIT = 10
+// FREEMIUM BARU (9 Nov): limit jurnal free DIHAPUS — jurnal unlimited gratis selamanya
+// (posisi produk Bos: "kita kan jurnal bukan jualan sinyal"). Tembok upgrade = fitur AI.

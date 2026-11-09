@@ -418,7 +418,7 @@ function ShareTradeSection({
     : null
 
   const handleShare = async (tradeId: string) => {
-    if (!isPro) return
+    // FREEMIUM BARU (9 Nov): bagikan kartu trade = bagian jurnal + loop pertumbuhan → GRATIS.
     setSharing(true)
     setShareCode(null)
     try {
@@ -494,28 +494,7 @@ function ShareTradeSection({
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
-      {/* PRO Gate */}
-      {!isPro ? (
-        <Card className="bg-[#0d1117] border-slate-700/50 dark:bg-[#0a0c12]">
-          <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center">
-              <Lock className="w-6 h-6 text-slate-500" />
-            </div>
-            <div className="text-center">
-              <p className="text-slate-300 font-medium">{t('shareTrade', language)}</p>
-              <p className="text-sm text-slate-500 mt-1">{t('shareProOnly', language)}</p>
-            </div>
-            <Button
-              onClick={() => onAddTradeOpen(false)}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0"
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              {t('upgrade', language)}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
+      {/* FREEMIUM BARU (9 Nov): share trade GRATIS untuk semua — dulu gerbang PRO */}
           {/* Share Latest Trade */}
           <Card className="bg-[#0d1117] border-slate-700/50 dark:bg-[#0a0c12]">
             <CardHeader className="pb-3">
@@ -726,8 +705,7 @@ function ShareTradeSection({
               </AnimatePresence>
             </CardContent>
           </Card>
-        </>
-      )}
+
     </motion.div>
   )
 }

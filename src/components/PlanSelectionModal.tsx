@@ -42,12 +42,12 @@ const plans: Plan[] = [
     durationType: 'lifetime',
     pricingKey: 'PRO_30_DAYS',
     features: [
-      '10 Jurnal Transaksi / Bulan',
+      'UNLIMITED Jurnal Transaksi — gratis selamanya',
+      'Semua Analitik: Heatmap, Psychology, Trading Score, Targets',
       '10x Tanya AI (Chat)',
-      'Grafik Performa & Statistik Standar',
-      'Chart Live Vela™ + 1 Indikator',
-      'Pine Script® 2×/Bulan',
-      'Prop Firm Guard & Watchlist'
+      'Chart Live Vela™ + Impor CSV/MT4/Screenshot',
+      'Ekspor Data CSV & PDF',
+      'Kalender Ekonomi & Kalkulator Risiko'
     ]
   },
   {
@@ -61,14 +61,13 @@ const plans: Plan[] = [
     durationType: 'month',
     pricingKey: 'PRO_30_DAYS',
     features: [
-      'UNLIMITED Jurnal Transaksi & Tanya AI',
-      'AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
-      'Analitik Mendalam & Equity Curve',
-      'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
-      'Alert Otomatis & Pine Script® Tanpa Batas',
-      'Heatmap, Analitik & Target Trading',
-      'AI Insights, Trading Score, Weekly Report & Psikologi',
-      'Ekspor Data ke CSV / PDF + Dukungan Prioritas'
+      'UNLIMITED Jurnal + AI Chat tanpa batas',
+      'AI Insights & Weekly Report (analisis AI mendalam)',
+      'Alert dari Pine Script® milikmu — tanpa batas',
+      'Watchlist Pasar & Market News',
+      'Prop Firm Guard (pemantauan otomatis MetaApi)',
+      'Semua fitur jurnal gratis (sudah termasuk paket free)',
+      'Dukungan Prioritas'
     ],
     popular: true
   },
@@ -84,14 +83,13 @@ const plans: Plan[] = [
     popular: true,
     savings: '16%',
     features: [
-      'UNLIMITED Jurnal Transaksi & Tanya AI',
-      'AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
-      'Analitik Mendalam & Equity Curve',
-      'Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
-      'Alert Otomatis & Pine Script® Tanpa Batas',
-      'Heatmap, Analitik & Target Trading',
-      'AI Insights, Trading Score, Weekly Report & Psikologi',
-      'Ekspor Data ke CSV / PDF + Dukungan Prioritas',
+      'UNLIMITED Jurnal + AI Chat tanpa batas',
+      'AI Insights & Weekly Report (analisis AI mendalam)',
+      'Alert dari Pine Script® milikmu — tanpa batas',
+      'Watchlist Pasar & Market News',
+      'Prop Firm Guard (pemantauan otomatis MetaApi)',
+      'Semua fitur jurnal gratis (sudah termasuk paket free)',
+      'Dukungan Prioritas',
       'Hemat 2 Bulan vs Bulanan'
     ]
   },

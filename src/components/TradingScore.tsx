@@ -3,17 +3,14 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Trophy, TrendingUp, Target, BarChart3, Lock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Trophy, TrendingUp, Target, BarChart3 } from 'lucide-react'
 
 interface TradingScoreProps {
   analytics: any
   trades: any[]
-  isPro: boolean
-  onUpgrade: () => void
 }
 
-export default function TradingScore({ analytics, trades, isPro, onUpgrade }: TradingScoreProps) {
+export default function TradingScore({ analytics, trades }: TradingScoreProps) {
   const scores = useMemo(() => {
     if (!trades || trades.length === 0) {
       return { overall: 0, winRate: 0, consistency: 0, riskMgmt: 0, discipline: 0 }
@@ -69,28 +66,7 @@ export default function TradingScore({ analytics, trades, isPro, onUpgrade }: Tr
     { label: 'Discipline', score: scores.discipline, icon: Trophy, color: 'text-purple-400' },
   ]
 
-  if (!isPro) {
-    return (
-      <Card className="border-lux-border dark:border-blue-500/20 bg-lux-bg-card dark:bg-[#0a0c12]">
-        <CardHeader>
-          <CardTitle className="text-lux-text-primary dark:text-white flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-400" />
-            Trading Score
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-center py-8">
-          <Lock className="w-10 h-10 text-gray-500 mx-auto mb-3" />
-          <p className="text-sm text-lux-text-muted dark:text-gray-400 mb-4">
-            Upgrade to PRO to unlock your personalized trading score
-          </p>
-          <Button onClick={onUpgrade} size="sm" className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
-            Upgrade to PRO
-          </Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
+  // FREEMIUM BARU (9 Nov): skor dihitung murni dari trade milik user (bukan AI) → GRATIS. Gerbang PRO dihapus.
   return (
     <div className="space-y-6">
       {/* Overall Score */}

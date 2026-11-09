@@ -16,8 +16,8 @@ const steps = [
     icon: UserPlus,
     titleId: 'Daftar Gratis',
     titleEn: 'Sign Up Free',
-    descId: 'Buat akun 30 detik. 10 trade per bulan gratis, nggak perlu kartu kredit.',
-    descEn: '30-second signup. 10 trades/month free, no credit card needed.',
+    descId: 'Buat akun 30 detik. Jurnal unlimited gratis selamanya, nggak perlu kartu kredit.',
+    descEn: '30-second signup. Unlimited journaling, free forever — no credit card needed.',
   },
   {
     num: '02',

@@ -129,8 +129,8 @@ export default function AITab({
                 </h3>
                 <p className="text-gray-400 dark:text-gray-500 mb-4">
                   {language === 'id'
-                    ? 'Kamu sudah memakai 3x AI free trial. Upgrade ke PRO untuk akses unlimited!'
-                    : 'You\'ve used all 3 AI free trials. Upgrade to PRO for unlimited access!'}
+                    ? 'Kuota AI gratis (10x/bulan) sudah habis. Upgrade ke PRO untuk akses unlimited!'
+                    : 'You\'ve used all 10 free AI queries this month. Upgrade to PRO for unlimited access!'}
                 </p>
                 <Button onClick={onUpgrade} className="bg-gradient-to-r from-red-500 to-red-600">
                   <Sparkles className="w-4 h-4 mr-2" /> {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}

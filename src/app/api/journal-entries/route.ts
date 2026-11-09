@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
-import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
 // GET - Fetch journal entries
@@ -65,20 +64,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title and content are required' }, { status: 400 })
     }
 
-    // Check PRO status - free users limited to N journals per month
-    const isPro = await isUserPro(authUser.id)
-    if (!isPro) {
-      const journalCount = await countUserJournalsThisMonth(authUser.id)
-      if (journalCount >= FREE_JOURNAL_LIMIT) {
-        return NextResponse.json({
-          error: `Pengguna Free dibatasi maksimal ${FREE_JOURNAL_LIMIT} jurnal per bulan. Upgrade ke PRO untuk akses UNLIMITED!`,
-          code: 'JOURNAL_LIMIT_EXCEEDED',
-          limit: FREE_JOURNAL_LIMIT,
-          current: journalCount,
-          requiresUpgrade: true
-        }, { status: 403 })
-      }
-    }
+    // FREEMIUM BARU (9 Nov): jurnal UNLIMITED gratis selamanya — limit 10/bln DIHAPUS.
+    // Tembok upgrade cuma di fitur AI, bukan input jurnal.
 
     const result = await createClientForApi(request)
     const supabase = result.supabase

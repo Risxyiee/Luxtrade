@@ -1,13 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Button } from '@/components/ui/button'
-import { Lock, Heart, Clock, Target, AlertTriangle, AlertCircle, Sparkles, Brain, Zap } from 'lucide-react'
+import { Heart, Clock, Target, AlertTriangle, AlertCircle, Sparkles, Brain } from 'lucide-react'
 
 // Interface
 interface Trade {
@@ -26,8 +23,6 @@ interface Trade {
 }
 
 interface PsychologyTabProps {
-  isPro: boolean
-  onUpgrade: () => void
   trades: Trade[]
   language?: 'id' | 'en'
 }
@@ -51,8 +46,7 @@ function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): num
 }
 
 // Component
-function PsychologyTab({ isPro, onUpgrade, trades, language = 'id' }: PsychologyTabProps) {
-  const { repeatCount } = useMotionSafe()
+function PsychologyTab({ trades, language = 'id' }: PsychologyTabProps) {
   // Calculate psychology metrics from trades
   const winningTrades = trades.filter(t => t.profit_loss >= 0)
   const losingTrades = trades.filter(t => t.profit_loss < 0)
@@ -99,24 +93,9 @@ function PsychologyTab({ isPro, onUpgrade, trades, language = 'id' }: Psychology
 
   return (
     <div className="space-y-6">
-      {!isPro ? (
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
-          <CardContent className="py-8 text-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: repeatCount }}
-            >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
-            </motion.div>
-            <h3 className="text-lg font-bold text-blue-400 mb-2">{language === 'id' ? 'Tracking Psikologi - Fitur PRO' : 'Psychology Tracking - PRO Feature'}</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === 'id' ? 'Lacak pola emosi dan tingkatkan disiplin trading' : 'Track your emotional patterns and improve trading discipline'}</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
-              <Zap className="w-4 h-4 mr-2" /> {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
+      {/* FREEMIUM BARU (9 Nov): psikologi = jurnal pola emosi dari trade milik user sendiri
+          → GRATIS untuk semua. Gerbang PRO dihapus. */}
+      <div className="space-y-6">
           {/* Psychology Score */}
           <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
@@ -216,8 +195,7 @@ function PsychologyTab({ isPro, onUpgrade, trades, language = 'id' }: Psychology
               )}
             </CardContent>
           </Card>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

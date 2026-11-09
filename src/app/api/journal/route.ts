@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
-import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
+// FREEMIUM BARU (9 Nov): jurnal UNLIMITED gratis selamanya — gerbang limit DIHAPUS.
+// Posisi produk: kita jurnal, bukan jualan sinyal. Tembok upgrade = fitur AI saja.
 
 // Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
 async function invalidateAnalytics(userId: string) {
@@ -120,15 +121,6 @@ export async function POST(request: NextRequest) {
         { error: 'Rate limit exceeded. Please try again in a minute.' },
         { status: 429 }
       )
-    }
-
-    // Pro check
-    const pro = await isUserPro(user.id)
-    if (!pro) {
-      const monthCount = await countUserJournalsThisMonth(user.id)
-      if (monthCount >= FREE_JOURNAL_LIMIT) {
-        return NextResponse.json({ error: 'JOURNAL_LIMIT_EXCEEDED', code: 'JOURNAL_LIMIT_EXCEEDED', remaining: 0 }, { status: 403 })
-      }
     }
 
     const body = await request.json()
