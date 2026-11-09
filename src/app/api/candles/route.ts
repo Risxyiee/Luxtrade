@@ -154,8 +154,11 @@ function setCache(key: string, data: Ohlcv[], source: string) {
    (penyebab "chart gajelas antar TF" & "Entry/SL/TP ga muncul").
    v7 → BOS: "data chart make twelve aja" — Twelve Data jadi sumber
    UTAMA semua simbol & TF (bukan Yahoo GC=F lagi); buang entri KV
-   lama berskala futures supaya chart 100% se-skala spot TD. */
-const KV_CACHE_VER = 'v7'
+   lama berskala futures supaya chart 100% se-skala spot TD.
+   v8 → FILTER BAR SINTETIS TD (fix Bos: "ilang-ilang candlenya"):
+   TD mengisi weekend dgn bar flat hantu (96/300 bar 1h!) — buang
+   entri KV lama yang masih berisi bar sintetis di luar jam pasar. */
+const KV_CACHE_VER = 'v8'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {

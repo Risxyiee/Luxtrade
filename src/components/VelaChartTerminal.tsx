@@ -32,7 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown } from 'lucide-react'
+import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3 } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import { STRATEGY_PNL_TYPE, registerStrategyPnlNative, type StrategyPnlTrade } from '@/components/vela/StrategyPnlIndicator'
@@ -518,13 +518,13 @@ function alertHealthLine(s: AlertSubRow): { text: string; cls: string } {
       })()
     : ''
   if (s.lastEvalOk === true) {
-    return { text: `✅ Skrip beneran dievaluasi engine${when ? ` · cek ${when}` : ''} — jalan normal, nunggu kondisi sinyal terpicu`, cls: 'text-emerald-300/85' }
+    return { text: `Skrip beneran dievaluasi engine${when ? ` · cek ${when}` : ''} — jalan normal, nunggu kondisi sinyal terpicu`, cls: 'text-emerald-300/85' }
   }
   if (s.lastEvalOk === false) {
     const err = String(s.lastEvalError || 'alasan tidak diketahui').slice(0, 160)
-    return { text: `❌ Engine GAGAL menjalankan skrip${when ? ` (${when})` : ''}: ${err} — perbaiki skrip lalu simpan ulang`, cls: 'text-red-300/90' }
+    return { text: `Engine GAGAL menjalankan skrip${when ? ` (${when})` : ''}: ${err} — perbaiki skrip lalu simpan ulang`, cls: 'text-red-300/90' }
   }
-  return { text: '⏳ Belum ada evaluasi — runner mengeksekusi skrip ini otomatis tiap ±5 menit', cls: 'text-white/45' }
+  return { text: 'Belum ada evaluasi — runner mengeksekusi skrip ini otomatis tiap ±5 menit', cls: 'text-white/45' }
 }
 /** Hasil test alert → kalimat manusiawi untuk dialog.
     FIX: dulu run gagal (candle kosong / engine error) TETAP tampil
@@ -544,23 +544,23 @@ function alertTestMsg(tj: any): { kind: 'ok' | 'warn'; text: string } {
        dinonaktifkan Cloudflare) — pesan menyebut itu supaya Bos tahu
        jalur Pine→HP-nya sudah TERBUKTI, bukan sekadar janji. */
     const tes = tj?.testMessage
-      ? ' Tes push 🧪 juga baru saja dikirim ke layar HP kamu — cek sekarang.'
+      ? ' Tes push juga baru saja dikirim ke layar HP kamu — cek sekarang.'
       : ''
-    return { kind: 'ok', text: `✅ Alert AKTIF 24 jam! Pengecekan langsung memang tidak tersedia di server produksi — skrip kamu dievaluasi runner eksternal tiap ±5 menit, dan notifikasi Entry/SL/TP otomatis masuk ke layar HP begitu ada sinyal.${tes} Tidak perlu lakukan apa-apa lagi.` }
+    return { kind: 'ok', text: `Alert AKTIF 24 jam! Pengecekan langsung memang tidak tersedia di server produksi — skrip kamu dievaluasi runner eksternal tiap ±5 menit, dan notifikasi Entry/SL/TP otomatis masuk ke layar HP begitu ada sinyal.${tes} Tidak perlu lakukan apa-apa lagi.` }
   }
   if (tj?.ok === false || tj?.error) {
-    return { kind: 'warn', text: `⚠️ Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi otomatis.` }
+    return { kind: 'warn', text: `Pengecekan GAGAL: ${String(tj?.error || 'tidak diketahui').slice(0, 180)} — alert tetap terdaftar, server mencoba lagi otomatis.` }
   }
   const n = Array.isArray(tj?.triggers) ? tj.triggers.length : 0
-  if (tj?.sent > 0 && n > 0 && !tj?.testMessage) return { kind: 'ok', text: '🚀 Sinyal ditemukan & notifikasi terkirim ke layar HP! Alert tetap aktif 24 jam.' }
-  if (tj?.sent > 0 && tj?.testMessage) return { kind: 'ok', text: '🧪 Tes pipeline BERHASIL — cek notifikasi di layar HP kamu. Alert aktif 24 jam, dicek otomatis tiap 5 menit.' }
-  if (tj?.sent > 0) return { kind: 'ok', text: `✅ ${n} sinyal di bar ini terkirim ke layar HP. Alert aktif 24 jam.` }
+  if (tj?.sent > 0 && n > 0 && !tj?.testMessage) return { kind: 'ok', text: 'Sinyal ditemukan & notifikasi terkirim ke layar HP! Alert tetap aktif 24 jam.' }
+  if (tj?.sent > 0 && tj?.testMessage) return { kind: 'ok', text: 'Tes pipeline BERHASIL — cek notifikasi di layar HP kamu. Alert aktif 24 jam, dicek otomatis tiap 5 menit.' }
+  if (tj?.sent > 0) return { kind: 'ok', text: `${n} sinyal di bar ini terkirim ke layar HP. Alert aktif 24 jam.` }
   /* sent === 0 tapi pipeline OK — tampilkan ALASAN nyata dari runner */
   const reason = Array.isArray(tj?.perUser) && tj.perUser.length && tj.perUser[0]?.reason
     ? String(tj.perUser[0].reason)
     : ''
-  if (/notifikasi|push/i.test(reason)) return { kind: 'warn', text: `⚠️ Pengecekan jalan, tapi notifikasi gagal terkirim (${reason}). Izinkan notifikasi di browser/PWA lalu tes lagi.` }
-  return { kind: 'ok', text: '✅ Berjalan normal — belum ada sinyal di bar terakhir. Alert dicek server otomatis tiap 5 menit, 24 jam.' }
+  if (/notifikasi|push/i.test(reason)) return { kind: 'warn', text: `Pengecekan jalan, tapi notifikasi gagal terkirim (${reason}). Izinkan notifikasi di browser/PWA lalu tes lagi.` }
+  return { kind: 'ok', text: 'Berjalan normal — belum ada sinyal di bar terakhir. Alert dicek server otomatis tiap 5 menit, 24 jam.' }
 }
 
 /**
@@ -625,6 +625,15 @@ export default function VelaChartTerminal({
     openNow: boolean
     rows: TesterRow[]
     truncated: boolean
+    /* DIAGNOSTIK (Bos: "beneran berfungsi ga strategi testernya?") —
+       bukti nyata bahwa engine BENAR-BENAR menilai skrip: jumlah bar
+       harga yang dievaluasi + apakah history penuh + warning engine
+       (fungsi tak didukung dsb.) supaya 0 trade ada PENJELASANNYA,
+       bukan +0.00 diam tanpa jejak. */
+    evaluatedBars: number | null
+    lastBarTime: number | null
+    complete: boolean
+    warnings: string[]
   }
   const [strategyTester, setStrategyTester] = useState<StrategyTesterState | null>(null)
   const [testerOpen, setTesterOpen] = useState(true)
@@ -692,6 +701,17 @@ export default function VelaChartTerminal({
         stratIdRef.current = String(run.id || '')
         const all = (await (typeof run.trades === 'function' ? run.trades() : Promise.resolve([]))) || []
         const { rows, truncated } = mapStrategyTrades(all as any[])
+        /* DIAGNOSTIK: bar yang benar-benar dinilai engine + warning skrip.
+           run.bar = index bar terakhir yang dihitung (0-based) → jumlah
+           bar ≈ bar+1. Warnings = pesan engine (mis. fungsi tidak
+           didukung) — inilah penjelasan kenapa sebuah strategy bisa 0
+           trade di data kita padahal jalan di TradingView. */
+        const evaluatedBars = Number.isFinite(Number(run?.bar)) ? Math.max(Number(run.bar) + 1, 0) : null
+        const lastBarTime = Number.isFinite(Number(run?.time)) ? Number(run.time) : null
+        const warnings = (Array.isArray(run?.warnings) ? run.warnings : [])
+          .map((w: any) => String(w?.message || w?.warning || w || '').trim())
+          .filter(Boolean)
+          .slice(0, 4)
         setStrategyTester({
           id: String(run.id || ''),
           title: String(run.title || 'Strategy'),
@@ -705,6 +725,10 @@ export default function VelaChartTerminal({
           openNow: Number(s.position) !== 0,
           rows,
           truncated,
+          evaluatedBars,
+          lastBarTime,
+          complete: run?.complete !== false,
+          warnings,
         })
         updateStrategyPnl(rows)
       } catch { /* engine belum siap — run berikutnya menarik ulang */ }
@@ -1310,7 +1334,7 @@ export default function VelaChartTerminal({
       if (!res.ok) { setAlertDlgMsg({ kind: 'err', text: String(j?.error || `HTTP ${res.status}`) }); return }
       await loadAlertSubs()
       if (!opts.withTest) {
-        setAlertDlgMsg({ kind: 'ok', text: opts.enabled ? `✅ Alert ${opts.symbol} ${opts.interval} dinyalakan.` : `Alert ${opts.symbol} ${opts.interval} dimatikan.` })
+        setAlertDlgMsg({ kind: 'ok', text: opts.enabled ? `Alert ${opts.symbol} ${opts.interval} dinyalakan.` : `Alert ${opts.symbol} ${opts.interval} dimatikan.` })
         return
       }
       /* Test langsung — user langsung lihat hasil evaluasi bar terakhir */
@@ -1327,7 +1351,7 @@ export default function VelaChartTerminal({
           setAlertDlgMsg(alertTestMsg(tj))
           return
         }
-        setAlertDlgMsg({ kind: 'ok', text: `✅ Alert aktif 24 jam — dicek otomatis tiap 5 menit. (Test gagal: ${String(tj?.error || t.status)})` })
+        setAlertDlgMsg({ kind: 'ok', text: `Alert aktif 24 jam — dicek otomatis tiap 5 menit. (Test gagal: ${String(tj?.error || t.status)})` })
         return
       }
       setAlertDlgMsg(alertTestMsg(tj))
@@ -1409,8 +1433,8 @@ export default function VelaChartTerminal({
       if (err) { setPineMsg({ kind: 'err', text: `Tersimpan, tapi gagal tampil di chart: ${err}` }) }
       else {
         setPineMsg({ kind: 'ok', text: r?.reused
-          ? `✅ "${r?.script?.name || pineName}" diperbarui & tampil di chart — langganan alert tetap aman.`
-          : `✅ "${r?.script?.name || pineName}" tersimpan & tampil di chart. Klik 🔔 di daftar untuk aktifkan alert.` })
+          ? `"${r?.script?.name || pineName}" diperbarui & tampil di chart — langganan alert tetap aman.`
+          : `"${r?.script?.name || pineName}" tersimpan & tampil di chart. Klik ikon bel di daftar untuk aktifkan alert.` })
       }
       if (r?.quota) setPineQuota(r.quota)
     } catch (x: any) {
@@ -1506,10 +1530,10 @@ export default function VelaChartTerminal({
     setPresetBusy(i); setPresetMsg(null)
     const err = await runOnChart(PINE_PRESETS[i].script)
     const short = PINE_PRESETS[i].name.replace('Luxtradee — ', '')
-    if (err) setPresetMsg(`⚠️ ${short}: ${err}`)
+    if (err) setPresetMsg(`Gagal: ${short}: ${err}`)
     else {
       setActivePresets((s) => ({ ...s, [i]: true }))
-      setPresetMsg(`✅ ${short} tampil di chart. Klik chipnya lagi untuk melepas.`)
+      setPresetMsg(`${short} tampil di chart. Klik chipnya lagi untuk melepas.`)
     }
     setPresetBusy(null)
   }, [presetBusy, activePresets, runOnChart])
@@ -1546,15 +1570,15 @@ export default function VelaChartTerminal({
     setProtectedBusy(s.id); setProtectedMsg(null)
     try {
       const chart: any = (wsRef.current as any)?.chart
-      if (!chart) { setProtectedMsg('⚠️ Chart belum siap — coba lagi sebentar.'); return }
+      if (!chart) { setProtectedMsg('Gagal: chart belum siap — coba lagi sebentar.'); return }
       if (typeof chart.addNativeIndicator !== 'function') {
-        setProtectedMsg('⚠️ Terminal belum mendukung indikator eksklusif (update chart).'); return
+        setProtectedMsg('Gagal: terminal belum mendukung indikator eksklusif (update chart).'); return
       }
       chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId: s.id } })
       setActiveProtected((m) => ({ ...m, [s.id]: true }))
-      setProtectedMsg('🛡️ ' + s.name + ' tampil di chart. Klik 🔔 di sebelah nama skrip untuk alert otomatis 24 jam ke layar HP.')
+      setProtectedMsg(s.name + ' tampil di chart. Klik ikon bel di sebelah nama skrip untuk alert otomatis 24 jam ke layar HP.')
     } catch (x: any) {
-      setProtectedMsg('⚠️ ' + String(x?.message || x).slice(0, 120))
+      setProtectedMsg('Gagal: ' + String(x?.message || x).slice(0, 120))
     } finally { setProtectedBusy(null) }
   }, [protectedBusy, activeProtected, protectedStats])
 
@@ -1611,7 +1635,7 @@ export default function VelaChartTerminal({
           )
         })}
         {presetMsg && (
-          <span className={`text-[10.5px] ${presetMsg.startsWith('✅') ? 'text-sky-300/80' : 'text-red-300/80'}`}>{presetMsg}</span>
+          <span className={`text-[10.5px] ${!presetMsg.startsWith('Gagal') ? 'text-sky-300/80' : 'text-red-300/80'}`}>{presetMsg}</span>
         )}
       </div>
 
@@ -1647,13 +1671,13 @@ export default function VelaChartTerminal({
                   className={`text-[11px] pl-2.5 pr-2 py-1.5 inline-flex items-center gap-1 transition-colors disabled:opacity-50 ${active ? 'text-purple-200' : 'text-purple-100/80 hover:text-white'}`}
                   aria-label={`Aktifkan ${s.name} (indikator terproteksi)`}
                   title={s.description || s.name}>
-                  {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : isDefaultScript ? '⚡' : '🛡️'} {s.name}
+                  {protectedBusy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? '✓' : ''}{s.name}
                 </button>
                 <span className="w-px bg-purple-400/20" aria-hidden="true" />
                 <button onClick={() => {
                   /* Free → paywall: notifikasi sinyal khusus Pro */
                   if (!protectedIsPro) {
-                    setUpgradeMsg(`🔔 Alert otomatis sinyal ${s.name} ke layar HP (push notification) adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
+                    setUpgradeMsg(`Alert otomatis sinyal ${s.name} ke layar HP (push notification) adalah fitur PRO. Kamu tetap bisa melihat garis & sinyalnya di chart secara gratis — upgrade ke Pro (Rp49rb/bulan) untuk menerima notifikasi Entry/SL/TP otomatis 24 jam!`)
                     return
                   }
                   openAlertDialog(s)
@@ -1668,7 +1692,7 @@ export default function VelaChartTerminal({
             )
           })}
           {protectedMsg && (
-            <span className={`text-[10.5px] ${protectedMsg.startsWith('🛡️') || protectedMsg.startsWith('✅') ? 'text-sky-300/80' : 'text-red-300/80'}`}>{protectedMsg}</span>
+            <span className={`text-[10.5px] ${!protectedMsg.startsWith('Gagal') ? 'text-sky-300/80' : 'text-red-300/80'}`}>{protectedMsg}</span>
           )}
         </div>
       )}
@@ -1707,7 +1731,7 @@ export default function VelaChartTerminal({
         {protectedStats && !statsDismissed && !booting && !!activeProtected[protectedStats.key] && (
           <div className="absolute right-2 bottom-2 z-20 w-[190px] rounded-lg border border-purple-400/25 bg-[#0a0f16]/92 backdrop-blur px-2.5 py-2 shadow-xl" role="status" aria-label="Tabel performa Luxtradee Candle Impulsif">
             <div className="flex items-center justify-between gap-1 mb-1.5">
-              <span className="text-[10px] font-bold text-purple-200 tracking-wide truncate">⚡ Impulsive Breakout XAUUSD v5</span>
+              <span className="text-[10px] font-bold text-purple-200 tracking-wide truncate">Impulsive Breakout XAUUSD v5</span>
               <button onClick={() => setStatsDismissed(true)} className="text-white/35 hover:text-white shrink-0" aria-label="Tutup tabel performa">
                 <X className="w-3 h-3" />
               </button>
@@ -1841,7 +1865,7 @@ export default function VelaChartTerminal({
             aria-expanded={testerOpen}
           >
             <span className="flex items-center gap-2 min-w-0 text-xs font-semibold text-purple-200">
-              <span aria-hidden="true">📊</span> Strategy Tester
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> Strategy Tester
               <span className="text-white/40 font-normal truncate max-w-[260px]">· {strategyTester.title}</span>
             </span>
             <span className="flex items-center gap-2 shrink-0">
@@ -1854,6 +1878,35 @@ export default function VelaChartTerminal({
 
           {testerOpen && (
             <div className="px-3 pb-3 space-y-2">
+              {/* DIAGNOSTIK — bukti engine beneran jalan + penjelasan saat
+                  0 trade (Bos: "beneran berfungsi ga strategi testernya
+                  kaya trading view?"). Warning engine ditampilkan mentah:
+                  biasanya inilah penyebab kondisi entry tak pernah tepuk. */}
+              {(() => {
+                const closedN = strategyTester.wins + strategyTester.losses + strategyTester.even
+                const when = strategyTester.lastBarTime ? fmtTesterTime(strategyTester.lastBarTime) : null
+                const evaluated = strategyTester.evaluatedBars != null
+                  ? `Engine menilai ${strategyTester.evaluatedBars.toLocaleString('id-ID')} bar harga${when ? ` (s/d ${when})` : ''}${strategyTester.complete ? '' : ' — sejarah masih menyusul'}`
+                  : null
+                if (strategyTester.warnings.length) {
+                  return (
+                    <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-2.5 py-1.5 text-[10.5px] leading-relaxed text-amber-200/90" role="status">
+                      <div className="font-semibold">{evaluated || 'Engine menilai skrip ini'} — ada {strategyTester.warnings.length} warning dari engine:</div>
+                      {strategyTester.warnings.map((w, i) => <div key={i} className="truncate text-amber-200/70" title={w}>- {w}</div>)}
+                      {closedN === 0 && <div className="text-amber-200/70">Warning di atas biasanya penyebab kondisi entry tidak pernah terpicu. Cek juga: filter sesi/jam, timeframe, dan input yang dipakai.</div>}
+                    </div>
+                  )
+                }
+                if (closedN === 0) {
+                  return (
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-[10.5px] leading-relaxed text-white/45" role="status">
+                      {evaluated || 'Skrip strategy berjalan di chart.'} — kondisi entry skrip belum terpicu pada data ini, jadi belum ada trade. Catatan: TradingView memakai rentang waktu, feed harga, dan setelan input miliknya sendiri — samakan rentang & input untuk membandingkan hasil.
+                    </div>
+                  )
+                }
+                return evaluated ? <div className="text-[10px] text-white/30">{evaluated}.</div> : null
+              })()}
+
               {/* Ringkasan performa — angka yang sama dengan Overview TradingView */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
                 {(() => {
@@ -2010,7 +2063,7 @@ export default function VelaChartTerminal({
                       disabled={alertSaving}
                       className="text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-200/90 hover:bg-sky-400/15 disabled:opacity-50"
                       title="Jalankan pengecekan sinyal sekarang"
-                    >⚡ Test</button>
+                    >Test</button>
                     <button
                       onClick={() => saveAlertSub({ scriptId: s.scriptId, symbol: s.symbol, interval: s.interval, enabled: !s.enabled })}
                       disabled={alertSaving}
@@ -2127,7 +2180,7 @@ export default function VelaChartTerminal({
                     <div className="flex items-center gap-1.5">
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.enabled ? 'bg-sky-400' : 'bg-white/20'}`} aria-hidden="true" />
                       <span className="text-[11px] text-white/80 flex-1 min-w-0 truncate">
-                        {s.orphan ? <span className="text-red-300/90">⚠️ {s.scriptName} (skrip terhapus)</span> : s.scriptName}
+                        {s.orphan ? <span className="text-red-300/90">{s.scriptName} (skrip terhapus)</span> : s.scriptName}
                         <span className="text-white/45"> · {s.symbol} · {s.interval}</span>
                       </span>
                       {!s.orphan && (
@@ -2137,7 +2190,7 @@ export default function VelaChartTerminal({
                             disabled={alertSaving}
                             className="text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-200/90 hover:bg-sky-400/15 disabled:opacity-50"
                             title="Jalankan pengecekan sinyal sekarang"
-                          >⚡</button>
+                          >Test</button>
                           <button
                             onClick={() => saveAlertSub({ scriptId: s.scriptId, scriptKind: s.scriptKind, symbol: s.symbol, interval: s.interval, enabled: !s.enabled })}
                             disabled={alertSaving}

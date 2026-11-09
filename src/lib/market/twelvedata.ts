@@ -149,6 +149,42 @@ export function parseTdDatetimeUtc(s: string): number {
 }
 
 /* ============================================================
+   FILTER BAR SINTETIS DI LUAR JAM PASAR (akar "candle hilang" &
+   Strategy Tester +0.00 — laporan Bos 9 Nov)
+   ============================================================
+   Twelve Data mengisi jam PASAR TUTUP dengan bar sintetis FLAT
+   (O≈H≈L≈C, tanpa volume): spot emas/perak & forex tutup Jumat
+   22:00 UTC → Minggu 22:00 UTC, tapi TD tetap mengirim 24 bar/hari
+   untuk Sabtu-Minggu. Terverifikasi produksi 9 Nov: 300 bar 1h
+   memuat 96 bar flat weekend — di chart tampak seperti RUANG
+   KOSONG ("candle hilang-ilang") dan yang lebih fatal, ±29% isi
+   array 5000 bar 1h = bar hantu yang MENCEMARI indikator
+   (fractal/ADX/RSI kacau) & backtest strategy (kondisi entry tak
+   pernah tepat). TradingView (OANDA) tidak punya bar di luar
+   sesi → chart padat candle asli.
+   Solusi: buang SEMUA bar yang open-time-nya jatuh di jam tutup
+   pasar spot 24x5. Crypto 24/7 TIDAK disentuh. */
+
+/** Spot 24x5 buka? (Minggu 22:00 UTC → Jumat 22:00 UTC) — sama dgn
+    aturan goldMarketOpen di spot-live.ts. */
+export function tdSpotMarketOpen(tSec: number): boolean {
+  const d = new Date(tSec * 1000)
+  const day = d.getUTCDay() // 0=Minggu … 6=Sabtu
+  const mins = d.getUTCHours() * 60 + d.getUTCMinutes()
+  if (day === 6) return false // Sabtu: tutup
+  if (day === 5 && mins >= 22 * 60) return false // Jumat ≥22:00: tutup
+  if (day === 0 && mins < 22 * 60) return false // Minggu <22:00: tutup
+  return true
+}
+
+/** Simbol TD ini pasar spot 24x5 (bukan crypto)? */
+const TD_CRYPTO_RE = /^(BTC|ETH|SOL|XRP|DOGE|ADA|LTC|BNB|LINK|AVAX)USDT$/
+
+export function tdIsCryptoSymbol(canonical: string): boolean {
+  return TD_CRYPTO_RE.test(String(canonical || '').toUpperCase())
+}
+
+/* ============================================================
    FETCH utama — return null pada SEMUA kegagalan (fallback Yahoo)
    ============================================================
    KEDALAMAN (Bos: 3.000–5.000 bar history, bukan lagi 500):
@@ -257,6 +293,15 @@ export async function fetchTwelveDataCandles(
     }
   }
   if (!seen.size) return null
-  const out = [...seen.values()].sort((a, b) => a.time - b.time)
+  let out = [...seen.values()].sort((a, b) => a.time - b.time)
+  /* BUANG BAR SINTETIS di luar jam pasar (fix "candle hilang" — lihat
+     komentar besar di atas). Crypto 24/7 lewat apa adanya. */
+  if (!tdIsCryptoSymbol(sym)) {
+    const before = out.length
+    out = out.filter((b) => tdSpotMarketOpen(b.time))
+    if (out.length !== before) {
+      console.log(`[TwelveData] buang ${before - out.length} bar sintetis di luar jam pasar (${tdSym} ${tdIv})`)
+    }
+  }
   return out.length ? out : null
 }
