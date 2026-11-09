@@ -85,6 +85,15 @@ const FREE_INDICATOR_LIMIT = 1
 const PROTECTED_TYPE = 'luxtradee-protected'
 
 interface ProtectedPlot { key: string; title: string; color: string; data: Array<{ time: number; value: number | null }> }
+/* Visual non-garis dari server (plotshape/plotchar/bgcolor/label.new) —
+   dulu SEMUA dibuang di jalur terproteksi → sinyal BUY/SELL, level
+   retest, fractal, tabel dsb. tidak tampil di chart padahal di
+   TradingView tampil. Sekarang ikut dikirim & digambar penuh. */
+interface ProtectedVisuals {
+  markers: Array<{ time: number; location: string; shape: string; char?: string; color?: string; text?: string; size?: string }>
+  backgrounds: Array<{ time: number; color: string }>
+  labels: Array<{ time: number; price: number; text: string; color?: string; textColor?: string; style?: string; size?: string; above?: boolean }>
+}
 interface ProtectedScriptMeta { id: string; slug?: string; name: string; description: string | null; kind?: 'protected' | 'pine' }
 /* Trade strategy (server) — bahan visual chart ala line.new/label.new
    Pine Bos: garis entry→exit dotted hijau/merah + label TP/SL + panah
@@ -133,9 +142,88 @@ function emitProtectedStats(key: string, stats: ProtectedStats) {
 /* Cache plot+trades per (scriptKey, symbol, tf) — 45 detik. Refetch ringan
    ini sekaligus jadi loop LISTENER alert: tiap refresh, server
    mengevaluasi ulang sinyal Entry/SL/TP → push layar HP user Pro. */
-const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[] }>()
+const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[]; visuals?: ProtectedVisuals }>()
 
-function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = []) {
+/* Bentuk segitiga/cross Pine → LabelStyle yang didukung renderer.
+   Selain itu (circle/square/diamond/flag/char) → label teks polos
+   memakai glyph karakter, supaya tetap terlihat. */
+function markerToLabelStyle(shape: string): string | null {
+  const s = String(shape || '')
+  if (/triangleup|triangledown|xcross|^cross$/i.test(s)) return s.toLowerCase()
+  if (/arrowup/i.test(s)) return 'arrowup'
+  if (/arrowdown/i.test(s)) return 'arrowdown'
+  if (/label_?up/i.test(s)) return 'label_up'
+  if (/label_?down/i.test(s)) return 'label_down'
+  return null // teks polos (style none)
+}
+
+function buildVisualDrawings(
+  visuals: ProtectedVisuals,
+  barsArr: ReadonlyArray<{ time: number; high: number; low: number }>,
+  scriptId: string,
+): { labels: any[]; backgrounds: any[] } {
+  const labels: any[] = []
+  const backgrounds: any[] = []
+  const hi = new Map<number, number>()
+  const lo = new Map<number, number>()
+  for (const b of barsArr) { hi.set(b.time, b.high); lo.set(b.time, b.low) }
+  try {
+    /* Markers → label segitiga/cross di atas/bawah bar (price = high/low
+       bar tsb; bar hilang → harga bar terdekat via snap). */
+    for (let i = 0; i < visuals.markers.length; i++) {
+      const m = visuals.markers[i]
+      if (!Number.isFinite(Number(m.time))) continue
+      const above = !/belowbar/i.test(m.location || '')
+      const price = above ? (hi.get(m.time) ?? Number.NaN) : (lo.get(m.time) ?? Number.NaN)
+      const style = markerToLabelStyle(m.shape)
+      const color = m.color || (above ? '#ef5350' : '#22ab94')
+      if (style) {
+        labels.push({
+          id: `ltxm-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: Number(m.time),
+          y: Number.isFinite(price) ? price : 0,
+          yloc: 'price', text: m.text || '', style, color,
+          textColor: '#ffffff', size: m.size === 'normal' ? 'small' : (m.size === 'large' ? 'normal' : 'tiny'),
+          textAlign: 'center', fontFamily: 'default',
+        })
+      } else {
+        /* Char/glyph lain → teks polos berwarna (tetap terlihat) */
+        labels.push({
+          id: `ltxm-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: Number(m.time),
+          y: Number.isFinite(price) ? price : 0, yloc: 'price',
+          text: m.char || m.text || '●', style: 'none', noFill: true, textColor: color,
+          size: 'tiny', textAlign: 'center', fontFamily: 'default',
+        })
+      }
+    }
+    /* label.new dari server */
+    for (let i = 0; i < (visuals.labels || []).length; i++) {
+      const l = visuals.labels[i]
+      const style = l.style ? markerToLabelStyle(l.style) : 'label_up'
+      labels.push({
+        id: `ltxl-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: Number(l.time),
+        y: Number(l.price), yloc: 'price', text: l.text,
+        style: style || 'none', ...(l.color ? { color: l.color } : {}),
+        textColor: l.textColor || '#ffffff', size: l.size === 'normal' ? 'small' : 'tiny',
+        textAlign: 'center', fontFamily: 'default',
+      })
+    }
+    /* bgcolor → gabungkan bar berurutan berwarna sama jadi satu span */
+    let prev: { from: number; to: number; color: string } | null = null
+    for (const b of visuals.backgrounds || []) {
+      if (!Number.isFinite(Number(b.time))) continue
+      if (prev && prev.color === b.color && b.time - prev.to <= 1) {
+        prev.to = b.time + 1
+      } else {
+        if (prev) backgrounds.push(prev)
+        prev = { from: b.time, to: b.time + 1, color: b.color }
+      }
+    }
+    if (prev) backgrounds.push(prev)
+  } catch { /* dekoratif */ }
+  return { labels, backgrounds: backgrounds.map((b, i) => ({ id: `ltxbg-${scriptId}-${i}`, paneId: 'price', from: b.from, to: b.to, color: b.color, overlay: true })) }
+}
+
+function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = [], visuals?: ProtectedVisuals) {
   try {
     const barsArr: Array<{ time: number }> = typeof ctx?.bars === 'function' ? ctx.bars() : []
     /* BUCKET-TOLERANT MATCHING (fix "pine ga ada Entry/SL/TP"):
@@ -177,6 +265,7 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
     const recent = trades.slice(-400)
     const lines: any[] = []
     const labels: any[] = []
+    const backgroundsArr: any[] = []
     const lastBarTime = barsArr.length ? barsArr[barsArr.length - 1].time : 0
     for (let i = 0; i < recent.length; i++) {
       const t = recent[i]
@@ -213,7 +302,22 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
         labels.push({ id: `ltxe-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t2, y: y2, yloc: 'price', text: win ? 'TP' : 'SL', style: 'none', noFill: true, textColor: col, size: 'tiny', textAlign: 'center', fontFamily: 'default' })
       }
     }
-    ctx?.emit?.({ series, ...(lines.length ? { lines } : {}), ...(labels.length ? { labels } : {}) })
+    /* Visual Pine (plotshape/bgcolor/label.new) → gabungkan ke SATU emit
+       (emit = PATCH — dua emit terpisah saling MENIMPA labels/lines!). */
+    if (visuals) {
+      try {
+        const fullBars: any[] = typeof ctx?.bars === 'function' ? ctx.bars() : []
+        const { labels: visLabels, backgrounds: visBackgrounds } = buildVisualDrawings(visuals, fullBars, scriptId)
+        if (visLabels.length) labels.push(...visLabels)
+        if (visBackgrounds.length) backgroundsArr.push(...visBackgrounds)
+      } catch { /* dekoratif */ }
+    }
+    ctx?.emit?.({
+      series,
+      ...(lines.length ? { lines } : {}),
+      ...(labels.length ? { labels } : {}),
+      ...(backgroundsArr.length ? { backgrounds: backgroundsArr } : {}),
+    })
   } catch { /* jangan biarkan satu emit mengguncang chart */ }
 }
 
@@ -226,6 +330,7 @@ function createProtectedInstance() {
   let lastFail = 0 // backoff: jangan hammer server saat gagal
   let lastPlots: ProtectedPlot[] | null = null
   let lastTrades: ProtectedTrade[] = [] // visual garis/label per trade
+  let lastVisuals: ProtectedVisuals | null = null // plotshape/bgcolor/label.new dari server
   let lastBarsSig = '' // anti re-emit sia-sia saat bars tak berubah
   const reemitTimers: ReturnType<typeof setTimeout>[] = []
 
@@ -246,7 +351,7 @@ function createProtectedInstance() {
   const scheduleReEmits = () => {
     clearTimers()
     for (const d of [700, 1800, 3500, 6000]) {
-      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey, lastTrades) } catch { /* diam */ } }, d))
+      reemitTimers.push(setTimeout(() => { try { if (ctx && lastPlots) emitProtectedPlots(ctx, lastPlots, scriptKey, lastTrades, lastVisuals || undefined) } catch { /* diam */ } }, d))
     }
   }
 
@@ -259,8 +364,8 @@ function createProtectedInstance() {
       const sig = `${barsArr.length}:${barsArr[0]?.time ?? 0}:${barsArr[barsArr.length - 1]?.time ?? 0}`
       if (sig === lastBarsSig) return
       lastBarsSig = sig
-      emitProtectedPlots(c, lastPlots, scriptKey, lastTrades)
-    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey, lastTrades) } catch { /* diam */ } }
+      emitProtectedPlots(c, lastPlots, scriptKey, lastTrades, lastVisuals || undefined)
+    } catch { try { emitProtectedPlots(c, lastPlots, scriptKey, lastTrades, lastVisuals || undefined) } catch { /* diam */ } }
   }
 
   const run = async (force: boolean) => {
@@ -274,6 +379,7 @@ function createProtectedInstance() {
     if (cached && Date.now() - cached.at < 45000) {
       lastPlots = cached.plots
       lastTrades = Array.isArray(cached.trades) ? cached.trades : []
+      lastVisuals = cached.visuals || null
       lastBarsSig = '' // paksa emit ulang utk ctx baru
       lastRunKey = ctxRunKey(c) // cache ini memang utk simbol+TF sekarang — sah
       maybeEmit(c)
@@ -291,15 +397,23 @@ function createProtectedInstance() {
       })
       if (res.ok) {
         const j: any = await res.json()
-        if (Array.isArray(j?.plots) && j.plots.length) {
+        if (Array.isArray(j?.plots) && j.plots.length || j?.visuals) {
           const tradesArr: ProtectedTrade[] = Array.isArray(j?.trades) ? j.trades : []
-          protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots, trades: tradesArr })
-          lastPlots = j.plots
+          const vis: ProtectedVisuals | null = j?.visuals && Array.isArray(j.visuals.markers)
+            ? {
+                markers: j.visuals.markers || [],
+                backgrounds: Array.isArray(j.visuals.backgrounds) ? j.visuals.backgrounds : [],
+                labels: Array.isArray(j.visuals.labels) ? j.visuals.labels : [],
+              }
+            : null
+          protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots || [], trades: tradesArr, ...(vis ? { visuals: vis } : {}) })
+          lastPlots = j.plots || []
           lastTrades = tradesArr
+          lastVisuals = vis
           lastBarsSig = ''
           lastRunKey = ctxRunKey(c) // run ini sah utk simbol+TF sekarang
           if (j?.meta?.stats) emitProtectedStats(scriptKey, j.meta.stats as ProtectedStats)
-          maybeEmit(c)
+          if ((lastPlots && lastPlots.length) || vis) maybeEmit(c)
           lastEmit = Date.now()
           c.setStatus?.('live')
           scheduleReEmits()
@@ -330,6 +444,7 @@ function createProtectedInstance() {
       scriptKey = String(inputs?.scriptId || inputs?.slug || '')
       lastPlots = null
       lastTrades = []
+      lastVisuals = null
       lastBarsSig = ''
       lastRunKey = ''
       run(true)
@@ -734,8 +849,30 @@ export default function VelaChartTerminal({
       } catch { /* engine belum siap — run berikutnya menarik ulang */ }
     }
 
+    const warnShownAt = new Map<string, number>() // anti-spam toast per skrip
     const onScriptRun = (run: any) => {
-      if (!run || run.kind !== 'strategy') return // indikator biasa → abaikan
+      if (!run) return
+      /* DIAGNOSTIK indikator (Bos: "di chart ga tampil kek gitu") —
+         warning engine dulu SENYAP total untuk skrip indikator: fungsi
+         yang tidak didukung membuat elemen tidak tergambar tanpa jejak.
+         Sekarang muncul toast jelas (sekali per skrip per 30 detik). */
+      const warnings = (Array.isArray(run?.warnings) ? run.warnings : [])
+        .map((w: any) => String(w?.message || w?.warning || w || '').trim())
+        .filter(Boolean)
+      if (warnings.length) {
+        const now = Date.now()
+        const key = String(run.id || run.title || '?')
+        if (now - (warnShownAt.get(key) || 0) > 30_000) {
+          warnShownAt.set(key, now)
+          try {
+            wsRef.current?.toast?.(
+              `Skrip "${String(run.title || 'Pine')}": ${warnings.length} fungsi tidak didukung engine — ${warnings[0].slice(0, 120)}`,
+              'error', 9000
+            )
+          } catch { /* diam */ }
+        }
+      }
+      if (run.kind !== 'strategy') return // indikator biasa → selesai (warning sudah ditampilkan)
       void pullTrades(run)
     }
     const onIndicatorRemoved = (p: any) => {
@@ -747,8 +884,15 @@ export default function VelaChartTerminal({
         updateStrategyPnl([])
       }
     }
+    const onIndicatorError = (p: any) => {
+      /* FIX "pine ga tampil tanpa jejak" — compile/run gagal dulu hanya
+         muncul di console; sekarang toast jelas di chart. */
+      const msg = String((p as any)?.error?.message || (p as any)?.error || 'gagal tidak diketahui').slice(0, 180)
+      try { wsRef.current?.toast?.(`Skrip Pine gagal jalan — ${msg}`, 'error', 9000) } catch { /* diam */ }
+    }
     try { chart.on('script:run', onScriptRun) } catch { /* diam */ }
     try { chart.on('indicator:removed', onIndicatorRemoved) } catch { /* diam */ }
+    try { chart.on('indicator:error', onIndicatorError) } catch { /* diam */ }
   }
 
   /* ---------- AUTO-FIT tinggi chart ----------

@@ -29,12 +29,27 @@ export interface PlotSeries {
   data: Array<{ time: number; value: number | null }>
 }
 
+/** Visual non-garis hasil engine (plotshape/plotchar/bgcolor/label.new)
+ *  — server mengirim agar chart client bisa menggambar penuh ala
+ *  TradingView (dulu SEMUA dibuang → sinyal BUY/SELL tabel dsb.
+ *  hilang dari chart skrip terproteksi). */
+export interface PineVisuals {
+  /** plotshape/plotchar true → marker segitiga/cross di atas/bawah bar */
+  markers: Array<{ time: number; location: string; shape: string; char?: string; color?: string; text?: string; size?: string }>
+  /** bgcolor → tint per bar (time→color) */
+  backgrounds: Array<{ time: number; color: string }>
+  /** label.new → label berteks di harga */
+  labels: Array<{ time: number; price: number; text: string; color?: string; textColor?: string; style?: string; size?: string; above?: boolean }>
+}
+
 export interface PineRunResult {
   ok: boolean
   error?: string
   title?: string
   overlay?: boolean
   plots?: PlotSeries[]
+  /** Visual non-garis (plotshape/bgcolor/label.new) — dikirim ke client */
+  visuals?: PineVisuals
   /** Trade strategy (HANYA skrip default): bahan visual chart ala
       TradingView — garis entry→exit dotted + label TP/SL + panah
       entry (replika line.new/label.new Pine Bos, digambar client).
@@ -152,7 +167,78 @@ export function synthesizeTradePlots(
 }
 
 /**
- * Jalankan source Pine di server (headless) atas `bars`.
+ * Ekstraksi visual non-garis dari snapshot plots engine.
+ * Konteks engine per plot: { data:[{time,value,options?}], options:{style,...}, title }.
+ * Style yang dikenal: 'shape'/'char' (plotshape/plotchar), 'background'
+ * (bgcolor), 'label' (label.new). Selebihnya = series garis (jalur lama).
+ * Semua dicap (cap) supaya respons tetap ringan di mobile.
+ */
+const VISUAL_CAPS = { markers: 800, backgrounds: 1500, labels: 400 }
+
+function extractPineVisuals(plotsRaw: Record<string, any>): PineVisuals | undefined {
+  const markers: PineVisuals['markers'] = []
+  const backgrounds: PineVisuals['backgrounds'] = []
+  const labels: PineVisuals['labels'] = []
+  try {
+    for (const key of Object.keys(plotsRaw)) {
+      const plot = plotsRaw[key]
+      const pts: Array<any> = Array.isArray(plot?.data) ? plot.data : []
+      const style = String(plot?.options?.style || '')
+      if (style === 'shape' || style === 'char') {
+        const loc = String(plot?.options?.location || '')
+        for (const p of pts) {
+          if (markers.length >= VISUAL_CAPS.markers) break
+          const v = p?.value
+          const truthy = v === true || (typeof v === 'number' && Number.isFinite(v) && v !== 0)
+          if (!truthy) continue
+          const o = (p?.options && typeof p?.options === 'object' ? p.options : plot?.options) || {}
+          const shape = String(o.shape || (style === 'shape' ? 'triangleup' : ''))
+          const char = style === 'char' ? String(o.char ?? plot?.options?.char ?? '') : undefined
+          markers.push({
+            time: Number(p.time),
+            location: String(o.location ?? (loc || 'abovebar')),
+            shape: shape || 'triangleup',
+            ...(char ? { char } : {}),
+            ...(o.color ? { color: String(o.color) } : {}),
+            ...(o.text ? { text: String(o.text) } : {}),
+            ...(o.size ? { size: String(o.size) } : {}),
+          })
+        }
+      } else if (style === 'background') {
+        for (const p of pts) {
+          if (backgrounds.length >= VISUAL_CAPS.backgrounds) break
+          const c = p?.options?.color
+          if (typeof c === 'string' && c.trim() && !/^(na|nan)$/i.test(c.trim()) && !/rgba?\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(c)) {
+            backgrounds.push({ time: Number(p.time), color: c.trim() })
+          }
+        }
+      } else if (style === 'label') {
+        for (const p of pts) {
+          if (labels.length >= VISUAL_CAPS.labels) break
+          const o = (p?.options && typeof p?.options === 'object' ? p.options : {}) || {}
+          const v = p?.value
+          const price = typeof v === 'number' && Number.isFinite(v) ? v : Number((v as any)?.y ?? (v as any)?.price)
+          const text = String((v as any)?.text ?? o.text ?? '')
+          if (!Number.isFinite(price) || !text) continue
+          labels.push({
+            time: Number(p.time),
+            price,
+            text: text.slice(0, 120),
+            ...(o.color ? { color: String(o.color) } : {}),
+            ...(o.textcolor || o.textColor ? { textColor: String(o.textcolor ?? o.textColor) } : {}),
+            ...(o.style ? { style: String(o.style) } : {}),
+            ...(o.size ? { size: String(o.size) } : {}),
+            ...(o.yloc === 'abovebar' ? { above: true } : {}),
+          })
+        }
+      }
+    }
+  } catch { /* dekoratif — jangan bunuh run */ }
+  if (!markers.length && !backgrounds.length && !labels.length) return undefined
+  return { markers, backgrounds, labels }
+}
+
+/**
  * bars: epoch DETIK (bentuk server-candles) — dikonversi ke ms
  * (kontrak Vela OHLCV time = Millis).
  */
@@ -238,8 +324,16 @@ export async function runPineHeadless(
           } catch { /* trade aneh — lewati */ }
         }
         let plots: PlotSeries[]
-        if (keys.length) {
-          plots = keys.map((k, i) => {
+        /* Style NON-GARIS (shape/char/background/label/table/drawing_*) tidak
+           boleh dijadikan garis (true/false → garis 0/1 aneh di chart).
+           Semua sudah diekstrak jadi `visuals` — buang dari daftar series. */
+        const NON_LINE_STYLES = new Set(['shape', 'char', 'background', 'label', 'table', 'drawing_line', 'drawing_box', 'drawing_polyline', 'linefill', 'barcolor', 'fill', 'hline', 'bar', 'candle', 'arrow'])
+        const lineKeys = keys.filter((k) => {
+          const st = String(plotsRaw[k]?.options?.style || '')
+          return !st || !NON_LINE_STYLES.has(st)
+        })
+        if (lineKeys.length) {
+          plots = lineKeys.map((k, i) => {
             const pts = Array.isArray(plotsRaw[k]) ? plotsRaw[k] : []
             /* Judul = title Pine (kunci engine biasanya memakainya);
                kunci generik plot_N → "Plot n". Warna ikut deklarasi Pine. */
@@ -261,6 +355,13 @@ export async function runPineHeadless(
              (Luxtradee Candle Impulsif — permintaan Bos). */
           plots = synthesizeTradePlots(bars, trades)
         } else {
+          /* Skrip murni visual (plotshape/label saja, tanpa plot angka)
+             → sah: plots kosong + visuals terisi (route/client menangani). */
+          const visuals = extractPineVisuals(plotsRaw)
+          if (visuals) {
+            resolve({ ok: true, title: String(snap?.meta?.title || 'Luxtradee Pro Script'), overlay: snap?.meta?.overlay !== false, plots: [], visuals, engineAlerts })
+            return
+          }
           resolve({ ok: false, error: 'Skrip berjalan, tetapi tidak menghasilkan plot (tambahkan plot(...))' })
           return
         }
@@ -269,6 +370,7 @@ export async function runPineHeadless(
           title: String(snap?.meta?.title || 'Luxtradee Pro Script'),
           overlay: snap?.meta?.overlay !== false,
           plots,
+          visuals: extractPineVisuals(plotsRaw),
           engineAlerts,
         })
       } catch (x: any) {

@@ -230,13 +230,14 @@ export async function POST(request: NextRequest) {
     const run = row.slug === DEFAULT_PINE_SLUG
       ? await runDefaultStrategyPine(symbol, interval, cd.bars)
       : await runPineHeadless(row.source, symbol, interval, cd.bars)
-    if (!run.ok || !run.plots?.length) {
+    if (!run.ok || (!run.plots?.length && !run.visuals)) {
       return NextResponse.json({ error: run.error || 'Skrip tidak menghasilkan plot' }, { status: 422 })
     }
     /* Plot helper (prefix _) = state utk alert_rules — JANGAN dikirim
        ke chart; evaluasi rules tetap pakai plots lengkap di bawah. */
-    const visiblePlots = run.plots.filter((p) => !p.key.startsWith('_'))
-    if (!visiblePlots.length) {
+    const allPlots = run.plots || []
+    const visiblePlots = allPlots.filter((p) => !p.key.startsWith('_'))
+    if (!visiblePlots.length && !run.visuals) {
       return NextResponse.json({ error: 'Skrip tidak menghasilkan plot' }, { status: 422 })
     }
 
@@ -245,7 +246,7 @@ export async function POST(request: NextRequest) {
     const signalsSent = isPro
       ? await detectAndDispatch({
           userId, script: row, symbol, interval,
-          plots: run.plots, bars: cd.bars,
+          plots: allPlots, bars: cd.bars,
           engineAlerts: run.engineAlerts || [],
         })
       : 0
@@ -263,6 +264,15 @@ export async function POST(request: NextRequest) {
     const chartTrades = Array.isArray(run.trades) && run.trades.length
       ? run.trades.slice(-CHART_TRADE_TAIL)
       : []
+    /* Visual non-garis (plotshape/bgcolor/label.new) — ekor saja, chart
+       cuma menampilkan ±5000 bar terakhir. */
+    const chartVisuals = run.visuals
+      ? {
+          markers: run.visuals.markers.slice(-CHART_PLOT_TAIL),
+          backgrounds: run.visuals.backgrounds.slice(-CHART_PLOT_TAIL * 2),
+          labels: run.visuals.labels.slice(-CHART_PLOT_TAIL),
+        }
+      : null
     const payload = {
       success: true,
       isPro,
@@ -274,6 +284,7 @@ export async function POST(request: NextRequest) {
       },
       plots: chartPlots,
       ...(chartTrades.length ? { trades: chartTrades } : {}),
+      ...(chartVisuals ? { visuals: chartVisuals } : {}),
       signalsSent,
       fetchedAt: new Date().toISOString(),
     }
