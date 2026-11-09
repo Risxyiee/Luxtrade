@@ -305,7 +305,7 @@ function createProtectedInstance() {
           scheduleReEmits()
           return
         }
-        emitProtectedStatus(scriptKey, '⚠️ Skrip berjalan tapi belum menghasilkan plot — coba lagi sebentar.')
+        emitProtectedStatus(scriptKey, 'Skrip berjalan tapi belum menghasilkan plot — coba lagi sebentar.')
       } else if (res.status === 403) {
         /* Pro kadaluarsa di tengah sesi — chip UI akan menutup akses
            pada pemakaian berikutnya */
@@ -313,13 +313,13 @@ function createProtectedInstance() {
       } else {
         let msg = `HTTP ${res.status}`
         try { const je: any = await res.json(); if (je?.error) msg = String(je.error) } catch { /* diam */ }
-        emitProtectedStatus(scriptKey, `⚠️ Gagal memuat indikator: ${msg}`)
+        emitProtectedStatus(scriptKey, `Gagal memuat indikator: ${msg}`)
         lastFail = Date.now()
       }
       c.setStatus?.('idle')
     } catch (x: any) {
       lastFail = Date.now()
-      emitProtectedStatus(scriptKey, `⚠️ Jaringan gagal memuat indikator: ${String(x?.message || x).slice(0, 100)}`)
+      emitProtectedStatus(scriptKey, `Gagal memuat indikator (jaringan): ${String(x?.message || x).slice(0, 100)}`)
       try { c?.setStatus?.('idle') } catch { /* diam */ }
     } finally { busy = false }
   }
