@@ -1,21 +1,23 @@
 /**
  * ============================================================
- * GET /api/forex — candle OHLC forex / gold / US100 (keyless)
+ * GET /api/forex — candle OHLC & harga forex / gold / US100
  * ============================================================
- * DIPAKAI OLEH: WatchlistTab (polling harga limit=1) & panel lain.
- * Datafeed CHART VELA lewat /api/candles — juga Yahoo keyless
- * (Task 42: seluruh datafeed 100% keyless, tanpa API keyed).
+ * RANTAI SUMBER SE-SKALA CHART (sama dengan /api/candles — Bos:
+ * "data chart make twelve aja"):
+ *   1. TWELVE DATA (spot-grade: XAU/USD dkk) — candle
+ *   2. TRADING VIEW (websocket publik keyless, spot-grade) — candle
+ *   3. YAHOO — fallback terakhir (forex/indeks setara spot; logam
+ *      = futures, hanya dipakai bila TD+TV mati)
+ *   Price-check (limit<=1): gold-api/binance dulu — PERSIS sumber
+ *   tail chart → watchlist & panel tidak pernah beda skala dgn chart.
  *
- * SATU SUMBER DATA: Yahoo Finance chart API (publik, GRATIS,
- * TANPA API KEY) → mustahil kena 401 Unauthorized. Logika fetch
- * bersama ada di src/lib/market/yahoo.ts (dipakai juga oleh
- * /api/candles sebagai fallback).
+ * DIPAKAI OLEH: WatchlistTab (polling harga limit=1) & panel lain.
+ * Datafeed CHART VELA lewat /api/candles.
  *
  * Fitur:
  *   - Alias simbol (GOLD→XAUUSD, NASDAQ→US100, "XAU/USD", dst.)
  *   - Sanity check harga (XAU < 2000 / US100 di luar rentang → reject)
  *   - Cache in-memory (TTL per-interval) + KV Cloudflare (cross-isolate)
- *   - Live tick utk polling harga (limit=1): regularMarketPrice Yahoo
  *   - Respons jujur 503 tanpa mock bila gagal
  *
  * Kontrak respons (tidak berubah):
@@ -27,8 +29,19 @@ import {
   FOREX_SYMBOLS,
   normalizeSymbol,
   fetchYahooChart,
+  validatePrice,
   type YahooCandle,
 } from '@/lib/market/yahoo'
+/* RANTAI SE-SKALA CHART (fix Bos: "chart xau putus"): dulu endpoint ini
+   Yahoo-ONLY — XAU/XAG = futures GC=F/SI=F: harga beda $8-15 dari chart
+   Twelve Data spot + bolong 2 jam tiap hari (halt dagang futures) →
+   chart terlihat "putus/melenceng". Sekarang satu skala dengan
+   /api/candles: TwelveData → TradingView → Yahoo, dan price-check
+   (limit<=1) memakai sumber yang SAMA dengan tail chart
+   (gold-api utk XAU/XAG, binance utk crypto) via fetchChartScalePrice. */
+import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
+import { fetchTradingViewCandles } from '@/lib/market/tradingview'
+import { fetchChartScalePrice } from '@/lib/market/spot-live'
 // PERF (F2): cache dipindah ke lib bersama agar /api/forex-batch memakai
 // lapisan cache yang SAMA (mem + KV) — satu polling batch memanaskan
 // cache untuk semua user, bukan N×user hit ke Yahoo.
@@ -126,25 +139,64 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // YAHOO — satu-satunya sumber (publik, tanpa API key → tanpa risiko 401)
-    // limit<=1 → liveTick aktif (regularMarketPrice sbg harga real-time)
-    const yf: YahooCandle[] | null = await fetchYahooChart(validSymbol, interval, limit, isPriceCheck)
-    if (yf && yf.length > 0) {
-      setCache(cacheKey, yf, 'yahoo-finance')
-      await setForexKVCache(cacheKey, yf, 'yahoo-finance', kvTtlSeconds)
-      console.log(`[Forex] ✓ ${yf.length} candles from Yahoo Finance (${validSymbol} ${interval})`)
+    // ── PRICE CHECK (limit<=1) — harga SE-SKALA CHART dulu ──
+    // XAU/XAG → gold-api, crypto → binance (persis sumber tail chart);
+    // Yahoo liveTick hanya fallback (forex/indeks setara spot TD).
+    if (isPriceCheck) {
+      const chartScale = await fetchChartScalePrice(validSymbol)
+      if (chartScale && Number.isFinite(chartScale.price)) {
+        const valid = validatePrice(validSymbol, chartScale.price)
+        if (valid != null) {
+          const candle: YahooCandle[] = [{ time: Math.floor(Date.now() / 1000), open: valid, high: valid, low: valid, close: valid }]
+          setCache(cacheKey, candle, chartScale.source)
+          await setForexKVCache(cacheKey, candle, chartScale.source, 30)
+          console.log(`[Forex] ✓ harga ${validSymbol} = ${valid} dari ${chartScale.source} (se-skala chart)`)
+          return NextResponse.json({
+            success: true,
+            symbol: validSymbol,
+            interval,
+            data: candle,
+            source: chartScale.source,
+            fetchedAt: new Date().toISOString(),
+          })
+        }
+      }
+    }
+
+    // ── CANDLE — rantai se-skala chart: TwelveData → TradingView → Yahoo ──
+    let bars: YahooCandle[] | null = null
+    let sourceLabel = 'yahoo-finance'
+    try {
+      const td = await fetchTwelveDataCandles(validSymbol, interval, limit)
+      if (td && td.length) { bars = td; sourceLabel = 'twelvedata' }
+    } catch { /* lanjut sumber berikutnya */ }
+    if (!bars) {
+      try {
+        const tv = await fetchTradingViewCandles(validSymbol, interval, limit)
+        if (tv && tv.length) { bars = tv; sourceLabel = 'tradingview' }
+      } catch { /* lanjut Yahoo */ }
+    }
+    if (!bars) {
+      const yf = await fetchYahooChart(validSymbol, interval, limit, isPriceCheck)
+      if (yf && yf.length) { bars = yf; sourceLabel = 'yahoo-finance' }
+    }
+
+    if (bars && bars.length > 0) {
+      setCache(cacheKey, bars, sourceLabel)
+      await setForexKVCache(cacheKey, bars, sourceLabel, kvTtlSeconds)
+      console.log(`[Forex] ✓ ${bars.length} candles from ${sourceLabel} (${validSymbol} ${interval})`)
       return NextResponse.json({
         success: true,
         symbol: validSymbol,
         interval,
-        data: yf,
-        source: 'yahoo-finance',
+        data: bars,
+        source: sourceLabel,
         fetchedAt: new Date().toISOString(),
       })
     }
 
     // SUMBER GAGAL — respons jujur (TANPA mock data)
-    console.error(`[Forex] ❌ Yahoo Finance gagal untuk ${validSymbol} ${interval}`)
+    console.error(`[Forex] ❌ semua sumber (TD/TV/Yahoo) gagal utk ${validSymbol} ${interval}`)
     return NextResponse.json({
       success: false,
       symbol: validSymbol,
@@ -152,7 +204,7 @@ export async function GET(request: NextRequest) {
       data: [],
       source: 'unavailable',
       unavailable: true,
-      message: `Data live untuk ${validSymbol} sedang tidak dapat diakses dari Yahoo Finance. Coba beberapa menit lagi.`,
+      message: `Data live untuk ${validSymbol} sedang tidak dapat diakses. Coba beberapa menit lagi.`,
       fetchedAt: new Date().toISOString(),
     }, { status: 503 })
   } catch (error) {

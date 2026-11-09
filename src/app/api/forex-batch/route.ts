@@ -22,7 +22,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { FOREX_SYMBOLS, normalizeSymbol, fetchYahooChart } from '@/lib/market/yahoo'
+import { FOREX_SYMBOLS, normalizeSymbol, fetchYahooChart, validatePrice } from '@/lib/market/yahoo'
+/* HARGA SE-SKALA CHART (fix Bos: "chart xau putus"): dulu SEMUA harga
+   watchlist dari Yahoo — XAU/XAG = futures GC=F/SI=F (4127) sementara
+   chart Twelve Data spot (4118) → beda $9 terlihat seperti chart rusak.
+   Sekarang harga watchlist diambil dari SUMBER YANG SAMA dengan tail
+   chart (gold-api utk XAU/XAG, binance utk crypto) — Yahoo hanya
+   fallback utk forex/indeks (skalanya memang setara spot). */
+import { fetchChartScalePrice } from '@/lib/market/spot-live'
 import {
   getCached,
   setCache,
@@ -93,7 +100,21 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Cache miss → Yahoo (satu hit per simbol, hasil di-cache utk semua)
+        /* Cache miss → 1) harga SE-SKALA CHART dulu (XAU/XAG → gold-api,
+           crypto → binance — persis sumber tail chart /api/candles);
+           2) Yahoo liveTick fallback (forex/indeks — setara spot TD). */
+        const chartScale = await fetchChartScalePrice(symbol)
+        if (chartScale && Number.isFinite(chartScale.price)) {
+          const valid = validatePrice(symbol, chartScale.price)
+          if (valid != null) {
+            const candle = [{ time: Math.floor(Date.now() / 1000), open: valid, high: valid, low: valid, close: valid }]
+            setCache(cacheKey, candle, chartScale.source)
+            await setForexKVCache(cacheKey, candle, chartScale.source, 30)
+            return [rawSym, valid]
+          }
+        }
+
+        // Yahoo (satu hit per simbol, hasil di-cache utk semua)
         const yf = await fetchYahooChart(symbol, INTERVAL, LIMIT, true)
         if (yf && yf.length > 0) {
           setCache(cacheKey, yf, 'yahoo-finance')

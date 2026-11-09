@@ -15,6 +15,13 @@ import { validatePrice } from '@/lib/market/yahoo'
 
 export interface CacheEntry { data: any[]; timestamp: number; source: string }
 
+/* VERSI KV — v2 (fix Bos: "chart xau putus"): buang entri KV lama
+   berskala Yahoo FUTURES (XAU GC=F beda $8-15 dari spot TD) supaya
+   semua harga/candle dilayani ulang dari rantai se-skala chart
+   (TwelveData/gold-api). Entri lama jadi yatim & kedaluwarsa sendiri
+   (TTL ≤ 300 dtk) tanpa flush manual Cloudflare. */
+const KV_VER = 'v2'
+
 const cache = new Map<string, CacheEntry>()
 export const CACHE_TTL_DEFAULT = 5 * 60 * 1000   // 5 menit (data chart)
 export const CACHE_TTL_SHORT = 1 * 60 * 1000     // 1 menit utk M5/M15
@@ -84,7 +91,7 @@ export async function getForexKVCache(key: string): Promise<CacheEntry | null> {
       kv = (ctx as any)?.env?.luxtradee_kv
     } catch {}
     if (!kv) return null
-    const raw = await kv.get(`forex:${key}`, 'text')
+    const raw = await kv.get(`forex:${KV_VER}:${key}`, 'text')
     if (!raw) return null
     const entry = JSON.parse(raw) as CacheEntry
 
@@ -113,7 +120,7 @@ export async function setForexKVCache(key: string, data: any[], source: string, 
     } catch {}
     if (!kv) return
     const entry: CacheEntry = { data, timestamp: Date.now(), source }
-    await kv.put(`forex:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
+    await kv.put(`forex:${KV_VER}:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
   } catch {
     // KV not available, skip
   }

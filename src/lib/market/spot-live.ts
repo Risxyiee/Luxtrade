@@ -392,6 +392,38 @@ export async function patchTailWithSpot(
     regularMarketTime diam → JANGAN sintesis (biar tidak pindah level). */
 const YAHOO_TICK_MAX_AGE_SEC = 15 * 60
 
+/* ============================================================
+   5) HARGA SE-SKALA CHART — utk watchlist/panel harga
+   ============================================================
+   ATURAN (fix laporan Bos: "chart xau putus" — akarnya watchlist
+   & panel harga masih Yahoo FUTURES: XAU 4127 vs chart TD 4118,
+   beda $9 terlihat seperti chart rusak/melenceng):
+   Semua harga yang tampil di UI WAJIB se-skala dengan chart
+   /api/candles (rantai Twelve Data spot + tail gold-api/binance).
+   Fungsi ini mengembalikan harga dari SUMBER YANG SAMA dengan
+   tail chart:
+     - XAU/XAG  → gold-api (rantai 4 lapis, keyless, cache 10 dtk)
+     - crypto   → binance-vision ticker (keyless)
+     - lainnya  → null (penelepon jatuh ke Yahoo tick — forex &
+                  indeks memang setara spot TD, basis ~0%)
+   Sumber identik dengan overlaySpotTail → harga mana pun di UI
+   tidak akan pernah berseberangan dengan chart. */
+export async function fetchChartScalePrice(
+  symbol: string,
+): Promise<{ price: number; source: string } | null> {
+  const s = String(symbol || '').trim().toUpperCase()
+  if (GOLD_API_SYMBOLS[s]) {
+    const r = await fetchGoldSpotPrice(GOLD_API_SYMBOLS[s])
+    return r ? { price: r.price, source: r.src } : null
+  }
+  if (isCryptoLiveSymbol(s)) {
+    const bSym = s.replace(/USD$/i, 'USDT').replace(/USDTUSDT/i, 'USDT')
+    const p = await fetchBinancePrice(bSym)
+    return p ? { price: p, source: 'binance-spot' } : null
+  }
+  return null
+}
+
 export async function patchTailYahooLive(
   symbol: string,
   interval: string,
