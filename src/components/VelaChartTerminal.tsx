@@ -85,14 +85,18 @@ const FREE_INDICATOR_LIMIT = 1
 const PROTECTED_TYPE = 'luxtradee-protected'
 
 interface ProtectedPlot { key: string; title: string; color: string; data: Array<{ time: number; value: number | null }> }
-/* Visual non-garis dari server (plotshape/plotchar/bgcolor/label.new) —
-   dulu SEMUA dibuang di jalur terproteksi → sinyal BUY/SELL, level
-   retest, fractal, tabel dsb. tidak tampil di chart padahal di
-   TradingView tampil. Sekarang ikut dikirim & digambar penuh. */
+/* Visual non-garis dari server (plotshape/plotchar/bgcolor/label.new/
+   line.new/box.new/table.new) — format renderer PENUH dari model engine
+   (DrawingLabel/Background/DrawingLine/DrawingBox/DrawingTable). Dulu
+   SEMUA dibuang di jalur terproteksi → sinyal BUY/SELL, level retest,
+   fractal, tabel dsb. tidak tampil di chart padahal di TradingView
+   tampil. Sekarang ikut dikirim & digambar penuh. */
 interface ProtectedVisuals {
-  markers: Array<{ time: number; location: string; shape: string; char?: string; color?: string; text?: string; size?: string }>
-  backgrounds: Array<{ time: number; color: string }>
-  labels: Array<{ time: number; price: number; text: string; color?: string; textColor?: string; style?: string; size?: string; above?: boolean }>
+  labels: Array<Record<string, unknown>>
+  backgrounds: Array<Record<string, unknown>>
+  lines: Array<Record<string, unknown>>
+  boxes: Array<Record<string, unknown>>
+  tables: Array<Record<string, unknown>>
 }
 interface ProtectedScriptMeta { id: string; slug?: string; name: string; description: string | null; kind?: 'protected' | 'pine' }
 /* Trade strategy (server) — bahan visual chart ala line.new/label.new
@@ -144,83 +148,112 @@ function emitProtectedStats(key: string, stats: ProtectedStats) {
    mengevaluasi ulang sinyal Entry/SL/TP → push layar HP user Pro. */
 const protectedPlotCache = new Map<string, { at: number; plots: ProtectedPlot[]; trades: ProtectedTrade[]; visuals?: ProtectedVisuals }>()
 
-/* Bentuk segitiga/cross Pine → LabelStyle yang didukung renderer.
-   Selain itu (circle/square/diamond/flag/char) → label teks polos
-   memakai glyph karakter, supaya tetap terlihat. */
-function markerToLabelStyle(shape: string): string | null {
-  const s = String(shape || '')
-  if (/triangleup|triangledown|xcross|^cross$/i.test(s)) return s.toLowerCase()
-  if (/arrowup/i.test(s)) return 'arrowup'
-  if (/arrowdown/i.test(s)) return 'arrowdown'
-  if (/label_?up/i.test(s)) return 'label_up'
-  if (/label_?down/i.test(s)) return 'label_down'
-  return null // teks polos (style none)
-}
-
+/**
+ * Visual dari server (format model engine — DrawingLabel/Background/
+ * DrawingLine/…) dipetakan ke emit native: paneId dipaksa 'price'
+ * (indikator terproteksi selalu overlay di pane harga), nilai wajib
+ * label (size/textAlign/fontFamily) dilengkapi bila engine tak kirim.
+ * plotshape marker dari engine datang sebagai label dgn style
+ * triangleup/triangledown/cross/… + yloc abovebar/belowbar — persis
+ * yang renderer pahami, jadi TIDAK perlu konversi manual lagi.
+ */
 function buildVisualDrawings(
   visuals: ProtectedVisuals,
-  barsArr: ReadonlyArray<{ time: number; high: number; low: number }>,
   scriptId: string,
-): { labels: any[]; backgrounds: any[] } {
+  barsArr: ReadonlyArray<{ time: number }> = [],
+): { labels: any[]; backgrounds: any[]; lines: any[]; boxes: any[]; tables: any[] } {
   const labels: any[] = []
   const backgrounds: any[] = []
-  const hi = new Map<number, number>()
-  const lo = new Map<number, number>()
-  for (const b of barsArr) { hi.set(b.time, b.high); lo.set(b.time, b.low) }
+  const lines: any[] = []
+  const boxes: any[] = []
+  const tables: any[] = []
+  /* Snap waktu visual ke bar chart TERDEKAT — anchor candle server bisa
+     beda beberapa ms/harian-sama dgn bar chart (sumber data berbeda);
+     label yloc abovebar/belowbar Butuh bar yang TEPAT (barAt) → kalau
+     waktu meleset, label SENYAP tidak tergambar (barAt null → skip). */
+  const times = barsArr.map((b) => Number(b.time)).filter((t) => Number.isFinite(t)).sort((a, b) => a - b)
+  const snapTime = (t: number): number => {
+    if (!times.length || !Number.isFinite(t)) return t
+    let lo = 0, hi = times.length - 1
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (times[mid] < t) lo = mid + 1; else hi = mid }
+    const cand = [times[lo], times[Math.max(0, lo - 1)]]
+    return cand.reduce((best, c) => (Math.abs(c - t) < Math.abs(best - t) ? c : best), cand[0])
+  }
   try {
-    /* Markers → label segitiga/cross di atas/bawah bar (price = high/low
-       bar tsb; bar hilang → harga bar terdekat via snap). */
-    for (let i = 0; i < visuals.markers.length; i++) {
-      const m = visuals.markers[i]
-      if (!Number.isFinite(Number(m.time))) continue
-      const above = !/belowbar/i.test(m.location || '')
-      const price = above ? (hi.get(m.time) ?? Number.NaN) : (lo.get(m.time) ?? Number.NaN)
-      const style = markerToLabelStyle(m.shape)
-      const color = m.color || (above ? '#ef5350' : '#22ab94')
-      if (style) {
-        labels.push({
-          id: `ltxm-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: Number(m.time),
-          y: Number.isFinite(price) ? price : 0,
-          yloc: 'price', text: m.text || '', style, color,
-          textColor: '#ffffff', size: m.size === 'normal' ? 'small' : (m.size === 'large' ? 'normal' : 'tiny'),
-          textAlign: 'center', fontFamily: 'default',
-        })
-      } else {
-        /* Char/glyph lain → teks polos berwarna (tetap terlihat) */
-        labels.push({
-          id: `ltxm-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: Number(m.time),
-          y: Number.isFinite(price) ? price : 0, yloc: 'price',
-          text: m.char || m.text || '●', style: 'none', noFill: true, textColor: color,
-          size: 'tiny', textAlign: 'center', fontFamily: 'default',
-        })
-      }
-    }
-    /* label.new dari server */
-    for (let i = 0; i < (visuals.labels || []).length; i++) {
-      const l = visuals.labels[i]
-      const style = l.style ? markerToLabelStyle(l.style) : 'label_up'
+    (visuals.labels || []).forEach((lb, i) => {
+      const x = snapTime(Number((lb as any).x))
+      if (!Number.isFinite(x)) return
       labels.push({
-        id: `ltxl-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: Number(l.time),
-        y: Number(l.price), yloc: 'price', text: l.text,
-        style: style || 'none', ...(l.color ? { color: l.color } : {}),
-        textColor: l.textColor || '#ffffff', size: l.size === 'normal' ? 'small' : 'tiny',
-        textAlign: 'center', fontFamily: 'default',
+        id: `ltxv-${scriptId}-l${i}`,
+        paneId: 'price',
+        overlay: true, // WAJIB — filter drawings pane harga hanya ambil overlay===true
+        xloc: 'bar_time',
+        x,
+        y: Number((lb as any).y) || 0,
+        yloc: (lb as any).yloc || 'price',
+        text: String((lb as any).text ?? ''),
+        style: (lb as any).style || 'none',
+        ...(typeof (lb as any).color === 'string' ? { color: (lb as any).color } : {}),
+        ...(typeof (lb as any).textColor === 'string' ? { textColor: (lb as any).textColor } : {}),
+        size: (lb as any).size || 'tiny',
+        textAlign: (lb as any).textAlign || 'center',
+        fontFamily: (lb as any).fontFamily || 'default',
+        ...(typeof (lb as any).noFill === 'boolean' ? { noFill: (lb as any).noFill } : {}),
+        ...(typeof (lb as any).tooltip === 'string' ? { tooltip: (lb as any).tooltip } : {}),
       })
-    }
-    /* bgcolor → gabungkan bar berurutan berwarna sama jadi satu span */
-    let prev: { from: number; to: number; color: string } | null = null
-    for (const b of visuals.backgrounds || []) {
-      if (!Number.isFinite(Number(b.time))) continue
-      if (prev && prev.color === b.color && b.time - prev.to <= 1) {
-        prev.to = b.time + 1
-      } else {
-        if (prev) backgrounds.push(prev)
-        prev = { from: b.time, to: b.time + 1, color: b.color }
-      }
-    }
-    if (prev) backgrounds.push(prev)
-  } catch { /* dekoratif */ }
-  return { labels, backgrounds: backgrounds.map((b, i) => ({ id: `ltxbg-${scriptId}-${i}`, paneId: 'price', from: b.from, to: b.to, color: b.color, overlay: true })) }
+    })
+    ;(visuals.backgrounds || []).forEach((bg, i) => {
+      const from = snapTime(Number((bg as any).from))
+      const toRaw = Number((bg as any).to)
+      const to = Number.isFinite(toRaw) ? Math.max(from + 1, snapTime(toRaw)) : from
+      const color = (bg as any).color
+      if (!Number.isFinite(from) || !Number.isFinite(to) || typeof color !== 'string') return
+      backgrounds.push({ id: `ltxv-${scriptId}-b${i}`, paneId: 'price', from, to, color, overlay: true })
+    })
+    ;(visuals.lines || []).forEach((ln, i) => {
+      const x1 = snapTime(Number((ln as any).x1))
+      const y1 = Number((ln as any).y1)
+      if (!Number.isFinite(x1) || !Number.isFinite(y1)) return
+      lines.push({
+        id: `ltxv-${scriptId}-n${i}`,
+        paneId: 'price',
+        overlay: true,
+        xloc: (ln as any).xloc || 'bar_time',
+        x1, y1,
+        x2: snapTime(Number((ln as any).x2) || x1),
+        y2: Number((ln as any).y2) || y1,
+        extend: (ln as any).extend || 'none',
+        color: (ln as any).color || '#22ab94',
+        width: Number((ln as any).width) || 1,
+        style: (ln as any).style || 'solid',
+        arrowLeft: false,
+        arrowRight: false,
+      })
+    })
+    ;(visuals.boxes || []).forEach((bx, i) => {
+      const left = snapTime(Number((bx as any).left))
+      const right = snapTime(Number((bx as any).right))
+      const top = Number((bx as any).top)
+      const bottom = Number((bx as any).bottom)
+      if (![left, right, top, bottom].every(Number.isFinite)) return
+      boxes.push({
+        id: `ltxv-${scriptId}-x${i}`,
+        paneId: 'price',
+        overlay: true,
+        xloc: (bx as any).xloc || 'bar_time',
+        left, right, top, bottom,
+        ...(typeof (bx as any).borderColor === 'string' ? { borderColor: (bx as any).borderColor } : {}),
+        ...(typeof (bx as any).borderStyle === 'string' ? { borderStyle: (bx as any).borderStyle } : {}),
+        ...(Number.isFinite(Number((bx as any).borderWidth)) ? { borderWidth: Number((bx as any).borderWidth) } : {}),
+        ...(typeof (bx as any).backgroundColor === 'string' ? { backgroundColor: (bx as any).backgroundColor } : {}),
+      })
+    })
+    ;(visuals.tables || []).forEach((tb, i) => {
+      if (!tb || typeof tb !== 'object') return
+      tables.push({ ...(tb as any), id: `ltxv-${scriptId}-t${i}`, paneId: 'price', overlay: true })
+    })
+  } catch { /* dekoratif — jangan guncang chart */ }
+  return { labels, backgrounds, lines, boxes, tables }
 }
 
 function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, trades: ProtectedTrade[] = [], visuals?: ProtectedVisuals) {
@@ -266,6 +299,7 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
     const lines: any[] = []
     const labels: any[] = []
     const backgroundsArr: any[] = []
+    let extraDrawings: Record<string, any[]> | null = null
     const lastBarTime = barsArr.length ? barsArr[barsArr.length - 1].time : 0
     for (let i = 0; i < recent.length; i++) {
       const t = recent[i]
@@ -281,6 +315,7 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
       lines.push({
         id: `ltxl-${scriptId}-${i}`,
         paneId: 'price',
+        overlay: true,
         xloc: 'bar_time',
         x1: t1, y1: t.entryPrice, x2: t2, y2,
         extend: 'none',
@@ -293,23 +328,30 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
       })
       /* Panah entry ala Strategy Tester TradingView */
       if (t.side === 'long') {
-        labels.push({ id: `ltxb-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t1, y: t.entryPrice, yloc: 'belowbar', text: 'BUY', style: 'arrowup', color: WIN, textColor: '#ffffff', size: 'tiny', textAlign: 'center', fontFamily: 'default' })
+        labels.push({ id: `ltxb-${scriptId}-${i}`, paneId: 'price', overlay: true, xloc: 'bar_time', x: t1, y: t.entryPrice, yloc: 'belowbar', text: 'BUY', style: 'arrowup', color: WIN, textColor: '#ffffff', size: 'tiny', textAlign: 'center', fontFamily: 'default' })
       } else {
-        labels.push({ id: `ltxs-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t1, y: t.entryPrice, yloc: 'abovebar', text: 'SELL', style: 'arrowdown', color: LOSS, textColor: '#ffffff', size: 'tiny', textAlign: 'center', fontFamily: 'default' })
+        labels.push({ id: `ltxs-${scriptId}-${i}`, paneId: 'price', overlay: true, xloc: 'bar_time', x: t1, y: t.entryPrice, yloc: 'abovebar', text: 'SELL', style: 'arrowdown', color: LOSS, textColor: '#ffffff', size: 'tiny', textAlign: 'center', fontFamily: 'default' })
       }
       /* Label TP/SL di harga exit — style_none ala label.new Bos */
       if (!isOpen) {
-        labels.push({ id: `ltxe-${scriptId}-${i}`, paneId: 'price', xloc: 'bar_time', x: t2, y: y2, yloc: 'price', text: win ? 'TP' : 'SL', style: 'none', noFill: true, textColor: col, size: 'tiny', textAlign: 'center', fontFamily: 'default' })
+        labels.push({ id: `ltxe-${scriptId}-${i}`, paneId: 'price', overlay: true, xloc: 'bar_time', x: t2, y: y2, yloc: 'price', text: win ? 'TP' : 'SL', style: 'none', noFill: true, textColor: col, size: 'tiny', textAlign: 'center', fontFamily: 'default' })
       }
     }
-    /* Visual Pine (plotshape/bgcolor/label.new) → gabungkan ke SATU emit
-       (emit = PATCH — dua emit terpisah saling MENIMPA labels/lines!). */
+    /* Visual Pine (plotshape/bgcolor/label.new/line.new/box/table) →
+       gabungkan ke SATU emit (emit = PATCH — dua emit terpisah saling
+       MENIMPA labels/lines!). */
     if (visuals) {
       try {
         const fullBars: any[] = typeof ctx?.bars === 'function' ? ctx.bars() : []
-        const { labels: visLabels, backgrounds: visBackgrounds } = buildVisualDrawings(visuals, fullBars, scriptId)
+        const { labels: visLabels, backgrounds: visBackgrounds, lines: visLines, boxes: visBoxes, tables: visTables } = buildVisualDrawings(visuals, scriptId, fullBars)
         if (visLabels.length) labels.push(...visLabels)
         if (visBackgrounds.length) backgroundsArr.push(...visBackgrounds)
+        if (visLines.length) lines.push(...visLines)
+        if (visBoxes.length || visTables.length) {
+          const boxesArr: any[] = visBoxes
+          const tablesArr: any[] = visTables
+          extraDrawings = { ...(boxesArr.length ? { boxes: boxesArr } : {}), ...(tablesArr.length ? { tables: tablesArr } : {}) }
+        }
       } catch { /* dekoratif */ }
     }
     ctx?.emit?.({
@@ -317,6 +359,7 @@ function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: string, 
       ...(lines.length ? { lines } : {}),
       ...(labels.length ? { labels } : {}),
       ...(backgroundsArr.length ? { backgrounds: backgroundsArr } : {}),
+      ...(extraDrawings || {}),
     })
   } catch { /* jangan biarkan satu emit mengguncang chart */ }
 }
@@ -399,11 +442,13 @@ function createProtectedInstance() {
         const j: any = await res.json()
         if (Array.isArray(j?.plots) && j.plots.length || j?.visuals) {
           const tradesArr: ProtectedTrade[] = Array.isArray(j?.trades) ? j.trades : []
-          const vis: ProtectedVisuals | null = j?.visuals && Array.isArray(j.visuals.markers)
+          const vis: ProtectedVisuals | null = j?.visuals && Array.isArray(j.visuals.labels)
             ? {
-                markers: j.visuals.markers || [],
+                labels: j.visuals.labels || [],
                 backgrounds: Array.isArray(j.visuals.backgrounds) ? j.visuals.backgrounds : [],
-                labels: Array.isArray(j.visuals.labels) ? j.visuals.labels : [],
+                lines: Array.isArray(j.visuals.lines) ? j.visuals.lines : [],
+                boxes: Array.isArray(j.visuals.boxes) ? j.visuals.boxes : [],
+                tables: Array.isArray(j.visuals.tables) ? j.visuals.tables : [],
               }
             : null
           protectedPlotCache.set(ck, { at: Date.now(), plots: j.plots || [], trades: tradesArr, ...(vis ? { visuals: vis } : {}) })

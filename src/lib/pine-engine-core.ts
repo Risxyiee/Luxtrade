@@ -29,17 +29,19 @@ export interface PlotSeries {
   data: Array<{ time: number; value: number | null }>
 }
 
-/** Visual non-garis hasil engine (plotshape/plotchar/bgcolor/label.new)
- *  — server mengirim agar chart client bisa menggambar penuh ala
- *  TradingView (dulu SEMUA dibuang → sinyal BUY/SELL tabel dsb.
- *  hilang dari chart skrip terproteksi). */
+/** Visual non-garis hasil engine (plotshape/plotchar/bgcolor/label.new/
+ *  line.new/box.new/table.new) — DIAMBIL LANGSUNG dari model engine
+ *  (onModel → toScene) sehingga formatnya SAMA dengan yang dipakai
+ *  renderer chart (DrawingLabel/Background/DrawingLine/DrawingBox/
+ *  DrawingTable). Dulu SEMUA dibuang di jalur terproteksi → sinyal
+ *  BUY/SELL, level retest, fractal, tabel dsb. tidak tampil di chart
+ *  padahal di TradingView tampil. */
 export interface PineVisuals {
-  /** plotshape/plotchar true → marker segitiga/cross di atas/bawah bar */
-  markers: Array<{ time: number; location: string; shape: string; char?: string; color?: string; text?: string; size?: string }>
-  /** bgcolor → tint per bar (time→color) */
-  backgrounds: Array<{ time: number; color: string }>
-  /** label.new → label berteks di harga */
-  labels: Array<{ time: number; price: number; text: string; color?: string; textColor?: string; style?: string; size?: string; above?: boolean }>
+  labels: Array<Record<string, unknown>>
+  backgrounds: Array<Record<string, unknown>>
+  lines: Array<Record<string, unknown>>
+  boxes: Array<Record<string, unknown>>
+  tables: Array<Record<string, unknown>>
 }
 
 export interface PineRunResult {
@@ -167,75 +169,83 @@ export function synthesizeTradePlots(
 }
 
 /**
- * Ekstraksi visual non-garis dari snapshot plots engine.
- * Konteks engine per plot: { data:[{time,value,options?}], options:{style,...}, title }.
- * Style yang dikenal: 'shape'/'char' (plotshape/plotchar), 'background'
- * (bgcolor), 'label' (label.new). Selebihnya = series garis (jalur lama).
- * Semua dicap (cap) supaya respons tetap ringan di mobile.
+ * Ekstraksi visual non-garis dari MODEL engine (onModel → hasil toScene).
+ * Model membawa labels (plotshape marker + label.new), backgrounds
+ * (bgcolor), lines (line.new), boxes (box.new), tables (table.new) —
+ * semuanya SUDAH dalam format DrawingLabel/Background/… yang dikonsumsi
+ * renderer. getContext(['plots']) TIDAK bisa dipakai (snapshot serial
+ * membuang options/style). Semua dicap (cap) supaya respons ringan.
  */
-const VISUAL_CAPS = { markers: 800, backgrounds: 1500, labels: 400 }
+const VISUAL_CAPS = { labels: 800, backgrounds: 1500, lines: 400, boxes: 200, tables: 6 }
 
-function extractPineVisuals(plotsRaw: Record<string, any>): PineVisuals | undefined {
-  const markers: PineVisuals['markers'] = []
-  const backgrounds: PineVisuals['backgrounds'] = []
+const JSON_SAFE = (o: unknown): Record<string, unknown> | null => {
+  if (!o || typeof o !== 'object') return null
+  try { return JSON.parse(JSON.stringify(o)) as Record<string, unknown> } catch { return null }
+}
+
+function extractVisualsFromModel(model: any, bars: Array<{ time: number }> = []): PineVisuals | undefined {
   const labels: PineVisuals['labels'] = []
-  try {
-    for (const key of Object.keys(plotsRaw)) {
-      const plot = plotsRaw[key]
-      const pts: Array<any> = Array.isArray(plot?.data) ? plot.data : []
-      const style = String(plot?.options?.style || '')
-      if (style === 'shape' || style === 'char') {
-        const loc = String(plot?.options?.location || '')
-        for (const p of pts) {
-          if (markers.length >= VISUAL_CAPS.markers) break
-          const v = p?.value
-          const truthy = v === true || (typeof v === 'number' && Number.isFinite(v) && v !== 0)
-          if (!truthy) continue
-          const o = (p?.options && typeof p?.options === 'object' ? p.options : plot?.options) || {}
-          const shape = String(o.shape || (style === 'shape' ? 'triangleup' : ''))
-          const char = style === 'char' ? String(o.char ?? plot?.options?.char ?? '') : undefined
-          markers.push({
-            time: Number(p.time),
-            location: String(o.location ?? (loc || 'abovebar')),
-            shape: shape || 'triangleup',
-            ...(char ? { char } : {}),
-            ...(o.color ? { color: String(o.color) } : {}),
-            ...(o.text ? { text: String(o.text) } : {}),
-            ...(o.size ? { size: String(o.size) } : {}),
-          })
-        }
-      } else if (style === 'background') {
-        for (const p of pts) {
-          if (backgrounds.length >= VISUAL_CAPS.backgrounds) break
-          const c = p?.options?.color
-          if (typeof c === 'string' && c.trim() && !/^(na|nan)$/i.test(c.trim()) && !/rgba?\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(c)) {
-            backgrounds.push({ time: Number(p.time), color: c.trim() })
-          }
-        }
-      } else if (style === 'label') {
-        for (const p of pts) {
-          if (labels.length >= VISUAL_CAPS.labels) break
-          const o = (p?.options && typeof p?.options === 'object' ? p.options : {}) || {}
-          const v = p?.value
-          const price = typeof v === 'number' && Number.isFinite(v) ? v : Number((v as any)?.y ?? (v as any)?.price)
-          const text = String((v as any)?.text ?? o.text ?? '')
-          if (!Number.isFinite(price) || !text) continue
-          labels.push({
-            time: Number(p.time),
-            price,
-            text: text.slice(0, 120),
-            ...(o.color ? { color: String(o.color) } : {}),
-            ...(o.textcolor || o.textColor ? { textColor: String(o.textcolor ?? o.textColor) } : {}),
-            ...(o.style ? { style: String(o.style) } : {}),
-            ...(o.size ? { size: String(o.size) } : {}),
-            ...(o.yloc === 'abovebar' ? { above: true } : {}),
-          })
-        }
+  const backgrounds: PineVisuals['backgrounds'] = []
+  const lines: PineVisuals['lines'] = []
+  const boxes: PineVisuals['boxes'] = []
+  const tables: PineVisuals['tables'] = []
+  /* Pine label.new/line.new/box.new default xloc = BAR_INDEX (x = indeks
+     bar) — client hanya paham BAR_TIME. Konversi indeks → epoch ms pakai
+     bar server; indeks di luar jangkauan → objek dibuang (tidak mungkin
+     digambar). Ini penyebab senyap "label/level ga tampil" sebelumnya. */
+  const idxToTime = (x: unknown): number | null => {
+    const i = Math.round(Number(x))
+    if (!Number.isFinite(i) || i < 0 || i >= bars.length) return null
+    const t = Number(bars[i]?.time)
+    return Number.isFinite(t) ? t : null
+  }
+  const fixX = (o: Record<string, unknown>, keys: string[]): Record<string, unknown> | null => {
+    const out = { ...o }
+    if (out.xloc === 'bar_index') {
+      for (const k of keys) {
+        const t = idxToTime(out[k])
+        if (t == null) return null
+        out[k] = t
       }
+      out.xloc = 'bar_time'
+    }
+    return out
+  }
+  try {
+    for (const lb of Array.isArray(model?.labels) ? model.labels : []) {
+      if (labels.length >= VISUAL_CAPS.labels) break
+      const safe = JSON_SAFE(lb)
+      if (!safe) continue
+      const fixed = fixX(safe, ['x'])
+      if (fixed) labels.push(fixed)
+    }
+    for (const bg of Array.isArray(model?.backgrounds) ? model.backgrounds : []) {
+      if (backgrounds.length >= VISUAL_CAPS.backgrounds) break
+      const safe = JSON_SAFE(bg)
+      if (safe) backgrounds.push(safe)
+    }
+    for (const ln of Array.isArray(model?.lines) ? model.lines : []) {
+      if (lines.length >= VISUAL_CAPS.lines) break
+      const safe = JSON_SAFE(ln)
+      if (!safe) continue
+      const fixed = fixX(safe, ['x1', 'x2'])
+      if (fixed) lines.push(fixed)
+    }
+    for (const bx of Array.isArray(model?.boxes) ? model.boxes : []) {
+      if (boxes.length >= VISUAL_CAPS.boxes) break
+      const safe = JSON_SAFE(bx)
+      if (!safe) continue
+      const fixed = fixX(safe, ['left', 'right'])
+      if (fixed) boxes.push(fixed)
+    }
+    for (const tb of Array.isArray(model?.tables) ? model.tables : []) {
+      if (tables.length >= VISUAL_CAPS.tables) break
+      const safe = JSON_SAFE(tb)
+      if (safe) tables.push(safe)
     }
   } catch { /* dekoratif — jangan bunuh run */ }
-  if (!markers.length && !backgrounds.length && !labels.length) return undefined
-  return { markers, backgrounds, labels }
+  if (!labels.length && !backgrounds.length && !lines.length && !boxes.length && !tables.length) return undefined
+  return { labels, backgrounds, lines, boxes, tables }
 }
 
 /**
@@ -326,12 +336,22 @@ export async function runPineHeadless(
         let plots: PlotSeries[]
         /* Style NON-GARIS (shape/char/background/label/table/drawing_*) tidak
            boleh dijadikan garis (true/false → garis 0/1 aneh di chart).
-           Semua sudah diekstrak jadi `visuals` — buang dari daftar series. */
-        const NON_LINE_STYLES = new Set(['shape', 'char', 'background', 'label', 'table', 'drawing_line', 'drawing_box', 'drawing_polyline', 'linefill', 'barcolor', 'fill', 'hline', 'bar', 'candle', 'arrow'])
-        const lineKeys = keys.filter((k) => {
-          const st = String(plotsRaw[k]?.options?.style || '')
-          return !st || !NON_LINE_STYLES.has(st)
-        })
+           Snapshot getContext TIDAK membawa style — daftar kunci garis
+           sah diambil dari MODEL engine (model.series hanya berisi
+           line-like: line/area/step/histogram/columns/circles/cross).
+           Semua style lain sudah diekstrak jadi `visuals`. */
+        const lineTitles = new Set<string>(
+          (Array.isArray(lastModel?.series) ? lastModel.series : [])
+            .filter((s: any) => {
+              const k = String(s?.kind || 'line')
+              return ['line', 'area', 'step', 'histogram', 'columns', 'circles', 'cross'].includes(k)
+            })
+            .map((s: any) => String(s?.title || ''))
+            .filter(Boolean)
+        )
+        const lineKeys = lineTitles.size
+          ? keys.filter((k) => lineTitles.has(k))
+          : keys
         if (lineKeys.length) {
           plots = lineKeys.map((k, i) => {
             const pts = Array.isArray(plotsRaw[k]) ? plotsRaw[k] : []
@@ -357,7 +377,7 @@ export async function runPineHeadless(
         } else {
           /* Skrip murni visual (plotshape/label saja, tanpa plot angka)
              → sah: plots kosong + visuals terisi (route/client menangani). */
-          const visuals = extractPineVisuals(plotsRaw)
+          const visuals = extractVisualsFromModel(lastModel, bars)
           if (visuals) {
             resolve({ ok: true, title: String(snap?.meta?.title || 'Luxtradee Pro Script'), overlay: snap?.meta?.overlay !== false, plots: [], visuals, engineAlerts })
             return
@@ -370,7 +390,7 @@ export async function runPineHeadless(
           title: String(snap?.meta?.title || 'Luxtradee Pro Script'),
           overlay: snap?.meta?.overlay !== false,
           plots,
-          visuals: extractPineVisuals(plotsRaw),
+          visuals: extractVisualsFromModel(lastModel, bars),
           engineAlerts,
         })
       } catch (x: any) {
@@ -382,6 +402,12 @@ export async function runPineHeadless(
 
     const timer = setTimeout(() => finish('Timeout: engine Pine tidak selesai dalam 15 detik'), 15000)
 
+    /* Model PENUH dari engine (hasil toScene): labels/backgrounds/lines/
+       boxes/tables dalam format renderer — SUMBER ekstraksi visuals.
+       onModel bisa terpicu per bar (live) atau sekali di akhir (static) —
+       simpan yang TERAKHIR (state akhir memuat semua gambaran akumulatif). */
+    let lastModel: any = null
+
     try {
       session = engine.execute(
         {
@@ -391,7 +417,7 @@ export async function runPineHeadless(
           mode: 'static',
         } as any,
         {
-          onModel: () => { /* model penuh tidak dipakai — kita baca via getContext */ },
+          onModel: (m: any) => { lastModel = m /* model penuh → sumber visuals */ },
           onAlert: (a: any) => {
             engineAlerts.push({ message: String(a?.message || ''), time: Number(a?.time) || Date.now(), barIndex: Number(a?.barIndex) || 0 })
           },

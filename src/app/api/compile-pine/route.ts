@@ -264,13 +264,16 @@ export async function POST(request: NextRequest) {
     const chartTrades = Array.isArray(run.trades) && run.trades.length
       ? run.trades.slice(-CHART_TRADE_TAIL)
       : []
-    /* Visual non-garis (plotshape/bgcolor/label.new) — ekor saja, chart
-       cuma menampilkan ±5000 bar terakhir. */
+    /* Visual non-garis (plotshape/plotchar/bgcolor/label.new/line.new/
+       box.new/table.new) — format renderer penuh dari model engine,
+       ekor saja supaya respons tetap ringan di mobile. */
     const chartVisuals = run.visuals
       ? {
-          markers: run.visuals.markers.slice(-CHART_PLOT_TAIL),
-          backgrounds: run.visuals.backgrounds.slice(-CHART_PLOT_TAIL * 2),
           labels: run.visuals.labels.slice(-CHART_PLOT_TAIL),
+          backgrounds: run.visuals.backgrounds.slice(-CHART_PLOT_TAIL * 2),
+          lines: run.visuals.lines.slice(-CHART_PLOT_TAIL),
+          boxes: run.visuals.boxes.slice(-CHART_PLOT_TAIL),
+          tables: run.visuals.tables.slice(0, 6),
         }
       : null
     const payload = {
