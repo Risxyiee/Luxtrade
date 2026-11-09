@@ -4,8 +4,9 @@ name: Master Autonomous Workforce
 # 🏢 MASTER CRON — Fully Autonomous AI Workforce (8 karyawan)
 # ------------------------------------------------------------
 # DUA SHIFT KERJA dalam SATU workforce (bukan bot terpisah):
-#   0 1  * * *  → 08.00 WIB  Shift pagi: 3 gelombang karyawan
-#               (Raka+Maya+Bagas+Putri+Dewi → Farhan+Sinta → Alexander)
+#   0 1  * * *  → 08.00 WIB  Shift pagi: 4 gelombang karyawan
+#               (🎓 Akademi belajar → Raka+Maya+Bagas+Putri+Dewi →
+#                Farhan+Sinta → Alexander)
 #
 #   ⚠️ SHIFT SORE 20.00 WIB (video Sinta) PINDAH: sekarang SATU
 #   pipeline di video-bot-cron.yml jam 19.10 WIB — render SEKALI,
@@ -17,9 +18,12 @@ name: Master Autonomous Workforce
 # (13 probe Raka + rantai LLM + DB + Discord) bisa melampaui batas itu →
 # "Too many subrequests" (terjadi 2026-11-02: Farhan & Discord gagal).
 #
-# Solusi: endpoint sama dipanggil 3× TERPISAH (tiap invokasi dapat budget
+# Solusi: endpoint sama dipanggil 4× TERPISAH (tiap invokasi dapat budget
 # subrequest baru). Hasil tiap gelombang disimpan di agent_kv, lalu
 # Alexander (gelombang terakhir) fan-in dari sana:
+#   Wave 0: 🎓 AKADEMI — semua agen belajar pagi sesuai keahlian (kurikulum
+#           rotasi harian, lib/agent-academy.ts) → pelajaran tercache;
+#           pekerja di wave berikutnya tinggal baca cache (1 subrequest)
 #   Wave 1: Raka (security sweep) + Maya + Bagas + Putri + Dewi
 #   Wave 2: Farhan (artikel SEO) + Sinta (draf TikTok)  [LLM berat]
 #   Wave 3: Alexander → Morning Briefing → Discord
@@ -36,11 +40,14 @@ name: Master Autonomous Workforce
 #     Variables & Secrets → CRON_SECRET = string yang sama
 #
 # Uji manual: jalankan workflow ini manual (workflow_dispatch):
-#   - video_only=false (default) → shift pagi (3 gelombang)
+#   - video_only=false (default) → shift pagi (4 gelombang: akademi + 3)
 #   - video_only=true            → cuma produksi video Sinta (uji)
 #   atau:
 #   curl -X POST -H "Authorization: Bearer $SECRET" \
 #     "https://luxtradee.web.id/api/cron/master-autonomous?agents=raka,maya,bagas,putri,dewi"
+#   # uji akademi saja:
+#   curl -X POST -H "Authorization: Bearer $SECRET" \
+#     "https://luxtradee.web.id/api/cron/master-autonomous?agents=academy&force=true"
 # ============================================================
 
 on:
@@ -62,13 +69,50 @@ concurrency:
 
 jobs:
   # ─────────────────────────────────────────────────────────────
-  # SHIFT PAGI 08.00 WIB — 3 gelombang karyawan (Raka s/d Alexander)
+  # SHIFT PAGI 08.00 WIB — 4 gelombang karyawan (Akademi s/d Alexander)
   # ─────────────────────────────────────────────────────────────
   run-workforce:
     if: github.event.schedule != '0 13 * * *' && inputs.video_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # ── 🎓 GELOMBANG 0 — AKADEMI: semua agen belajar dulu sesuai keahlian ──
+      # Permintaan Bos: "tiap hari AI-nya harus belajar sendiri / ada yg
+      # harus diajari sesuai keahlian masing-masing". Kurikulum rotasi
+      # harian (SEO utk Farhan, viral utk Sinta, security utk Raka, dst.);
+      # agen boleh ganti topik sendiri. Pelajaran tercache di agent_kv →
+      # wave pekerja tinggal memakainya. Gagal di sini TIDAK menggagalkan
+      # shift pagi — agen tetap belajar mandiri saat gelombangnya jalan.
+      - name: "🎓 Gelombang 0/3 — Akademi (semua agen belajar sesuai keahlian)"
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          PROD_URL="${PROD_URL%/}"
+          if [ -z "$PROD_URL" ]; then echo "❌ Secret PROD_URL belum diset"; exit 1; fi
+          if [ -z "$CRON_SECRET" ]; then echo "❌ Secret CRON_SECRET belum diset"; exit 1; fi
+          echo "🚀 Akademi → $PROD_URL/api/cron/master-autonomous?agents=academy&force=true"
+          code=$(curl -sS -L -o /tmp/academy-resp.json -w '%{http_code}' \
+            --max-time 900 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: luxtradee-master-autonomous-cron" \
+            "$PROD_URL/api/cron/master-autonomous?agents=academy&force=true") || code=000
+          echo "HTTP $code"
+          if command -v jq >/dev/null 2>&1; then
+            echo "── HASIL BELAJAR PAGI ──"
+            jq -r '(.academy // {}) | to_entries[] | "- \(.key): [\(.value.sumber // "?")] \(.value.topik // .value.status)"' /tmp/academy-resp.json 2>/dev/null || true
+          else
+            head -c 8000 /tmp/academy-resp.json 2>/dev/null || true
+          fi
+          # TIDAK exit 1 — kegagalan akademi tidak boleh membatalkan shift:
+          # tiap agen punya fallback belajar-mandiri di gelombangnya sendiri.
+          if [ "$code" != "200" ]; then
+            echo "⚠️ Akademi gagal (HTTP $code) — shift tetap jalan, agen belajar mandiri di gelombangnya"
+          else
+            echo "✅ Akademi selesai — pelajaran tercache utk semua agen"
+          fi
+
       - name: "🏢 Gelombang 1/3 — Raka (sweep) + agen data"
         env:
           PROD_URL: ${{ secrets.PROD_URL }}

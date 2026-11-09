@@ -6,6 +6,10 @@ import { extractJson, callLLM, callMorteraDirect } from '@/lib/ai-llm'
 import { getEnvVar, getSelfFetch } from '@/lib/cloudflare-bindings'
 import { sendDiscordNotification } from '@/lib/discord'
 import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@/lib/bagas-cooldown'
+import {
+  ACADEMY_ROSTER, pickTodayTopic, buildAcademySystemPrompt, buildAcademyUserPrompt,
+  parseAcademyLesson, academyWorkBlock, academyBriefingBlock, type AcademyLesson,
+} from '@/lib/agent-academy'
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -66,6 +70,12 @@ import { bagasCooldownSince, bagasCooldownOrExpr, emailsFromActionRows } from '@
  *     "pelajaran" run sebelumnya (hasil critic, temuan security) dan menulis
  *     pelajaran baru → agen belajar lintas hari. Tabel belum ada? Tetap jalan
  *     tanpa memori (degrade gracefully, pola cron-supabase).
+ *   - 🎓 AKADEMI KARYAWAN (lib/agent-academy.ts): SEBELUM kerja, tiap agen
+ *     ikut SESI BELAJAR PAGI — kurikulum rotasi harian sesuai keahliannya
+ *     (SEO utk Farhan, viral utk Sinta, security utk Raka, dst.), boleh ganti
+ *     topik sendiri (belajar sendiri), pelajarannya diinjeksikan ke prompt
+ *     kerja hari itu + disimpan ('belajar') agar menumpuk lintas hari +
+ *     direkap Alexander ke Discord & panel Memori Kantor.
  *
  * KEAMANAN & ANTI-SERAKAH:
  *   - Auth: Bearer CRON_SECRET (SATU nama saja — nama env di Cloudflare
@@ -89,7 +99,7 @@ export const dynamic = 'force-dynamic'
 
 /* ═══════════════════════ KONFIGURASI & HELPERS DASAR ═══════════════════════ */
 
-const RUN_VERSION = 'master-autonomous@3-skillmax'
+const RUN_VERSION = 'master-autonomous@4-academy'
 const DEFAULT_MIN_INTERVAL_MIN = 30
 
 /** Env resolver: CF Workers binding → process.env (pola cron lama). */
@@ -370,7 +380,7 @@ async function actorCritic(
 async function officeRemember(
   admin: SupabaseClient,
   agentName: string,
-  memoryType: 'critic' | 'lesson' | 'security' | 'report',
+  memoryType: 'critic' | 'lesson' | 'security' | 'report' | 'belajar',
   content: Record<string, unknown>,
 ): Promise<void> {
   try {
@@ -408,6 +418,95 @@ async function officeRecallLessons(admin: SupabaseClient, agentName: string, lim
 function lessonsBlock(lessons: string[]): string {
   if (!lessons.length) return 'BELAJAR DARI KEMARIN: (belum ada memori — run pertama)'
   return `BELAJAR DARI KEMARIN (memori kantor — WAJIB dihindari/diperbaiki):\n${lessons.map(l => `- ${l}`).join('\n')}`
+}
+
+/* ── 🎓 AKADEMI KARYAWAN — belajar tiap pagi sesuai keahlian masing-masing ─
+ * Permintaan Bos: "tiap hari AI-nya harus belajar sendiri / ada yg harus
+ * diajari sesuai keahlian". Tiap agen menjalani SESI BELAJAR PAGI (kurikulum
+ * rotasi harian per keahlian — lib/agent-academy.ts) SEBELUM kerja, lalu
+ * pelajarannya DIINJEKSIKAN ke prompt kerjanya hari itu, disimpan ke
+ * office_memory ('belajar') agar menumpuk lintas hari, dan direkap Alexander
+ * ke briefing Discord + panel Memori Kantor. Budget: 1 LLM kecil + 3
+ * subrequest per agen; gagal → agen tetap kerja normal (degrade). */
+
+/** Semua pelajaran akademi HARI INI (semua agen) — dibaca Alexander wave 3. */
+async function officeRecallAcademyToday(
+  admin: SupabaseClient,
+  dateStr: string,
+): Promise<Array<{ nama: string; topik: string; pelajaran: string }>> {
+  try {
+    const { data, error } = await admin.from('office_memory')
+      .select('agent_name, content')
+      .eq('memory_type', 'belajar').eq('run_date', dateStr)
+      .order('created_at', { ascending: false }).limit(12)
+    if (error || !data) return []
+    return (data as Array<{ agent_name: string; content: { topik?: string; pelajaran?: string } }>)
+      .filter(r => r.content?.topik)
+      .map(r => ({ nama: r.agent_name, topik: clip(r.content.topik || '', 60), pelajaran: clip(r.content.pelajaran || '', 130) }))
+  } catch { return [] }
+}
+
+/** SESI BELAJAR PAGI satu agen — jalan SEBELUM agen bekerja.
+ *  4 subrequest saja: guard-read → LLM → guard-write → insert memori.
+ *  Guard harian (agent_kv academy:<key>:<tanggal>) mencegah dobel-belajar
+ *  saat ?force=true / rerun. LLM gagal → null (tanpa retry 20 dtk — sesi
+ *  belajar tidak boleh memperlambat kerja utama). */
+async function runAcademyForAgent(
+  admin: SupabaseClient,
+  agentKey: string,
+  dry: boolean,
+): Promise<AcademyLesson | null> {
+  const profile = ACADEMY_ROSTER[agentKey]
+  if (!profile || dry) return null
+  const day = wibDateStr()
+  const cacheKey = `academy:${agentKey}:${day}`
+  try {
+    const cached = await kvGet(admin, cacheKey)
+    if (cached) {
+      try { return JSON.parse(cached) as AcademyLesson } catch { /* korup → belajar ulang */ }
+    }
+  } catch { /* KV opsional */ }
+  const topic = pickTodayTopic(agentKey, day)
+  if (!topic.topic) return null
+  try {
+    const res = await callAgent(profile.llmTag, buildAcademySystemPrompt(profile),
+      buildAcademyUserPrompt({ profile, topic: topic.topic, dateStr: day }),
+      { maxTokens: 420, temperature: 0.7, timeoutMs: 60_000, noRetry: true })
+    if (!res) return null
+    const lesson = parseAcademyLesson(res.text)
+    if (!lesson) return null
+    lesson.model = res.model
+    await kvSet(admin, cacheKey, JSON.stringify(lesson))
+    await officeRemember(admin, profile.nama, 'belajar', {
+      lesson: `${lesson.topik}: ${lesson.pelajaran} → TERAPKAN: ${lesson.terapan}`,
+      topik: lesson.topik, pelajaran: lesson.pelajaran, terapan: lesson.terapan,
+      sumber: lesson.sumber, model: lesson.model,
+    })
+    console.log(`[master:academy] ${profile.nama} selesai belajar (${lesson.sumber}): ${clip(lesson.topik, 80)}`)
+    return lesson
+  } catch { return null }
+}
+
+/** Rekap akademi hari ini → panel 🧠 Memori Kantor /kantor-ceo (kv mem:list,
+ *  format PERSIS memAdd di /api/ceo-agent supaya tampil di dashboard).
+ *  Dipanggil Alexander wave 3 (sekali, hemat subrequest wave pekerja). */
+async function shareAcademyToOfficeMemory(
+  admin: SupabaseClient,
+  lessons: Array<{ nama: string; topik: string; pelajaran: string }>,
+): Promise<void> {
+  if (!lessons.length) return
+  try {
+    let list: Array<{ at: string; who: string; text: string }> = []
+    try { list = JSON.parse((await kvGet(admin, 'mem:list')) || '[]') } catch { /* korup → reset */ }
+    for (const l of lessons.slice(0, 6)) {
+      list.unshift({
+        at: new Date().toISOString(),
+        who: `${l.nama} (Akademi)`,
+        text: `Selesai belajar pagi: ${clip(l.topik, 120)}`, // pelajarannya panjang — panel cukup topiknya
+      })
+    }
+    await kvSet(admin, 'mem:list', JSON.stringify(list.slice(0, 24)))
+  } catch { /* memori opsional */ }
 }
 
 /* ── RISET TIKTOK lintas divisi ──────────────────────────────────────────
@@ -742,6 +841,10 @@ async function agentFarhan(admin: SupabaseClient, dry: boolean): Promise<AgentRe
       { recentTitles: existingTitles.slice(0, 5) })
   }
 
+  // 🎓 AKADEMI: Farhan belajar SEO/growth dulu, pelajarannya dipakai hari ini
+  const belajar = await runAcademyForAgent(admin, 'farhan', dry)
+  const academyFarhan = academyWorkBlock(belajar)
+
   // ── Fase 1: riset keyword tren harian (+ bahan riset TikTok Sinta) ──
   const avoidList = existingTitles.slice(0, 15).map(t => clip(t, 90)).join(' | ') || '(kosong)'
   const risetSintaFarhan = await risetSintaBlock(admin)
@@ -770,7 +873,7 @@ ${topArticles.map(a => `- "${clip(a.title, 70)}" — ${a.views} views${a.keyword
     'Kamu riset keyword SEO harian untuk niche trading emas/XAUUSD & prop firm (audiens Indonesia). Cari topik yang SEDANG dicari orang, bukan topik usang.',
     `Tanggal run: ${wibDateStr()}.
 JUDUL YANG SUDAH TERBIT (JANGAN diulang topiknya): ${avoidList}
-${lessonsBlock(lessons)}${risetSintaFarhan}${dewiBlockFarhan}
+${lessonsBlock(lessons)}${academyFarhan}${risetSintaFarhan}${dewiBlockFarhan}
 ${trendsBlock}
 ${topBlock}
 
@@ -824,7 +927,7 @@ ${linkCandidates.slice(0, 4).map(c => `- <a href="/blog/${c.slug}">${clip(c.titl
    * Dipanggil 1-2x per run (lihat MODE NARIK ORANG di bawah). */
   const writePublishOne = async (kw: FarhanKeyword, nomor: number): Promise<AgentResult> => {
     const ac = await actorCritic('Farhan', {
-      system: FARHAN_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+      system: FARHAN_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : '') + (academyFarhan ? `\n\n${academyFarhan}` : ''),
       user: `Tulis artikel SEO hari ini.
 
 KEYWORD UTAMA: ${kw.keyword}
@@ -1088,6 +1191,10 @@ ${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
     return skipResult('Sinta', `dry-run — LLM & simpan draf dilewati (${topRefs.length} referensi TikTok terbaca${trends.length ? `, ${trends.length} tren Google terbaca` : ''})`, { topRefs, trendsCount: trends.length })
   }
 
+  // 🎓 AKADEMI: Sinta belajar marketing/viral dulu — pelajarannya masuk riset & skrip
+  const belajar = await runAcademyForAgent(admin, 'sinta', dry)
+  const academySinta = academyWorkBlock(belajar)
+
   const lessons = await officeRecallLessons(admin, 'Sinta')
   // AUDIT D2: statistik Dewi jadi bahan laporan riset Sinta (topik konten
   // selaras dengan masalah RIIL trader — emosi/jam entry terburuk)
@@ -1109,7 +1216,7 @@ ${trends.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
   try {
     const res = await callAgent('Sinta',
       SINTA_RISET_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
-      `${refBlock}${dewiBlockSinta}
+      `${refBlock}${dewiBlockSinta}${academySinta}
 
 Tanggal run: ${wibDateStr()}.
 Susun LAPORAN RISET TikTok hari ini untuk seluruh kantor.`,
@@ -1145,7 +1252,7 @@ Susun LAPORAN RISET TikTok hari ini untuk seluruh kantor.`,
     : ''
 
   const ac = await actorCritic('Sinta', {
-    system: SINTA_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+    system: SINTA_SYSTEM + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : '') + (academySinta ? `\n\n${academySinta}` : ''),
     user: `${refBlock}${risetForDrafts}
 Bikin 3 draf skrip TikTok dengan 3 ANGLE BERBEDA, tema: edukasi/psikologi trading XAUUSD.`,
     rubric: SINTA_RUBRIC,
@@ -1411,6 +1518,10 @@ async function agentRaka(admin: SupabaseClient, baseUrl: string, dry: boolean): 
   }
 
   if (!dry) {
+    // 🎓 AKADEMI: Raka belajar keamanan/infra tiap pagi (sweep-nya deterministik —
+    // pelajarannya nyambung ke penilaian & eskalasinya lewat memori kantor)
+    await runAcademyForAgent(admin, 'raka', dry)
+
     await officeRemember(admin, 'Raka', 'security', {
       lesson: alarm
         ? `P1 BELUM DIPASTIKAN BERES: ${p1.map(x => x.path).join(', ')}${trend && trend !== 'membaik' ? ` (tren ${trend} vs run sebelumnya — eskalasi ke Bos!)` : ' — cek ulang run berikutnya'}`
@@ -1567,6 +1678,10 @@ async function agentMaya(admin: SupabaseClient, dry: boolean): Promise<AgentResu
 
   const lessons = await officeRecallLessons(admin, 'Maya')
 
+  // 🎓 AKADEMI: Maya belajar retensi dulu — pelajarannya masuk prompt email
+  const belajar = await runAcademyForAgent(admin, 'maya', dry)
+  const academyMaya = academyWorkBlock(belajar)
+
   /* ═══ ANTI "SAMA MULU" — ROTASI ANGLE HARIAN ═══
      Keluhan Bos (9 Nov): "kerjaan semuanya sama mulu tiap hari". Dulu SATU
      prompt generik + temperature saja → gaya email mirip tiap hari. Kini
@@ -1636,7 +1751,8 @@ async function agentMaya(admin: SupabaseClient, dry: boolean): Promise<AgentResu
     const ac = await actorCritic('Maya', {
       system: MAYA_SYSTEM
         + `\n\nANGLE HARI INI (WAJIB dipakai sebagai pendekatan utama): ${angle.intro}`
-        + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+        + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : '')
+        + (academyMaya ? `\n\n${academyMaya}` : ''),
       user: `DATA RIIL: ${activeCount} dari ${totalWithEmail} user aktif 7 hari terakhir (${activeRatio}%).
 
 TARGET EMAIL INI (yang ke-${i + 1} dari ${targets.length}): ${t.email} — SEGMENT ${segmentCta(t)}
@@ -1827,6 +1943,10 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
   const risetSintaBagas = await risetSintaBlock(admin)
   const dewiBlockBagas = await insightDewiBlock(admin)
 
+  // 🎓 AKADEMI: Bagas belajar penjualan/monetisasi dulu — pelajarannya masuk pitch
+  const belajar = await runAcademyForAgent(admin, 'bagas', dry)
+  const academyBagas = academyWorkBlock(belajar)
+
   /* ANTI "SAMA MULU" — rotasi angle harian (sama dgn Maya): gaya pitch
      berganti tiap hari, diinjeksikan ke prompt + dipakai template fallback. */
   const BAGAS_ANGLES = [
@@ -1842,7 +1962,8 @@ async function agentBagas(admin: SupabaseClient, dry: boolean): Promise<AgentRes
   const ac = await actorCritic('Bagas', {
     system: BAGAS_SYSTEM
       + `\n\nANGLE HARI INI (WAJIB jadi pendekatan utama): ${bagasAngle.intro}`
-      + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : ''),
+      + (lessons.length ? `\n\n${lessonsBlock(lessons)}` : '')
+      + (academyBagas ? `\n\n${academyBagas}` : ''),
     user: `DATA RIIL hot leads (SATU email per lead, urut sesuai daftar — sebut aktivitas lead paling aktif):
 ${targets.map((t, i) => {
       const sig = sigOf(t.id)
@@ -2062,6 +2183,9 @@ async function agentPutri(admin: SupabaseClient, dry: boolean): Promise<AgentRes
 
   // AUDIT P1: memori kantor — MRR + tren tercatat, dibaca Alexander
   // (dan tampil di panel Memori Kantor) — dulu laporan hilang tiap hari.
+  // 🎓 AKADEMI: Putri juga belajar tiap pagi (anggaran/efisiensi biaya) —
+  // satu-satunya agen tanpa LLM di kerjaan, tapi belajarnya tetap jalan.
+  await runAcademyForAgent(admin, 'putri', dry)
   await officeRemember(admin, 'Putri', 'report', {
     lesson: `MRR ${mrrTxt} (${proCount} PRO aktif${trendTxt})${expiredCount ? `; ${expiredCount} expired PRO perlu win-back (segmen mantan-pembayar Bagas)` : ''}${proExpiring.length ? `; ${proExpiring.length} expiring ≤7 hari` : ''}`,
     mrrIdr, proCount, lifetimeCount, expiredCount, trend: mrrTrend.direction, deltaPct: mrrTrend.deltaPct,
@@ -2162,6 +2286,11 @@ async function agentDewi(admin: SupabaseClient, dry: boolean): Promise<AgentResu
 
   // LLM hanya menarasikan angka riil (dilarang menambah/mengubah angka)
   const lessons = await officeRecallLessons(admin, 'Dewi')
+
+  // 🎓 AKADEMI: Dewi belajar analisis data dulu — pelajarannya masuk narasi
+  const belajar = await runAcademyForAgent(admin, 'dewi', dry)
+  const academyDewi = academyWorkBlock(belajar)
+
   const res = await callAgent('Dewi',
     `Kamu DEWI, Data Analyst Luxtradee. Terjemahkan statistik trading menjadi insight TAJAM 2-3 kalimat + 1 rekomendasi tindakan untuk Bos.
 Semua angka SUDAH dihitung sistem — kamu HANYA menarasikan, DILARANG menambah/mengubah angka. Gaya: to-the-point, tanpa basa-basi korporat.
@@ -2169,7 +2298,7 @@ ${ANTI_HALUSINASI}
 Output JSON murni: {"insight": "...", "recommendation": "..."}`,
     `DATA RIIL (14 hari terakhir, dihitung sistem):
 ${JSON.stringify(stats, null, 1)}
-${lessons.length ? lessonsBlock(lessons) : ''}`,
+${lessons.length ? lessonsBlock(lessons) : ''}${academyDewi}`,
     { maxTokens: 520, temperature: 0.6 })
 
   let insight = ''
@@ -2249,6 +2378,14 @@ async function agentAlexander(
   const raka = results.find(r => r.agent === 'Raka')
   const p1Alarm = !!(raka?.data && (raka.data as { alarm?: boolean }).alarm)
 
+  // 🎓 AKADEMI: CEO juga belajar pagi (kepemimpinan/strategi), lalu rekap
+  // pelajaran SATU KANTOR hari ini → masuk briefing Discord + Memori Kantor.
+  // Kegagalan akademi tidak pernah menggagalkan briefing (degrade gracefully).
+  await runAcademyForAgent(admin, 'alexander', false)
+  const academyToday = await officeRecallAcademyToday(admin, wibDateStr())
+  await shareAcademyToOfficeMemory(admin, academyToday)
+  const academyBlock = academyBriefingBlock(academyToday)
+
   // AUDIT A2: ACCOUNTABILITY — baca NBA & mood briefing TERAKHIR dari
   // memori kantor → briefing hari ini bisa ngecek "NBA kemarin dikerjakan?"
   // (dulu briefing amnesiak antar hari).
@@ -2286,7 +2423,7 @@ async function agentAlexander(
     ? `NBA BRIEFING TERAKHIR (${prevBrief.day || '?'}): "${clip(prevBrief.nba, 140)}" (mood ${prevBrief.mood || '?'}) — cek: sudah dikerjakan atau belum? Kalau masih relevan & belum, prioritaskan lagi; kalau sudah, pilih prioritas baru dari data di atas.\n\n`
     : ''
   const res = await callAgent('Alexander', ALEX_SYSTEM,
-    `LAPORAN KARYAWAN (run ${runMeta.runId}, ${Math.round(runMeta.durationMs / 1000)}s, ${totalLlmCalls} panggilan LLM):\n${clip(reportJson, 6500)}\n\n${prevNbaLine}${ANTI_HALUSINASI}`,
+    `LAPORAN KARYAWAN (run ${runMeta.runId}, ${Math.round(runMeta.durationMs / 1000)}s, ${totalLlmCalls} panggilan LLM):\n${clip(reportJson, 6500)}\n\n${prevNbaLine}${academyBlock ? `${academyBlock}\n\n` : ''}${ANTI_HALUSINASI}`,
     { maxTokens: 650, temperature: 0.5 })
   if (res) {
     const parsed = extractJson<{ ringkasan?: string; next_best_action?: { judul?: string; alasan?: string; langkah?: string }; mood?: string }>(res.text)
@@ -2311,13 +2448,20 @@ async function agentAlexander(
     // berikutnya utk accountability ("NBA kemarin dikerjakan belum?")
     nba: briefing.next_best_action.judul,
     day: wibDateStr(),
+    // 🎓 jejak akademi: berapa karyawan yang selesai belajar hari ini
+    academyCount: academyToday.length,
   })
 
   // ── Kirim ke Discord (non-kritis — gagal tidak menjatuhkan run) ──
   const lines = results.map(r => `${statusIcon(r)} ${ICONS[r.agent] || '•'} **${r.agent}**: ${clip(r.summary, 140)}`)
+  // 🎓 Rekap belajar pagi ini — kantor terlihat HIDUP: tiap karyawan AI
+  // menimba ilmu sesuai keahliannya sebelum shift (permintaan Bos).
+  const academyLine = academyToday.length
+    ? `\n📚 **Belajar pagi ini (Akademi):** ${academyToday.map(a => `${a.nama}: ${a.topik}`).join(' · ')}`
+    : ''
   const quotaLine = `🧮 LLM run ini: ${totalLlmCalls} panggilan (${Object.entries(perAgentLlm).map(([k, v]) => `${k} ${v}`).join(', ') || '0'})`
   const header = `👔 **MORNING BRIEFING — Luxtradee AI Workforce**\n📅 ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })} · ${briefing.mood}\n\n${briefing.ringkasan}\n\n`
-  const footer = `\n\n🎯 **NEXT BEST ACTION: ${briefing.next_best_action.judul}**\n→ ${briefing.next_best_action.langkah || briefing.next_best_action.alasan}\n\n${quotaLine}`
+  const footer = `\n\n${academyLine}\n\n🎯 **NEXT BEST ACTION: ${briefing.next_best_action.judul}**\n→ ${briefing.next_best_action.langkah || briefing.next_best_action.alasan}\n\n${quotaLine}`
   const content = clip(header + lines.join('\n') + footer, 1900)
 
   let discordSent = false
@@ -2393,6 +2537,43 @@ async function handleRequest(request: NextRequest) {
   const baseUrl = (await envVal('NEXT_PUBLIC_APP_URL')) || (await envVal('NEXT_PUBLIC_SITE_URL')) || new URL(request.url).origin
 
   const want = (name: string) => !subset || subset.has(name.toLowerCase())
+
+  // ── 🎓 GELOMBANG 0 — MODE AKADEMI (?agents=academy) ──────────────────────
+  // Workflow memanggil ini SEBELUM pekerja: SEMUA agen ikut SESI BELAJAR
+  // PAGI (kurikulum per keahlian, lib/agent-academy.ts) di invokasi yang
+  // budget-nya sendiri (8 × 4 subrequest = 32 < 50 CF Free). Pelajaran
+  // tercache di agent_kv academy:<key>:<tanggal> → saat pekerja jalan,
+  // mereka tinggal BACA cache (1 subrequest/agen — tidak ada LLM dobel).
+  // Return EARLY: sengaja TIDAK menulis master:lastRun (tidak boleh
+  // memicu guard 30 menit di Gelombang 1 yang berjalan detik kemudian).
+  if (subset?.has('academy')) {
+    if (dry) {
+      return NextResponse.json({ success: true, runId, version: RUN_VERSION, dryRun: true, academy: { note: 'dry-run — sesi belajar dilewati' } })
+    }
+    const order = ['farhan', 'sinta', 'raka', 'maya', 'bagas', 'putri', 'dewi', 'alexander']
+    const academy: Record<string, { status: string; topik?: string; sumber?: string }> = {}
+    for (const key of order) {
+      const lesson = await runAcademyForAgent(admin, key, false)
+      academy[key] = lesson
+        ? { status: 'ok', topik: clip(lesson.topik, 90), sumber: lesson.sumber }
+        : { status: 'gagal — agen tetap belajar mandiri di gelombangnya (fallback inline)' }
+    }
+    // Kuota LLM akademi ikut tercatat (dibaca Putri run berikutnya)
+    if (quotaTracker.llmCalls > 0) {
+      const d = wibDateStr()
+      const prev = parseInt((await kvGet(admin, `q:llm:${d}`)) || '0', 10) || 0
+      await kvSet(admin, `q:llm:${d}`, String(prev + quotaTracker.llmCalls))
+    }
+    return NextResponse.json({
+      success: true,
+      runId,
+      version: RUN_VERSION,
+      dryRun: false,
+      durationMs: Date.now() - startedAt,
+      llmCalls: quotaTracker.llmCalls,
+      academy,
+    })
+  }
 
   // ── 7 PEKERJA → PARALEL, kegagalan satu agen tidak menular (allSettled) ──
   const jobs: Array<{ name: string; fn: () => Promise<AgentResult> }> = []
