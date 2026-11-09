@@ -28,8 +28,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'LuxTradee gratis nggak?',
     q_en: 'Is LuxTradee free?',
-    a_id: 'Jurnal trade unlimited dan gratis selamanya — catat sebanyak apa pun. Paket gratis juga dapat 10x tanya AI, chart live Vela™ dengan 1 indikator, dan Pine Script® 2×/bulan. Kalau kamu butuh lapisan cerdas penuh — tanya AI tanpa batas, AI Vision auto-journal dari screenshot, deteksi pola — upgrade ke PRO (Rp49rb/bulan, diskon dari Rp100rb).',
-    a_en: "Trade journaling is unlimited and free forever — log as many trades as you want. The free plan also includes 10x AI chat, Vela™ live chart with 1 indicator, and Pine Script® 2×/month. For the full smart layer — unlimited AI chat, AI Vision auto-journal from screenshots, pattern detection — upgrade to PRO (Rp49k/month, discounted from Rp100k).",
+    a_id: 'Jurnal trade unlimited dan gratis selamanya — catat sebanyak apa pun. Paket gratis juga dapat semua analitik (heatmap, psikologi, trading score, target), chart live 70+ indikator, impor CSV/MT4/screenshot, ekspor data, dan 10x tanya AI per bulan. Kalau kamu butuh lapisan cerdas penuh — tanya AI tanpa batas, AI insights & laporan mingguan, alert dari skrip Pine milikmu — upgrade ke PRO.',
+    a_en: "Trade journaling is unlimited and free forever — log as many trades as you want. The free plan also includes full analytics (heatmap, psychology, trading score, targets), a live chart with 70+ indicators, CSV/MT4/screenshot import, data export, and 10x AI chat per month. For the full smart layer — unlimited AI chat, AI insights & weekly report, alerts from your own Pine script — upgrade to PRO.",
     category: 'general',
   },
   {
@@ -42,14 +42,14 @@ const faqData: FAQItem[] = [
   {
     q_id: 'Bisa import dari MT4/MT5?',
     q_en: 'Can I import from MT4/MT5?',
-    a_id: 'Bisa! Input manual selalu gratis dari dashboard. Dengan PRO, kamu dapat AI Vision: upload screenshot trade dari MT5/TradingView dan AI otomatis extract pair, entry/exit, SL/TP, profit/loss — langsung jadi jurnal.',
-    a_en: 'Yes! Manual input is always free from the dashboard. With PRO you get AI Vision: upload a trade screenshot from MT5/TradingView and AI auto-extracts pair, entry/exit, SL/TP, profit/loss — instantly becomes a journal.',
+    a_id: 'Bisa! Semua jalur input gratis: isi manual, impor CSV/MT4, atau upload screenshot — AI otomatis extract pair, entry/exit, SL/TP, profit/loss, langsung jadi jurnal. Kamu juga bisa ekspor semua data ke CSV/PDF kapan saja.',
+    a_en: 'Yes! Every input path is free: manual entry, CSV/MT4 import, or screenshot upload — AI auto-extracts pair, entry/exit, SL/TP, profit/loss into your journal. You can also export all your data to CSV/PDF anytime.',
     category: 'technical',
   },
   {
     q_id: 'Data trading saya aman?',
     q_en: 'Is my trading data secure?',
-    a_id: 'Data dienkripsi dan disimpan aman di Supabase. Kami nggak jual data ke pihak ketiga, nggak ada iklan, dan cuma kamu yang bisa akses.',
+    a_id: 'Data dienkripsi dan disimpan aman di server. Kami nggak jual data ke pihak ketiga, nggak ada iklan, dan cuma kamu yang bisa akses — plus kamu bisa ekspor data milikmu kapan saja.',
     a_en: "Data is encrypted and securely stored on Supabase. We don't sell data, no ads, only you can access your data.",
     category: 'general',
   },

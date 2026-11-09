@@ -49,14 +49,14 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       subtitle: feature
         ? `Fitur "${feature}" hanya tersedia untuk pengguna PRO`
         : "Kamu telah mencapai batas pemakaian fitur gratis. Jurnal tetap unlimited gratis — upgrade ke PRO untuk lapisan AI penuh.",
-      description: "Upgrade ke PRO untuk tanya AI tanpa batas, AI Vision auto-journal, analitik mendalam, deteksi pola kerugian, dan watchlist prop firm.",
+      description: "Jurnal & semua analitik sudah gratis selamanya. Upgrade ke PRO untuk lapisan cerdasnya: tanya AI tanpa batas, insight & laporan mingguan AI, alert dari skrip Pine milikmu, watchlist, dan Prop Firm Guard.",
       features: [
         { icon: Infinity, title: "Tanya AI Tanpa Batas", desc: "Chat AI analisis trading tanpa batas per bulan" },
-        { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Analitik mendalam dengan grafik dan statistik lengkap" },
-        { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
-        { icon: Zap, title: "Chart Vela™ Semua Preset Indikator", desc: "EMA 20/50 + RSI 14 + VWAP, Pine Script® tanpa batas" },
-        { icon: Star, title: "Alert Otomatis Tanpa Batas", desc: "Sinyal Entry/SL/TP otomatis ke layar HP — Pro tanpa batas" },
-        { icon: Shield, title: "Semua Tools Pro", desc: "Heatmap, Analitik, AI Insights, Trading Score, Laporan Mingguan" }
+        { icon: Brain, title: "AI Insights & Laporan Mingguan AI", desc: "Deteksi pola kesalahan berulang & review mingguan otomatis" },
+        { icon: Zap, title: "Alert dari Skrip Pine Milikmu", desc: "Skrip Pine kamu dievaluasi ±5 menit — push Entry/SL/TP ke HP" },
+        { icon: TrendingUp, title: "Watchlist Pasar & Berita", desc: "Pantau pair favorit & berita pasar langsung dari dashboard" },
+        { icon: Shield, title: "Prop Firm Guard", desc: "Pemantauan aturan prop firm otomatis via MetaApi" },
+        { icon: Star, title: "Dukungan Prioritas", desc: "Bantuan respons cepat khusus member PRO" }
       ],
       price: {
         monthly: formatRupiah(PRICING.PRO_30_DAYS),
@@ -79,14 +79,14 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       subtitle: feature
         ? `The "${feature}" feature is only available for PRO users`
         : "You've hit the free feature limit. Journaling stays unlimited & free — upgrade to PRO for the full AI layer.",
-      description: "Upgrade to PRO for unlimited AI chat, AI Vision auto-journal, deep analytics, loss pattern detection, and prop firm watchlist.",
+      description: "Journaling & all analytics are already free forever. Upgrade to PRO for the smart layer: unlimited AI chat, AI insights & weekly report, alerts from your own Pine script, watchlist, and Prop Firm Guard.",
       features: [
-        { icon: Infinity, title: "Unlimited Trade Entries & AI", desc: "No limit on trading journals or AI queries per month" },
-        { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Deep analytics with complete charts and statistics" },
-        { icon: Brain, title: "AI Vision Auto-Journal", desc: "Upload MT5/TradingView screenshot, AI auto-extracts data" },
-        { icon: Zap, title: "Vela™ Chart — All Preset Indicators", desc: "EMA 20/50 + RSI 14 + VWAP, unlimited Pine Script®" },
-        { icon: Star, title: "Unlimited Auto Alerts", desc: "Signal push to your phone — Pro sends alerts anytime" },
-        { icon: Shield, title: "All Pro Tools", desc: "Heatmap, Analytics, AI Insights, Trading Score, Weekly Report" }
+        { icon: Infinity, title: "Unlimited AI Chat", desc: "No limit on AI trading analysis per month" },
+        { icon: Brain, title: "AI Insights & Weekly Report", desc: "Detect repeating mistakes & automatic weekly review" },
+        { icon: Zap, title: "Alerts from YOUR Pine Script", desc: "Your script evaluated every ~5 min — Entry/SL/TP push to phone" },
+        { icon: TrendingUp, title: "Market Watchlist & News", desc: "Track favorite pairs & market news inside the dashboard" },
+        { icon: Shield, title: "Prop Firm Guard", desc: "Automated prop firm rule monitoring via MetaApi" },
+        { icon: Star, title: "Priority Support", desc: "Fast-tracked help for PRO members" }
       ],
       price: {
         monthly: formatRupiah(PRICING.PRO_30_DAYS),

@@ -152,7 +152,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
               { id: language === 'id' ? 'Screenshot AI extract' : 'Screenshot AI extract', free: '✕', pro: '✓', lifetime: '✓', highlight: false },
               { id: language === 'id' ? 'Analisis psikologi trading' : 'Trading psychology analysis', free: '✕', pro: '✓', lifetime: '✓', highlight: false },
               { id: language === 'id' ? 'VIP support & grup' : 'VIP support & group', free: '✕', pro: '✓', lifetime: '✓', highlight: false },
-              { id: language === 'id' ? 'Discord privat' : 'Private Discord', free: '✕', pro: '✕', lifetime: '✓', highlight: true },
+              { id: language === 'id' ? 'Grup privat' : 'Private group', free: '✕', pro: '✕', lifetime: '✓', highlight: true },
             ].map((row, i) => (
               <div key={i} className={`grid grid-cols-4 gap-0 border-b border-white/[0.04] last:border-0 ${row.highlight ? 'bg-blue-500/[0.02]' : ''}`}>
                 <div className="p-3.5 text-[13px] text-[#8892b0]">{row.id}</div>

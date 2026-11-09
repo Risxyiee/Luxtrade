@@ -57,55 +57,36 @@ export default function PaywallModal({
   }
 
   // Features list based on language - Matching landing page features
+  // FREEMIUM BARU (9 Nov): jurnal & analitik = gratis — yang dijual = lapisan AI + otomasi.
   const proFeatures = isEnglish ? [
-    '🔥 UNLIMITED Trade Journals & AI Chat',
-    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
-    '📊 In-Depth Win-Rate Charts & Mistake Tracker',
-    '📈 All Chart Preset Indicators (EMA 20/50 + RSI 14 + VWAP)',
-    '🔔 Unlimited Auto Alerts & Pine Script®',
-    '🗺️ Market Heatmap, Analytics & Trading Targets',
-    '📥 Free Data Export to CSV / PDF',
+    '🔥 Unlimited AI Chat (journal & analytics stay free)',
+    '🧠 AI Insights & AI Weekly Report — mistake patterns detected',
+    '🔔 Unlimited Alerts from Your Own Pine Script (phone push)',
+    '📝 Unlimited Pine Script Editor (free: 2 edits/month)',
+    '📈 Market Watchlist & Market News',
+    '🛡️ Prop Firm Guard — automated rule monitoring',
     '👑 Priority Support',
   ] : [
-    '🔥 UNLIMITED Jurnal Transaksi & Tanya AI',
-    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
-    '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
-    '📈 Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
-    '🔔 Alert Otomatis & Pine Script® Tanpa Batas',
-    '🗺️ Heatmap, Analitik & Target Trading',
-    '📥 Bebas Ekspor Data ke CSV / PDF',
+    '🔥 Tanya AI Tanpa Batas (jurnal & analitik tetap gratis)',
+    '🧠 AI Insights & Laporan Mingguan AI — deteksi pola kesalahan',
+    '🔔 Alert Tanpa Batas dari Skrip Pine Milikmu (push HP)',
+    '📝 Editor Skrip Pine Tanpa Batas (free: 2 edit/bulan)',
+    '📈 Watchlist Pasar & Berita Pasar',
+    '🛡️ Prop Firm Guard — pemantauan aturan otomatis',
     '👑 Dukungan Prioritas',
   ]
 
-  const annualFeatures = isEnglish ? [
-    '🔥 UNLIMITED Trade Journals & AI Chat',
-    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
-    '📊 In-Depth Win-Rate Charts & Mistake Tracker',
-    '📈 All Chart Preset Indicators (EMA 20/50 + RSI 14 + VWAP)',
-    '🔔 Unlimited Auto Alerts & Pine Script®',
-    '🗺️ Market Heatmap, Analytics & Trading Targets',
-    '📥 Free Data Export to CSV / PDF',
-    '👑 Priority Support',
-  ] : [
-    '🔥 UNLIMITED Jurnal Transaksi & Tanya AI',
-    '🧠 AI Vision Auto-Journal (Upload Screenshot MT5/TV)',
-    '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
-    '📈 Semua Preset Indikator Chart (EMA 20/50 + RSI 14 + VWAP)',
-    '🔔 Alert Otomatis & Pine Script® Tanpa Batas',
-    '🗺️ Heatmap, Analitik & Target Trading',
-    '📥 Bebas Ekspor Data ke CSV / PDF',
-    '👑 Dukungan Prioritas',
-  ]
+  const annualFeatures = proFeatures
 
   const lifetimeFeatures = isEnglish ? [
     '👑 LIFETIME ACCESS',
     'All Elite PRO Features Forever',
-    'VIP Discord Support & Private Group Access',
+    'AI Layer, Pine Alerts & Prop Firm Guard Included',
     'No More Monthly Fees',
   ] : [
     '👑 AKSES SEUMUR HIDUP',
     'Semua Fitur Elite PRO Terbuka Selamanya',
-    'VIP Discord Support & Akses Grup Privat',
+    'Lapisan AI, Alert Pine & Prop Firm Guard Termasuk',
     'Tanpa Biaya Bulanan Lagi',
   ]
 

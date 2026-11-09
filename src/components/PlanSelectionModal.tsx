@@ -45,7 +45,7 @@ const plans: Plan[] = [
       'UNLIMITED Jurnal Transaksi — gratis selamanya',
       'Semua Analitik: Heatmap, Psychology, Trading Score, Targets',
       '10x Tanya AI (Chat)',
-      'Chart Live Vela™ + Impor CSV/MT4/Screenshot',
+      'Chart Live 70+ Indikator + Impor CSV/MT4/Screenshot',
       'Ekspor Data CSV & PDF',
       'Kalender Ekonomi & Kalkulator Risiko'
     ]
@@ -63,7 +63,7 @@ const plans: Plan[] = [
     features: [
       'UNLIMITED Jurnal + AI Chat tanpa batas',
       'AI Insights & Weekly Report (analisis AI mendalam)',
-      'Alert dari Pine Script® milikmu — tanpa batas',
+      'Editor & alert skrip Pine milikmu — tanpa batas (free: 2 edit/bulan)',
       'Watchlist Pasar & Market News',
       'Prop Firm Guard (pemantauan otomatis MetaApi)',
       'Semua fitur jurnal gratis (sudah termasuk paket free)',
@@ -85,7 +85,7 @@ const plans: Plan[] = [
     features: [
       'UNLIMITED Jurnal + AI Chat tanpa batas',
       'AI Insights & Weekly Report (analisis AI mendalam)',
-      'Alert dari Pine Script® milikmu — tanpa batas',
+      'Editor & alert skrip Pine milikmu — tanpa batas (free: 2 edit/bulan)',
       'Watchlist Pasar & Market News',
       'Prop Firm Guard (pemantauan otomatis MetaApi)',
       'Semua fitur jurnal gratis (sudah termasuk paket free)',
@@ -105,7 +105,7 @@ const plans: Plan[] = [
     features: [
       'AKSES SEUMUR HIDUP',
       'Semua Fitur Elite PRO Selamanya',
-      'VIP Discord Support & Grup Privat',
+      'VIP Support & Akses Grup Privat',
       'Tanpa Biaya Berulang'
     ],
     highlight: true
@@ -494,7 +494,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
-                    <span>{gatewayAvailable !== false ? 'Aktivasi PRO otomatis setelah bayar' : 'Konfirmasi via Discord'}</span>
+                    <span>{gatewayAvailable !== false ? 'Aktivasi PRO otomatis setelah bayar' : 'Konfirmasi manual via CS'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">

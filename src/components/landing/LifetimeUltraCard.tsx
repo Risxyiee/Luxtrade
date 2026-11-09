@@ -29,7 +29,7 @@ export default function LifetimeUltraCard({ onButtonClick, language, t }: Lifeti
         <div className="flex flex-col gap-3.5 mb-8">
           {[
             { text: language === 'id' ? 'Akses seumur hidup semua fitur' : 'Lifetime access to all features' },
-            { text: language === 'id' ? 'VIP Discord & grup privat' : 'VIP Discord & private group' },
+            { text: language === 'id' ? 'VIP Komunitas & grup privat' : 'VIP Community & private group' },
             { text: language === 'id' ? 'Tanpa biaya bulanan' : 'No monthly fees ever' },
             { text: language === 'id' ? 'Semua fitur PRO' : 'All PRO features' },
           ].map((item, index) => (

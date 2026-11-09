@@ -21,6 +21,10 @@ interface FeatureRow {
   pro: CellValue
 }
 
+// FREEMIUM BARU (9 Nov, sinkron FeatureComparison dengan realita dashboard):
+// - Jurnal & SEMUA analitik data-sendiri (heatmap/psikologi/score/target/ekspor) = GRATIS
+// - Tembok PRO = lapisan AI + otomasi pasar (AI chat/insight/report, alert Pine, watchlist, news, prop firm)
+// - Chart live gratis 70+ indikator (tanpa sebut brand pihak ketiga)
 const features: FeatureRow[] = [
   {
     name: { id: 'Jurnal Transaksi', en: 'Trade Journals' },
@@ -28,47 +32,37 @@ const features: FeatureRow[] = [
     pro: { type: 'unlimited', label: 'Unlimited' },
   },
   {
-    name: { id: 'Tanya AI (Chat)', en: 'AI Chat Queries' },
-    free: { type: 'text', value: '10x' },
-    pro: { type: 'unlimited', label: 'Unlimited' },
-  },
-  {
-    name: { id: 'AI Vision Auto-Journal (upload screenshot)', en: 'AI Vision Auto-Journal (screenshot upload)' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Deteksi Pola AI', en: 'AI Pattern Detection' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Chart Live Vela™ (indikator preset)', en: 'Vela™ Live Chart (preset indicators)' },
-    free: { type: 'text', value: '1 (EMA 20/50)' },
-    pro: { type: 'text', value: 'Semua (EMA + RSI + VWAP)' },
-  },
-  {
-    name: { id: 'Editor Pine Script®', en: 'Pine Script® Editor' },
-    free: { type: 'text', value: '2/bulan' },
-    pro: { type: 'unlimited', label: 'Unlimited' },
-  },
-  {
-    name: { id: 'Alert Otomatis (Push HP)', en: 'Auto Alerts (Phone Push)' },
-    free: { type: 'cross' },
-    pro: { type: 'unlimited', label: 'Unlimited' },
-  },
-  {
-    name: { id: 'Prop Firm Guard', en: 'Prop Firm Guard' },
+    name: { id: 'Analitik & Equity Curve', en: 'Analytics & Equity Curve' },
     free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Watchlist & Kalender Trading', en: 'Watchlist & Trading Calendar' },
+    name: { id: 'Heatmap Performa (hari × sesi)', en: 'Performance Heatmap (day × session)' },
     free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Berita Pasar', en: 'Market News' },
+    name: { id: 'Psikologi Trading', en: 'Trading Psychology' },
+    free: { type: 'check' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Trading Score', en: 'Trading Score' },
+    free: { type: 'check' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Target Trading', en: 'Trading Targets' },
+    free: { type: 'check' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Streak & Pencapaian', en: 'Streaks & Achievements' },
+    free: { type: 'check' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Kalender Trading & Ekonomi', en: 'Trading & Economic Calendar' },
     free: { type: 'check' },
     pro: { type: 'check' },
   },
@@ -78,64 +72,64 @@ const features: FeatureRow[] = [
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Market Heatmap', en: 'Market Heatmap' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Kalender Ekonomi', en: 'Economic Calendar' },
+    name: { id: 'Chart Live (70+ indikator)', en: 'Live Chart (70+ indicators)' },
     free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Target Trading', en: 'Trading Targets' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Analitik & Equity Curve', en: 'Analytics & Equity Curve' },
-    free: { type: 'text', value: 'Dasbor dasar' },
-    pro: { type: 'text', value: 'Mendalam' },
-  },
-  {
-    name: { id: 'AI Insights', en: 'AI Insights' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Trading Score', en: 'Trading Score' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Laporan Mingguan', en: 'Weekly Report' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Streak', en: 'Streaks' },
+    name: { id: 'Impor CSV / MT4 / Screenshot', en: 'Import CSV / MT4 / Screenshot' },
     free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Psikologi Trading', en: 'Trading Psychology' },
-    free: { type: 'cross' },
-    pro: { type: 'check' },
-  },
-  {
-    name: { id: 'Pencapaian', en: 'Achievements' },
+    name: { id: 'Ekspor Data (CSV & PDF)', en: 'Data Export (CSV & PDF)' },
     free: { type: 'check' },
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Ekspor Data (CSV)', en: 'Data Export (CSV)' },
+    name: { id: 'Tanya AI (Chat)', en: 'AI Chat Queries' },
+    free: { type: 'text', value: '10x/bulan' },
+    pro: { type: 'unlimited', label: 'Unlimited' },
+  },
+  {
+    name: { id: 'AI Insights & Deteksi Pola', en: 'AI Insights & Pattern Detection' },
     free: { type: 'cross' },
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Hubungkan Broker (MetaAPI)', en: 'Broker Connection (MetaAPI)' },
+    name: { id: 'Laporan Mingguan AI', en: 'AI Weekly Report' },
     free: { type: 'cross' },
     pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Editor Skrip Pine', en: 'Pine Script Editor' },
+    free: { type: 'text', value: '2×/bulan' },
+    pro: { type: 'unlimited', label: 'Unlimited' },
+  },
+  {
+    name: { id: 'Alert dari Skrip Pine milikmu (push HP)', en: 'Alerts from your own Pine script (phone push)' },
+    free: { type: 'cross' },
+    pro: { type: 'unlimited', label: 'Unlimited' },
+  },
+  {
+    name: { id: 'Watchlist Pasar', en: 'Market Watchlist' },
+    free: { type: 'cross' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Berita Pasar', en: 'Market News' },
+    free: { type: 'cross' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Prop Firm Guard', en: 'Prop Firm Guard' },
+    free: { type: 'cross' },
+    pro: { type: 'check' },
+  },
+  {
+    name: { id: 'Hubungkan Broker (MetaApi)', en: 'Broker Connection (MetaApi)' },
+    free: { type: 'text', value: '1 akun' },
+    pro: { type: 'text', value: 'Hingga 50' },
   },
   {
     name: { id: 'Dukungan Prioritas', en: 'Priority Support' },
