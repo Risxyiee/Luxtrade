@@ -1,0 +1,266 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/testsprite.yml'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type: apk or aab'
+        required: false
+        default: 'apk'
+        type: choice
+        options:
+          - apk
+          - aab
+
+env:
+  CAPACITOR_BUILD: 'true'
+  NODE_VERSION: '24'
+
+jobs:
+  build-android:
+    name: 🤖 Build Android APK/AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ─── Checkout ──────────────────────────────────────────────────────────
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # ─── Setup JDK (required for Android Gradle) ──────────────────────────
+      - name: ☕ Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+          cache: 'gradle'
+
+      # ─── Setup Node.js ────────────────────────────────────────────────────
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # ─── Setup Bun ────────────────────────────────────────────────────────
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # ─── Setup Android SDK ────────────────────────────────────────────────
+      - name: 📱 Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: 📦 Accept Android licenses
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: 📦 Install Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      # ─── Prepare Environment ──────────────────────────────────────────────
+      # Uses .env.ci (committed to repo with all NEXT_PUBLIC_* values)
+      # plus optional GitHub Secrets overrides for server-side keys.
+      # This means ZERO manual secret setup is required for a working build.
+      - name: 🔧 Prepare environment (.env.ci → .env)
+        run: |
+          echo "📋 Loading build environment from .env.ci..."
+          if [ -f ".env.ci" ]; then
+            cp .env.ci .env
+            echo "✅ .env.ci copied to .env"
+          else
+            echo "⚠️  .env.ci not found, creating minimal .env"
+            touch .env
+          fi
+
+          # ── Append any GitHub Secrets that are set (optional overrides) ──
+          # These are server-side keys not needed for static export builds,
+          # but included so the build doesn't fail if code references them.
+          SECRETS_TO_PASS="
+            SUPABASE_SERVICE_ROLE_KEY
+            GEMINI_API_KEY
+            GOOGLE_GEMINI_API_KEY
+            OPENAI_API_KEY
+            OPENROUTER_API_KEY
+            ZAI_BASE_URL
+            ZAI_API_KEY
+            ZAI_CHAT_ID
+            ZAI_USER_ID
+            ZAI_TOKEN
+            MIDTRANS_SERVER_KEY
+            MIDTRANS_CLIENT_KEY
+            RESEND_API_KEY
+            RESEND_TEMPLATE_CONFIRM
+            RESEND_TEMPLATE_RESET
+            WEBHOOK_SECRET
+            VAPID_PRIVATE_KEY
+            VAPID_SUBJECT
+            ALPHA_VANTAGE_API_KEY
+            RAPIDAPI_TRADING_ECONOMICS_KEY
+            METAAPI_TOKEN
+          "
+
+          for secret_name in $SECRETS_TO_PASS; do
+            # Check if the secret is set as an env var (GitHub injects secrets as env)
+            secret_value=$(printenv "$secret_name" 2>/dev/null || true)
+            if [ -n "$secret_value" ]; then
+              # Only add if not already in .env
+              if ! grep -q "^${secret_name}=" .env 2>/dev/null; then
+                echo "${secret_name}=${secret_value}" >> .env
+                echo "  🔑 ${secret_name} ← GitHub Secret"
+              fi
+            else
+              # Add empty placeholder so process.env.XXX doesn't crash at build
+              if ! grep -q "^${secret_name}=" .env 2>/dev/null; then
+                echo "${secret_name}=" >> .env
+              fi
+            fi
+          done
+
+          echo ""
+          echo "📊 .env vars loaded: $(grep -c '=' .env 2>/dev/null || echo 0)"
+          echo "🔑 NEXT_PUBLIC vars: $(grep -c '^NEXT_PUBLIC' .env 2>/dev/null || echo 0)"
+          # SECURITY (2026-11): GitHub server-side secrets are NO LONGER passed into
+          # this step. Static APK export strips API routes, so server secrets are
+          # never embedded in the bundle — injecting them here only created exposure
+          # risk on the runner (and the placeholder loop above still writes empty
+          # "VAR=" lines so process.env reads do not crash at build time).
+
+      # ─── Install Dependencies ─────────────────────────────────────────────
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      # ─── Generate Prisma Client ───────────────────────────────────────────
+      - name: 🗄️ Generate Prisma Client
+        run: bun run db:generate
+
+      # ─── Build Next.js Static Export ──────────────────────────────────────
+      - name: 🔨 Build Next.js (static export)
+        run: |
+          echo "🧹 Cleaning previous build..."
+          rm -rf out .next
+          echo "🔨 Building Next.js with CAPACITOR_BUILD=true (static export)..."
+          echo "📐 .env contents (NEXT_PUBLIC only):"
+          grep '^NEXT_PUBLIC' .env 2>/dev/null | sed 's/=.*/=***/' || echo "  (none)"
+          bun run cap:build
+
+      # ─── Verify Build Output ──────────────────────────────────────────────
+      - name: ✅ Verify build output
+        run: |
+          if [ ! -d "out" ]; then
+            echo "❌ Build failed: 'out/' directory not found"
+            exit 1
+          fi
+          FILE_COUNT=$(find out -type f | wc -l)
+          echo "✅ Build output: out/ ($FILE_COUNT files)"
+          echo "📄 index.html exists: $(test -f out/index.html && echo 'YES' || echo 'NO')"
+
+      # ─── Sync Capacitor (copy web assets to Android) ─────────────────────
+      - name: 🔄 Sync Capacitor
+        run: npx cap sync android
+
+      # ─── Build Android APK (Debug) ────────────────────────────────────────
+      - name: 🤖 Build Android APK (debug)
+        if: inputs.build_type != 'aab'
+        working-directory: android
+        run: |
+          echo "🔨 Building debug APK..."
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --warning-mode all
+
+      # ─── Build Android APK (Release) ──────────────────────────────────────
+      - name: 🤖 Build Android APK (release)
+        if: inputs.build_type != 'aab'
+        working-directory: android
+        run: |
+          echo "🔨 Building release APK..."
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --warning-mode all
+
+      # ─── Build Android AAB (Release Bundle) ───────────────────────────────
+      - name: 📦 Build Android AAB (release bundle)
+        if: inputs.build_type == 'aab'
+        working-directory: android
+        run: |
+          echo "📦 Building release AAB (App Bundle)..."
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon --warning-mode all
+
+      # ─── List Build Outputs ───────────────────────────────────────────────
+      - name: 📋 List build outputs
+        if: always()
+        run: |
+          echo "========================================"
+          echo "📁 Android Build Outputs:"
+          echo "========================================"
+          find android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null | while read f; do
+            SIZE=$(du -h "$f" | cut -f1)
+            echo "  📦 $f ($SIZE)"
+          done
+          echo "========================================"
+
+      # ─── Upload Debug APK ─────────────────────────────────────────────────
+      - name: 📤 Upload Debug APK
+        if: inputs.build_type != 'aab'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LuxTradee-debug-${{ github.sha }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+          if-no-files-found: warn
+
+      # ─── Upload Release APK ───────────────────────────────────────────────
+      - name: 📤 Upload Release APK
+        if: inputs.build_type != 'aab'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LuxTradee-release-${{ github.sha }}
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 90
+          if-no-files-found: warn
+
+      # ─── Upload Release AAB ───────────────────────────────────────────────
+      - name: 📤 Upload Release AAB
+        if: inputs.build_type == 'aab'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LuxTradee-release-aab-${{ github.sha }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 90
+          if-no-files-found: warn
+
+      # ─── Summary ──────────────────────────────────────────────────────────
+      - name: 📊 Build Summary
+        if: always()
+        run: |
+          echo "## 🤖 LuxTradee Android Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${GITHUB_SHA:0:7}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build Type** | ${{ inputs.build_type || 'apk' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Env Source** | \`.env.ci\` + GitHub Secrets (optional) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Secrets Required** | **0** (all public vars in .env.ci) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # List APK/AAB files with sizes
+          echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          find android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null | while read f; do
+            SIZE=$(du -h "$f" | cut -f1)
+            BASENAME=$(basename "$f")
+            echo "- \`${BASENAME}\` — ${SIZE}" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 📥 Download artifacts from the **Artifacts** section below" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 No GitHub Secrets needed — all build vars come from \`.env.ci\`" >> $GITHUB_STEP_SUMMARY
+#test
