@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-07.1'
-const NOTES = 'Audit-fix karyawan sisa: Maya (cooldown 2-fase + segmen cold + learning loop), Bagas (sinyal open/click/bounce + segmen mantan-pembayar + eval konversi), Putri (tren MRR harian + renewal ≤7 hari), Dewi (memori + jam entry + pipa lintas divisi), Alexander (NBA accountability), suppression unsub/bounce 3 gerbang'
+const VERSION = '2026-11-10.1'
+const NOTES = 'fix otak Alexander templat mulu: timeout Mortera adaptif (tugas pendek 20 dtk — gantungnya tidak makan anggaran compose briefing) + compose cap dinamis (sisa anggaran cron 120 dtk) + master-autonomous sama + GHA shift pagi anti-delay 5-6 jam (0 1 -> 23 0 UTC)'
 
 export async function GET() {
   return NextResponse.json(
