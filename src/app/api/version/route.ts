@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.7'
-const NOTES = 'Karyawan AI kerja 24 JAM tanpa slot cron Cloudflare baru: mode tick (ceo-phase.ts tickDailyWork — 1 panggilan HTTP = 1 job jatuh tempo, dedup harian anti dobel kerja LLM, job gagal retry otomatis) + action=tick di /api/ceo-agent (?key=CRON_SECRET) yang menumpang slot */15 yang sudah ada di worker-entry.ts + bisa ditembak cron eksternal gratis (cron-job.org/UptimeRobot) sebagai redundansi; artefak kini lahir tick pertama setelah 00:00 WIB alih-alih nunggu batch briefing 08:00'
+const VERSION = '2026-11-10.8'
+const NOTES = 'HARNESS ENGINE V3 (UNIFIED LOOP) terpasang: lib/harness-prompt.ts — semua karyawan AI dibungkus identitas + mandat domain (EXTERNAL_GROWTH: viral/traffic/revenue; INTERNAL: zero-bug/kecepatan <1.5s/anti-churn) + aturan mutlak zero-fluff (haram kata klise AI: dinamis/revolusioner/solusi terbaik/mengoptimalkan/yuk simak/di era digital; haram placeholder [insert ...]; gaya spesialis senior) lewat satu titik injeksi agentBrain; artefak mingguan (llmJob ceo-phase) dapat tambahan THE 4-STEP AGENTIC LOOP think→learn→solve→work dengan larangan mengulang angle + larangan menampilkan proses berpikir di output'
 
 export async function GET() {
   return NextResponse.json(

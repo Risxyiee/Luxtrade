@@ -16,6 +16,8 @@
  * (file route.ts tidak boleh meng-export fungsi selain GET/POST/dll.).
  */
 
+import { harnessAssetBlock } from './harness-prompt'
+
 export type Phase = 'pre-launch' | 'early' | 'growth'
 
 export interface PhaseInfo {
@@ -182,8 +184,6 @@ const ROLE_NAME: Record<string, string> = {
   cmo: 'Sinta', coo: 'Bagas', cso: 'Maya', cto: 'Raka', cfo: 'Putri', gh: 'Farhan', kevin: 'Kevin',
 }
 
-const PRODUCT_CTX =
-  'Produk: Luxtradee (luxtradee.web.id) — web app jurnal trading untuk trader XAUUSD Indonesia: user upload screenshot trade → evaluasi visual AI, mencatat emosi, ada paket PRO dan program affiliate. Posisi: JURNAL trading, BUKAN penjual sinyal.'
 const NO_FABRICATION =
   'ATURAN KERAS: DILARANG mengarang angka performa, testimoni, nama grup/akun/URL spesifik, atau janji profit. Untuk hal yang harus dicari Bos, beri KATEGORI dan KATA KUNCI PENCARIAN, bukan nama yang kamu karang.'
 
@@ -200,8 +200,13 @@ function parseArtifact(raw: string): { title: string; body: string } | null {
 
 function llmJob(brainKey: string, system: string, userFn: (c: JobCtx) => string, maxTokens: number) {
   return async (c: JobCtx): Promise<{ title: string; body: string } | null> => {
+    /* HARNESS V3 — identitas + mandat domain + aturan zero-fluff + AGENTIC LOOP
+       4 LANGKAH (think→learn→solve→work) dibungkus ke SEMUA job artefak, lalu
+       prompt kerja spesifik karyawan. PRODUCT_CTX tidak lagi diperlukan di sini
+       (identitas produk sudah dibawa harness header); NO_FABRICATION tetap —
+       larangan keras mengarang angka/nama tidak boleh hilang. */
     const sys =
-      `${PRODUCT_CTX}\n${NO_FABRICATION}\n${system}\n` +
+      `${harnessAssetBlock(brainKey)}\n${NO_FABRICATION}\n${system}\n` +
       'FORMAT OUTPUT: baris pertama "JUDUL: <judul singkat>", baris kedua "---", lalu isi. Tanpa kalimat pembuka/penutup lain.'
     const usr =
       `Tanggal: ${c.d.wibDay()} (WIB). Fase bisnis: ${c.info.phase} — pendaftar ${c.info.users >= 0 ? c.info.users : 'tidak diketahui'}, trade 7 hari ${c.info.trades7d >= 0 ? c.info.trades7d : 'tidak diketahui'}.\n` +

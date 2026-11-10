@@ -25,6 +25,7 @@
 import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 import { callMorteraDirect } from '@/lib/ai-llm'
+import { harnessWrap } from '@/lib/harness-prompt'
 import {
   getPhase, runDailyWork, tickDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
   wibWeekday, type PhaseDeps,
@@ -791,6 +792,12 @@ function recordBrainDiag(e: Env, agent: string, hasil: string): void {
 }
 
 async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7, budgetMs?: number): Promise<{ text: string; provider: 'mortera' | 'openrouter' | 'gemini'; model: string }> {
+  /* HARNESS V3 (UNIFIED LOOP) — otak SEMUA karyawan dibungkus identitas +
+     mandat domain (EXTERNAL_GROWTH / INTERNAL) + aturan zero-fluff (haram
+     kata klise AI, haram placeholder, gaya spesialis senior) SEBELUM prompt
+     kerja spesifiknya. Satu titik injeksi → seluruh tim konsisten V3 tanpa
+     mengubah tiap pemanggil. */
+  const sys = harnessWrap(agent, systemPrompt)
   let err = ''
   /* ⏱️ BUDGET-AWARE (fix "templat mulu padahal api berbayar"): dulu tiap
      lapisan punya timeout pribadi yang tidur sadar anggaran pemanggil —
@@ -815,7 +822,7 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
      (permintaan Bos: "ganti api ke sonnet semua").
      Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus. */
   try {
-    const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature, morBudget)
+    const m = await morteraChat(e, sys, userPrompt, maxTokens, temperature, morBudget)
     recordBrainDiag(e, agent, `mortera ✅ ${m.model}`)
     return { ...m, provider: 'mortera' }
   } catch (x: any) {
@@ -825,7 +832,7 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
   }
   const orPerModel = Math.max(12_000, Math.min(45_000, Math.round((total - (Date.now() - t0)) / 2)))
   try {
-    const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature, orPerModel)
+    const r = await openRouterChat(e, orChain(e, agent), sys, userPrompt, maxTokens, temperature, orPerModel)
     recordBrainDiag(e, agent, `openrouter ✅ ${r.model} (mortera gagal: ${err.slice(0, 160)})`)
     return { ...r, provider: 'openrouter' }
   } catch (x: any) {
@@ -837,7 +844,7 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
   if (cleanEnv(e.LLM_GEMINI_FALLBACK) === '1') {
     if (cleanEnv(e.GEMINI_API_KEY)) {
       try {
-        const text = await geminiText(e, systemPrompt, userPrompt, maxTokens, temperature)
+        const text = await geminiText(e, sys, userPrompt, maxTokens, temperature)
         return { text, provider: 'gemini', model: e.GEMINI_MODEL || 'gemini-2.5-flash' }
       } catch (x: any) {
         err += ' | Gemini: ' + String(x?.message || x).slice(0, 80)
