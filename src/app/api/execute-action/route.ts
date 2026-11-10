@@ -38,6 +38,56 @@ import {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+/* ═══════════════════════════════════════════════════════════════════
+   WINDOW POSTING IG — 18:00–19:59 WIB, Senin–Jumat
+   (permintaan Bos 8 Nov 2026: "karyawan yang kerjaan posting konten
+   itu jam 18-19 waktu posting wib bukan seenaknya jam berapa — ini
+   di acc kontennya langsung diposting")
+
+   DULU: konten di-ACC → langsung publish SAAT ITU (jam berapa pun).
+   KINI: ACC di luar window → konten masuk antrean instagram_posts
+   (status pending, scheduled_for = 18:00 WIB berikutnya, libur
+   Sabtu/Minggu) → dipublish otomatis ig-auto-post (cron 18:45 &
+   20:30 WIB). ACC DI DALAM window → tetap langsung tayang.
+   ═══════════════════════════════════════════════════════════════ */
+const IG_WINDOW_HOURS_WIB = [18, 19]
+/** Jeda minimum antar Reels: 20 jam — sama dengan ig-video-post. */
+const REELS_MIN_GAP_MS = 20 * 60 * 60 * 1000
+
+/** Jam sekarang dalam WIB (UTC+7), 0–23. */
+function wibHourNow(): number {
+  return (new Date().getUTCHours() + 7) % 24
+}
+
+/** Hari kerja WIB (0=Minggu .. 6=Sabtu) — geser +7 jam lalu baca UTC. */
+function wibWeekday(): number {
+  return new Date(Date.now() + 7 * 3_600_000).getUTCDay()
+}
+
+/** Apakah sekarang masuk window posting 18–19 WIB (Senin–Jumat)? */
+function inIgPostWindow(): boolean {
+  const day = wibWeekday()
+  if (day === 0 || day === 6) return false // Sabtu/Minggu libur
+  return IG_WINDOW_HOURS_WIB.includes(wibHourNow())
+}
+
+/** 18:00 WIB berikutnya (≥ after) — 18:00 WIB = 11:00 UTC. Sabtu/Minggu dilewati. */
+function nextIgWindowStart(after: Date = new Date()): Date {
+  const d = new Date(Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate(), 11, 0, 0))
+  if (d.getTime() <= after.getTime()) d.setUTCDate(d.getUTCDate() + 1)
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1)
+  return d
+}
+
+/** Label WIB ramah: "Sen, 9 Nov 18.00 WIB" untuk pesan detail/notif. */
+function wibLabel(ms: number): string {
+  return (
+    new Date(ms).toLocaleString('id-ID', {
+      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+    }) + ' WIB'
+  )
+}
+
 /** Bearer token Bos → Supabase auth → cocokkan OWNER_EMAIL. */
 async function isOwner(req: NextRequest): Promise<boolean> {
   const authHeader = req.headers.get('Authorization') || ''
@@ -225,7 +275,44 @@ async function executePayload(actionType: string, payload: Record<string, any>, 
       }
       // ig / instagram / facebook / fb → Meta Graph API nyata
       const caption = [title, body].filter(Boolean).join('\n\n')
-      const r = await metaAutoPost(caption, String(payload.media_url || '') || undefined)
+      const mediaUrl = String(payload.media_url || '') || undefined
+
+      /* ── WINDOW 18–19 WIB (permintaan Bos): konten foto Meta yang di-ACC
+         di luar window tidak langsung tayang — masuk antrean instagram_posts
+         (IMAGE) → dipublish ig-auto-post saat 18:00 WIB berikutnya. Tanpa
+         media (teks FB saja) tetap langsung — bukan "konten" visual. */
+      if (mediaUrl && !inIgPostWindow()) {
+        const adminSched = await getCronAdmin()
+        if (adminSched) {
+          const schedMs = nextIgWindowStart().getTime()
+          const { error: schedErr } = await adminSched
+            .from('instagram_posts')
+            .insert({
+              media_type: 'IMAGE',
+              image_url: mediaUrl,
+              caption,
+              status: 'pending',
+              source: 'sinta-content',
+              meta: {
+                approvedBy: ownerEmail(),
+                title,
+                scheduleNote: `ACC Bos di luar window 18–19 WIB → tayang ${wibLabel(schedMs)} (libur Sabtu/Minggu)`,
+              },
+              scheduled_for: new Date(schedMs).toISOString(),
+            })
+          if (!schedErr) {
+            await sendAdminNotification(
+              `🖼️⏳ <b>Konten feed di-ACC → dijadwalkan tayang ${wibLabel(schedMs)}</b>\n` +
+              `(ACC di luar window posting 18–19 WIB — bukan langsung posting)\n` +
+              `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
+            ).catch(() => {})
+            return { ok: true, detail: `Konten di-ACC — dijadwalkan tayang ${wibLabel(schedMs)} (aturan window 18–19 WIB, Senin–Jumat).` }
+          }
+          /* gagal jadwal → jatuh ke publish langsung di bawah (jangan buang konten) */
+        }
+      }
+
+      const r = await metaAutoPost(caption, mediaUrl)
       if (!r.posted) return { ok: false, detail: `Posting ${platform} gagal: ${r.reason || 'unknown'}` }
       return { ok: true, detail: `Terposting ke ${r.platform}${r.id ? ` (id ${r.id})` : ''}${r.permalink ? ` — ${r.permalink}` : ''}` }
     }
@@ -317,6 +404,62 @@ async function executePayload(actionType: string, payload: Record<string, any>, 
       if (!admin) return { ok: false, detail: 'Database tidak tersedia' }
       const tok = await ensureFreshToken(admin)
       if (!tok.cfg) return { ok: false, detail: 'FACEBOOK_PAGE_ID / FACEBOOK_PAGE_TOKEN belum diset (Cloudflare secrets)' }
+
+      /* ── WINDOW 18–19 WIB (permintaan Bos): ACC di luar window TIDAK
+         langsung posting. Konten masuk antrean instagram_posts → tayang
+         18:00 WIB berikutnya (Senin–Jumat) via ig-auto-post (18:45 WIB).
+         Cadence 20 jam antar Reels ikut dihormati (1 konten/hari). */
+      const { data: lastReels } = await admin
+        .from('instagram_posts')
+        .select('published_at')
+        .eq('media_type', 'REELS')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false })
+        .limit(1)
+      const lastMs = lastReels?.[0]?.published_at ? Date.parse(lastReels[0].published_at) : null
+      const cadenceOk = lastMs === null || Date.now() - lastMs >= REELS_MIN_GAP_MS
+
+      if (!inIgPostWindow() || !cadenceOk) {
+        const base = nextIgWindowStart()
+        const cadMs = lastMs ? lastMs + REELS_MIN_GAP_MS : 0
+        const schedMs = cadMs > base.getTime()
+          ? nextIgWindowStart(new Date(cadMs)).getTime()
+          : base.getTime()
+        const alasan = !inIgPostWindow()
+          ? `ACC di luar window posting (sekarang ${wibHourNow()}:00 WIB — jadwal 18–19 WIB, Senin–Jumat)`
+          : 'cadence 1 Reels/hari (jeda 20 jam dari Reels terakhir)'
+        const { error: schedErr } = await admin
+          .from('instagram_posts')
+          .insert({
+            media_type: 'REELS',
+            video_url: videoUrl,
+            caption,
+            status: 'pending',
+            source: 'sinta-video',
+            meta: {
+              template: String(payload.template || 'reels'),
+              hook: String(payload.hook || ''),
+              ...(payload.angle ? { angle: String(payload.angle).slice(0, 40) } : {}),
+              ...(payload.topic ? { topic: String(payload.topic).slice(0, 200) } : {}),
+              renderBy: 'sinta (cmo) — remotion 9:16',
+              approvedBy: ownerEmail(),
+              scheduleNote: `ACC Bos → ${alasan} → tayang ${wibLabel(schedMs)} (window 18–19 WIB, libur Sabtu/Minggu)`,
+            },
+            scheduled_for: new Date(schedMs).toISOString(),
+          })
+        if (schedErr) return { ok: false, detail: `Gagal menjadwalkan konten: ${schedErr.message}` }
+        await sendAdminNotification(
+          `📸⏳ <b>Reels di-ACC → dijadwalkan tayang ${wibLabel(schedMs)}</b>\n` +
+          `(${alasan} — bukan langsung posting, sesuai aturan window 18–19 WIB)\n` +
+          `${caption ? caption.slice(0, 160) + (caption.length > 160 ? '…' : '') + '\n' : ''}` +
+          `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
+        ).catch(() => {})
+        return {
+          ok: true,
+          detail: `Konten di-ACC — dijadwalkan tayang ${wibLabel(schedMs)} (${alasan}). Bukan langsung posting — aturan window 18–19 WIB.`,
+        }
+      }
+
       const r = await postToInstagram(tok.cfg, { mediaType: 'REELS', videoUrl, caption })
       if (!r.ok) return { ok: false, detail: `Publish IG gagal (stage ${r.stage || '?'}): ${r.error || '?'}` }
       // Riwayat publikasi — dipakai guard cadence 20 jam + cap harian ig-video-post

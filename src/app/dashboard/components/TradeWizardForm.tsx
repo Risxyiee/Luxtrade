@@ -871,7 +871,7 @@ export default function TradeWizardForm({
                   <Input
                     id="mt5-file"
                     type="file"
-                    accept=".csv,.txt,.html,.htm,.pdf"
+                    accept=".csv,.tsv,.txt,.html,.htm,.pdf"
                     className="bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-xs"
                     onChange={handleMT5Upload}
                     disabled={uploadingMT5}

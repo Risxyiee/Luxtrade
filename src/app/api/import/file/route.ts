@@ -530,13 +530,16 @@ export async function POST(request: NextRequest) {
     
     console.log(`✅ Parsed ${trades.length} trades`)
     
-    // Validate trades
+    /* Validasi trade — FIX (laporan Bos 8 Nov 2026: "upload file csv isinya
+       tabel tanggal trade pair trade pnl dll juga masih gabisa"): kolom
+       `open_price > 0` DIBUANG. Jurnal CSV ringkas (Tanggal Trade, Pair,
+       PnL, Lot — tanpa kolom harga) valid sebagai jurnal: harga bukan
+       wajib. Cukup symbol valid + profit_loss angka. */
     const validTrades = trades.filter(t => 
       t.symbol && 
       t.symbol.length >= 2 &&
       t.symbol.length <= 12 &&
-      !isNaN(t.profit_loss) &&
-      t.open_price > 0
+      !isNaN(t.profit_loss)
     )
     
     if (validTrades.length === 0) {
@@ -545,7 +548,7 @@ export async function POST(request: NextRequest) {
         trades: [],
         count: 0,
         error: 'Tidak ada transaksi ditemukan',
-        message: 'Tidak dapat menemukan transaksi di file. Pastikan file berisi daftar transaksi dengan kolom Symbol, Type, Lots, Price, dan Profit.'
+        message: 'Tidak dapat menemukan transaksi di file. Format minimal yang dikenali: kolom tanggal/waktu + kolom pair/symbol (XAUUSD, EURUSD, dll) + kolom PnL/profit. Kolom harga/lot opsional.'
       })
     }
     

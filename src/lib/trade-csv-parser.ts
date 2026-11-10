@@ -201,6 +201,26 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     }
     return -1
   }
+  /* Kolom HARGA harus melewati header berisi waktu ("Entry Time" mengandung
+     "entry" — dulu kepetak jadi harga open → close_price = 51120261430).
+     Kini includes untuk kolom harga skip header time/date/tanggal/waktu/jam. */
+  const isTimeHeader = (h: string) => /time|date|tanggal|waktu|jam/.test(h)
+  const findPriceIncludes = (...keywords: string[]): number => {
+    for (const kw of keywords) {
+      for (let i = 0; i < headers.length; i++) {
+        if (isTimeHeader(headers[i])) continue
+        if (headers[i].includes(kw)) return i
+      }
+    }
+    return -1
+  }
+  const findPriceCol = (exact: string[], incl: string[]): number => {
+    const e = findExact(...exact)
+    if (e >= 0) return e
+    const n = findNorm(...exact)
+    if (n >= 0) return n
+    return findPriceIncludes(...incl)
+  }
   const findCol = (exact: string[], incl: string[]): number => {
     const e = findExact(...exact)
     if (e >= 0) return e
@@ -209,13 +229,13 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     return findIncludes(...incl)
   }
 
-  const symbolIdx = findCol(['symbol', 'pair', 'instrument', 'simbol'], ['symbol', 'pair', 'instrument', 'simbol'])
+  const symbolIdx = findCol(['symbol', 'pair', 'instrument', 'simbol'], ['symbol', 'pair', 'instrument', 'simbol', 'pair trade'])
   const typeIdx = findCol(['type', 'side', 'direction', 'action', 'posisi'], ['type', 'side', 'direction', 'action', 'posisi'])
   const lotIdx = findCol(['volume', 'lots', 'lot size', 'lot_size', 'size', 'qty'], ['volume', 'lots', 'lot', 'size', 'qty'])
-  const openPriceIdx = findCol(['open price', 'open_price', 'entry price', 'entry_price', 'harga entry', 'harga masuk', 'harga buka'], ['entry price', 'entry_price', 'open price', 'open_price', 'harga entry', 'harga masuk', 'harga buka'])
-  const closePriceIdx = findCol(['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup'], ['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup'])
+  const openPriceIdx = findPriceCol(['open price', 'open_price', 'entry price', 'entry_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'], ['entry price', 'entry_price', 'open price', 'open_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'])
+  const closePriceIdx = findPriceCol(['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'exit'], ['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'exit'])
   const profitIdx = findCol(['profit', 'p/l', 'pnl', 'pl', 'net profit', 'profit/loss', 'laba'], ['profit', 'pnl', 'p/l', 'laba'])
-  const openTimeIdx = findCol(['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'time', 'date', 'tanggal'], ['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka'])
+  const openTimeIdx = findCol(['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'time', 'date', 'tanggal'], ['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'tanggal', 'waktu', 'jam'])
   const closeTimeIdx = findCol(['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'], ['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'])
   const genericTimeIdx = openTimeIdx >= 0 ? openTimeIdx : findIncludes('time', 'date', 'tanggal', 'waktu')
   const slIdx = findCol(['sl', 's/l', 'stop loss', 'stop_loss', 'stoploss', 'stop'], ['stop loss', 'stop_loss', 'stoploss', 's/l'])
@@ -229,8 +249,27 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     const values = lines[i].split(delimiter).map(cleanToken)
     if (values.length < 3) continue
 
-    const symbol = symbolIdx >= 0 ? values[symbolIdx]?.toUpperCase() : ''
-    if (!symbol || !KNOWN_SYMBOLS.some(s => symbol.includes(s))) continue
+    /* FIX (laporan Bos 8 Nov 2026): pair "EUR/USD", "eur_usd", "XAUUSD-M"
+       sebelumnya DITOLAK karena match mentah — sekarang dinormalisasi
+       (buang non-alnum) dulu. Pair tak dikenal (SOLUSD, XRPUSD, dll)
+       tetap diterima selalu formatnya wajar + bukan kata kunci ringkasan. */
+    const symRaw = (symbolIdx >= 0 ? values[symbolIdx] : '').toUpperCase().trim()
+    const symNorm = symRaw.replace(/[^A-Z0-9]/g, '')
+    let symbol = ''
+    if (symNorm) {
+      const known = KNOWN_SYMBOLS.find(s => symNorm.includes(s))
+      if (known) {
+        symbol = known === 'BTCUSDm' ? 'BTCUSD' : known
+      } else if (
+        /^[A-Z]{3,10}$/.test(symNorm) &&
+        !/^(TOTAL|SUMMARY|BALANCE|PROFIT|LOSS|EQUITY|DEPOSIT|WITHDRAWAL)$/.test(symNorm) &&
+        !REASONS.test(symNorm) &&
+        !TIMEFRAMES.test(symNorm)
+      ) {
+        symbol = symNorm
+      }
+    }
+    if (!symbol) continue
 
     const typeStr = typeIdx >= 0 ? values[typeIdx]?.toLowerCase() : ''
     const type: 'BUY' | 'SELL' = typeStr?.includes('sell') || typeStr?.includes('short') || typeStr?.includes('jual') ? 'SELL' : 'BUY'

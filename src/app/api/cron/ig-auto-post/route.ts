@@ -55,7 +55,23 @@ interface QueueRow {
   video_url: string | null
   caption: string | null
   attempts: number
+  source?: string | null
   meta?: { image_urls?: string[] } | null
+}
+
+/* ── WINDOW POSTING 18–19 WIB (permintaan Bos 8 Nov 2026) ──
+   Konten kreatif karyawan (source sinta-video / sinta-content /
+   sinta-carousel) hanya boleh tayang jam 18:00–19:59 WIB Senin–Jumat.
+   Di luar window → baris ditinggal 'pending' (bukan dibuang) →
+   diambil run 18:45 WIB berikutnya. Post pasar/otomatis lain tidak
+   terpengaruh. */
+const CONTENT_SOURCES = new Set(['sinta-video', 'sinta-content', 'sinta-carousel'])
+const CONTENT_WINDOW_HOURS_WIB = [18, 19]
+
+function contentInWindow(): boolean {
+  const day = new Date(Date.now() + 7 * 3_600_000).getUTCDay()
+  if (day === 0 || day === 6) return false // Sabtu/Minggu libur
+  return CONTENT_WINDOW_HOURS_WIB.includes((new Date().getUTCHours() + 7) % 24)
 }
 
 export async function GET(request: NextRequest) {
@@ -121,7 +137,7 @@ async function handle(request: NextRequest) {
     if (dry) {
       const { data } = await admin
         .from('instagram_posts')
-        .select('id, media_type, image_url, video_url, caption, status, attempts, scheduled_for, created_at')
+        .select('id, media_type, image_url, video_url, caption, status, attempts, scheduled_for, source, created_at')
         .in('status', ['pending', 'publishing'])
         .order('created_at', { ascending: true })
         .limit(20)
@@ -131,7 +147,7 @@ async function handle(request: NextRequest) {
     /* ── 4) Klaim antrean pending ── */
     const { data: due, error: qErr } = await admin
       .from('instagram_posts')
-      .select('id, media_type, image_url, video_url, caption, attempts, meta')
+      .select('id, media_type, image_url, video_url, caption, attempts, source, meta')
       .eq('status', 'pending')
       .lte('scheduled_for', new Date().toISOString())
       .order('created_at', { ascending: true })
@@ -140,15 +156,27 @@ async function handle(request: NextRequest) {
       return NextResponse.json({ error: `Gagal baca antrean: ${qErr.message}`, posted: 0 }, { status: 500 })
     }
     const rows = (due ?? []) as QueueRow[]
-    if (!rows.length) {
-      return NextResponse.json({ ok: true, posted: 0, message: 'Antrean kosong' })
+
+    /* ── 4b) Window konten kreatif 18–19 WIB: di luar window baris konten
+       DITINGGAL pending (diambil lagi run 18:45 WIB berikutnya) ── */
+    const windowOpen = contentInWindow()
+    const claimable = rows.filter(r => windowOpen || !CONTENT_SOURCES.has(r.source || ''))
+    const heldByWindow = rows.length - claimable.length
+    if (!claimable.length) {
+      return NextResponse.json({
+        ok: true,
+        posted: 0,
+        message: heldByWindow > 0
+          ? `${heldByWindow} konten kreatif ditahan — di luar window posting 18–19 WIB (Senin–Jumat)`
+          : 'Antrean kosong',
+      })
     }
 
     /* ── 5) Posting satu per satu ── */
     const results: Array<{ id: string; ok: boolean; postId?: string; permalink?: string; mediaType?: string; error?: string }> = []
     let failures = 0
 
-    for (const row of rows) {
+    for (const row of claimable) {
       // Klaim atomik: hanya baris yang masih 'pending' yang jadi 'publishing'
       const claimed = await admin
         .from('instagram_posts')
