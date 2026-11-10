@@ -102,6 +102,16 @@ const OPENROUTER_FALLBACKS = ['deepseek/deepseek-chat-v3-0324:free', 'google/gem
 /* ── Cooldown antar-panggilan (per isolate Workers) ─────────────── */
 const COOLDOWN_MS_LIMIT = 10 * 60 * 1000
 const COOLDOWN_MS_AUTH = 60 * 60 * 1000
+/* FIX OTAK ALEXANDER (keluhan Bos 10 Nov: "otak ceo karyawan ai templat
+   mulu padahal udah make api berbayar"): dulu TIMEOUT → cooldown 5 MENIT
+   ditulis ke KV lintas-isolate. Akibatnya SATU hang Mortera di awal briefing
+   (08:00 WIB) memvakumkan API BERBAYAR untuk SEMUA karyawan selama 5 menit
+   penuh — justru di jendela paling penting — lalu rantai free yang lambat/
+   429 yang ambil alih → briefing jatuh templat. Timeout = gangguan SEMENTARA
+   (gateway ngantuk), bukan mati permanen seperti 401/402 → kini cuma 90 dtk:
+   panggilan karyawan berikutnya (fase 2 briefing, watchdog 15 mnt) langsung
+   mencoba Mortera lagi. */
+const COOLDOWN_MS_TIMEOUT = 90 * 1000
 const providerCoolUntil = new Map<string, number>()
 
 /* FIX CS LAMBAT (laporan Bos 8 Nov 2026: "landing page cs respond lama
@@ -347,6 +357,11 @@ export interface LLMCallOpts {
   timeoutMs?: number
 }
 
+/** Ambang batas: kalau sisa anggaran waktu panggilan ini TIDAK cukup untuk
+ *  mengulang model yang barusan timeout, jangan buang waktu mencoba ulang —
+ *  langsung lanjut ke model/provider berikutnya. */
+const RETRY_MIN_BUDGET_MS = 8_000
+
 /**
  * Panggil LLM dengan system prompt + user prompt ATAU riwayat percakapan
  * (ConversationTurn[] — dipakai CS bot supaya self-healing juga berlaku di
@@ -426,9 +441,30 @@ async function callOpenAICompatible(
   /** Override timeout per panggilan — draf artikel panjang butuh >40 dtk default. */
   timeoutMs?: number,
 ): Promise<LLMResult | null> {
+  const t0 = Date.now()
+  /* Anggaran total panggilan ini (untuk keputusan retry): kalau caller
+     memberi timeoutMs pendek, anggap anggaran ≈ 3× timeout per model
+     (cukup utk 1 retry + 1 model cadangan). Caller agentBrain yang
+     budget-aware memangkas ini sebelum masuk ke sini. */
+  const budgetMs = timeoutMs ? timeoutMs * 3 : 120_000
+  const remaining = () => budgetMs - (Date.now() - t0)
   let sawModel404 = false
   for (const model of models) {
-    const r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
+    /* FIX OTAK ALEXANDER: gateway Mortera kadang HANG sesaat (diag produksi
+       10 Nov: "aborted due to timeout" di detik ke-20) padahal detik
+       berikutnya sehat. Dulu 1 timeout = model ditanggalkan + provider
+       didinginkan 5 menit → API berbayar tidak pernah sempat terbukti.
+       Kini: timeout → coba SEKALI lagi model yang sama (koneksi baru),
+       hanya kalau anggaran waktu masih cukup. ⏱️ Retry pakai SETENGAH timeout
+       (probe cepat): kalau gateway cuma ngantuk, Haiku jawab <15 dtk;
+       kalau gantung lagi, buang waktu lebih sedikit — anggaran caller
+       (compose 30-75 dtk) tidak habis di satu provider. */
+    const retryTimeout = Math.max(6_000, Math.floor((timeoutMs ?? 40_000) / 2))
+    let r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
+    if (!r.ok && r.timedOut && remaining() >= RETRY_MIN_BUDGET_MS) {
+      notes.push(`${label} ${model} timeout → retry sekali (${Math.round(retryTimeout / 1000)} dtk)`)
+      r = await callOpenAIModel(label, baseUrl, apiKey, model, systemPrompt, userPrompt, maxTokens, notes, temperature, retryTimeout)
+    }
     if (r.ok && r.result) return r.result
     if (r.model404) sawModel404 = true
     /* FIX 2026-11-08 (produksi nyata): dulu 429 → LANGSUNG `return null` —
@@ -475,7 +511,7 @@ async function callOpenAIModel(
   notes: string[],
   temperature = 0.8,
   timeoutMs = 40_000,
-): Promise<{ ok: boolean; result?: LLMResult; hardStop?: boolean; model404?: boolean }> {
+): Promise<{ ok: boolean; result?: LLMResult; hardStop?: boolean; model404?: boolean; timedOut?: boolean }> {
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
@@ -573,13 +609,15 @@ async function callOpenAIModel(
     notes.push(`${label} ${model} error: ${String(err?.message || err).slice(0, 80)}`)
     /* FIX CS LAMBAT: dulu timeout/network error TANPA cooldown — provider
        yang menggantung dicoba LAGI di pesan berikutnya (isolate CF juga
-       ganti-ganti, memori cooldown kosong) → user menunggu 40 dtk berulang
-       (laporan Bos: CS respond lama). Kini: timeout → istirahat 5 menit,
-       network error lain (DNS/socket sesaat) → 1 menit. */
+       ganti-ganti, memori cooldown kosong) → user menunggu 40 dtk berulang.
+       Cooldown tetap dipakai, hanya durasinya yang disesuaikan: */
     const isTimeout = err?.name === 'TimeoutError' || err?.name === 'AbortError' || /timeout|timed out/i.test(String(err?.message || ''))
-    notes.push(isTimeout ? `${label} timeout → cooldown 5 menit` : `${label} network error → cooldown 1 menit`)
-    await cool(label, isTimeout ? 5 * 60_000 : 60_000)
-    return { ok: false, hardStop: true } // network error → provider lain
+    /* FIX OTAK ALEXANDER: timeout = hang SEMENTARA → cooldown 90 dtk saja
+       (dulu 5 menit — memvakumkan API berbayar kelima karyawan sekaligus,
+       lihat komentar COOLDOWN_MS_TIMEOUT). Network error lain → 1 menit. */
+    notes.push(isTimeout ? `${label} timeout → cooldown 90 detik (bukan 5 menit)` : `${label} network error → cooldown 1 menit`)
+    await cool(label, isTimeout ? COOLDOWN_MS_TIMEOUT : 60_000)
+    return { ok: false, hardStop: true, timedOut: isTimeout } // network error → provider lain
   }
 }
 
@@ -699,11 +737,12 @@ async function callGeminiModel(
     console.error(`[ai-llm] Gemini error (${model}):`, err?.message || err)
     notes.push(`gemini ${model} error: ${String(err?.message || err).slice(0, 80)}`)
     /* FIX CS LAMBAT: sama seperti rantai OpenAI-compatible — timeout/network
-       kini didinginkan (5 mnt / 1 mnt) supaya isolate berikutnya lompat
-       langsung, bukan menggantung 40 dtk dari nol. */
+       tetap didinginkan supaya isolate berikutnya lompat langsung, bukan
+       menggantung 40 dtk dari nol. Durasi timeout: 90 dtk (lihat
+       COOLDOWN_MS_TIMEOUT). */
     const isTimeout = err?.name === 'TimeoutError' || err?.name === 'AbortError' || /timeout|timed out/i.test(String(err?.message || ''))
-    notes.push(isTimeout ? 'gemini timeout → cooldown 5 menit' : 'gemini network error → cooldown 1 menit')
-    await cool('gemini', isTimeout ? 5 * 60_000 : 60_000)
+    notes.push(isTimeout ? 'gemini timeout → cooldown 90 detik (bukan 5 menit)' : 'gemini network error → cooldown 1 menit')
+    await cool('gemini', isTimeout ? COOLDOWN_MS_TIMEOUT : 60_000)
     return { ok: false }
   }
 }

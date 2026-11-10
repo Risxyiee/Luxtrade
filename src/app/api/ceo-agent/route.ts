@@ -644,8 +644,12 @@ function orChain(e: Env, agent: AgentKey): string[] {
 
 /* 1 panggilan OpenRouter — native fetch, kompatibel Cloudflare Workers.
    Coba model satu per satu sesuai chain; parsing standar OpenAI:
-   result.choices?.[0]?.message?.content?.trim() */
-async function openRouterChat(e: Env, chain: string[], systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature?: number): Promise<{ text: string; model: string }> {
+   result.choices?.[0]?.message?.content?.trim().
+   ⏱️ timeoutMs per-model bisa dioper caller (agentBrain budget-aware):
+   dulu 45 dtk PERMANEN × 3 model = 135 dtk — lebih besar dari seluruh
+   anggaran compose (30-75 dtk) → model pertama gantung = jam dinding
+   habis = TEMPLAT, model hidup di belakang tak pernah sempat dicoba. */
+async function openRouterChat(e: Env, chain: string[], systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature?: number, timeoutMs = 45_000): Promise<{ text: string; model: string }> {
   /* cfSecret: process.env dulu → fallback binding CF Workers (secret yang
      diset via dashboard kadang tidak masuk process.env — kalau cuma baca
      e.OPENROUTER_API_KEY, LLM gagal "belum diset" padahal key terpasang). */
@@ -673,7 +677,7 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
           max_tokens: maxTokens,
           ...(temperature !== undefined ? { temperature } : {}),
         }),
-        signal: timeoutSignal(45_000),
+        signal: timeoutSignal(timeoutMs),
       })
       if (!res.ok) {
         lastErr = `${model} → HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 120)}`
@@ -719,13 +723,18 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
    due to timeout"), SATU panggilan compose briefing ngabisin 40 dtk, padahal
    compose dipagari withTimeout 45 dtk → sisa ≤5 dtk buat OpenRouter →
    nyaris selalu gagal → briefing jatuh TEMPLAT "OTAK ALEXANDER OFFLINE"
-   tiap kali Mortera ngambek. Sekarang: tugas pendek (≤1500 token, mis.
-   rangkuman briefing ±900 token) kena timeout 20 dtk — Haiku sehat jawab
-   <10 dtk, jadi 20 dtk CUMA memotong kasus gantung, dan menyisakan ≥25 dtk
-   buat rantai OpenRouter (Lightning terbukti 333 ms). Tugas panjang (draf
-   konten >1500 token) tetap 45 dtk supaya draf 3000 token tidak terpotong. */
+   tiap kali Mortera ngambek.
+   ⏱️ FIX V2 10 Nov (keluhan lanjutan Bos: "otak ceo karyawan ai templat mulu
+   padahal udah make api berbayar"): diag produksi menunjukkan Mortera SERING
+   timeout di detik ke-20 (tugas pendek) — Haiku sehat lewat gateway rata-rata
+   8-15 dtk, dan GET /v1/credits tetap cepat → bukan jaringan mati, murni
+   ANTRIAN inference gateway yang kadang lewat 20 dtk. 20 dtk = memotong
+   panggilan yang SEBENARNYA SEDANG DIKERJAKAN dan SISIHkan API berbayar.
+   Kini: tugas pendek (≤1500 token) 30 dtk, tugas panjang 60 dtk — dan agentBrain
+   jadi BUDGET-AWARE (lihat bawah) supaya sisa waktu tetap ada buat rantai
+   OpenRouter. */
 function morteraTimeoutFor(maxTokens: number): number {
-  return maxTokens <= 1500 ? 20_000 : 45_000
+  return maxTokens <= 1500 ? 30_000 : 60_000
 }
 
 async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, maxTokens: number, temperature: number, timeoutMs?: number): Promise<{ text: string; model: string }> {
@@ -761,14 +770,29 @@ function recordBrainDiag(e: Env, agent: string, hasil: string): void {
   kvSet(e, 'brain:diag', JSON.stringify(lastBrainDiag)).catch(() => {})
 }
 
-async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'mortera' | 'openrouter' | 'gemini'; model: string }> {
+async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7, budgetMs?: number): Promise<{ text: string; provider: 'mortera' | 'openrouter' | 'gemini'; model: string }> {
   let err = ''
+  /* ⏱️ BUDGET-AWARE (fix "templat mulu padahal api berbayar"): dulu tiap
+     lapisan punya timeout pribadi yang tidur sadar anggaran pemanggil —
+     compose briefing dapet 30-75 dtk, tapi Mortera sendiri bisa ngabisin
+     30 dtk × retry + OpenRouter 45 dtk × 3 model = >150 dtk → withTimeout
+     mematikan semua → TEMPLAT. Kini seluruh rantai berbagi SATU anggaran:
+     • Mortera (prioritas 1, API BERBAYAR) dapat maks 45% anggaran —
+       peluang terbesar untuk membuktikan diri tanpa membulani rantai free.
+     • OpenRouter per-model: sisa anggaran dibagi rata maks 2 model,
+       plafon 45 dtk, minimum 12 dtk (kalau sisa terlalu tipis, 1 model
+       tercepat saja yang dicoba). */
+  const t0 = Date.now()
+  /* Default 75 dtk (bukan 120): cron briefing total cuma 120 dtk & agen
+     berjalan PARALEL — 1 agen banting setangguh mungkin tidak boleh
+     menyeret seluruh Promise.all melewati batas cron. compose memoper
+     anggarannya sendiri (composeCap 30-75 dtk). */
+  const total = Math.max(15_000, budgetMs || 75_000)
+  const morBudget = Math.min(morteraTimeoutFor(maxTokens), Math.round(total * 0.45))
   /* PRIORITAS 1 — MORTERA (Claude Haiku 5.5): otak baru SEMUA karyawan kantor.
-     Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus.
-     ⏱️ Timeout adaptif (morteraTimeoutFor) — tugas pendek 20 dtk supaya
-     gantungnya Mortera tidak makan anggaran waktu rantai OpenRouter. */
+     Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus. */
   try {
-    const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature, morteraTimeoutFor(maxTokens))
+    const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature, morBudget)
     recordBrainDiag(e, agent, `mortera ✅ ${m.model}`)
     return { ...m, provider: 'mortera' }
   } catch (x: any) {
@@ -776,8 +800,9 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
     recordBrainDiag(e, agent, 'mortera ❌ → ' + err)
     console.error(`[agentBrain:${agent}] Mortera gagal — lanjut rantai OpenRouter:`, err)
   }
+  const orPerModel = Math.max(12_000, Math.min(45_000, Math.round((total - (Date.now() - t0)) / 2)))
   try {
-    const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature)
+    const r = await openRouterChat(e, orChain(e, agent), systemPrompt, userPrompt, maxTokens, temperature, orPerModel)
     recordBrainDiag(e, agent, `openrouter ✅ ${r.model} (mortera gagal: ${err.slice(0, 160)})`)
     return { ...r, provider: 'openrouter' }
   } catch (x: any) {
@@ -1293,15 +1318,22 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
 }
 
 /* ALEXANDER (CEO) merangkai Morning Briefing — SOP Multi-Agent: model
-   resminya (Llama 3.1 8B via OpenRouter) merapikan laporan mentah semua
-   agen jadi satu briefing. Validasi ketat (wajib memuat seksi CTO/CSO/CMO,
-   panjang masuk akal) — gagal → templat buildBriefing dipakai (fail-safe). */
-async function ceoComposeBriefing(e: Env, templateText: string): Promise<{ text: string; model: string }> {
+   resminya merapikan laporan mentah semua agen jadi satu briefing. Validasi
+   ketat (wajib memuat seksi CTO/CSO/CMO, panjang masuk akal) — gagal →
+   templat buildBriefing dipakai (fail-safe).
+   ⏱️ budgetMs (fix "templat mulu padahal api berbayar"): anggaran waktu
+   compose dari runMorningBriefing (composeCap) dioper utuh ke agentBrain —
+   rantai Mortera→OpenRouter di dalamnya yang membagi-bagi sendiri, bukan
+   masing-masing layer nebak-nebak lalu totalnya meledak. maxTokens 900→1200:
+   model REASONING (Nemotron) memakan token buat mikir dulu — 900 kadang
+   habis sebelum isi briefing sempat ditulis → "respons kosong" → jatuh
+   templat padahal modelnya hidup. */
+async function ceoComposeBriefing(e: Env, templateText: string, budgetMs?: number): Promise<{ text: string; model: string }> {
   const brain = await agentBrain(
     e, 'ceo',
     'Kamu Alexander, wakil CEO Luxtradee (jurnal trading XAUUSD). Tugas pagi ini: merangkai LAPORAN MENTAH dari karyawan AI jadi SATU Morning Briefing rapi untuk Discord Bos. ATURAN WAJIB: (1) pertahankan SEMUA angka & status penting PERSIS seperti laporan mentah — DILARANG mengubah/menambah/mengurangi angka (anti-halusinasi); (2) format markdown Discord, mulai dengan baris "🌅 **LAPORAN KERJA PAGI — LUXTRADE SUPER AI**" lalu baris tanggal; (3) seksi dipisah ━━━━ dengan judul 🖥️ CTO / 👥 CSO / 📣 CMO / 💰 CFO; (4) maksimal 1800 karakter; (5) bahasa Indonesia, profesional tapi santai. Output HANYA isi briefing-nya, tanpa komentar pembuka/penutup.',
     `LAPORAN MENTAH KARYAWAN:\n${templateText}`,
-    900, 0.4,
+    1200, 0.4, budgetMs,
   )
   const text = brain.text.trim()
   if (text.length < 300 || ['CTO', 'CSO', 'CMO'].some((k) => !text.includes(k)))
@@ -1390,7 +1422,11 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   const composeCap = Math.max(30_000, Math.min(75_000, 105_000 - (Date.now() - briefingT0)))
   let text = templateText
   try {
-    const composed = await withTimeout(ceoComposeBriefing(e, templateText), composeCap, null)
+    /* budgetMs = composeCap dioper ke agentBrain → rantai Mortera→OpenRouter
+       membagi anggaran INI (Mortera maks 45%, sisanya OpenRouter) — tidak
+       ada lagi lapisan yang makan waktu sendiri-sendiri sampai withTimeout
+       menembak padahal model masih mungkin menjawab. */
+    const composed = await withTimeout(ceoComposeBriefing(e, templateText, composeCap), composeCap, null)
     if (composed?.text) {
       text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
       cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))
