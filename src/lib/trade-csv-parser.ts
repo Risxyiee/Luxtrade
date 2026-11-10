@@ -48,11 +48,18 @@ const TIMEFRAMES = /^(m1|m5|m15|m30|h1|h4|d1|w1|mn1?|1m|5m|15m|30m|1h|4h|1d|1w)$
 // Alesan penutupan posisi
 const REASONS = /^(stop loss|take profit|stoploss|takeprofit|sl|tp|manual|market|close|closed|cancelled|canceled|expired|partial|so|stop out|target hit)$/i
 
+/* FIX CSV JURNAL RINGKAS (laporan Bos: "upload file csv isinya tabel
+   tanggal trade pair trade pnl dll juga masih gabisa"): kata kunci
+   header dulu CUMA Inggris — header Indonesia (Tanggal, Tipe, Hasil,
+   Simbol, Waktu, Jam, Arah) tak terdeteksi → baris masuk jalur
+   "tanpa header" → kolom PnL salah petakan / baris dibuang. */
 const HEADER_KEYWORDS = [
   'symbol', 'pair', 'time', 'type', 'side', 'direction', 'profit', 'p/l',
   'pnl', 'lots', 'lot', 'volume', 'price', 'ticket', 'order', 'date',
   'notes', 'session', 'duration', 'balance', 'entry', 'exit', 'action',
-  'open', 'close', 'swap', 'commission', 'item', 'deal', 'position', 'sl', 'tp'
+  'open', 'close', 'swap', 'commission', 'item', 'deal', 'position', 'sl', 'tp',
+  'tanggal', 'waktu', 'jam', 'tipe', 'arah', 'hasil', 'simbol', 'buy/sell',
+  'beli', 'jual', 'trade'
 ]
 
 // ==================== HELPER: ANGKA ====================
@@ -123,7 +130,12 @@ export function parseFlexibleDate(dateStr: string): string | null {
   return null
 }
 
-const DATE_TOKEN_REGEX = /^\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$/
+/* Token tanggal: YYYY-MM-DD[ HH:MM[:SS]] ATAU DD/MM/YYYY[ HH:MM[:SS]]
+   (FIX jurnal Indonesia: dulu DD/MM/YYYY TIDAK dianggap tanggal → baris
+   jurnal "08/11/2026,XAUUSD,buy,25.5" kehilangan kolom waktunya).
+   Pola angka biasa (25.5, 2.016, 2.650,50, 2650.50) TIDAK kena — butuh
+   2 pemisah + panjang kelompok yang cocok tanggal. */
+const DATE_TOKEN_REGEX = /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4})([ T]\d{1,2}:\d{2}(:\d{2})?)?$/
 
 export function getSessionFromHour(isoDate: string): string | null {
   const match = isoDate.match(/T(\d{2}):/)
@@ -165,7 +177,6 @@ function isHeaderLine(tokens: string[]): boolean {
   }
   return hits >= 2
 }
-
 // ==================== MODE 1: CSV DENGAN HEADER ====================
 function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
   const trades: CsvTrade[] = []
@@ -196,6 +207,9 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
   const findIncludes = (...keywords: string[]): number => {
     for (const kw of keywords) {
       for (let i = 0; i < headers.length; i++) {
+        /* Kw NON-waktu (mis. 'trade' utk kolom tipe) tidak boleh kepetak ke
+           header waktu ("Tanggal Trade" mengandung 'trade') — skip. */
+        if (isTimeHeader(headers[i]) && !isTimeHeader(kw)) continue
         if (headers[i].includes(kw)) return i
       }
     }
@@ -230,12 +244,22 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
   }
 
   const symbolIdx = findCol(['symbol', 'pair', 'instrument', 'simbol'], ['symbol', 'pair', 'instrument', 'simbol', 'pair trade'])
-  const typeIdx = findCol(['type', 'side', 'direction', 'action', 'posisi'], ['type', 'side', 'direction', 'action', 'posisi'])
+  /* FIX CSV JURNAL RINGKAS: kolom tipe dulu cuma kenal type/side/direction/
+     action/posisi — header "Trade" atau "Buy/Sell" (jurnal Bos) luput →
+     SEMUA baris dianggap BUY. Tambah alias Indonesia + 'trade' (diletakkan
+     TERAKHIR + findIncludes skip header waktu, supaya "Tanggal Trade" tidak
+     kepetak sebagai kolom tipe). */
+  const typeIdx = findCol(
+    ['type', 'side', 'direction', 'action', 'posisi', 'tipe', 'buy/sell', 'beli/jual', 'trade'],
+    ['type', 'side', 'direction', 'action', 'posisi', 'tipe', 'buy/sell', 'beli/jual', 'trade'],
+  )
   const lotIdx = findCol(['volume', 'lots', 'lot size', 'lot_size', 'size', 'qty'], ['volume', 'lots', 'lot', 'size', 'qty'])
   const openPriceIdx = findPriceCol(['open price', 'open_price', 'entry price', 'entry_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'], ['entry price', 'entry_price', 'open price', 'open_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'])
   const closePriceIdx = findPriceCol(['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'exit'], ['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'exit'])
-  const profitIdx = findCol(['profit', 'p/l', 'pnl', 'pl', 'net profit', 'profit/loss', 'laba'], ['profit', 'pnl', 'p/l', 'laba'])
-  const openTimeIdx = findCol(['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'time', 'date', 'tanggal'], ['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'tanggal', 'waktu', 'jam'])
+  /* FIX: 'hasil' = PnL dlm jurnal Indonesia ("Hasil", "Hasil Trade") — dulu
+     tidak dikenali → SEMUA pnl tercatat 0 (data hilang diam-diam). */
+  const profitIdx = findCol(['profit', 'p/l', 'pnl', 'pl', 'net profit', 'profit/loss', 'laba', 'hasil', 'profit loss', 'hasil trade'], ['profit', 'pnl', 'p/l', 'laba', 'hasil'])
+  const openTimeIdx = findCol(['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'time', 'date', 'tanggal', 'tanggal trade', 'waktu trade', 'jam trade'], ['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'tanggal', 'waktu', 'jam'])
   const closeTimeIdx = findCol(['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'], ['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'])
   const genericTimeIdx = openTimeIdx >= 0 ? openTimeIdx : findIncludes('time', 'date', 'tanggal', 'waktu')
   const slIdx = findCol(['sl', 's/l', 'stop loss', 'stop_loss', 'stoploss', 'stop'], ['stop loss', 'stop_loss', 'stoploss', 's/l'])
@@ -340,7 +364,10 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
 
   for (let i = 0; i < lines.length; i++) {
     const tokens = lines[i].split(delimiter).map(cleanToken)
-    if (tokens.length < 5) { skipped++; continue }
+    /* FIX CSV JURNAL RINGKAS: dulu < 5 token langsung dibuang — jurnal polos
+       "tanggal, pair, buy/sell, pnl" cuma 4 kolom → SEMUA baris jurnal
+       hilang sebelum parsing dimulai. Turunkan ke 4. */
+    if (tokens.length < 4) { skipped++; continue }
 
     // --- ticket (token pertama, angka/kode pendek, bukan tanggal) ---
     let ticket: string | null = null
@@ -397,7 +424,26 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
       const v = parseNum(tokens[j])
       if (v !== null && v > 0) priceTokens.push(v)
     }
-    if (priceTokens.length === 0) { skipped++; continue }
+    /* FIX CSV JURNAL RINGKAS (laporan Bos: CSV "tanggal, pair, trade, pnl,
+       dll" masih gabisa): baris TANPA harga dulu SELALU dibuang — padahal
+       itu format jurnal manual paling umum. Aturan baru:
+       • tanpa harga + ada angka (boleh minus = loss) setelah arah → itu PnL
+       • tepat 1 angka harga tanpa alesan close → itu PnL (jurnal dgn lot)
+       Export MT5 sejati selalu punya alesan close + ≥2 harga → jalur lama
+       tetap utuh untuk mereka. */
+    let journalPnl: number | null = null
+    if (priceTokens.length === 0) {
+      for (let j = typeIdx + 1; j < tokens.length; j++) {
+        if (DATE_TOKEN_REGEX.test(tokens[j])) continue
+        if (TIMEFRAMES.test(tokens[j])) continue
+        const v = parseNum(tokens[j])
+        if (v !== null) { journalPnl = v; break }
+      }
+    } else if (priceTokens.length === 1 && reasonIdx < 0) {
+      journalPnl = priceTokens[0]
+    }
+    const isJournalRow = journalPnl !== null
+    if (!isJournalRow && priceTokens.length === 0) { skipped++; continue }
 
     // --- angka keuangan setelah alesan ---
     const trailing: number[] = []
@@ -409,7 +455,8 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
     }
 
     // profit = angka pertama; net = profit - fee (diverifikasi, anti salah kolom)
-    const profitRaw = trailing.length > 0 ? trailing[0] : 0
+    // Baris jurnal: PnL = angka tunggal (bukan trailing alesan)
+    const profitRaw = trailing.length > 0 ? trailing[0] : (journalPnl ?? 0)
     const fee = trailing.length >= 2 ? trailing[1] : 0
     let profitLoss = profitRaw
     if (trailing.length >= 3) {
@@ -427,8 +474,9 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
       ? Math.round(trailing[5]) : null
 
     // --- open/close price ---
-    const openPrice = priceTokens[0]
-    const candidates = priceTokens.slice(1)
+    // Baris jurnal tidak punya harga → 0/0 (valid sejak fix 8 Nov)
+    const openPrice = isJournalRow ? 0 : priceTokens[0]
+    const candidates = isJournalRow ? [] : priceTokens.slice(1)
     let closePrice = openPrice
     if (candidates.length > 0 && trailing.length > 0) {
       // Harga close = kandidat yang selisihnya dari open paling cocok dengan
@@ -511,7 +559,7 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
       type,
       open_price: openPrice,
       close_price: closePrice,
-      lot_size: lotSize,
+      lot_size: priceTokens.length === 0 && isJournalRow ? 0.01 : lotSize,
       profit_loss: profitLoss,
       open_time: openTime,
       close_time: closeTime,
