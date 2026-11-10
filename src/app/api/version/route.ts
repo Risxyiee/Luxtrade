@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.4'
-const NOTES = 'fix 503 exceededCpu di /api/push/subscribe: rewrite TANPA supabase-js (graph modul 4 lapis = CPU 10ms free plan jebol di isolate dingin) → raw fetch PostgREST + parser cookie sesi salinan middleware; kontrak error 400/401/403/500 dipertahankan; cleanup endpoint stale kini 1 fetch DELETE berfilter; + otak karyawan AI = Claude Sonnet 5.5 semua; + fix login legacy API keys (cache config v2)'
+const VERSION = '2026-11-10.5'
+const NOTES = 'Kantor CEO fase bisnis (lib/ceo-phase.ts): briefing SINGKAT tanpa LLM saat pre-launch (bukan Senin), NBA dari checklist peluncuran 8 langkah (maju hanya saat Bos jawab OKE), artefak mingguan karyawan AI (kalender konten, onboarding, titik impas, outbound, eksperimen, artikel SEO, audit SEO, seeding) otomatis tiap briefing fase-2 + action=work/phase; env PHASE_OVERRIDE utk paksa fase'
 
 export async function GET() {
   return NextResponse.json(

@@ -25,6 +25,10 @@
 import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 import { callMorteraDirect } from '@/lib/ai-llm'
+import {
+  getPhase, runDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
+  wibWeekday, type PhaseDeps,
+} from '@/lib/ceo-phase'
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
@@ -1366,6 +1370,35 @@ async function briefingFailEmail(e: Env, discordErr: string, briefingText: strin
   }).catch(() => {})
 }
 
+/* ============================================================
+   FASE BISNIS (lib/ceo-phase.ts) — adapter PhaseDeps: semua ketergantungan
+   kantor (KV, Supabase, otak LLM, memori, Discord, self-fetch) disuntik
+   dari fungsi lokal route ini ke modul fase. Fase dihitung dari data
+   nyata (pendaftar + trade 7 hari, cache 1 jam); override manual via
+   env PHASE_OVERRIDE = pre-launch | early | growth.
+   ============================================================ */
+function phaseDeps(e: Env): PhaseDeps {
+  const ex = [ownerEmail(e), cleanEnv(e.E2E_TEST_EMAIL) || 'e2e-tester@luxtradee.app']
+    .map((s) => s.toLowerCase().trim()).filter(Boolean)
+  return {
+    kvGet: (k) => kvGet(e, k),
+    kvSet: (k, v) => kvSet(e, k, v),
+    count: (table, filters) => supaCount(e, table, filters || ''),
+    brain: async (agent, system, user, maxTokens, temperature) => {
+      const r = await agentBrain(e, agent as AgentKey, system, user, maxTokens, temperature)
+      return { text: r.text, provider: r.provider, model: r.model }
+    },
+    mem: async (who, text) => { await memAdd(e, who, text) },
+    memBlock: () => memBlock(e, 6),
+    notify: async (text) => { await sendDiscord(e, text) },
+    fetchSelf: (p) => selfFetch(p.startsWith('http') ? p : SITE_URL + p),
+    env: (name) => cfSecret(e, name),
+    wibDay: (off) => wibDay(off),
+    isoAgo: (h) => isoAgo(h),
+    excludeEmails: ex,
+  }
+}
+
 async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   /* FASE 1 — LAPORAN INTI, DIKIRIM SECEPAT MUNGKIN.
      Riwayat insiden: dulu QA sweep + E2E login + AUTO-ACC (±50 email
@@ -1414,7 +1447,17 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
      diklik (Bos tidur, karyawan kerja). Untuk mematikan: toggle AUTO-ACC
      di Ruang CSO (diset eksplisit ke 'off'). */
   const autoOn = (await kvGet(e, 'autoacc').catch(() => null)) !== 'off'
-  const templateText = buildBriefing(cto, cso, cmo, cfo, '', autoOn, null, cooLine, nbaLine, null)
+  /* FASE BISNIS — pre-launch (bukan Senin) → BRIEFING SINGKAT tanpa LLM
+     (lib/ceo-phase.ts): target peluncuran + kesehatan situs/bug + pendaftar
+     + langkah checklist hari ini. Briefing PENUH tetap tiap Senin & saat
+     fase early/growth (perilaku lama). Efek samping positif: mode
+     "OTAK ALEXANDER OFFLINE" hilang di hari biasa pre-launch — laporan
+     inti tidak lagi tergantung LLM yang bisa timeout. */
+  const pinfo = await getPhase(phaseDeps(e), cleanEnv(e.PHASE_OVERRIDE)).catch(() => null)
+  const compactMode = !!pinfo && pinfo.phase === 'pre-launch' && wibWeekday() !== 1
+  const templateText = compactMode && pinfo
+    ? buildCompactBriefing({ dateLine: wibNow(), info: pinfo, cto, cso, cfo, cmo, nbaLine })
+    : buildBriefing(cto, cso, cmo, cfo, '', autoOn, null, cooLine, nbaLine, null)
 
   /* ALEXANDER (CEO) merangkai — Tahap T: timeout dinaikkan dari 30s → 45s
      karena model lama (gemma-4-31b) sering lambat & berebut kuota dengan
@@ -1425,24 +1468,31 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
      templat "OTAK ALEXANDER OFFLINE". Kini compose dapat sisa anggaran
      cron 120 dtk dikurangi waktu terpakai (dibatasi 30-75 dtk) — FASE 1
      total dipastikan tetap <120 dtk (105 = 120 - 15 margin Discord). */
-  const composeCap = Math.max(30_000, Math.min(75_000, 105_000 - (Date.now() - briefingT0)))
   let text = templateText
-  try {
-    /* budgetMs = composeCap dioper ke agentBrain → rantai Mortera→OpenRouter
-       membagi anggaran INI (Mortera maks 60%, sisanya OpenRouter) — tidak
-       ada lagi lapisan yang makan waktu sendiri-sendiri sampai withTimeout
-       menembak padahal model masih mungkin menjawab. */
-    const composed = await withTimeout(ceoComposeBriefing(e, templateText, composeCap), composeCap, null)
-    if (composed?.text) {
-      text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
-      cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))
-    } else {
-      /* Task 35b: JANGAN diam-diam pakai templat — Bos harus tahu ini bukan
-         rangkuman AI. Penyebab lengkap: klik 🩺 Diagnostik di Ruang CTO. */
-      text = `⚠️ **OTAK ALEXANDER OFFLINE** — laporan di bawah hasil TEMPLAT, bukan rangkuman AI (model gagal merespons). Cek 🩺 Diagnostik di Ruang CTO untuk penyebab persisnya.\n\n${templateText}`
+  if (compactMode) {
+    /* Pre-launch (bukan Senin): LOMPAT compose LLM — briefing singkat
+       deterministic sudah final, tidak ada lagi mode "OTAK ALEXANDER
+       OFFLINE" di hari biasa. */
+    text = `${templateText}\n_(briefing singkat pre-launch — dihitung dari data nyata, tanpa LLM; briefing penuh tiap Senin)_`
+  } else {
+    const composeCap = Math.max(30_000, Math.min(75_000, 105_000 - (Date.now() - briefingT0)))
+    try {
+      /* budgetMs = composeCap dioper ke agentBrain → rantai Mortera→OpenRouter
+         membagi anggaran INI (Mortera maks 60%, sisanya OpenRouter) — tidak
+         ada lagi lapisan yang makan waktu sendiri-sendiri sampai withTimeout
+         menembak padahal model masih mungkin menjawab. */
+      const composed = await withTimeout(ceoComposeBriefing(e, templateText, composeCap), composeCap, null)
+      if (composed?.text) {
+        text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
+        cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))
+      } else {
+        /* Task 35b: JANGAN diam-diam pakai templat — Bos harus tahu ini bukan
+           rangkuman AI. Penyebab lengkap: klik 🩺 Diagnostik di Ruang CTO. */
+        text = `⚠️ **OTAK ALEXANDER OFFLINE** — laporan di bawah hasil TEMPLAT, bukan rangkuman AI (model gagal merespons). Cek 🩺 Diagnostik di Ruang CTO untuk penyebab persisnya.\n\n${templateText}`
+      }
+    } catch (x: any) {
+      text = `⚠️ **OTAK ALEXANDER OFFLINE** — penyebab: ${String(x?.message || x).slice(0, 200)}\nLaporan di bawah hasil TEMPLAT. Cek 🩺 Diagnostik di Ruang CTO.\n\n${templateText}`
     }
-  } catch (x: any) {
-    text = `⚠️ **OTAK ALEXANDER OFFLINE** — penyebab: ${String(x?.message || x).slice(0, 200)}\nLaporan di bawah hasil TEMPLAT. Cek 🩺 Diagnostik di Ruang CTO.\n\n${templateText}`
   }
 
   /* Kirim laporan utama — 2 percobaan (Discord kadang 429/ngambek). */
@@ -1481,7 +1531,7 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   try {
     if (!req) throw new Error('req tidak tersedia')
     const auth = req.headers.get('authorization') || ''
-    for (const step of ['emails', 'qa', 'talk']) {
+    for (const step of ['emails', 'qa', 'talk', 'work']) {
       const u2 = new URL(req.url)
       u2.searchParams.set('action', 'briefing-extras')
       u2.searchParams.set('step', step)
@@ -1622,6 +1672,20 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
       }
     }
   } catch { /* IG auto-post opsional — jangan ganggu fase 2 lain */ }
+
+  /* ARTEFAK MINGGUAN (lib/ceo-phase.ts runDailyWork) — kalender konten
+     (Minggu), onboarding + titik impas (Senin), outbound + eksperimen
+     (Selasa), artikel SEO (Rabu), audit SEO teknis (Kamis), community
+     seeding (Sabtu). Tiap job dedup harian internal; artefak tersimpan di
+     agent_kv (art:index + art:body:<id>) dan dinotifikasikan Discord oleh
+     modul. Jalan di SEMUA fase (info fase hanya konteks prompt). */
+  try {
+    if (runStep('work')) {
+      const d = phaseDeps(e)
+      const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
+      summary.work = await runDailyWork(d, info)
+    }
+  } catch (x: any) { summary.workError = String(x?.message || x).slice(0, 140) }
 
   /* NEXT BEST ACTION — Alexander pilih 1 prioritas Bos hari ini
      (pesan Discord terpisah + tampil di Ruang Rapat). Dedup harian. */
@@ -2885,6 +2949,22 @@ function ghToDiscord(g: GhInsight): string {
    pesan terpisah + tampil di Ruang Rapat. 1 panggilan LLM/hari. */
 async function nextBestAction(e: Env, briefingText: string): Promise<string> {
   try {
+    /* FASE BISNIS — saat pre-launch, prioritas Bos = LANGKAH CHECKLIST
+       PELUNCURAN (lib/ceo-phase.ts) — deterministik, bukan karangan LLM baru
+       tiap hari. Maju langkah HANYA saat Bos jawab OKE (action=nba-verdict).
+       Checklist habis / fase lain → NBA LLM biasa di bawah. */
+    const d = phaseDeps(e)
+    const pinfo = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE)).catch(() => null)
+    if (pinfo?.phase === 'pre-launch') {
+      const step = await currentLaunchStep(d)
+      if (step) {
+        const text = `🎯 ${step.text}`
+        await kvSet(e, 'nba:last', JSON.stringify({ at: new Date().toISOString(), text, src: 'checklist', idx: step.idx })).catch(() => {})
+        await memAdd(e, 'CEO Alexander', `Prioritas Bos hari ini (langkah ${step.idx + 1}/${step.total} checklist peluncuran): ${step.text}`)
+        try { await sendDiscord(e, `${text}\n_(langkah ${step.idx + 1}/${step.total} checklist peluncuran — maju ke langkah berikutnya setelah Bos jawab OKE)_`) } catch { /* ignore */ }
+        return text
+      }
+    }
     /* SOP Multi-Agent — Alexander (CEO, Llama 3.1 8B) pilih prioritas;
        tidak lagi tergantung Gemini. */
     const brain = await agentBrain(
@@ -3203,12 +3283,23 @@ async function handle(req: Request): Promise<Response> {
       await kvSet(e, `nba-verdict:${day}`, v)
       const raw = await kvGet(e, 'nba:last').catch(() => null)
       let snippet = ''
-      try { snippet = String(JSON.parse(raw || '{}')?.text || '').slice(0, 90) } catch { /* ignore */ }
+      let fromChecklist = false
+      try { const nb = JSON.parse(raw || '{}') as { text?: string; src?: string }; snippet = String(nb?.text || '').slice(0, 90); fromChecklist = nb?.src === 'checklist' } catch { /* ignore */ }
+      /* Checklist peluncuran: langkah maju HANYA saat Bos jawab OKE
+         (lib/ceo-phase.ts advanceLaunchStep). NOT → langkah tetap. */
+      let advanced = false
+      if (v === 'oke' && fromChecklist) {
+        try { await advanceLaunchStep(phaseDeps(e)); advanced = true } catch { /* opsional */ }
+      }
       await memAdd(e, 'CEO Alexander', v === 'oke'
-        ? `Bos konfirmasi OKE untuk NBA hari ini: "${snippet}…" — dieksekusi`
-        : `Bos jawab NOT OKE untuk NBA hari ini: "${snippet}…" — prioritas diganti`)
-      try { await sendDiscord(e, v === 'oke' ? `✅ Bos: **OKE** — NBA hari ini dieksekusi: ${snippet}` : `❌ Bos: **NOT OKE** — NBA hari ini diganti: ${snippet}`) } catch { /* ignore */ }
-      return j({ ok: true, verdict: v, note: v === 'oke' ? 'NBA hari ini dicatat OKE — besok Alexander cek tuntasnya' : 'NBA diganti — Alexander pilih prioritas baru besok pagi' })
+        ? `Bos konfirmasi OKE untuk NBA hari ini: "${snippet}…" — dieksekusi${advanced ? ' · checklist peluncuran MAJU ke langkah berikutnya' : ''}`
+        : `Bos jawab NOT OKE untuk NBA hari ini: "${snippet}…" — prioritas diganti${fromChecklist ? ' (langkah checklist TIDAK maju — coba penyelesaian beda besok)' : ''}`)
+      try { await sendDiscord(e, v === 'oke'
+        ? `✅ Bos: **OKE** — NBA hari ini dieksekusi: ${snippet}${advanced ? '\n✅ Checklist peluncuran maju ke langkah berikutnya.' : ''}`
+        : `❌ Bos: **NOT OKE** — NBA hari ini diganti: ${snippet}`) } catch { /* ignore */ }
+      return j({ ok: true, verdict: v, advanced, note: v === 'oke'
+        ? (advanced ? 'OKE dicatat + checklist peluncuran maju ke langkah berikutnya' : 'NBA hari ini dicatat OKE — besok Alexander cek tuntasnya')
+        : 'NBA diganti — Alexander pilih prioritas baru besok pagi' })
     }
     case 'nba-verdict-last':
       return j({ verdict: (await kvGet(e, `nba-verdict:${wibDay()}`)) || null })
@@ -3461,6 +3552,23 @@ async function handle(req: Request): Promise<Response> {
         return last ? j({ gh: JSON.parse(last) }) : j({ gh: null })
       } catch { return j({ gh: null }) }
     }
+    case 'phase': {
+      // FASE BISNIS saat ini (lib/ceo-phase.ts): pre-launch | early | growth.
+      // Override manual: env PHASE_OVERRIDE. Dipakai briefing/NBA/artefak.
+      try { return j(await getPhase(phaseDeps(e), cleanEnv(e.PHASE_OVERRIDE))) } catch (x: any) { return j({ error: String(x?.message || x) }, 500) }
+    }
+    case 'work': {
+      // ARTEFAK MINGGUAN karyawan AI (lib/ceo-phase.ts runDailyWork) —
+      // otomatis via briefing fase-2; tombol manual untuk uji/re-run.
+      // ?only=<job-id> (mis. cmo:calendar) · ?force=1 abaikan dedup harian.
+      try {
+        const d = phaseDeps(e)
+        const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
+        const only = url.searchParams.get('only') || undefined
+        const force = url.searchParams.get('force') === '1'
+        return j(await runDailyWork(d, info, { only, force }))
+      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
     default: {
       /* Diagnosa otak karyawan: in-memory dulu (isolate hangat), kalau kosong
          baca dari agent_kv `brain:diag` (persist antar-isolate). Publik. */
@@ -3506,6 +3614,8 @@ async function handle(req: Request): Promise<Response> {
           'action=analyst-last — hasil analisis Dewi terakhir',
           'action=growth — Farhan (Growth Hacker): funnel + 3 eksperimen growth (Ruang GH, cron Senin)',
           'action=growth-last — hasil rancangan Farhan terakhir',
+          'action=phase — fase bisnis saat ini (pre-launch/early/growth; env PHASE_OVERRIDE utk paksa)',
+          'action=work [&only=<job-id>][&force=1] — artefak mingguan karyawan AI (kalender konten, onboarding, titik impas, outbound, eksperimen, artikel SEO, audit SEO, seeding) — otomatis tiap briefing via fase-2 step "work"',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
