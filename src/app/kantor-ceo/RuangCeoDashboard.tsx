@@ -26,6 +26,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Sparkles, Trash2, X } from 'lucide-react'
 import PendingActionsQueue from './PendingActionsQueue'
+import ArtifactsQueue from './ArtifactsQueue'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 /* ============================================================
@@ -694,6 +695,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Kevin (Growth Hunter) · Alexander (CEO)</div>
               {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
               <PendingActionsQueue />
+              {/* Spec perbaikan kantor AI — barang jadi karyawan AI (artefak mingguan) terlihat & bisa disalin Bos */}
+              <ArtifactsQueue />
             </div>
           ) : room === 'rapat' ? (
             /* ============ RUANG RAPAT — CEO Suite ============ */

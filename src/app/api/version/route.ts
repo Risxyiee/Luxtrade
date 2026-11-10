@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.5'
-const NOTES = 'Kantor CEO fase bisnis (lib/ceo-phase.ts): briefing SINGKAT tanpa LLM saat pre-launch (bukan Senin), NBA dari checklist peluncuran 8 langkah (maju hanya saat Bos jawab OKE), artefak mingguan karyawan AI (kalender konten, onboarding, titik impas, outbound, eksperimen, artikel SEO, audit SEO, seeding) otomatis tiap briefing fase-2 + action=work/phase; env PHASE_OVERRIDE utk paksa fase'
+const VERSION = '2026-11-10.6'
+const NOTES = 'Perbaikan logika karyawan AI (anti itu-itu mulu, hasil barang jadi): pilar konten Sinta rotasi harian + hook 10 naskah terakhir dilarang diulang; rapat CSO×CMO skip LLM kalau intel tak berubah (hash); Dewi JANGAN panggil LLM di bawah 50 trade (status data-belum-cukup); Farhan skip funnel LLM di bawah 10 pendaftar (A/B ditunda sampai ada traffic); QA+E2E cukup mingguan (Senin); CFO pre-launch tampil titik impas bukan MRR Rp0; action=art-list/art-body + panel Antrean ACC Artefak di /kantor-ceo (lihat & salin barang jadi karyawan)'
 
 export async function GET() {
   return NextResponse.json(

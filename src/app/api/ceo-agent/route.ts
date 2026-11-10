@@ -69,6 +69,19 @@ const ANGLES = [
   'Cara menjaga max daily loss prop firm dengan evaluasi visual — screenshot chart + penandaan.',
 ]
 
+/* PILAR KONTEN 7 HARI (rotasi harian, indeks = hari WIB 0=Minggu) —
+   spec perbaikan kantor AI: draf Sinta saat pre-launch berbasis edukasi
+   trading umum + rotasi tema, BUKAN analisis data user yang belum ada. */
+const CMO_PILLARS: { name: string; task: string }[] = [
+  { name: 'recap-mingguan', task: 'rekap pelajaran minggu ini: kesalahan umum trader XAUUSD & pelajaran yang bisa diambil' },
+  { name: 'edukasi', task: 'satu konsep edukasi (struktur pasar, risk-reward, atau jurnal) dijelaskan sederhana dalam 30 detik' },
+  { name: 'mitos-trading', task: 'bongkar satu mitos trading yang bikin pemula rugi' },
+  { name: 'demo-fitur', task: 'demo alur Luxtradee: upload screenshot → evaluasi AI muncul (tunjukkan proses, bukan jualan)' },
+  { name: 'psikologi', task: 'psikologi trading: FOMO / revenge trading / takut cut loss — kenapa terjadi & cara mengendalikan' },
+  { name: 'poll-engagement', task: 'pertanyaan interaktif untuk kolom komentar: pengalaman trader Indonesia soal topik hari ini' },
+  { name: 'behind-the-scenes', task: 'behind the scenes membangun Luxtradee: proses, keputusan, pembelajaran (tanpa janji profit)' },
+]
+
 /* ---------- util ---------- */
 function timeoutSignal(ms: number): AbortSignal {
   const c = new AbortController()
@@ -954,6 +967,11 @@ async function fetchTopTikToks(e: Env): Promise<{ url: string; caption: string; 
 }
 
 async function cmoAgent(e: Env) {
+  /* PILAR KONTEN rotasi harian (WIB) — spec perbaikan kantor AI anti
+     "itu-itu mulu": tiap hari SATU pilar beda berbasis edukasi trading
+     umum. Angle pain-point lama (ANGLES) tetap dipakai utk draf cadangan
+     & variasi dalam pilar. */
+  const pillar = CMO_PILLARS[wibWeekday() % CMO_PILLARS.length]
   const angle = ANGLES[dayIndex() % ANGLES.length]
 
   /* SOP Bos: 1 draf TikTok / HARI. Draf hari ini yang sudah dibuat
@@ -1013,7 +1031,7 @@ async function cmoAgent(e: Env) {
       : `Analisis gaya bahasa, hook, dan struktur dari naskah TikTok milik CEO berikut ini: ${e.TIKTOK_REFERENCE || '(belum ada referensi — pakai gaya trader Indonesia kasual, bahasa gaul)'}`) +
     `\nTugasmu hari ini: Buat 3 draf naskah video TikTok baru yang meniru pola/gaya tersebut 100% — SAME angle, TIGA pendekatan berbeda (beda hook, beda struktur, beda gaya buka) supaya Bos bisa PILIH yang paling pas. ` +
     `DILARANG mengulang naskah yang sama dari hari-hari sebelumnya. ` +
-    `Rotasi angle harian: pain point trader XAUUSD (SMC/ICT), kelelahan ngetik jurnal manual, atau cara menjaga max daily loss prop firm dengan evaluasi visual.` +
+    `PILAR KONTEN HARI INI (WAJIB menentukan ARAH ketiga draf — rotasi harian anti-repetisi): "${pillar.name}" — ${pillar.task}. Pain point boleh jadi bumbu, tapi pilar inilah inti naskahnya.` +
     `\n\n` + REAL_DATA_RULE
 
   const userPrompt =
@@ -1022,8 +1040,8 @@ async function cmoAgent(e: Env) {
     realDataBlock +
     churnLine +
     (history.length
-      ? `\nNaskah yang SUDAH dipakai hari sebelumnya (DILARANG mengulang / mirip):\n` +
-        history.map((h, i) => `— draf ${i + 1} —\n${h.slice(0, 500)}`).join('\n') + '\n'
+      ? `\nHOOK/judul ${history.length} naskah terakhir (DILARANG mengulang atau terlalu mirip):\n` +
+        history.map((h, i) => `${i + 1}. ${(h.split('\n').find((l) => l.trim()) || h).slice(0, 140)}`).join('\n') + '\n'
       : '') +
     (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
     (await memBlock(e)) +
@@ -1063,7 +1081,7 @@ async function cmoAgent(e: Env) {
   const draft = drafts[0]
 
   history.unshift(draft)
-  await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 5)))
+  await kvSet(e, 'drafts:history', JSON.stringify(history.slice(0, 10)))
   await memAdd(e, 'CMO Sinta', `Draf TikTok (${angle}, ${model || provider}): ${draft.replace(/\s+/g, ' ').slice(0, 130)}`)
   const out = { draft, drafts, angle, usedFallback, provider, model, basedOn: posts.length ? 'tiktok' : 'reference', analyzedPosts: posts.length, ...(fallbackError ? { fallbackError } : {}) }
   await kvSet(e, dayKey, JSON.stringify(out)).catch(() => {})
@@ -1207,6 +1225,10 @@ async function cfoAgent(e: Env) {
   try { proCount = await supaCount(e, 'profiles', 'is_pro=eq.true') } catch { proCount = -1 }
   const proPrice = parseInt(e.PRO_PRICE_IDR || '49000', 10)
   const mrrTarget = parseInt(e.MRR_TARGET_IDR || '10000000', 10)
+  /* Titik impas (spec perbaikan kantor AI): biaya tetap ÷ harga PRO —
+     murni matematika; tampil sebagai target user PRO selama belum ada PRO. */
+  const fixedCost = parseInt(e.FIXED_COST_IDR || '0', 10)
+  const breakevenUsers = fixedCost > 0 ? Math.ceil(fixedCost / proPrice) : 0
   /* Task 32 (SOP Bos): PnL NYATA — query trades dulu → matematika murni
      Next.js. Angka profit/loss berasal 100% dari database, bukan LLM. */
   const [pnl24, pnl7] = await Promise.all([computePnl(e, isoAgo(24)), computePnl(e, isoAgo(24 * 7))])
@@ -1214,6 +1236,7 @@ async function cfoAgent(e: Env) {
     title: 'CFO — API Quota Manager', limit, usedToday, usedYesterday, quota429,
     emailLimit, emailToday, emailYesterday, emailPct,
     proCount, proPrice, mrrTarget, estMRR: proCount > 0 ? proCount * proPrice : 0,
+    fixedCost, breakevenUsers,
     pnl24, pnl7,
     status: pct >= 95 ? 'KRITIS — hentikan upload sisa hari ini'
       : pct >= 80 ? 'WASPADA — kurangi frekuensi upload'
@@ -1310,8 +1333,14 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• Event 429 kemarin: ${fmtN(cfo?.quota429)}`)
   L.push(`• Email terkirim hari ini: ${fmtN(cfo?.emailToday)}/${fmtN(cfo?.emailLimit)} (Resend — ${cfo?.emailStatus || '-'})`)
   L.push(`• Status: ${cfo?.status || '-'}`)
-  if (cfo?.proCount !== undefined && cfo.proCount >= 0)
-    L.push(`• 💵 Pendapatan (estimasi): ${fmtN(cfo.proCount)} user PRO × Rp${fmtN(cfo.proPrice)} ≈ **Rp${fmtN(cfo.estMRR)}/bulan MRR**${cfo.mrrTarget > 0 ? ` (${Math.round(((cfo.estMRR || 0) / cfo.mrrTarget) * 100)}% dari target Rp${fmtN(cfo.mrrTarget)})` : ''}`)
+  if (cfo?.proCount !== undefined && cfo.proCount >= 0) {
+    if (cfo.proCount === 0)
+      /* Pre-launch: jangan spam "MRR Rp0" tiap hari — tampilkan TARGET yang
+         bisa dieksekusi (titik impas, matematika murni Putri). */
+      L.push(`• 💵 Pendapatan: belum ada user PRO — titik impas: ${fmtN(cfo.breakevenUsers || 0)} user PRO (biaya tetap Rp${fmtN(cfo.fixedCost || 0)}/bulan ÷ harga PRO Rp${fmtN(cfo.proPrice)})${cfo.fixedCost ? '' : ' · set env FIXED_COST_IDR biar hitungannya jalan'}`)
+    else
+      L.push(`• 💵 Pendapatan (estimasi): ${fmtN(cfo.proCount)} user PRO × Rp${fmtN(cfo.proPrice)} ≈ **Rp${fmtN(cfo.estMRR)}/bulan MRR**${cfo.mrrTarget > 0 ? ` (${Math.round(((cfo.estMRR || 0) / cfo.mrrTarget) * 100)}% dari target Rp${fmtN(cfo.mrrTarget)})` : ''}`)
+  }
   /* Task 32: PnL NYATA dari tabel trades (matematika murni Putri) */
   if (cfo?.pnl24) L.push(pnlLine(cfo.pnl24))
   if (cfo?.pnl7 && cfo.pnl7.trades > 0)
@@ -1584,7 +1613,11 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
   /* QA + E2E — Raka sweep semua fitur (lama) → hasil jadi LAMPIRAN terpisah.
      Dedup per hari supaya self-heal/manual re-run tidak dobel kirim. */
   try {
-    if (runStep('qa') && !(await kvGet(e, `lamp:qa:${day}`))) {
+    /* QA 15 route + E2E login cukup MINGGUAN (Senin) — spec perbaikan
+       kantor AI: hasilnya hampir selalu sama tiap hari & makan waktu.
+       Watchdog 15 menit (alarm DOWN/bug/kuota) tetap harian; tes manual
+       action=qa / action=e2e tetap bisa dipicu kapan pun dari Ruang CTO. */
+    if (runStep('qa') && wibWeekday() === 1 && !(await kvGet(e, `lamp:qa:${day}`))) {
       await kvSet(e, `lamp:qa:${day}`, new Date().toISOString())
       const [qa, e2e] = await Promise.all([
         qaAgent(e).catch((x: any) => ({ total: 0, ok: 0, fails: [], avgMs: 0, err: String(x?.message || x) })),
@@ -2479,6 +2512,7 @@ interface CsoCmoTalk {
   script: { hook: string; body: string; cta: string }
   intel: { total: number; active24h: number; active7d: number; passive: number; baruTakAktif: number; bug7d: number }
   raw?: string
+  dupToday?: boolean
 }
 
 /* JSON tololeran: buang fence markdown, ambil blok { ... } terluas */
@@ -2522,6 +2556,21 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
     baruTakAktif: Math.max(0, baru14 - active7.size),
     bug7d,
   }
+
+  /* ANTI-ITU-ITU-MULU (spec perbaikan kantor AI): kalau angka intel TIDAK
+     berubah sejak rapat terakhir, JANGAN bakar LLM — pakai hasil rapat
+     sebelumnya (ditandai dupToday). Hash disimpan HANYA setelah rapat baru
+     sukses dibuat (pola mark-after-success). */
+  let intelHash = ''
+  try {
+    const hb = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(JSON.stringify(intel)))
+    intelHash = Array.from(new Uint8Array(hb)).map((b) => b.toString(16).padStart(2, '0')).join('')
+    if (intelHash === (await kvGet(e, 'talk:intel-hash'))) {
+      const prevRaw = await kvGet(e, 'cso-cmo:last')
+      const prev = prevRaw ? (JSON.parse(prevRaw) as CsoCmoTalk) : null
+      if (prev?.dialog?.length) return { ...prev, at: new Date().toISOString(), dupToday: true }
+    }
+  } catch { /* hash opsional */ }
 
   const intelText =
     `DATA NYATA Luxtradee (web app jurnal trading XAUUSD, upload screenshot → evaluasi AI):\n` +
@@ -2619,6 +2668,7 @@ async function csoCmoTalk(e: Env): Promise<CsoCmoTalk> {
 
   const out: CsoCmoTalk = { at: new Date().toISOString(), provider, intel, ...parsed }
   await kvSet(e, 'cso-cmo:last', JSON.stringify(out)).catch(() => {})
+  if (intelHash) await kvSet(e, 'talk:intel-hash', intelHash).catch(() => false)
   if (out.diagnosis) await memAdd(e, 'Maya × Sinta', `Rapat CSO×CMO — ${String(out.diagnosis).slice(0, 150)}${out.script?.hook ? ' → skrip: "' + String(out.script.hook).slice(0, 60) + '"' : ''}`)
   return out
 }
@@ -2653,6 +2703,7 @@ interface DaInsight {
   recommendations: string[]
   stats: { uploads30: number; uploads7: number; traders30: number; winRate: number; topSymbol: string; topSession: string; bestHour: string; emotion?: { counted: number; best: string; bestWr: number; worst: string; worstWr: number } | null }
   dupToday?: boolean
+  sampleOk?: boolean
 }
 
 async function fetchTrades30(e: Env) {
@@ -2721,10 +2772,17 @@ async function analystAgent(e: Env): Promise<DaInsight> {
   const stats = computeTradeStats(rows)
   const base = { at: new Date().toISOString(), stats }
 
-  if (!rows.length) {
+  /* AMBANG SAMPEL MINIMAL (spec perbaikan kantor AI): di bawah 50 trade
+     dalam 30 hari, analisis AI lebih banyak menebak daripada fakta →
+     JANGAN panggil LLM sama sekali (hemat kuota, tanpa laporan kosong).
+     Status jujur "data belum cukup"; analisis penuh menyala otomatis
+     lagi begitu sampel ≥50 (fase early/growth). */
+  if (rows.length < 50) {
     const out: DaInsight = { ...base, provider: 'fallback',
-      insight: 'Belum ada trade dalam 30 hari terakhir — insight otomatis muncul begitu user mulai upload jurnal.',
-      patterns: [], recommendations: ['Fokus aktivasi user baru dulu (cek Ruang Growth) — tanpa data trade, analisis tidak bisa jalan'] }
+      insight: `Data belum cukup untuk analisis statistik: ${rows.length}/50 trade dalam 30 hari. Dewi tidak membakar kuota AI untuk sampel yang belum bermakna — analisis penuh (termasuk emosi vs profit) otomatis menyala begitu data cukup.`,
+      patterns: stats.traders30 ? [`Sampel sekarang: ${rows.length} trade dari ${stats.traders30} trader (ambang minimal 50)`] : [],
+      recommendations: ['Fokus sekarang: dapatkan user baru & upload pertama (cek langkah checklist peluncuran di briefing)'],
+      sampleOk: false }
     await kvSet(e, 'da:last', JSON.stringify(out)).catch(() => {})
     return out
   }
@@ -2881,6 +2939,21 @@ async function growthAgent(e: Env): Promise<GhInsight> {
     ab = await abSnapshot(e)
     abLine = `\nHASIL A/B CTA LANDING 7 HARI (eksperimen otomatis milikmu): varian A ${ab.A.views} lihat · ${ab.A.clicks} klik (${ab.A.cr}%) | varian B ${ab.B.views} lihat · ${ab.B.clicks} klik (${ab.B.cr}%) → pemenang sementara: ${ab.winner}`
   } catch { /* A/B opsional */ }
+
+  /* AMBANG TRAFFIC MINIMAL (spec perbaikan kantor AI): funnel < 10 pendaftar
+     → analisis funnel & A/B belum bermakna → JANGAN panggil LLM (A/B test
+     butuh traffic, ditunda sampai ada). Sementara Farhan kerja 1 eksperimen
+     akuisisi/minggu via artefak (job gh:experiment, Rabu). Menyala otomatis
+     lagi begitu ≥10 pendaftar. */
+  if (total < 10) {
+    const abViews = ab ? ab.A.views + ab.B.views : 0
+    const out: GhInsight = { ...base, provider: 'fallback',
+      insight: `Funnel masih terlalu kecil untuk dianalisis: ${total}/10 pendaftar (A/B landing baru ${abViews} lihat dalam 7 hari — butuh traffic lebih besar). Analisis funnel & A/B otomatis menyala begitu ada traffic. Sementara: 1 eksperimen akuisisi per minggu (panel artefak, job gh:experiment).`,
+      experiments: [],
+      ab: ab || undefined }
+    await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
+    return out
+  }
 
   const funnelText =
     `FUNNEL LUXTRADEE (nyata):\n` +
@@ -3102,7 +3175,7 @@ async function handle(req: Request): Promise<Response> {
   if (action !== 'info' && !(isCron || isAdmin || isOwner || noSecrets))
     return j({ error: 'unauthorized — login sebagai ' + ownerEmail(e) + ' di situs, atau pakai ?key=CRON_SECRET / header Authorization: Bearer <ADMIN_SECRET>' }, 401)
 
-  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'mem-last' && action !== 'mem-agent' && action !== 'analyst-last' && action !== 'growth-last') {
+  if (action !== 'info' && action !== 'quota' && action !== 'briefing-last' && action !== 'talk' && action !== 'talk-last' && action !== 'mem-last' && action !== 'mem-agent' && action !== 'analyst-last' && action !== 'growth-last' && action !== 'art-list' && action !== 'art-body') {
     const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(k => (k === 'SUPABASE_URL' && !sbUrl(e)) || (k === 'SUPABASE_ANON_KEY' && !sbAnonKey(e)))
     if (missing.length) return j({ error: 'ENV belum diset: ' + missing.join(', ') }, 500)
   }
@@ -3569,6 +3642,24 @@ async function handle(req: Request): Promise<Response> {
         return j(await runDailyWork(d, info, { only, force }))
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
+    case 'art-list': {
+      // ARTEFAK karyawan AI (lib/ceo-phase.ts) — metadata (maks 30 terakhir).
+      // Dipakai panel "Antrean ACC — Artefak" di /kantor-ceo supaya barang
+      // jadi karyawan TERLIHAT & bisa disalin Bos (bukan cuma laporan).
+      try {
+        const idx = JSON.parse((await kvGet(e, 'art:index')) || '[]') as Record<string, unknown>[]
+        return j({ artifacts: Array.isArray(idx) ? idx : [] })
+      } catch { return j({ artifacts: [] }) }
+    }
+    case 'art-body': {
+      // Isi lengkap artefak (?id=<artefak-id>) — disimpan di art:body:<id>.
+      const artId = url.searchParams.get('id') || ''
+      if (!artId) return j({ error: 'id wajib — ?id=<artefak-id>' }, 400)
+      try {
+        const body = await kvGet(e, `art:body:${artId}`)
+        return body != null ? j({ id: artId, body }) : j({ error: 'artefak tidak ditemukan (mungkin sudah dibuang dari index)' }, 404)
+      } catch (x: any) { return j({ error: String(x?.message || x) }, 500) }
+    }
     default: {
       /* Diagnosa otak karyawan: in-memory dulu (isolate hangat), kalau kosong
          baca dari agent_kv `brain:diag` (persist antar-isolate). Publik. */
@@ -3616,6 +3707,8 @@ async function handle(req: Request): Promise<Response> {
           'action=growth-last — hasil rancangan Farhan terakhir',
           'action=phase — fase bisnis saat ini (pre-launch/early/growth; env PHASE_OVERRIDE utk paksa)',
           'action=work [&only=<job-id>][&force=1] — artefak mingguan karyawan AI (kalender konten, onboarding, titik impas, outbound, eksperimen, artikel SEO, audit SEO, seeding) — otomatis tiap briefing via fase-2 step "work"',
+          'action=art-list — daftar artefak karyawan AI (panel Antrean ACC /kantor-ceo)',
+          'action=art-body ?id= — isi lengkap satu artefak',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })
