@@ -84,16 +84,18 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
 /* Mortera Cloud — kuda beban prioritas (deposit Rupiah Bos). Default:
-   Claude Haiku 5.5 (Rp 394/1.182 per 1M — termurah kelas Claude, ~Rp 63/hari
-   untuk volume karyawan) → Claude Sonnet 5.5 (Rp 2.955/14.775, premium)
-   → GPT-6.1 Terra (Rp 985/4.925). Fable/Opus SENGAJA di-veto (Rp 10rb-55rb
-   input per 1M — 25-140x Haiku, tidak ada tugas karyawan yang butuh).
+   Claude SONNET 5.5 (Rp 2.955/14.775 per 1M — otak premium) → Claude Haiku
+   5.5 (Rp 394/1.182, cadangan murah) → GPT-6.1 Terra (Rp 985/4.925).
+   PERMINTAAN BOS 10 Nov 2026: "ganti api ke sonnet semua" — SEMUA karyawan
+   kantor AI (CEO Alexander, Sinta, Bagas, Maya, Raka, Putri, Farhan, Kevin,
+   CS bot, growth cron) kini berotak Claude Sonnet 5.5. Fable/Opus SENGAJA
+   di-veto (Rp 10rb-55rb input per 1M — tidak ada tugas karyawan yang butuh).
    FIX 2026-11-08 (diag produksi /api/health): katalog asli Mortera memakai
-   DASH bukan TITIK — 'claude-haiku-5-5' hidup (kena 429 = namanya ADA),
-   'claude-haiku-5.5' selalu 404. Nama salah = 2× round-trip 404 sia-sia
+   DASH bukan TITIK — 'claude-sonnet-5-5' hidup (kena 429 = namanya ADA),
+   'claude-sonnet-5.5' selalu 404. Nama salah = 2× round-trip 404 sia-sia
    sebelum auto-discover menemukan nama yang benar → sekarang langsung benar. */
-const MORTERA_MODEL = process.env.MORTERA_MODEL || 'claude-haiku-5-5'
-const MORTERA_FALLBACKS = ['claude-sonnet-5-5', 'gpt-6.1-terra']
+const MORTERA_MODEL = process.env.MORTERA_MODEL || 'claude-sonnet-5-5'
+const MORTERA_FALLBACKS = ['claude-haiku-5-5', 'gpt-6.1-terra']
 /** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
 const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
@@ -627,12 +629,14 @@ async function callGroq(apiKey: string, systemPrompt: string, userPrompt: LLMUse
 
 /* ── MORTERA CLOUD (mortera.cloud/v1) ──────────────────────────────
    Gateway OpenAI-compatible billing Rupiah. Auto-discover pakai
-   morteraScore: prefer Haiku/Sonnet/Terra (murah), HARD-VETO Fable/Opus
+   morteraScore: prefer Sonnet/Haiku/Terra, HARD-VETO Fable/Opus
    + katalog uncensored & image (mahal / tidak kita perlukan) supaya
    fallback otomatis tidak pernah nyasar ke model mahal. */
 const morteraScore = (id: string) => {
   if (/fable|opus|uncensored|abliterated|image|video|embed|whisper|tts|nano ?banana|imagine/i.test(id)) return -100
-  return (/haiku/i.test(id) ? 50 : 0) + (/sonnet/i.test(id) ? 30 : 0) + (/terra/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 10 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
+  /* Permintaan Bos "ganti api ke sonnet semua": auto-discover juga UTAMAKAN
+     Sonnet (50) di atas Haiku (30) supaya fallback otomatis tak turun kelas. */
+  return (/sonnet/i.test(id) ? 50 : 0) + (/haiku/i.test(id) ? 30 : 0) + (/terra/i.test(id) ? 20 : 0) + (/flash/i.test(id) ? 10 : 0) - (/latest|preview|exp/i.test(id) ? 5 : 0)
 }
 
 async function callMortera(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], modelOverride?: string, timeoutMs?: number): Promise<LLMResult | null> {

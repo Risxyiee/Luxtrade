@@ -726,15 +726,17 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
    tiap kali Mortera ngambek.
    ⏱️ FIX V2 10 Nov (keluhan lanjutan Bos: "otak ceo karyawan ai templat mulu
    padahal udah make api berbayar"): diag produksi menunjukkan Mortera SERING
-   timeout di detik ke-20 (tugas pendek) — Haiku sehat lewat gateway rata-rata
+   timeout di detik ke-20 (tugas pendek) — model sehat lewat gateway rata-rata
    8-15 dtk, dan GET /v1/credits tetap cepat → bukan jaringan mati, murni
    ANTRIAN inference gateway yang kadang lewat 20 dtk. 20 dtk = memotong
    panggilan yang SEBENARNYA SEDANG DIKERJAKAN dan SISIHkan API berbayar.
-   Kini: tugas pendek (≤1500 token) 30 dtk, tugas panjang 60 dtk — dan agentBrain
+   Kini: tugas pendek (≤1500 token) 40 dtk, tugas panjang 75 dtk — dan agentBrain
    jadi BUDGET-AWARE (lihat bawah) supaya sisa waktu tetap ada buat rantai
-   OpenRouter. */
+   OpenRouter. CATATAN SONNET (10 Nov): otak kini Claude Sonnet 5.5 (permintaan
+   Bos "ganti api ke sonnet semua") — Sonnet lebih lambat ±30-60% dari Haiku,
+   makanya timeout dinaikkan dari 30/60 → 40/75. */
 function morteraTimeoutFor(maxTokens: number): number {
-  return maxTokens <= 1500 ? 30_000 : 60_000
+  return maxTokens <= 1500 ? 40_000 : 75_000
 }
 
 async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, maxTokens: number, temperature: number, timeoutMs?: number): Promise<{ text: string; model: string }> {
@@ -746,7 +748,8 @@ async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, max
   return { text: r.text, model: r.model }
 }
 
-/* Otak Multi-Agent — PRIORITAS 1 MORTERA (Claude Haiku 5.5) → model resmi
+/* Otak Multi-Agent — PRIORITAS 1 MORTERA (Claude Sonnet 5.5 — permintaan Bos
+   "ganti api ke sonnet semua") → model resmi
    karyawan (OpenRouter) → kalau mati semua, caller wajib pakai templat
    statis (sistem tidak pernah crash).
 
@@ -777,8 +780,10 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
      compose briefing dapet 30-75 dtk, tapi Mortera sendiri bisa ngabisin
      30 dtk × retry + OpenRouter 45 dtk × 3 model = >150 dtk → withTimeout
      mematikan semua → TEMPLAT. Kini seluruh rantai berbagi SATU anggaran:
-     • Mortera (prioritas 1, API BERBAYAR) dapat maks 45% anggaran —
-       peluang terbesar untuk membuktikan diri tanpa membulani rantai free.
+     • Mortera (prioritas 1, API BERBAYAR, Claude Sonnet 5.5) dapat maks 60%
+       anggaran — Sonnet sedikit lebih lambat dari Haiku & Bos ingin kualitas
+       premium, jadi porsinya dinaikkan dari 45% (60% * 75 dtk = 45 dtk)
+       tanpa membulani rantai free (sisa 40%).
      • OpenRouter per-model: sisa anggaran dibagi rata maks 2 model,
        plafon 45 dtk, minimum 12 dtk (kalau sisa terlalu tipis, 1 model
        tercepat saja yang dicoba). */
@@ -788,8 +793,9 @@ async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPro
      menyeret seluruh Promise.all melewati batas cron. compose memoper
      anggarannya sendiri (composeCap 30-75 dtk). */
   const total = Math.max(15_000, budgetMs || 75_000)
-  const morBudget = Math.min(morteraTimeoutFor(maxTokens), Math.round(total * 0.45))
-  /* PRIORITAS 1 — MORTERA (Claude Haiku 5.5): otak baru SEMUA karyawan kantor.
+  const morBudget = Math.min(morteraTimeoutFor(maxTokens), Math.round(total * 0.6))
+  /* PRIORITAS 1 — MORTERA (Claude Sonnet 5.5): otak SEMUA karyawan kantor
+     (permintaan Bos: "ganti api ke sonnet semua").
      Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus. */
   try {
     const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature, morBudget)
@@ -1289,7 +1295,7 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
   L.push(cmo?.draft ? `—\n${cmo.draft}\n—` : '• Gagal generate draf ⚠️')
   if (cmo?.usedFallback) L.push('_(semua model gagal — pakai draf cadangan, mohon revisi manual)_')
-  else if (cmo?.provider === 'mortera') L.push(`_(via Mortera Cloud — otak baru Sinta: Claude Haiku 5.5 ✅)_`)
+  else if (cmo?.provider === 'mortera') L.push(`_(via Mortera Cloud — otak Sinta: Claude Sonnet 5.5 ✅)_`)
   else if (cmo?.provider === 'openrouter') L.push(`_(via OpenRouter — model resmi Sinta${cmo?.model ? ': ' + cmo.model : ''} ✅)_`)
   if (cmo?.basedOn === 'tiktok') L.push(`📚 Dianalisis dari ${fmtN(cmo.analyzedPosts)} konten TikTok asli lo (urut views) — pola pemenang ditiru`)
   else if (cmo?.draft) L.push('📚 Analisis pakai referensi statis — isi "Bahan Analisis TikTok" di Ruang CMO biar makin akurat')
@@ -1423,7 +1429,7 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   let text = templateText
   try {
     /* budgetMs = composeCap dioper ke agentBrain → rantai Mortera→OpenRouter
-       membagi anggaran INI (Mortera maks 45%, sisanya OpenRouter) — tidak
+       membagi anggaran INI (Mortera maks 60%, sisanya OpenRouter) — tidak
        ada lagi lapisan yang makan waktu sendiri-sendiri sampai withTimeout
        menembak padahal model masih mungkin menjawab. */
     const composed = await withTimeout(ceoComposeBriefing(e, templateText, composeCap), composeCap, null)
