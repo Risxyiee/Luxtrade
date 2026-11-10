@@ -441,3 +441,68 @@ export function buildCompactBriefing(p: { dateLine: string; info: PhaseInfo; cto
   L.push('Briefing penuh tiap Senin. Artefak mingguan (kalender konten, artikel SEO, paket outbound, audit SEO, dll.) masuk sebagai pesan terpisah.')
   return L.join('\n')
 }
+
+/* ============================================================
+   6. TICK — mesin kerja 24 JAM tanpa cron Cloudflare baru.
+   Masalah: slot cron Cloudflare Free maks 5 per akun (sudah penuh,
+   slot ke-5 pernah ditolak error 10072) → jadwal kerja karyawan
+   tidak bisa jadi cron sendiri.
+   Solusi: mode "pencicit" — SATU panggilan HTTP = SATU job jatuh
+   tempo dikerjakan (aman limit CPU/waktu Workers), job sisanya
+   ditangani tick berikutnya. Pemicunya bisa apa pun tanpa slot
+   baru: slot per-15-menit yang SUDAH ada (menumpang, nol slot
+   baru), cron-job.org / UptimeRobot (gratis, pihak ketiga), atau
+   Bos buka Kantor CEO. Dedup work:done:<id>:<hari> internal
+   membuat aman ditembak sering — tak ada dobel kerja / biaya LLM.
+   ============================================================ */
+
+export interface DueJob { id: string; label: string; who: string }
+
+/** Job hari ini (WIB) yang jatuh tempo dan BELUM dikerjakan. */
+export async function dueJobsToday(d: PhaseDeps): Promise<DueJob[]> {
+  const wd = wibWeekday()
+  const day = d.wibDay()
+  const due: DueJob[] = []
+  for (const jb of JOBS) {
+    if (!jb.weekdays.includes(wd)) continue
+    try { if (await d.kvGet(`work:done:${jb.id}:${day}`)) continue } catch { /* gagal baca → anggap belum dikerjakan */ }
+    due.push({ id: jb.id, label: jb.label, who: jb.who })
+  }
+  return due
+}
+
+export interface TickResult {
+  mode: 'tick'
+  ran: string | null
+  label: string | null
+  made: string[]
+  failed: string[]
+  remaining: string[]
+  idle: boolean
+  at: string
+}
+
+/**
+ * Kerjakan MAKSIMAL SATU job jatuh tempo per panggilan.
+ * idle = tak ada job (TANPA panggilan LLM — gratis). Job yang gagal
+ * tetap belum ditandai selesai → tick berikutnya mencoba lagi (retry
+ * alami tanpa kode tambahan).
+ */
+export async function tickDailyWork(d: PhaseDeps, info: PhaseInfo): Promise<TickResult> {
+  const due = await dueJobsToday(d)
+  const at = new Date().toISOString()
+  if (!due.length)
+    return { mode: 'tick', ran: null, label: null, made: [], failed: [], remaining: [], idle: true, at }
+  const first = due[0]
+  const res = await runDailyWork(d, info, { only: first.id })
+  return {
+    mode: 'tick',
+    ran: first.id,
+    label: first.label,
+    made: res.made,
+    failed: res.failed,
+    remaining: due.slice(1).map((jb) => jb.id),
+    idle: false,
+    at,
+  }
+}

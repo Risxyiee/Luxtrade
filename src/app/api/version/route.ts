@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.6'
-const NOTES = 'Perbaikan logika karyawan AI (anti itu-itu mulu, hasil barang jadi): pilar konten Sinta rotasi harian + hook 10 naskah terakhir dilarang diulang; rapat CSO×CMO skip LLM kalau intel tak berubah (hash); Dewi JANGAN panggil LLM di bawah 50 trade (status data-belum-cukup); Farhan skip funnel LLM di bawah 10 pendaftar (A/B ditunda sampai ada traffic); QA+E2E cukup mingguan (Senin); CFO pre-launch tampil titik impas bukan MRR Rp0; action=art-list/art-body + panel Antrean ACC Artefak di /kantor-ceo (lihat & salin barang jadi karyawan)'
+const VERSION = '2026-11-10.7'
+const NOTES = 'Karyawan AI kerja 24 JAM tanpa slot cron Cloudflare baru: mode tick (ceo-phase.ts tickDailyWork — 1 panggilan HTTP = 1 job jatuh tempo, dedup harian anti dobel kerja LLM, job gagal retry otomatis) + action=tick di /api/ceo-agent (?key=CRON_SECRET) yang menumpang slot */15 yang sudah ada di worker-entry.ts + bisa ditembak cron eksternal gratis (cron-job.org/UptimeRobot) sebagai redundansi; artefak kini lahir tick pertama setelah 00:00 WIB alih-alih nunggu batch briefing 08:00'
 
 export async function GET() {
   return NextResponse.json(

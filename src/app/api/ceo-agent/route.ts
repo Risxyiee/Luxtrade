@@ -26,7 +26,7 @@ import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 import { callMorteraDirect } from '@/lib/ai-llm'
 import {
-  getPhase, runDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
+  getPhase, runDailyWork, tickDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
   wibWeekday, type PhaseDeps,
 } from '@/lib/ceo-phase'
 export const dynamic = 'force-dynamic'
@@ -3640,6 +3640,21 @@ async function handle(req: Request): Promise<Response> {
         const only = url.searchParams.get('only') || undefined
         const force = url.searchParams.get('force') === '1'
         return j(await runDailyWork(d, info, { only, force }))
+      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'tick': {
+      // MESIN KERJA 24 JAM tanpa slot cron Cloudflare baru (lib/ceo-phase.ts
+      // tickDailyWork) — mode pencicit: SATU panggilan = SATU job jatuh tempo
+      // dikerjakan, sisanya nunggu tick berikutnya. Pemicu: slot */15 yang
+      // SUDAH ada (worker-entry.ts, nol slot baru) dan/atau cron eksternal
+      // gratis (cron-job.org / UptimeRobot):
+      //   https://luxtradee.web.id/api/ceo-agent?action=tick&key=CRON_SECRET
+      // Dedup work:done:<id>:<hari> internal → aman ditembak tiap 5–15 menit,
+      // tidak ada dobel kerja LLM. idle = tak ada job → TANPA panggilan LLM.
+      try {
+        const d = phaseDeps(e)
+        const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
+        return j(await tickDailyWork(d, info))
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
     case 'art-list': {

@@ -43,6 +43,13 @@
 //                 postingan sendiri via Graph API → klasifikasi niat →
 //                 balas aman otomatis (maks 5/run & 15/hari) + lapor
 //                 prospek ke Discord; hunt maks tiap 2 jam)
+//               + CEO TICK (kerja karyawan AI 24 JAM tanpa slot cron baru —
+//                 lib/ceo-phase.ts tickDailyWork: 1 panggilan = 1 job jatuh
+//                 tempo dikerjakan, dedup harian mencegah dobel kerja LLM;
+//                 job Minggu–Sabtu dikerjakan tick pertama setelah 00:00 WIB
+//                 alih-alih nunggu batch briefing 08:00; job gagal otomatis
+//                 dicoba lagi tick berikutnya; slot cron TETAP 4 — ini cuma
+//                 nambah URL ke daftar route slot */15 yang sudah jalan)
 //
 // CATATAN slot cron: percobaan pakai slot ke-5 utk tick per-menit
 //   COMMENT HUNTER DIBATALKAN 8 Nov — CF menolak (error 10072: akun
@@ -52,7 +59,7 @@ const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/ceo-agent?action=tick', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
 }
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
