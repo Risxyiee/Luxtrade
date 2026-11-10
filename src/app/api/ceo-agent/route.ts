@@ -713,11 +713,26 @@ async function openRouterChat(e: Env, chain: string[], systemPrompt: string, use
    429 → cooldown 10 mnt, 401/402/403 → cooldown 60 mnt.
    Gagal seluruhnya → rantai OpenRouter lama takeover mulus.
    ============================================================ */
-async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, maxTokens: number, temperature: number): Promise<{ text: string; model: string }> {
+/* ⏱️ Timeout Mortera ADAPTIF (keluhan Bos 10 Nov: "otak Alexander templat
+   mulu, gagal ambil api"). Akar masalah: callMorteraDirect default 40 dtk —
+   kalau gateway Mortera GANTUNG (diag produksi 10 Nov 08:02 WIB: "aborted
+   due to timeout"), SATU panggilan compose briefing ngabisin 40 dtk, padahal
+   compose dipagari withTimeout 45 dtk → sisa ≤5 dtk buat OpenRouter →
+   nyaris selalu gagal → briefing jatuh TEMPLAT "OTAK ALEXANDER OFFLINE"
+   tiap kali Mortera ngambek. Sekarang: tugas pendek (≤1500 token, mis.
+   rangkuman briefing ±900 token) kena timeout 20 dtk — Haiku sehat jawab
+   <10 dtk, jadi 20 dtk CUMA memotong kasus gantung, dan menyisakan ≥25 dtk
+   buat rantai OpenRouter (Lightning terbukti 333 ms). Tugas panjang (draf
+   konten >1500 token) tetap 45 dtk supaya draf 3000 token tidak terpotong. */
+function morteraTimeoutFor(maxTokens: number): number {
+  return maxTokens <= 1500 ? 20_000 : 45_000
+}
+
+async function morteraChat(e: Env, systemPrompt: string, userPrompt: string, maxTokens: number, temperature: number, timeoutMs?: number): Promise<{ text: string; model: string }> {
   const key = cfSecret(e, 'MORTERA_API_KEY')
   if (!key) throw new Error('MORTERA_API_KEY belum diset — kantor tetap jalan pakai rantai OpenRouter (dorman, bukan error)')
   const notes: string[] = []
-  const r = await callMorteraDirect(systemPrompt, userPrompt, maxTokens, notes, temperature)
+  const r = await callMorteraDirect(systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
   if (!r) throw new Error(notes.length ? notes.join(' | ').slice(0, 300) : 'Mortera: semua model gagal')
   return { text: r.text, model: r.model }
 }
@@ -749,9 +764,11 @@ function recordBrainDiag(e: Env, agent: string, hasil: string): void {
 async function agentBrain(e: Env, agent: AgentKey, systemPrompt: string, userPrompt: string, maxTokens = 1024, temperature = 0.7): Promise<{ text: string; provider: 'mortera' | 'openrouter' | 'gemini'; model: string }> {
   let err = ''
   /* PRIORITAS 1 — MORTERA (Claude Haiku 5.5): otak baru SEMUA karyawan kantor.
-     Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus. */
+     Gagal (key belum diset / cooldown / 5xx) → rantai lama takeover mulus.
+     ⏱️ Timeout adaptif (morteraTimeoutFor) — tugas pendek 20 dtk supaya
+     gantungnya Mortera tidak makan anggaran waktu rantai OpenRouter. */
   try {
-    const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature)
+    const m = await morteraChat(e, systemPrompt, userPrompt, maxTokens, temperature, morteraTimeoutFor(maxTokens))
     recordBrainDiag(e, agent, `mortera ✅ ${m.model}`)
     return { ...m, provider: 'mortera' }
   } catch (x: any) {
@@ -1321,6 +1338,7 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
      <~60 dtk; QA/E2E/AUTO-ACC/diskusi CSO×CMO/NBA jadi FASE 2 — pesan
      terpisah SETELAH laporan utama aman. */
   const day = wibDay()
+  const briefingT0 = Date.now()
   const [cto, cso, cmo, cfo, cooLine] = await Promise.all([
     ctoAgent(e).catch((x: any) => ({ siteOk: false, status: 0, latencyMs: 0, bugs24h: -1, err: String(x?.message || x) })),
     csoAgent(e).catch((x: any) => ({ total: -1, active: -1, passive: -1, err: String(x?.message || x) })),
@@ -1362,13 +1380,17 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
 
   /* ALEXANDER (CEO) merangkai — Tahap T: timeout dinaikkan dari 30s → 45s
      karena model lama (gemma-4-31b) sering lambat & berebut kuota dengan
-     Sinta/Dewi. Sekarang pakai nemotron-3.5-lightning (lebih cepat, 1M ctx),
-     tapi timeout 45s memberi margin aman untuk kasus cold-start tetap
-     berhasil tanpa jatuh ke templat "OTAK ALEXANDER OFFLINE". Cron total
-     tetap aman di bawah 120s. Gagal → templat buildBriefing tetap dipakai. */
+     Sinta/Dewi. Sekarang pakai nemotron-3.5-lightning (lebih cepat, 1M ctx).
+     ⏱️ 10 Nov: batas compose jadi ADAPTIF — dulu patok 45 dtk padahal
+     Promise.all agen (draf Sinta saat LLM lambat) bisa makan 30-60 dtk
+     lebih dulu → sisa compose cuma belasan dtk → gampang kena tembak
+     templat "OTAK ALEXANDER OFFLINE". Kini compose dapat sisa anggaran
+     cron 120 dtk dikurangi waktu terpakai (dibatasi 30-75 dtk) — FASE 1
+     total dipastikan tetap <120 dtk (105 = 120 - 15 margin Discord). */
+  const composeCap = Math.max(30_000, Math.min(75_000, 105_000 - (Date.now() - briefingT0)))
   let text = templateText
   try {
-    const composed = await withTimeout(ceoComposeBriefing(e, templateText), 45_000, null)
+    const composed = await withTimeout(ceoComposeBriefing(e, templateText), composeCap, null)
     if (composed?.text) {
       text = `${composed.text}\n_(dirapikan Alexander — CEO AI · ${composed.model})_`
       cfWaitUntil(memAdd(e, 'CEO Alexander', `Morning Briefing disusun via ${composed.model}`).catch(() => {}))

@@ -4,7 +4,7 @@ name: Master Autonomous Workforce
 # 🏢 MASTER CRON — Fully Autonomous AI Workforce (8 karyawan)
 # ------------------------------------------------------------
 # DUA SHIFT KERJA dalam SATU workforce (bukan bot terpisah):
-#   0 1  * * *  → 08.00 WIB  Shift pagi: 4 gelombang karyawan
+#   23 0 * * *  → 07.23 WIB  Shift pagi: 4 gelombang karyawan
 #               (🎓 Akademi belajar → Raka+Maya+Bagas+Putri+Dewi →
 #                Farhan+Sinta → Alexander)
 #
@@ -52,8 +52,13 @@ name: Master Autonomous Workforce
 
 on:
   schedule:
-    # 0 1 * * * UTC = 08.00 WIB (jam kerja kantor) — shift pagi
-    - cron: '0 1 * * *'
+    # ⏰ 23 0 * * * UTC ≈ 07.23 WIB — shift pagi. Dulu '0 1 * * *' (08.00 WIB
+    #    tepat), TAPI GitHub Actions konsisten menunda cron di atas jam
+    #    genap 5-6 JAM (antrean runner jam sibuk — riwayat run 5-9 Nov baru
+    #    jalan 06:44-07:36 UTC = sore WIB; keluhan Bos: "kerjaannya jam
+    #    seenaknya"). Cron di luar menit genap menghindari antrean paling
+    #    padat → run jalan dekat 07.23 WIB, briefing Alexander sampai pagi.
+    - cron: '23 0 * * *'
     # (jadwal 0 13 * * * / 20.00 WIB DIHAPUS — video Sinta sekarang
     #  lewat video-bot-cron.yml jam 19.10 WIB, sekali render dua platform)
   workflow_dispatch:

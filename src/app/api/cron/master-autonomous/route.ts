@@ -186,12 +186,22 @@ async function callAgent(
      TIDAK akan mencoba Mortera ulang kalau di sini 402/401 (cooldown sama
      di modul ai-llm) — tidak ada pemborosan subrequest. */
   const morNotes: string[] = []
+  /* ⏱️ Timeout Mortera ADAPTIF (keluhan Bos 10 Nov: "otak Alexander templat
+     mulu, gagal ambil api") — dulu default 40 dtk untuk semua tugas; kalau
+     gateway Mortera GANTUNG (kasus nyata 8-10 Nov: Maya "LLM tidak
+     tersedia" tiap pagi + diag "aborted due to timeout"), tiap agen buang
+     40 dtk & kumulatif di 8 agen bikin wave mandek di timeout cron.
+     Sekarang: tugas pendek (≤1500 token — briefing NBA 650, critic, dsb.)
+     kena 20 dtk (Haiku sehat jawab <10 dtk — 20 dtk hanya memotong kasus
+     gantung), tugas panjang/draf artikel yang eksplisit set timeout tetap
+     menghormati opts.timeoutMs. */
+  const morTimeout = opts.timeoutMs ?? ((opts.maxTokens ?? 800) <= 1500 ? 20_000 : 45_000)
   const mor = await callMorteraDirect(
     systemPrompt, userPrompt,
     Math.max(opts.maxTokens ?? 800, 1024),
     morNotes,
     opts.temperature ?? 0.7,
-    opts.timeoutMs,
+    morTimeout,
   )
   if (mor) {
     quotaTracker.llmCalls++
