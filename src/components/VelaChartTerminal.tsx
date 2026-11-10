@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3, Settings2, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
+import { pineGuardCheck } from '@/lib/pine-guard'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import { STRATEGY_PNL_TYPE, registerStrategyPnlNative, type StrategyPnlTrade } from '@/components/vela/StrategyPnlIndicator'
 import {
@@ -2094,13 +2095,27 @@ export default function VelaChartTerminal({
     } catch { /* diam — daftar segar saat dialog dibuka lagi */ }
   }, [])
 
-  /* ---------- Jalankan Pine ke chart ---------- */
+  /* ---------- Jalankan Pine ke chart ----------
+     ⛔ PINE GUARD (fix "abis masang pine, halaman gabisa dipencet apa apa"):
+     vela-pinets menjalankan Pine di MAIN THREAD browser — skrip dgn loop
+     while tak berujung / for to raksasa / skrip raksasa membekukan SELURUH
+     halaman (fresh load ikut kena karena Pine aktif di-restore otomatis).
+     Guard menolak skrip berbahaya SEBELUM menyentuh chart; race-timeout
+     mencegah promise yang tak pernah resolve menggantung UI selamanya. */
   const runOnChart = useCallback(async (source: string): Promise<string | null> => {
+    const guard = pineGuardCheck(source)
+    if (!guard.ok) return guard.reason || 'Skrip ditolak pine-guard.'
     const chart: any = (wsRef.current as any)?.chart
     if (!chart) return 'Chart belum siap — tunggu sebentar lalu coba lagi.'
+    const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string): Promise<T> =>
+      new Promise<T>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error(msg)), ms)
+        p.then((v) => { clearTimeout(t); resolve(v) }, (e2) => { clearTimeout(t); reject(e2) })
+      })
     try {
-      if (typeof chart.runIndicator === 'function') await chart.runIndicator(source)
-      else await chart.addIndicator(source)
+      if (typeof chart.runIndicator === 'function')
+        await withTimeout(Promise.resolve(chart.runIndicator(source)), 45_000, 'Chart tidak merespons dalam 45 detik — skrip terlalu berat untuk engine web. Sederhanakan kodenya (kurangi loop/plot).')
+      else await withTimeout(Promise.resolve(chart.addIndicator(source)), 45_000, 'Chart tidak merespons dalam 45 detik — skrip terlalu berat.')
       return null
     } catch (x: any) {
       /* runIndicator Vela mengembalikan error terstruktur — tampilkan apa adanya */

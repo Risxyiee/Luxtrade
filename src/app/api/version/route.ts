@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.8'
-const NOTES = 'HARNESS ENGINE V3 (UNIFIED LOOP) terpasang: lib/harness-prompt.ts — semua karyawan AI dibungkus identitas + mandat domain (EXTERNAL_GROWTH: viral/traffic/revenue; INTERNAL: zero-bug/kecepatan <1.5s/anti-churn) + aturan mutlak zero-fluff (haram kata klise AI: dinamis/revolusioner/solusi terbaik/mengoptimalkan/yuk simak/di era digital; haram placeholder [insert ...]; gaya spesialis senior) lewat satu titik injeksi agentBrain; artefak mingguan (llmJob ceo-phase) dapat tambahan THE 4-STEP AGENTIC LOOP think→learn→solve→work dengan larangan mengulang angle + larangan menampilkan proses berpikir di output'
+const VERSION = '2026-11-10.9'
+const NOTES = 'Fix 2 bug Bos: (1) Chart beku "abis masang pine gabisa dipencet apa apa" — pine-guard.ts menolak Pine berbahaya (loop while, for to >5000, request.security >10, skrip >80 ribu char/1200 baris) SEBELUM dieksekusi ke vela-pinets yang jalan di main thread browser + race-timeout 45 dtk di runOnChart semua jalur (save/preset/restore fresh-load/daftar); (2) Bot Discord diam — auto-register slash command global (/bos, /nba-oke, /nba-not) via REST bot: dipicu GET endpoint, handshake Verify URL, dan cron harian 08:00 dengan throttle 6 jam; klarifikasi: Interactions Endpoint hanya respons SLASH COMMAND, pesan biasa/mention tidak bisa dijawab tanpa Gateway WebSocket'
 
 export async function GET() {
   return NextResponse.json(

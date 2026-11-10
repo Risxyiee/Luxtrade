@@ -203,6 +203,41 @@ function background(p: Promise<unknown>): void {
   p.catch(() => {})
 }
 
+/* ---------- AUTO-REGISTER slash commands (fix "/bos tidak muncul/diam") ----------
+   Interactions Endpoint HANYA respons SLASH COMMAND — pesan biasa/mention di
+   channel TIDAK memicu event HTTP (itu butuh Gateway WebSocket yang mustahil
+   di Workers). Jadi /bos, /nba-oke, /nba-not WAJIB terdaftar di Discord.
+   Daftar global via REST bot; throttle 6 jam (KV) supaya tidak spam API.
+   Dipicu: GET endpoint ini (buka URL sekali), handshake verifikasi URL, dan
+   cron harian 08:00 (worker-entry.ts) — kalau Bos reset aplikasi/token,
+   command otomatis terdaftar lagi dalam ≤1 hari. */
+const DISCORD_COMMANDS = [
+  {
+    name: 'bos', description: 'Ngobrol dengan Alexander (CEO AI Luxtradee)',
+    options: [{ type: 3, name: 'pesan', description: 'Pertanyaan atau perintahmu', required: true }],
+  },
+  { name: 'nba-oke', description: 'Setujui prioritas hari ini (NBA dieksekusi)' },
+  { name: 'nba-not', description: 'Tolak prioritas hari ini — Alexander pilih ganti' },
+]
+
+async function registerCommandsOnce(): Promise<void> {
+  const appId = envGet('DISCORD_APP_ID')
+  const botToken = envGet('DISCORD_BOT_TOKEN')
+  if (!appId || !botToken) return
+  const REG_COOLDOWN_MS = 6 * 3600_000
+  const last = parseInt((await kvGetRaw('discord:cmd-reg')) || '0', 10) || 0
+  if (Date.now() - last < REG_COOLDOWN_MS) return
+  try {
+    const res = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {
+      method: 'PUT', // bulk overwrite = idempotent, command lama diperbarui bukan didobel
+      headers: { 'Content-Type': 'application/json', Authorization: `Bot ${botToken}` },
+      body: JSON.stringify(DISCORD_COMMANDS),
+      signal: AbortSignal.timeout(12_000),
+    })
+    await kvSetRaw('discord:cmd-reg', String(res.ok ? Date.now() : 0))
+  } catch { /* gagal jaringan — slot cron berikutnya mencoba lagi */ }
+}
+
 /* ---------- handler ---------- */
 export async function POST(req: NextRequest) {
   const raw = await req.text()
@@ -223,8 +258,9 @@ export async function POST(req: NextRequest) {
   }
   try { it = JSON.parse(raw) } catch { return NextResponse.json({ error: 'body bukan JSON' }, { status: 400 }) }
 
-  /* 1) handshake verifikasi URL Discord */
-  if (it.type === 1) return NextResponse.json({ type: 1 })
+  /* 1) handshake verifikasi URL Discord — sekalian auto-register commands
+        (kalau Bos baru reset token/aplikasi, sekali klik Verify langsung pulih) */
+  if (it.type === 1) { background(registerCommandsOnce()); return NextResponse.json({ type: 1 }) }
 
   /* 2) slash command */
   if (it.type === 2 && it.data?.name && it.token) {
@@ -263,14 +299,22 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  /* Auto-register commands sekali per kunjungan URL (throttle 6 jam di dalam) —
+     Bos cukup buka URL ini di browser kalau /bos hilang dari Discord. */
+  background(registerCommandsOnce())
+  const ready = !!(envGet('DISCORD_APP_ID') && envGet('DISCORD_BOT_TOKEN') && envGet('DISCORD_PUBLIC_KEY'))
   return NextResponse.json({
     ok: true,
-    message: 'Endpoint Interactions Discord Alexander aktif — pasang URL ini di Discord Developer Portal',
+    secretsReady: ready,
+    message: ready
+      ? 'Endpoint Interactions aktif — slash command /bos · /nba-oke · /nba-not dijamin terdaftar (global). CATATAN: bot ini merespons SLASH COMMAND saja; pesan biasa/mention di channel tidak bisa dijawab oleh Interactions Endpoint (butuh Gateway WebSocket yang tidak tersedia di Cloudflare Workers).'
+      : 'Endpoint hidup, tapi secret belum lengkap — set DISCORD_APP_ID · DISCORD_BOT_TOKEN · DISCORD_PUBLIC_KEY di Cloudflare Workers (Settings → Variables & Secrets) lalu Deploy.',
     setup: [
       '1. discord.com/developers → aplikasi Alexander → General Information',
       '2. Interactions Endpoint URL: https://luxtradee.web.id/api/discord-interactions',
       '3. Secret wajib: DISCORD_PUBLIC_KEY · DISCORD_BOT_TOKEN · DISCORD_APP_ID',
-      '4. Klik tombol 🤖 Daftarkan /bos di Ruang Rapat (/kantor-ceo)',
+      '4. Klik tombol 🤖 Daftarkan /bos di Ruang Rapat (/kantor-ceo) ATAU buka URL endpoint ini sekali',
+      '5. DI DISCORD KETIK: /bos pesan:halo — PESAN BIASA TIDAK DIJAWAB (batasan serverless)',
     ],
     commands: ['/bos <pesan> — ngobrol dengan Alexander', '/nba-oke — setujui prioritas hari ini', '/nba-not — tolak & minta ganti'],
   })
