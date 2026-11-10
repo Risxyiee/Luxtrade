@@ -53,8 +53,8 @@ const PINE_LINES = [
 
 const ID = {
   badge: 'BARU · FITUR PRO',
-  title: 'Pine Script® + Auto Alerts,',
-  titleAccent: 'Right on Your Chart',
+  title: 'Pine Script® + Alert Otomatis,',
+  titleAccent: 'Langsung di Chart Kamu',
   sub: 'Tulis indikatormu sendiri, compile dalam sekejap, dan biarkan sinyal Entry/SL/TP mendarat di HP kamu — bahkan saat aplikasi tertutup.',
   compile: 'Compile',
   pushTitle: '🚀 ENTRY_LONG — XAUUSD · 1h',

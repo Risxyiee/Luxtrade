@@ -378,6 +378,9 @@ export default function TradeWizardForm({
       } else {
         toast.error(err.message || 'Failed to analyze screenshot.', { id: 'screenshot-analysis-err', duration: 8000 })
       }
+      // UX: kalau AI gagal, langsung buka panduan (video Remotion) supaya
+      // user tahu format screenshot yang benar — penyebab gagal paling umum.
+      setTimeout(() => setManualGuideOpen(true), 1500)
     }).finally(() => {
       setAnalyzingScreenshot(false)
       e.target.value = ''
@@ -534,6 +537,9 @@ export default function TradeWizardForm({
       } else {
         toast.error(err.message || 'Gagal membuat auto-journal.', { id: 'auto-journal-err', duration: 10000 })
       }
+      // UX: gagal auto-journal → buka panduan video biar user lihat
+      // contoh screenshot yang benar (1.5s delay biar toast kebaca dulu).
+      setTimeout(() => setGuideOpen(true), 1500)
     }).finally(() => {
       setAnalyzingScreenshot(false)
       e.target.value = ''
@@ -794,7 +800,7 @@ export default function TradeWizardForm({
                     onChange={handleScreenshotAnalysis}
                     disabled={analyzingScreenshot}
                   />
-                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+                  <div className="mt-1.5 flex items-center justify-between gap-1.5 text-xs text-gray-400">
                     {analyzingScreenshot ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
@@ -806,6 +812,17 @@ export default function TradeWizardForm({
                         <span>{L ? 'Screenshot (AI Isi Otomatis)' : 'Screenshot (AI Auto-fill)'}</span>
                       </>
                     )}
+                    {/* Panduan — chip tanda tanya langsung di kartu ini,
+                        biar kelihatan tepat di tempat fitur dipakai */}
+                    <button
+                      type="button"
+                      onClick={() => setManualGuideOpen(true)}
+                      aria-label={L ? 'Buka panduan Screenshot AI' : 'Open Screenshot AI guide'}
+                      title={L ? 'Lihat panduan (video)' : 'View guide (video)'}
+                      className="flex-shrink-0 w-6 h-6 -mr-0.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 flex items-center justify-center hover:bg-emerald-500/25 hover:border-emerald-400 transition-colors"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -819,7 +836,7 @@ export default function TradeWizardForm({
                     onChange={handleAutoJournal}
                     disabled={analyzingScreenshot}
                   />
-                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-cyan-300">
+                  <div className="mt-1.5 flex items-center justify-between gap-1.5 text-xs text-cyan-300">
                     {analyzingScreenshot ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
@@ -831,6 +848,16 @@ export default function TradeWizardForm({
                         <span className="font-semibold">{L ? 'Auto-Journal (AI Lengkap)' : 'Auto-Journal (AI Complete)'}</span>
                       </>
                     )}
+                    {/* Panduan — chip tanda tanya langsung di kartu ini */}
+                    <button
+                      type="button"
+                      onClick={() => setGuideOpen(true)}
+                      aria-label={L ? 'Buka panduan Auto-Journal' : 'Open Auto-Journal guide'}
+                      title={L ? 'Lihat panduan (video)' : 'View guide (video)'}
+                      className="flex-shrink-0 w-6 h-6 -mr-0.5 rounded-full border border-blue-500/40 bg-blue-500/10 text-cyan-300 flex items-center justify-center hover:bg-blue-500/25 hover:border-cyan-400 transition-colors"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                   <div className="absolute -top-1 -right-1">
                     <div className="bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold">

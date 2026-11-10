@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { BookOpen, Camera, Sparkles, CheckCircle2, AlertTriangle, Edit } from 'lucide-react'
+import { BookOpen, Camera, PlayCircle, Sparkles, CheckCircle2, AlertTriangle, Edit } from 'lucide-react'
+import GuideVideoPlayer from '@/components/guide/GuideVideoPlayer'
 
 type Language = 'id' | 'en'
 
@@ -164,6 +165,12 @@ const getTranslations = (lang: Language, mode: 'auto' | 'manual') => ({
       ],
 
   stepsLabel: lang === 'id' ? 'Langkah-langkah' : 'Steps',
+
+  videoLabel: lang === 'id' ? 'Video Panduan' : 'Guide Video',
+  videoHint:
+    lang === 'id'
+      ? 'Tonton 15 detik ini biar langsung paham cara pakainya'
+      : 'Watch this 15-second clip to see how it works',
 })
 
 export default function JournalGuideDialog({ open, onOpenChange, language, mode }: JournalGuideDialogProps) {
@@ -193,6 +200,18 @@ export default function JournalGuideDialog({ open, onOpenChange, language, mode 
 
         {/* Body — scrollable */}
         <div className="flex-1 overflow-y-auto px-5 pb-5 custom-scrollbar space-y-5">
+
+          {/* ====== VIDEO PANDUAN (Remotion) — hero konten ====== */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-lux-text-primary dark:text-white flex items-center gap-1.5">
+              <PlayCircle className="w-3.5 h-3.5 text-cyan-400" />
+              {tr.videoLabel}
+              <span className="text-[10px] font-normal text-lux-text-secondary dark:text-gray-500">· {tr.videoHint}</span>
+            </p>
+            <div className="rounded-xl overflow-hidden border border-lux-border dark:border-blue-900/30 bg-black/60">
+              <GuideVideoPlayer mode={mode} lang={language} />
+            </div>
+          </div>
 
           {/* Step-by-step */}
           <div className="space-y-2.5">
