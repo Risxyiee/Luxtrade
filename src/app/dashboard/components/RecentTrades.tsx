@@ -5,6 +5,7 @@ import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils-currency'
+import { isOpenTrade } from '@/lib/open-trade'
 import { Pencil } from 'lucide-react'
 
 interface Trade {
@@ -13,6 +14,7 @@ interface Trade {
   type: 'BUY' | 'SELL'
   profit_loss: number
   session: string | null
+  notes?: string | null
 }
 
 interface RecentTradesProps {
@@ -63,15 +65,24 @@ export const RecentTrades: React.FC<RecentTradesProps> = ({
                     transition={{ duration: 2, repeat: repeatCount, delay: index * 0.2 }}
                   />
                   <span className="font-bold truncate">{trade.symbol}</span>
+                  {isOpenTrade(trade) && (
+                    <Badge className="text-[9px] px-1.5 py-0 h-4 shrink-0 bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                      OPEN
+                    </Badge>
+                  )}
                   <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs shrink-0">
                     {trade.type}
                   </Badge>
                   <span className="text-xs text-lux-text-muted dark:text-gray-500 hidden sm:inline">{trade.session || '-'}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`font-bold ${trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {trade.profit_loss >= 0 ? '+' : ''}{formatCurrency(trade.profit_loss)}
-                  </span>
+                  {isOpenTrade(trade) ? (
+                    <span className="font-bold text-amber-400 text-xs uppercase tracking-wide">Masuk jalan</span>
+                  ) : (
+                    <span className={`font-bold ${trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {trade.profit_loss >= 0 ? '+' : ''}{formatCurrency(trade.profit_loss)}
+                    </span>
+                  )}
                   {onEdit && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(trade) }}

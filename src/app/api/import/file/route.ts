@@ -19,6 +19,9 @@ interface ParsedTrade {
   stop_loss?: number | null
   take_profit?: number | null
   ticket_number?: string | null
+  trade_duration?: number | null
+  risk_reward_ratio?: number | null
+  status?: 'OPEN' | 'CLOSED'
 }
 
 // ==================== TRADING SYMBOLS ====================

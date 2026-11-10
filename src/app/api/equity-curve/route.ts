@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createClientForApi } from '@/lib/supabase/server'
+// FIX OPEN TRADE: posisi masih jalan (notes '#OPEN#') tidak boleh masuk
+// kurva ekuitas sebagai titik pnl 0 — filter di JS tanpa migrasi DB.
+import { OPEN_TRADE_NOTE } from '@/lib/open-trade'
 
 export const dynamic = 'force-dynamic'
 
@@ -142,7 +145,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('trades')
-      .select('profit_loss, close_time')
+      .select('profit_loss, close_time, notes')
       .eq('user_id', user.id)
       .order('close_time', { ascending: true })
 
@@ -162,7 +165,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch trades' }, { status: 500 })
     }
 
-    const tradeList = trades || []
+    const allTradeList = trades || []
+
+    // Posisi terbuka: bukan bagian dari kurva ekuitas (PnL belum final)
+    const openTradeList = allTradeList.filter((t: any) =>
+      typeof t.notes === 'string' && t.notes.startsWith(OPEN_TRADE_NOTE)
+    )
+    const tradeList = allTradeList.filter((t: any) =>
+      !(typeof t.notes === 'string' && t.notes.startsWith(OPEN_TRADE_NOTE))
+    )
 
     let running = initialBalance
     let peak = initialBalance
@@ -211,6 +222,11 @@ export async function GET(request: NextRequest) {
       maxDrawdown,
       totalReturnPct,
       tradeCount: tradeList.length,
+      /* Posisi terbuka utk badge di kartu Kurva Ekuitas */
+      openPositions: {
+        count: openTradeList.length,
+        symbols: Array.from(new Set(openTradeList.map((t: any) => t.symbol))).slice(0, 10),
+      },
     })
   } catch (error) {
     console.error('[equity-curve] Error:', error)

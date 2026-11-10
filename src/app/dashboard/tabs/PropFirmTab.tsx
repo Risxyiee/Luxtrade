@@ -50,7 +50,6 @@ import {
   BellOff,
   Radio,
   Camera,
-  Link2,
   Calculator,
   Info,
   Clock,
@@ -236,11 +235,12 @@ const t = (key: string, language: 'id' | 'en'): string => {
     alertPush80: { id: 'Kirim push notification kalau DD > 80%', en: 'Send push notification when DD > 80%' },
     alertPush95: { id: 'Kirim push notification kalau DD > 95%', en: 'Send push notification when DD > 95%' },
     alertWebhook: { id: 'Auto-warning saat trade masuk via webhook', en: 'Auto-warning when trade arrives via webhook' },
-    tradeSourceMetaApi: { id: '🔄 Auto-sync via MetaApi', en: '🔄 Auto-sync via MetaApi' },
+    /* FIX (Bos 2026-11): "saya ga make metaapi, ada fiturnya berbohong nama nya"
+       — integrasi MetaApi sudah dihapus. Sumber auto-trade kini webhook/jurnal. */
+    tradeSourceMetaApi: { id: '🔄 Auto-sync via Webhook', en: '🔄 Auto-sync via Webhook' },
     tradeSourceWebhook: { id: '🔔 Real-time via Webhook', en: '🔔 Real-time via Webhook' },
     tradeSourceManual: { id: '📸 Manual via Screenshot', en: '📸 Manual via Screenshot' },
-    setupPrompt: { id: '⚠️ Biar PropFirm tracker otomatis, hubungkan broker Anda:', en: '⚠️ To make PropFirm tracker automatic, connect your broker:' },
-    connectMetaApi: { id: 'Hubungkan MetaApi', en: 'Connect MetaApi' },
+    setupPrompt: { id: '⚠️ Biar PropFirm tracker otomatis, pakai webhook trading:', en: '⚠️ To make PropFirm tracker automatic, use the trading webhook:' },
     setupWebhook: { id: 'Setup Webhook', en: 'Setup Webhook' },
     setupManualNote: { id: 'Kalau ga di-connect, Anda harus manual input trade untuk drawdown tracking.', en: 'If not connected, you must manually input trades for drawdown tracking.' },
     autoSynced: { id: 'Auto-synced', en: 'Auto-synced' },
@@ -1036,15 +1036,8 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades, hasMet
           <CardContent className="p-4">
             <p className="text-sm text-amber-400 font-medium mb-3">{t('setupPrompt', language)}</p>
             <div className="flex flex-wrap gap-2 mb-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs"
-                onClick={() => window.location.href = '/dashboard/connections'}
-              >
-                <Link2 className="w-3.5 h-3.5 mr-1.5" />
-                {t('connectMetaApi', language)}
-              </Button>
+              {/* Tombol "Hubungkan MetaApi" DIHAPUS — halaman /dashboard/connections
+                  sudah usang (integrasi MetaApi dihapus, keputusan Bos 2025-11). */}
               <Button
                 variant="outline"
                 size="sm"

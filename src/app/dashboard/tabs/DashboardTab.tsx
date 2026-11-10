@@ -33,6 +33,12 @@ const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
   loading: () => <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border border-lux-border dark:border-blue-500/20"><CardContent className="py-16 flex items-center justify-center"><Loader2 className="w-6 h-6 text-blue-400 animate-spin" /></CardContent></Card>
 })
 
+// Widget posisi terbuka (import CSV dgn baris masih jalan) — lazy load
+const OpenPositionsCard = dynamic(() => import('../components/OpenPositionsCard'), {
+  ssr: false,
+  loading: () => <Card className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-amber-500/20"><CardContent className="py-8 flex items-center justify-center"><Loader2 className="w-5 h-5 text-amber-400 animate-spin" /></CardContent></Card>
+})
+
 // Economic Calendar Widget - lazy loaded for performance
 const EconomicCalendarWidget = dynamic(() => import('../components/EconomicCalendarWidget'), {
   ssr: false,
@@ -192,6 +198,8 @@ interface DashboardTabProps {
   profile?: any
   tradingAccounts?: any[]
   selectedAccountId?: string | null
+  /* Ganti akun aktif dari chip akun di kartu Kurva Ekuitas */
+  onSelectAccount?: (accountId: string) => void
   onTabChange?: (tab: string) => void
 }
 
@@ -211,6 +219,7 @@ function DashboardTab({
   profile,
   tradingAccounts,
   selectedAccountId,
+  onSelectAccount,
   onTabChange
 }: DashboardTabProps) {
   const { repeatCount, isMobile } = useMotionSafe()
@@ -423,8 +432,16 @@ function DashboardTab({
             language={language}
             tradingAccounts={tradingAccounts}
             selectedAccountId={selectedAccountId}
+            onSelectAccount={onSelectAccount}
           />
         </motion.div>
+      )}
+
+      {/* ============================================ */}
+      {/* 2.5 POSISI TERBUKA (import CSV, masih jalan) */}
+      {/* ============================================ */}
+      {hasData && (
+        <OpenPositionsCard trades={trades} language={language} />
       )}
 
       {/* ============================================ */}

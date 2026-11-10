@@ -26,6 +26,8 @@ export interface Trade {
   take_profit?: number | null
   ticket_number?: string | null
   linked_journal_id?: string | null
+  /* Posisi terbuka (konvensi notes '#OPEN#') — diisi hasil import CSV */
+  status?: 'OPEN' | 'CLOSED' | string
   created_at?: string
   updated_at?: string
 }

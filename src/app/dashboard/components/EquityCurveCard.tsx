@@ -21,12 +21,15 @@ interface EquityData {
   maxDrawdown: number
   totalReturnPct: number
   tradeCount: number
+  openPositions?: { count: number; symbols: string[] }
 }
 
 interface EquityCurveCardProps {
   language?: 'id' | 'en'
   tradingAccounts?: any[]
   selectedAccountId?: string | null
+  /* Klik chip akun → ganti akun aktif (diteruskan ke dashboard) */
+  onSelectAccount?: (accountId: string) => void
   className?: string
 }
 
@@ -179,7 +182,7 @@ interface PropFirmChallengeOverlay {
   isBreached: boolean
 }
 
-function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccountId, className }: EquityCurveCardProps) {
+function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccountId, onSelectAccount, className }: EquityCurveCardProps) {
   const [data, setData] = useState<EquityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; data: { date: string; equity: number } } | null>(null)
@@ -248,7 +251,15 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
   }, [])
 
   const isPositive = data ? data.totalPL >= 0 : true
-  const defaultAccount = tradingAccounts?.find((a: any) => a.is_default) || tradingAccounts?.[0]
+  /* FIX (laporan Bos 2026-11 + foto): baris akun selalu menampilkan akun
+     DEFAULT ("CK Capital 10000 DEMO") padahal user sedang melihat akun lain
+     ("2 Step funded pro") via pemilih akun — saldo & kurva benar, NAMA salah.
+     Sekarang akun aktif mengikuti selectedAccountId dulu, baru default. */
+  const activeAccount =
+    (selectedAccountId && tradingAccounts?.find((a: any) => a.id === selectedAccountId)) ||
+    tradingAccounts?.find((a: any) => a.is_default) ||
+    tradingAccounts?.[0]
+  const openPositions = data?.openPositions
 
   // Compute chart geometry (memoized — expensive SVG path computation)
   const chart = useMemo(() => {
@@ -334,6 +345,18 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
           {/* Summary badges */}
           {data && (
             <div className="flex items-center gap-1.5">
+              {(openPositions?.count || 0) > 0 && (
+                <div
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-bold bg-amber-500/10 border-amber-500/20 text-amber-400"
+                  title={language === 'id' ? 'Posisi masih jalan — belum dihitung di Total P/L' : 'Positions still running — not counted in Total P/L'}
+                >
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
+                  </span>
+                  {openPositions!.count} {language === 'id' ? 'terbuka' : 'open'}
+                </div>
+              )}
               <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-bold ${isPositive
                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                 : 'bg-red-500/10 border-red-500/20 text-red-400'
@@ -351,7 +374,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
 
       <CardContent className="relative z-10">
         {/* Account info bar */}
-        {defaultAccount && data && (
+        {activeAccount && data && (
           <div className="mb-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
@@ -360,19 +383,24 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-lux-text-primary dark:text-white/90">{defaultAccount.name}</span>
+                    <span className="text-xs font-semibold text-lux-text-primary dark:text-white/90">{activeAccount.name}</span>
                     <Badge className={`text-[9px] px-1 py-0 h-3.5 ${
-                      defaultAccount.account_type === 'BACKTEST' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
-                      defaultAccount.account_type === 'DEMO' ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' :
+                      activeAccount.account_type === 'BACKTEST' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                      activeAccount.account_type === 'DEMO' ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' :
                       'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                     }`}>
-                      {defaultAccount.account_type}
+                      {activeAccount.account_type}
                     </Badge>
+                    {(openPositions?.count || 0) > 0 && (
+                      <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        {openPositions!.count} {language === 'id' ? 'posisi jalan' : 'running'}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 text-[10px] text-lux-text-muted dark:text-gray-500">
-                    {defaultAccount.broker && <span>{defaultAccount.broker}</span>}
-                    {defaultAccount.account_number && <span>#{defaultAccount.account_number}</span>}
-                    <span>1:{defaultAccount.leverage}</span>
+                    {activeAccount.broker && <span>{activeAccount.broker}</span>}
+                    {activeAccount.account_number && <span>#{activeAccount.account_number}</span>}
+                    <span>1:{activeAccount.leverage}</span>
                   </div>
                 </div>
               </div>
@@ -381,7 +409,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
                   {language === 'id' ? 'Saldo Saat Ini' : 'Current Balance'}
                 </p>
                 <p className="text-base font-bold bg-gradient-to-r from-emerald-300 via-white to-blue-200 bg-clip-text text-transparent">
-                  {defaultAccount.currency || 'USD'} {fmtUSD(data.currentBalance)}
+                  {activeAccount.currency || 'USD'} {fmtUSD(data.currentBalance)}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5 text-[9px] text-lux-text-muted dark:text-gray-500 justify-end">
                   <span>{language === 'id' ? 'Awal' : 'Initial'}: {fmtUSD(data.initialBalance)}</span>
@@ -391,21 +419,38 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
               </div>
             </div>
 
-            {/* Multi-account chips */}
+            {/* Multi-account chips — KLIK utk pindah akun (Bos: nama akun
+                tampil selalu akun default padahal trades masuk akun lain) */}
             {tradingAccounts && tradingAccounts.length > 1 && (
               <div className="mt-2 pt-2 border-t border-white/[0.06]">
                 <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-                  {tradingAccounts.map((acc: any) => (
-                    <div key={acc.id} className={`flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0 text-[10px] ${acc.is_default
-                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                      : 'bg-white/[0.02] border-white/[0.06] text-gray-400'
-                      }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${acc.is_default ? 'bg-blue-400' : 'bg-gray-600'}`} />
-                      <span className="font-medium truncate max-w-[100px]">{acc.name}</span>
-                      <span className="text-gray-500">{fmtUSD(acc.current_balance || acc.initial_balance || 0)}</span>
-                    </div>
-                  ))}
+                  {tradingAccounts.map((acc: any) => {
+                    const isActive = selectedAccountId
+                      ? acc.id === selectedAccountId
+                      : !!acc.is_default || acc.id === activeAccount?.id
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => onSelectAccount?.(acc.id)}
+                        aria-pressed={isActive}
+                        title={language === 'id' ? `Tampilkan akun ${acc.name}` : `Show account ${acc.name}`}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0 text-[10px] transition-all ${
+                          isActive
+                            ? 'bg-blue-500/15 border-blue-500/40 text-blue-200 shadow-sm shadow-blue-500/20'
+                            : 'bg-white/[0.02] border-white/[0.06] text-gray-400 hover:border-blue-500/30 hover:text-blue-300 hover:bg-blue-500/5'
+                          }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-blue-400' : 'bg-gray-600'}`} />
+                        <span className="font-medium truncate max-w-[100px]">{acc.name}</span>
+                        <span className="text-gray-500">{fmtUSD(acc.current_balance || acc.initial_balance || 0)}</span>
+                      </button>
+                    )
+                  })}
                 </div>
+                <p className="mt-1 text-[9px] text-lux-text-muted dark:text-gray-600">
+                  {language === 'id' ? 'Klik chip akun untuk berpindah' : 'Tap an account chip to switch'}
+                </p>
               </div>
             )}
           </div>

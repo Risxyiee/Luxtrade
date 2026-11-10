@@ -30,6 +30,13 @@ export interface CsvTrade {
   ticket_number?: string | null
   trade_duration?: number | null // menit
   risk_reward_ratio?: number | null // kelipatan R (hasil real, bisa minus)
+  /* FIX OPEN TRADE (laporan Bos 2026-11: "csv jurnal dah bisa tapi open
+     trade belum ikut masuk jadinya 0 terus"): baris posisi MASIH JALAN
+     (kolom status 'Open/Running' atau PnL kosong) dulu DIBUANG / masuk
+     sbg trade close pnl 0. Kini ditandai status 'OPEN' — catatan diisi
+     sentinel '#OPEN#' (lihat lib/open-trade.ts) biar terbaca di semua
+     jalur tanpa migrasi DB. */
+  status?: 'OPEN' | 'CLOSED'
 }
 
 // ==================== KONSTANTA ====================
@@ -266,6 +273,19 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
   const tpIdx = findCol(['tp', 't/p', 'take profit', 'take_profit', 'takeprofit'], ['take profit', 'take_profit', 'takeprofit', 't/p'])
   const notesIdx = findCol(['notes', 'note', 'reason', 'alesan entry', 'alesan', 'alasan', 'comment', 'comments', 'keterangan', 'strategy', 'setup', 'catatan'], ['alesan', 'alasan', 'reason', 'comment', 'keterangan', 'notes', 'catatan'])
   const ticketIdx = findCol(['ticket', 'ticket_number', 'order', 'position id', 'deal', 'no. order'], ['ticket', 'order', 'position'])
+  /* Kolom status utk posisi terbuka: 'Open' / 'Running' / 'Aktif' / 'Live'.
+     Alias Indo ('status trade', 'status posisi') + Inggris. */
+  const statusIdx = findCol(
+    ['status', 'state', 'status trade', 'status posisi', 'position status'],
+    ['status', 'state'],
+  )
+  const OPEN_VALUE_RE = /^(open|running|aktif|active|live|pending|floating|masih\s*(jalan|open|terbuka)?|belum\s*(tutup|close)|terbuka|hold|holding)$/i
+  const isHeaderValueOpen = (raw: string | undefined): boolean => {
+    if (!raw) return false
+    const v = raw.trim()
+    if (!v) return false
+    return OPEN_VALUE_RE.test(v) || /^(open|running)$/i.test(v)
+  }
 
   console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Open: ${openPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}, OpenTime: ${genericTimeIdx}, CloseTime: ${closeTimeIdx}, SL: ${slIdx}, TP: ${tpIdx}, Notes: ${notesIdx}, Ticket: ${ticketIdx}`)
 
@@ -301,7 +321,17 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     const lotSize = lotIdx >= 0 ? (parseNum(values[lotIdx]) ?? 0.01) : 0.01
     const openPrice = openPriceIdx >= 0 ? (parseNum(values[openPriceIdx]) ?? 0) : 0
     const closePrice = closePriceIdx >= 0 ? (parseNum(values[closePriceIdx]) ?? openPrice) : openPrice
-    const profitLoss = profitIdx >= 0 ? (parseNum(values[profitIdx]) ?? 0) : 0
+    /* FIX OPEN TRADE: PnL kosong ('' / '-') ATAU kolom status berisi
+       nilai open → posisi masih jalan. PnL 0 & close = open.
+       PENTING: deteksi "pnl kosong" hanya berlaku kalau kolom profit
+       MEMANG ADA (profitIdx >= 0) — CSV tanpa kolom pnl sama sekali
+       tetap pakai perilaku lama (semua dianggap close) supaya format
+       jurnal lama tidak tiba-tiba seluruhnya jadi "terbuka". */
+    const profitCellRaw = profitIdx >= 0 ? (values[profitIdx] ?? '').trim() : ''
+    const profitCellEmpty = profitIdx >= 0 && (profitCellRaw === '' || profitCellRaw === '-')
+    const statusCellOpen = statusIdx >= 0 && isHeaderValueOpen(values[statusIdx])
+    const isOpen = statusCellOpen || profitCellEmpty
+    const profitLoss = isOpen ? 0 : (profitIdx >= 0 ? (parseNum(values[profitIdx]) ?? 0) : 0)
     const stopLoss = slIdx >= 0 ? parseNum(values[slIdx]) : null
     const takeProfit = tpIdx >= 0 ? parseNum(values[tpIdx]) : null
     const ticketNumber = ticketIdx >= 0 && values[ticketIdx] ? String(values[ticketIdx]).replace(/[^0-9a-zA-Z#]/g, '') : null
@@ -316,9 +346,15 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
       const parsed = parseFlexibleDate(values[closeTimeIdx])
       if (parsed) closeTime = parsed
     }
+    // Posisi terbuka tidak punya waktu close → samakan dgn open
+    if (isOpen) closeTime = openTime
 
     const notesRaw = notesIdx >= 0 ? values[notesIdx]?.trim() : ''
-    const notes = notesRaw && notesRaw.length > 0 ? notesRaw : null
+    /* Posisi terbuka: notes = sentinel '#OPEN#' (+ catatan user bila ada)
+       supaya seluruh aplikasi bisa membedakan tanpa kolom status baru. */
+    const notes = isOpen
+      ? (notesRaw ? `#OPEN# ${notesRaw}` : '#OPEN#')
+      : (notesRaw && notesRaw.length > 0 ? notesRaw : null)
 
     // Durasi trade (menit) kalau kedua waktu valid
     let tradeDuration: number | null = null
@@ -343,6 +379,7 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
       take_profit: takeProfit,
       ticket_number: ticketNumber,
       trade_duration: tradeDuration,
+      status: isOpen ? 'OPEN' : 'CLOSED',
     })
   }
 
@@ -366,8 +403,11 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
     const tokens = lines[i].split(delimiter).map(cleanToken)
     /* FIX CSV JURNAL RINGKAS: dulu < 5 token langsung dibuang — jurnal polos
        "tanggal, pair, buy/sell, pnl" cuma 4 kolom → SEMUA baris jurnal
-       hilang sebelum parsing dimulai. Turunkan ke 4. */
-    if (tokens.length < 4) { skipped++; continue }
+       hilang sebelum parsing dimulai. Turunkan ke 4.
+       FIX OPEN TRADE (2026-11): turunkan lagi ke 3 — baris posisi masih
+       jalan paling polos cuma "tanggal, pair, buy/sell" (3 kolom). Baris
+       sampah tetap tersaring oleh cek symbol & arah di bawah. */
+    if (tokens.length < 3) { skipped++; continue }
 
     // --- ticket (token pertama, angka/kode pendek, bukan tanggal) ---
     let ticket: string | null = null
@@ -432,6 +472,7 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
        Export MT5 sejati selalu punya alesan close + ≥2 harga → jalur lama
        tetap utuh untuk mereka. */
     let journalPnl: number | null = null
+    let isOpenRow = false
     if (priceTokens.length === 0) {
       for (let j = typeIdx + 1; j < tokens.length; j++) {
         if (DATE_TOKEN_REGEX.test(tokens[j])) continue
@@ -439,11 +480,15 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
         const v = parseNum(tokens[j])
         if (v !== null) { journalPnl = v; break }
       }
+      /* FIX OPEN TRADE: baris tanpa SATU PUN angka (tanggal + pair + arah
+         saja) dulu langsung dibuang — itu format posisi masih jalan yang
+         paling polos. Sekarang masuk sbg posisi terbuka (PnL 0). */
+      if (journalPnl === null) isOpenRow = true
     } else if (priceTokens.length === 1 && reasonIdx < 0) {
       journalPnl = priceTokens[0]
     }
     const isJournalRow = journalPnl !== null
-    if (!isJournalRow && priceTokens.length === 0) { skipped++; continue }
+    if (!isJournalRow && !isOpenRow && priceTokens.length === 0) { skipped++; continue }
 
     // --- angka keuangan setelah alesan ---
     const trailing: number[] = []
@@ -475,7 +520,10 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
 
     // --- open/close price ---
     // Baris jurnal tidak punya harga → 0/0 (valid sejak fix 8 Nov)
-    const openPrice = isJournalRow ? 0 : priceTokens[0]
+    // Baris posisi terbuka: harga (kalau ada) = harga ENTRY, bukan PnL
+    const openPrice = isOpenRow
+      ? (priceTokens.length > 0 ? priceTokens[0] : 0)
+      : isJournalRow ? 0 : priceTokens[0]
     const candidates = isJournalRow ? [] : priceTokens.slice(1)
     let closePrice = openPrice
     if (candidates.length > 0 && trailing.length > 0) {
@@ -559,17 +607,18 @@ function parseWithoutHeader(lines: string[], delimiter: string): CsvTrade[] {
       type,
       open_price: openPrice,
       close_price: closePrice,
-      lot_size: priceTokens.length === 0 && isJournalRow ? 0.01 : lotSize,
-      profit_loss: profitLoss,
+      lot_size: priceTokens.length === 0 && (isJournalRow || isOpenRow) ? 0.01 : lotSize,
+      profit_loss: isOpenRow ? 0 : profitLoss,
       open_time: openTime,
-      close_time: closeTime,
+      close_time: isOpenRow ? openTime : closeTime,
       session: getSessionFromHour(openTime),
-      notes,
+      notes: isOpenRow ? (noteParts.length > 0 ? `#OPEN# ${noteParts.join(' · ')}` : '#OPEN#') : notes,
       stop_loss: stopLoss,
       take_profit: takeProfit,
       ticket_number: ticket,
       trade_duration: durationMin,
       risk_reward_ratio: rMultiple,
+      status: isOpenRow ? 'OPEN' : 'CLOSED',
     })
   }
 

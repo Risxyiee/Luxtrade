@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils-currency'
 import { safeParseTags } from '@/lib/parseUtils'
 import { buildTradeMarkerPayload, requestTradeHighlight } from '@/lib/trade-highlight'
+import { isOpenTrade, displayNotes } from '@/lib/open-trade'
 import type { Trade } from '@/types'
 
 // ==================== TRADES TAB COMPONENT ====================
@@ -91,7 +92,7 @@ function TradesTab({
         t.session || '',
         t.open_time,
         t.close_time,
-        (t.notes || '').replace(/,/g, ';'),
+        (displayNotes(t.notes) || (isOpenTrade(t) ? 'POSISI TERBUKA' : '')).replace(/,/g, ';'),
         t.linked_journal_id || ''
       ]
     })
@@ -183,7 +184,7 @@ function TradesTab({
         t.session || '-',
         t.open_time ? new Date(t.open_time).toLocaleString() : '-',
         t.close_time ? new Date(t.close_time).toLocaleString() : '-',
-        (t.notes || '').substring(0, 40) + ((t.notes || '').length > 40 ? '...' : ''),
+        (displayNotes(t.notes) || (isOpenTrade(t) ? 'POSISI TERBUKA' : '-')).substring(0, 40),
       ])
 
       // Summary calculations
@@ -585,7 +586,16 @@ function TradesTab({
                       className="border-b border-lux-border dark:border-blue-900/20 hover:bg-lux-surface-hover dark:hover:bg-white/5 transition-colors cursor-pointer"
                       title={language === 'id' ? 'Klik untuk melihat trade ini di chart' : 'Click to view this trade on the chart'}
                     >
-                      <td className="p-4 font-bold">{trade.symbol}</td>
+                      <td className="p-4 font-bold">
+                        <div className="flex items-center gap-1.5">
+                          <span>{trade.symbol}</span>
+                          {isOpenTrade(trade) && (
+                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20">
+                              {language === 'id' ? 'TERBUKA' : 'OPEN'}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-4">
                         <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs">
                           {trade.type}
@@ -643,9 +653,11 @@ function TradesTab({
                       <td className="p-4 text-lux-text-secondary dark:text-gray-400 hidden sm:table-cell">{trade.close_price}</td>
                       {/* Session */}
                       <td className="p-4 text-gray-500 hidden md:table-cell">{trade.session || '-'}</td>
-                      {/* P/L */}
-                      <td className={`p-4 text-right font-bold ${trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {trade.profit_loss >= 0 ? '+' : ''}{formatCurrency(trade.profit_loss)}
+                      {/* P/L — posisi terbuka: PnL belum final */}
+                      <td className={`p-4 text-right font-bold ${isOpenTrade(trade) ? 'text-amber-400' : trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {isOpenTrade(trade)
+                          ? <span className="text-xs uppercase tracking-wide">{language === 'id' ? 'Masuk jalan' : 'Running'}</span>
+                          : `${trade.profit_loss >= 0 ? '+' : ''}${formatCurrency(trade.profit_loss)}`}
                       </td>
                       {/* Actions (tidak ikut klik baris — tombol punya aksi masing-masing) */}
                       <td className="p-4" onClick={(e) => e.stopPropagation()}>

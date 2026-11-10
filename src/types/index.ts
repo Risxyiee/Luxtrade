@@ -25,6 +25,11 @@ export interface Trade {
   tags?: string | null
   risk_reward_ratio?: number | null
   trade_duration?: number | null
+  /* Level SL/TP + ticket + status open (dipakai widget Posisi Terbuka & form) */
+  stop_loss?: number | null
+  take_profit?: number | null
+  ticket_number?: string | null
+  status?: 'OPEN' | 'CLOSED' | string
   linked_journal_id?: string | null
   created_at?: string
   updated_at?: string

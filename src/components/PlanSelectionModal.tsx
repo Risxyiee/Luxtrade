@@ -65,7 +65,7 @@ const plans: Plan[] = [
       'AI Insights & Weekly Report (analisis AI mendalam)',
       'Editor & alert skrip Pine milikmu — tanpa batas (free: 2 edit/bulan)',
       'Watchlist Pasar & Market News',
-      'Prop Firm Guard (pemantauan otomatis MetaApi)',
+      'Prop Firm Guard (pemantauan aturan otomatis)',
       'Semua fitur jurnal gratis (sudah termasuk paket free)',
       'Dukungan Prioritas'
     ],
@@ -87,7 +87,7 @@ const plans: Plan[] = [
       'AI Insights & Weekly Report (analisis AI mendalam)',
       'Editor & alert skrip Pine milikmu — tanpa batas (free: 2 edit/bulan)',
       'Watchlist Pasar & Market News',
-      'Prop Firm Guard (pemantauan otomatis MetaApi)',
+      'Prop Firm Guard (pemantauan aturan otomatis)',
       'Semua fitur jurnal gratis (sudah termasuk paket free)',
       'Dukungan Prioritas',
       'Hemat 2 Bulan vs Bulanan'

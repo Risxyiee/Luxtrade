@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, FileText, HelpCircle, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
+import { displayNotes } from '@/lib/open-trade'
 import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
 import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
 import { resolveTradeScreenshotSrc } from '@/lib/screenshot-url'
@@ -617,9 +618,18 @@ export default function TradeWizardForm({
         if (trade.take_profit) onFormChange('take_profit', trade.take_profit.toString())
         if (trade.open_time) onFormChange('open_time', trade.open_time)
         if (trade.close_time) onFormChange('close_time', trade.close_time)
-        if (trade.notes && trade.notes !== 'Imported from CSV file') onFormChange('notes', trade.notes)
-
-        toast.success('1 trade terbaca dari file — cek & klik Simpan untuk masuk ke jurnal.')
+        if (trade.notes && trade.notes !== 'Imported from CSV file') {
+          /* FIX open trade: sentinel '#OPEN#' jangan tampil mentah di textarea —
+             tampilkan catatan bersihnya saja. Kalau user menyimpan dari form ini,
+             posisi dianggap sudah ditutup (dia mengisi hasilnya sendiri). */
+          const clean = displayNotes(trade.notes)
+          if (clean && clean !== 'Imported from CSV file') onFormChange('notes', clean)
+        }
+        if (trade.status === 'OPEN') {
+          toast.info('⏳ Posisi masih jalan terdeteksi — diisi ke form. Isi hasilnya saat sudah ditutup, lalu Simpan.')
+        } else {
+          toast.success('1 trade terbaca dari file — cek & klik Simpan untuk masuk ke jurnal.')
+        }
       } else if (res.ok && data.success) {
         toast.error(data.error || 'No trades found in file.')
       } else {

@@ -27,6 +27,7 @@ export function parseCSV(text: string): Trade[] {
     ticket_number: t.ticket_number ?? null,
     trade_duration: t.trade_duration ?? null,
     risk_reward_ratio: t.risk_reward_ratio ?? null,
+    status: t.status ?? 'CLOSED',
   }))
 }
 

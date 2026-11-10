@@ -127,9 +127,14 @@ const features: FeatureRow[] = [
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Hubungkan Broker (MetaApi)', en: 'Broker Connection (MetaApi)' },
+    /* FIX (laporan Bos 2026-11): "kan saya ga make metaapi itu ada fiturnya
+       berbohong nama nya" — integrasi MetaApi memang sudah DIHAPUS dari
+       aplikasi (lihat dashboard/connections/page.tsx). Baris ini diganti
+       fitur yang BENAR-BENAR ada: multi akun (FREE 1 akun, PRO unlimited —
+       sesuai /api/trading-accounts). */
+    name: { id: 'Multi Akun Trading', en: 'Multiple Trading Accounts' },
     free: { type: 'text', value: '1 akun' },
-    pro: { type: 'text', value: 'Hingga 50' },
+    pro: { type: 'text', value: 'Tanpa batas' },
   },
   {
     name: { id: 'Dukungan Prioritas', en: 'Priority Support' },

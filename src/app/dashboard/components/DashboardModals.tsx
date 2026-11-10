@@ -16,6 +16,7 @@ import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 // SUDAH DIHAPUS — onboarding sekarang cuma SATU sistem, yaitu tab
 // "Onboarding" (checklist interaktif) yang jadi tab default user baru.
 import { formatCurrency } from '@/lib/utils-currency'
+import { isOpenTrade, displayNotes } from '@/lib/open-trade'
 import { Trade, TradeFormData, emptyFormData, JournalEntry } from '../utils/types'
 import { moodOptions, marketConditions } from '../utils/helpers'
 
@@ -332,10 +333,17 @@ const DashboardModals = memo(function DashboardModals({
                   <Badge variant={selectedTrade.type === 'BUY' ? 'default' : 'destructive'}>
                     {selectedTrade.type}
                   </Badge>
+                  {isOpenTrade(selectedTrade) && (
+                    <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30">OPEN</Badge>
+                  )}
                 </div>
-                <span className={`text-xl font-bold ${selectedTrade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {selectedTrade.profit_loss >= 0 ? '+' : ''}{formatCurrency(selectedTrade.profit_loss)}
-                </span>
+                {isOpenTrade(selectedTrade) ? (
+                  <span className="text-xl font-bold text-amber-400">{language === 'id' ? 'Masuk jalan' : 'Running'}</span>
+                ) : (
+                  <span className={`text-xl font-bold ${selectedTrade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {selectedTrade.profit_loss >= 0 ? '+' : ''}{formatCurrency(selectedTrade.profit_loss)}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -357,10 +365,10 @@ const DashboardModals = memo(function DashboardModals({
                 </div>
               </div>
 
-              {selectedTrade.notes && (
+              {displayNotes(selectedTrade.notes) && (
                 <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
                   <div className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Notes</div>
-                  <div className="text-sm">{selectedTrade.notes}</div>
+                  <div className="text-sm">{displayNotes(selectedTrade.notes)}</div>
                 </div>
               )}
 

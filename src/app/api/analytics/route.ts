@@ -8,6 +8,11 @@ import {
   setAnalyticsCache,
   getAnalyticsCacheKey,
 } from '@/lib/analytics-cache'
+// FIX OPEN TRADE (laporan Bos 2026-11): posisi masih jalan (notes '#OPEN#',
+// lihat lib/open-trade.ts) tidak boleh terhitung sebagai trade close pnl 0
+// — merusak win rate, total trades & equity curve. Konvensi tanpa migrasi
+// DB: kolom notes diawali sentinel '#OPEN#'.
+import { OPEN_TRADE_NOTE } from '@/lib/open-trade'
 
 async function getClientWithAuth(request: NextRequest) {
   return await createClientForApi(request)
@@ -75,7 +80,7 @@ async function computeProAnalyticsLegacy(client: any, userId: string, period: st
     // ─── Fetch all trades in a single query ───
     let tradesQuery = client
       .from('trades')
-      .select('profit_loss, close_time, session, symbol, setup_type, trade_duration, risk_reward_ratio')
+      .select('profit_loss, close_time, session, symbol, setup_type, trade_duration, risk_reward_ratio, notes')
       .eq('user_id', userId)
 
     if (period !== 'all' && dateFilter) {
@@ -85,7 +90,15 @@ async function computeProAnalyticsLegacy(client: any, userId: string, period: st
       tradesQuery = tradesQuery.eq('account_id', accountId)
     }
 
-    const { data: trades } = await tradesQuery.order('close_time', { ascending: true })
+    const { data: allTrades } = await tradesQuery.order('close_time', { ascending: true })
+
+    // Posisi terbuka dikeluarkan dari SEMUA agregasi (pnl 0 = bukan hasil)
+    const trades = (allTrades || []).filter((t: any) =>
+      !(typeof t.notes === 'string' && t.notes.startsWith(OPEN_TRADE_NOTE))
+    )
+    const openPositions = (allTrades || []).filter((t: any) =>
+      typeof t.notes === 'string' && t.notes.startsWith(OPEN_TRADE_NOTE)
+    )
 
     // ─── Fetch user's trading account for initial balance ───
     // If accountId is specified, use that account; otherwise use default
@@ -326,6 +339,11 @@ async function computeProAnalyticsLegacy(client: any, userId: string, period: st
         type: currentStreakType,
         count: currentStreak,
       },
+      /* Info posisi terbuka utk dashboard (widget Posisi Terbuka) */
+      openPositions: {
+        count: openPositions.length,
+        symbols: Array.from(new Set(openPositions.map((t: any) => t.symbol))).slice(0, 10),
+      },
     }
 
     return responseData
@@ -361,7 +379,25 @@ export async function GET(request: NextRequest) {
     }
 
     // FASE 3: agregasi di Postgres via RPC (fallback JS bila belum ada)
-    let responseData: any = await computeProAnalyticsViaRpc(client, period, accountId)
+    // FIX OPEN TRADE: RPC get_analytics_snapshot belum kenal konvensi
+    // '#OPEN#' (SQL-nya belum bisa diubah tanpa akses SQL Editor) — bila
+    // user punya posisi terbuka, pakai jalur JS agar stats akurat.
+    let hasOpenTrades = false
+    try {
+      let openCountQuery = client
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .like('notes', `${OPEN_TRADE_NOTE}%`)
+      if (accountId) openCountQuery = openCountQuery.eq('account_id', accountId)
+      const { count } = await openCountQuery
+      hasOpenTrades = (count || 0) > 0
+    } catch { /* kolom notes pasti ada — gagal diabaikan saja */ }
+
+    let responseData: any
+    if (!hasOpenTrades) {
+      responseData = await computeProAnalyticsViaRpc(client, period, accountId)
+    }
     if (!responseData) {
       responseData = await computeProAnalyticsLegacy(client, userId, period, accountId)
     }

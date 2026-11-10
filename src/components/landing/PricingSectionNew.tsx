@@ -206,7 +206,7 @@ export default function PricingSectionNew({
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Insights & AI Weekly Report' : 'AI Insights & Laporan Mingguan AI'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Alerts from YOUR Own Pine Script' : 'Alert Tanpa Batas dari Skrip Pine MILIKMU'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Market Watchlist & Market News' : 'Watchlist Pasar & Market News'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Prop Firm Guard (automated MetaApi monitoring)' : 'Prop Firm Guard (pemantauan otomatis MetaApi)'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Prop Firm Guard (automated rule monitoring)' : 'Prop Firm Guard (pemantauan aturan otomatis)'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Everything in Free (journal & analytics stay free)' : 'Semua fitur Free (jurnal & analitik tetap gratis)'}</li>
               </ul>
 

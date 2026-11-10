@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { Trade, TradeFormData, Analytics, emptyFormData } from '../utils/types'
 import { formatLocalDateTime } from '../utils/helpers'
+import { displayNotes } from '@/lib/open-trade'
 import { toast } from 'sonner'
 
 interface TradeHandlersProps {
@@ -319,7 +320,9 @@ export const createTradeHandlers = ({
       open_time: trade.open_time,
       close_time: trade.close_time,
       session: trade.session || '',
-      notes: trade.notes || '',
+      /* FIX open trade: sentinel '#OPEN#' dibuang saat edit — user melihat
+         catatan bersih & mengisi hasil posisi (menutup posisi lewat edit). */
+      notes: displayNotes(trade.notes) || '',
       image_url: trade.image_url || '',
       screenshot_url: trade.screenshot_url || '',
       emotion: trade.emotion || '',

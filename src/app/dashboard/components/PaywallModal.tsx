@@ -55,7 +55,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Brain, title: "AI Insights & Laporan Mingguan AI", desc: "Deteksi pola kesalahan berulang & review mingguan otomatis" },
         { icon: Zap, title: "Alert dari Skrip Pine Milikmu", desc: "Skrip Pine kamu dievaluasi ±5 menit — push Entry/SL/TP ke HP" },
         { icon: TrendingUp, title: "Watchlist Pasar & Berita", desc: "Pantau pair favorit & berita pasar langsung dari dashboard" },
-        { icon: Shield, title: "Prop Firm Guard", desc: "Pemantauan aturan prop firm otomatis via MetaApi" },
+        { icon: Shield, title: "Prop Firm Guard", desc: "Pemantauan aturan prop firm otomatis dari jurnal tradingmu" },
         { icon: Star, title: "Dukungan Prioritas", desc: "Bantuan respons cepat khusus member PRO" }
       ],
       price: {
@@ -85,7 +85,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
         { icon: Brain, title: "AI Insights & Weekly Report", desc: "Detect repeating mistakes & automatic weekly review" },
         { icon: Zap, title: "Alerts from YOUR Pine Script", desc: "Your script evaluated every ~5 min — Entry/SL/TP push to phone" },
         { icon: TrendingUp, title: "Market Watchlist & News", desc: "Track favorite pairs & market news inside the dashboard" },
-        { icon: Shield, title: "Prop Firm Guard", desc: "Automated prop firm rule monitoring via MetaApi" },
+        { icon: Shield, title: "Prop Firm Guard", desc: "Automated prop firm rule monitoring from your trade journal" },
         { icon: Star, title: "Priority Support", desc: "Fast-tracked help for PRO members" }
       ],
       price: {
