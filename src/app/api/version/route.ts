@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.3'
-const NOTES = 'ganti otak SEMUA karyawan AI ke Claude Sonnet 5.5 (permintaan Bos "ganti api ke sonnet semua"): MORTERA_MODEL sonnet-5-5, fallback haiku-5-5, auto-discover utamakan Sonnet, porsi anggaran Mortera 45%→60%, timeout 30/60→40/75 dtk; + fix login legacy API keys (cache config v2)'
+const VERSION = '2026-11-10.4'
+const NOTES = 'fix 503 exceededCpu di /api/push/subscribe: rewrite TANPA supabase-js (graph modul 4 lapis = CPU 10ms free plan jebol di isolate dingin) → raw fetch PostgREST + parser cookie sesi salinan middleware; kontrak error 400/401/403/500 dipertahankan; cleanup endpoint stale kini 1 fetch DELETE berfilter; + otak karyawan AI = Claude Sonnet 5.5 semua; + fix login legacy API keys (cache config v2)'
 
 export async function GET() {
   return NextResponse.json(
