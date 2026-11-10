@@ -32,7 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3, Settings2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3, Settings2, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import { STRATEGY_PNL_TYPE, registerStrategyPnlNative, type StrategyPnlTrade } from '@/components/vela/StrategyPnlIndicator'
@@ -847,6 +847,131 @@ const TF_MS: Record<string, number> = {
   '1W': 604_800_000, 'W': 604_800_000, '10080': 604_800_000,
 }
 
+/* ============================================================
+   UI STATE PERSISTEN (permintaan Bos: "kalau user klik pindah
+   halaman jangan disitu semua penuh") — pindah tab dashboard
+   membongkar terminal (unmount). Semua kondisi panel — Pine
+   editor buka/tutup, Strategy Tester tampil/terlipat/tab aktif,
+   chart diperbesar — ikut tersimpan, balik ke terminal = balik
+   ke kondisi terakhir yang Bos lihat. Bukan penuh ulang.
+   ============================================================ */
+const TERMINAL_UI_KEY = 'luxtradee-terminal-ui-v1'
+export type TesterTab = 'ringkasan' | 'kinerja' | 'trades' | 'properti'
+const TESTER_TABS: TesterTab[] = ['ringkasan', 'kinerja', 'trades', 'properti']
+interface TerminalUiState { testerVisible: boolean; testerOpen: boolean; pineOpen: boolean; chartExpanded: boolean; testerTab: TesterTab }
+function loadTerminalUi(): TerminalUiState {
+  const def: TerminalUiState = { testerVisible: true, testerOpen: true, pineOpen: false, chartExpanded: false, testerTab: 'ringkasan' }
+  try {
+    const j = JSON.parse(localStorage.getItem(TERMINAL_UI_KEY) || '{}')
+    return {
+      testerVisible: j?.testerVisible !== false,
+      testerOpen: j?.testerOpen !== false,
+      pineOpen: j?.pineOpen === true,
+      chartExpanded: j?.chartExpanded === true,
+      testerTab: TESTER_TABS.includes(j?.testerTab) ? j.testerTab as TesterTab : def.testerTab,
+    }
+  } catch { return def }
+}
+
+/* ---------- Cache Strategy Tester (sessionStorage) ----------
+   Data trade terakhir dari engine ikut dipertahankan saat user
+   pindah halaman — balik ke terminal, panel tester TIDAK kosong
+   dulu menunggu engine run ulang; data terakhir langsung tampil
+   (TTL 6 jam, mati sendiri saat tab ditutup). */
+const TESTER_CACHE_KEY = 'luxtradee-strategy-tester-v1'
+const TESTER_CACHE_TTL = 6 * 3_600_000
+
+/** Satu baris trade strategy engine (round trip). Module-level supaya
+    helper metrik (computeTesterMetrics dkk.) bisa memakainya. */
+interface TesterRow extends StrategyPnlTrade { qty: number | null; commission: number | null }
+
+/* ---------- Metrik lengkap Strategy Tester (ala Overview/Performance TradingView) ---------- */
+interface SideStats {
+  count: number; wins: number; losses: number; even: number
+  netPnl: number; winRate: number | null; avgWin: number | null; avgLoss: number | null
+}
+interface TesterMetrics {
+  equity: Array<{ i: number; v: number }>
+  equityFinal: number
+  long: SideStats; short: SideStats
+  avgTrade: number | null; avgWin: number | null; avgLoss: number | null
+  largestWin: number | null; largestLoss: number | null
+  totalCommission: number | null
+  maxConsecWins: number; maxConsecLosses: number
+  avgDurationMs: number | null
+}
+function emptySide(): SideStats {
+  return { count: 0, wins: 0, losses: 0, even: 0, netPnl: 0, winRate: null, avgWin: null, avgLoss: null }
+}
+function computeSideStats(rows: TesterRow[]): SideStats {
+  const s = emptySide()
+  const wins: number[] = []; const losses: number[] = []
+  for (const t of rows) {
+    s.count++
+    const pnl = t.pnl
+    if (pnl == null) continue
+    s.netPnl += pnl
+    if (pnl > 1e-9) { s.wins++; wins.push(pnl) } else if (pnl < -1e-9) { s.losses++; losses.push(pnl) } else s.even++
+  }
+  const closed = s.wins + s.losses + s.even
+  s.winRate = closed > 0 ? (s.wins / closed) * 100 : null
+  s.avgWin = wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : null
+  s.avgLoss = losses.length ? losses.reduce((a, b) => a + b, 0) / losses.length : null
+  return s
+}
+function computeTesterMetrics(rows: TesterRow[]): TesterMetrics {
+  const chrono = rows.slice().sort((a, b) => a.entryTime - b.entryTime)
+  const closed = chrono.filter((t) => !t.open && t.pnl != null)
+  /* Equity curve: modal awal = 0 baseline, naik/turun tiap trade tertutup */
+  const equity: Array<{ i: number; v: number }> = [{ i: 0, v: 0 }]
+  let cum = 0
+  for (let k = 0; k < closed.length; k++) {
+    cum += Number(closed[k].pnl) || 0
+    equity.push({ i: k + 1, v: cum })
+  }
+  const longRows = chrono.filter((t) => t.side === 'long')
+  const shortRows = chrono.filter((t) => t.side === 'short')
+  const pnls = closed.map((t) => Number(t.pnl))
+  const wins = pnls.filter((p) => p > 1e-9)
+  const losses = pnls.filter((p) => p < -1e-9)
+  let maxConsecWins = 0; let maxConsecLosses = 0; let curW = 0; let curL = 0
+  for (const p of pnls) {
+    if (p > 1e-9) { curW++; curL = 0 } else if (p < -1e-9) { curL++; curW = 0 } else { continue }
+    maxConsecWins = Math.max(maxConsecWins, curW)
+    maxConsecLosses = Math.max(maxConsecLosses, curL)
+  }
+  const durations = closed.filter((t) => t.exitTime && t.exitTime > t.entryTime).map((t) => (t.exitTime as number) - t.entryTime)
+  const commissions = rows.map((t) => t.commission).filter((c): c is number => c != null && Number.isFinite(c))
+  return {
+    equity,
+    equityFinal: cum,
+    long: computeSideStats(longRows),
+    short: computeSideStats(shortRows),
+    avgTrade: pnls.length ? pnls.reduce((a, b) => a + b, 0) / pnls.length : null,
+    avgWin: wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : null,
+    avgLoss: losses.length ? losses.reduce((a, b) => a + b, 0) / losses.length : null,
+    largestWin: wins.length ? Math.max(...wins) : null,
+    largestLoss: losses.length ? Math.min(...losses) : null,
+    totalCommission: commissions.length ? commissions.reduce((a, b) => a + b, 0) : null,
+    maxConsecWins, maxConsecLosses,
+    avgDurationMs: durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : null,
+  }
+}
+/** Equity curve → SVG path (viewBox 100×36, padding 2). */
+function equitySvg(m: TesterMetrics): { line: string; area: string; zeroY: number } {
+  const pts = m.equity
+  if (pts.length < 2) return { line: '', area: '', zeroY: 0 }
+  const vs = pts.map((p) => p.v)
+  let min = Math.min(0, ...vs); let max = Math.max(0, ...vs)
+  if (max - min < 1e-9) { max += 1; min -= 1 }
+  const W = 100; const H = 36; const PAD = 2
+  const x = (i: number) => PAD + (i / (pts.length - 1)) * (W - PAD * 2)
+  const y = (v: number) => PAD + (1 - (v - min) / (max - min)) * (H - PAD * 2)
+  const line = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'}${x(p.i).toFixed(2)},${y(p.v).toFixed(2)}`).join(' ')
+  const area = `${line} L${x(pts[pts.length - 1].i).toFixed(2)},${y(min).toFixed(2)} L${x(0).toFixed(2)},${y(min).toFixed(2)} Z`
+  return { line, area, zeroY: y(0) }
+}
+
 /* ---------- Format Strategy Tester (ala Strategy Tester TradingView) ---------- */
 function fmtTesterPrice(p: number | null): string {
   if (p == null || !Number.isFinite(p)) return '-'
@@ -867,6 +992,14 @@ function fmtTesterPnl(p: number | null): string {
 function fmtTesterQty(q: number | null): string {
   if (q == null || !Number.isFinite(q)) return '-'
   return String(Math.abs(Number(q.toFixed(8))))
+}
+function fmtTesterDuration(ms: number | null): string {
+  if (ms == null || !Number.isFinite(ms) || ms <= 0) return '-'
+  const mins = Math.round(ms / 60_000)
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  if (h < 48) return `${h}j ${mins % 60}m`
+  return `${Math.floor(h / 24)}h ${h % 24}j`
 }
 
 interface PineScriptRow { id: string; name: string; source: string }
@@ -1004,7 +1137,6 @@ export default function VelaChartTerminal({
      rate, PF, DD, daftar trade klik-lompat) + indikator native yang
      menggambar garis entry→exit + label harga/PnL di chart.
      ============================================================ */
-  interface TesterRow extends StrategyPnlTrade { qty: number | null }
   interface StrategyTesterState {
     id: string
     title: string
@@ -1018,6 +1150,12 @@ export default function VelaChartTerminal({
     openNow: boolean
     rows: TesterRow[]
     truncated: boolean
+    /* Properti broker state engine (tab Properti tester — ala TradingView):
+       modal awal + max runup dilaporkan engine Pine Vela. */
+    initialCapital: number | null
+    maxRunup: number | null
+    /* Stempel waktu data — TTL cache sessionStorage + label "terakhir" */
+    cachedAt: number
     /* DIAGNOSTIK (Bos: "beneran berfungsi ga strategi testernya?") —
        bukti nyata bahwa engine BENAR-BENAR menilai skrip: jumlah bar
        harga yang dievaluasi + apakah history penuh + warning engine
@@ -1029,7 +1167,17 @@ export default function VelaChartTerminal({
     warnings: string[]
   }
   const [strategyTester, setStrategyTester] = useState<StrategyTesterState | null>(null)
-  const [testerOpen, setTesterOpen] = useState(true)
+  /* Panel state PERSISTEN (localStorage — lihat TERMINAL_UI_KEY): pindah
+     halaman lalu balik, panel kembali persis seperti ditinggal — tester
+     tampil/terlipat/tab aktif + Pine editor + chart diperbesar. */
+  const ui0 = useMemo(() => loadTerminalUi(), [])
+  const [testerVisible, setTesterVisible] = useState(ui0.testerVisible)
+  const [testerOpen, setTesterOpen] = useState(ui0.testerOpen)
+  const [testerTab, setTesterTab] = useState<TesterTab>(ui0.testerTab)
+  const [chartExpanded, setChartExpanded] = useState(ui0.chartExpanded)
+  /* Jembatan tombol topbar Vela → state React (registerWidgetAction.run
+     dipasang SEKALI di boot; ref ini selalu menunjuk closure terbaru). */
+  const topbarBridgeRef = useRef<{ pine: () => void; tester: () => void; notif: () => void; expand: () => void } | null>(null)
   const stratSigRef = useRef('') // anti re-pull: hanya saat broker state berubah
   const stratIdRef = useRef('') // id indikator strategy yang sedang ditampilkan
 
@@ -1067,6 +1215,7 @@ export default function VelaChartTerminal({
         pnl: t?.pnl != null && Number.isFinite(Number(t.pnl)) ? Number(t.pnl) : null,
         open: t?.open === true,
         qty: t?.qty != null && Number.isFinite(Number(t.qty)) ? Number(t.qty) : null,
+        commission: t?.commission != null && Number.isFinite(Number(t.commission)) ? Number(t.commission) : null,
       }))
       .filter((t) => t.entryTime > 0 && Number.isFinite(t.entryPrice))
     return { rows, truncated }
@@ -1122,6 +1271,9 @@ export default function VelaChartTerminal({
           lastBarTime,
           complete: run?.complete !== false,
           warnings,
+          initialCapital: s.initialCapital != null && Number.isFinite(Number(s.initialCapital)) ? Number(s.initialCapital) : null,
+          maxRunup: s.maxRunup != null && Number.isFinite(Number(s.maxRunup)) ? Number(s.maxRunup) : null,
+          cachedAt: Date.now(),
         })
         updateStrategyPnl(rows)
       } catch { /* engine belum siap — run berikutnya menarik ulang */ }
@@ -1154,11 +1306,14 @@ export default function VelaChartTerminal({
       void pullTrades(run)
     }
     const onIndicatorRemoved = (p: any) => {
-      /* Strategy dilepas dari chart → panel + gambar PnL ikut bersih */
+      /* Strategy dilepas dari chart → panel + gambar PnL ikut bersih
+         (cache sessionStorage tester ikut dihapus — data bukan milik
+         indikator mana pun lagi, jangan tampil basi). */
       if (p?.id && stratIdRef.current && String(p.id) === stratIdRef.current) {
         stratSigRef.current = ''
         stratIdRef.current = ''
         setStrategyTester(null)
+        try { sessionStorage.removeItem(TESTER_CACHE_KEY) } catch { /* diam */ }
         updateStrategyPnl([])
       }
     }
@@ -1221,7 +1376,7 @@ export default function VelaChartTerminal({
   }, [booting])
 
   /* ---------- Pine editor state ---------- */
-  const [pineOpen, setPineOpen] = useState(false)
+  const [pineOpen, setPineOpen] = useState(ui0.pineOpen) // persisten — balik ke terminal, drawer kembali seperti ditinggal
   const [pineName, setPineName] = useState('Skrip saya')
   const [pineSource, setPineSource] = useState(PINE_TEMPLATE)
   const [pineBusy, setPineBusy] = useState(false)
@@ -1231,6 +1386,68 @@ export default function VelaChartTerminal({
 
   /* ---------- Upgrade paywall dialog ---------- */
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
+
+  /* ============================================================
+     PERSISTEN PANEL & DATA (pindah halaman tidak mengapa-papakan):
+     1) Data Strategy Tester → sessionStorage (balik ke terminal,
+        panel langsung isi data terakhir — tidak kosong menunggu
+        engine run ulang; TTL 6 jam, dibersihkan saat indikator
+        strategy dilepas).
+     2) Kondisi panel (tester/Pine drawer/chart diperbesar/tab
+        aktif) → localStorage.
+     ============================================================ */
+  useEffect(() => {
+    /* Pulihkan data tester terakhir (HARUS sebelum effect simpan di bawah) */
+    try {
+      const raw = sessionStorage.getItem(TESTER_CACHE_KEY)
+      if (!raw) return
+      const j = JSON.parse(raw)
+      if (j && typeof j?.title === 'string' && Array.isArray(j?.rows) && Date.now() - (Number(j?.cachedAt) || 0) < TESTER_CACHE_TTL) {
+        const rows: TesterRow[] = (j.rows as any[]).map((r) => ({
+          ...r,
+          qty: r?.qty ?? null,
+          commission: r?.commission ?? null,
+        }))
+        setStrategyTester({
+          ...j,
+          rows,
+          initialCapital: j.initialCapital ?? null,
+          maxRunup: j.maxRunup ?? null,
+          cachedAt: Number(j.cachedAt) || Date.now(),
+        } as StrategyTesterState)
+      } else {
+        sessionStorage.removeItem(TESTER_CACHE_KEY)
+      }
+    } catch { /* diam */ }
+  }, [])
+  useEffect(() => {
+    if (!strategyTester) return // null = dilepas → cache dibersihkan di onIndicatorRemoved
+    try { sessionStorage.setItem(TESTER_CACHE_KEY, JSON.stringify(strategyTester)) } catch { /* diam */ }
+  }, [strategyTester])
+  useEffect(() => {
+    try {
+      localStorage.setItem(TERMINAL_UI_KEY, JSON.stringify({ testerVisible, testerOpen, pineOpen, chartExpanded, testerTab }))
+    } catch { /* diam */ }
+  }, [testerVisible, testerOpen, pineOpen, chartExpanded, testerTab])
+
+  /* ---------- Toggle panel (dipakai tombol topbar Vela + UI lokal) ---------- */
+  const scrollToTester = () => {
+    setTimeout(() => { try { document.getElementById('luxtradee-strategy-tester')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) } catch { /* diam */ } }, 100)
+  }
+  const toggleTesterVisible = useCallback(() => {
+    setTesterVisible((v) => {
+      if (!v) setTimeout(scrollToTester, 60)
+      return !v
+    })
+  }, [])
+  const toggleChartExpanded = useCallback(() => {
+    setChartExpanded((v) => {
+      if (!v) {
+        setTimeout(() => { try { document.getElementById('luxtradee-chart-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch { /* diam */ } }, 140)
+      }
+      return !v
+    })
+  }, [])
 
   /* Setelan "apa aja yg muncul di chart" sekarang lewat dialog Settings
      ASLI chart (ikon ⚙ di legenda indikator Eksklusif → tab Styles,
@@ -1281,6 +1498,7 @@ export default function VelaChartTerminal({
   /* ---------- Boot Vela workspace (sekali) ---------- */
   useEffect(() => {
     let dead = false
+    const topbarDisposers: Array<() => void> = [] // unregister tombol topbar Vela saat unmount
     /* RESET unmount-flag: React StrictMode (dev) mount→cleanup→mount dua
        kali — cleanup pertama set deadRef=true; tanpa reset di sini,
        attachStrategyTesterListeners di mount kedua langsung batal dan
@@ -1328,6 +1546,38 @@ export default function VelaChartTerminal({
         wsRef.current = ws
         setBooting(false)
         /* ============================================================
+           TOOLBAR → SLOT BAWAAN VELA (permintaan Bos: "mindahin toolbar
+           ke slot bawaan vela") — tombol Pine Editor / Strategy Tester /
+           Pusat Notifikasi / Perbesar chart kini hidup di topbar ASLI
+           Vela (klaster kanan, tampilan ikon 32px sama seperti tombol
+           bawaan; di HP masuk menu/drawer bawaan Vela). Baris toolbar
+           buatan sendiri di atas chart dibuang — bukan UI tempelan lagi.
+           Bridge ke state React lewat topbarBridgeRef (closure segar).
+           ============================================================ */
+        try {
+          const regAction = (velaCore as any).registerWidgetAction
+          const regIcon = (velaCore as any).registerIcon
+          if (typeof regAction === 'function') {
+            const svg = (d: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+            const icons: Array<[string, string]> = [
+              ['lx-pine', svg('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>')],
+              ['lx-tester', svg('<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>')],
+              ['lx-bell', svg('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>')],
+              ['lx-expand', svg('<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>')],
+            ]
+            for (const [id, markup] of icons) { try { regIcon?.(id, markup) } catch { /* diam */ } }
+            const actions: any[] = [
+              { id: 'luxtradee-pine', target: 'topbar', label: 'Pine Script® Editor', icon: 'lx-pine', iconOnly: true, align: 'right', order: 10, run: () => topbarBridgeRef.current?.pine() },
+              { id: 'luxtradee-tester', target: 'topbar', label: 'Strategy Tester', icon: 'lx-tester', iconOnly: true, align: 'right', order: 11, run: () => topbarBridgeRef.current?.tester() },
+              { id: 'luxtradee-notif', target: 'topbar', label: 'Pusat Notifikasi — alert Pine ke HP', icon: 'lx-bell', iconOnly: true, align: 'right', order: 12, run: () => topbarBridgeRef.current?.notif() },
+              { id: 'luxtradee-expand', target: 'topbar', label: 'Toggle chart besar (layar penuh)', icon: 'lx-expand', iconOnly: true, align: 'right', order: 13, run: () => topbarBridgeRef.current?.expand() },
+            ]
+            for (const a of actions) {
+              try { const d = regAction(a); if (typeof d === 'function') topbarDisposers.push(d) } catch { /* diam */ }
+            }
+          }
+        } catch { /* topbar tanpa kontribusi — fitur inti tetap jalan */ }
+        /* ============================================================
            STRATEGY TESTER ala TradingView (jawaban Bos: "pine script
            udah kupasang tapi buy and sell ga ada propertiesnya
            didalem ga kaya trading view") — dengarkan script:run:
@@ -1347,6 +1597,8 @@ export default function VelaChartTerminal({
     return () => {
       dead = true
       deadRef.current = true
+      for (const d of topbarDisposers) { try { d() } catch { /* diam */ } }
+      topbarDisposers.length = 0
       try { wsRef.current?.destroy() } catch { /* ignore */ }
       wsRef.current = null
     }
@@ -1962,9 +2214,6 @@ export default function VelaChartTerminal({
     } finally { setPineBusy(false) }
   }, [pineName, pineSource, runOnChart, applyPineStyles])
 
-  const quotaLabel = (q: QuotaBadge | null, unit: string) =>
-    !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
-
   /* ---------- Indikator Eksklusif (Protected Pine — Pro) ----------
      Source tidak pernah keluar dari server: chip ini hanya menambah
      NATIVE indicator yang menggambar hasil plot dari /api/compile-pine.
@@ -1985,7 +2234,6 @@ export default function VelaChartTerminal({
 
   /* ---------- Derivasi notifikasi & hak akses ---------- */
   const isProUser = protectedIsPro || pineQuota?.isPro === true
-  const anySubActive = alertSubs.some((x) => x.enabled)
   const notifScriptMeta = useMemo(() => {
     const [kind, id] = String(notifScript).split(':')
     if (!id) return null
@@ -2017,6 +2265,18 @@ export default function VelaChartTerminal({
     setNotifDlg(true)
     loadAlertSubs()
   }, [loadAlertSubs, pineScripts, visibleProtected])
+
+  /* ---------- Jembatan tombol topbar Vela → state React ----------
+     Effect tanpa deps = jalan tiap render → ref selalu menunjuk
+     closure TERBARU (openNotifCenter dsb. tidak pernah basi). */
+  useEffect(() => {
+    topbarBridgeRef.current = {
+      pine: () => setPineOpen((v) => !v),
+      tester: () => toggleTesterVisible(),
+      notif: () => openNotifCenter(),
+      expand: () => toggleChartExpanded(),
+    }
+  })
 
   /* ---------- Hapus skrip Pine milik sendiri (bersih-bersih daftar) ---------- */
   const deletePineScript = useCallback(async (id: string) => {
@@ -2112,30 +2372,11 @@ export default function VelaChartTerminal({
 
   return (
     <div className="space-y-2">
-      {/* ---------- Toolbar atas (di luar canvas — tidak menutupi UI Vela) ---------- */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="text-[11px] text-white/40 flex items-center gap-1.5">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-          Luxtradee Trading Terminal · Forex · Gold · US100 · Crypto · data live
-        </div>
-        <div className="flex items-center gap-1.5">
-          {pineQuota && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/60">
-              📐 {quotaLabel(pineQuota, 'edit')}
-            </span>
-          )}
-          {/* ---------- TOMBOL AKTIFKAN NOTIFIKASI (permintaan Bos:
-             "ga ada tombol aktifin notif untuk chart dan pine") —
-             hijau melambat bila ada langganan alert aktif ---------- */}
-          <Button size="sm" variant="outline" className="text-xs h-8 relative border-sky-400/30 text-sky-200 hover:bg-sky-400/10 hover:text-sky-100" onClick={openNotifCenter}>
-            <Bell className="w-3.5 h-3.5 mr-1" /> Notifikasi
-            {anySubActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" aria-hidden="true" />}
-          </Button>
-          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setPineOpen((v) => !v)}>
-            <ScrollText className="w-3.5 h-3.5 mr-1" /> Pine Script
-          </Button>
-        </div>
-      </div>
+      {/* ---------- Toolbar lama DIBUANG (permintaan Bos: "mindahin
+          toolbar ke slot bawaan vela") — tombol Pine Editor, Strategy
+          Tester, Pusat Notifikasi, dan Toggle chart besar kini jadi
+          AKSI TOPBAR ASLI Vela (registerWidgetAction, ikon 32px sama
+          seperti tombol bawaan; di HP masuk menu bawaan Vela). ---------- */}
 
       {/* ---------- Indikator preset Luxtradee — free 1 · pro 3 ---------- */}
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -2240,8 +2481,20 @@ export default function VelaChartTerminal({
       )}
 
       {/* ---------- Vela workspace ---------- */}
-      <div className="relative rounded-2xl border border-white/10 bg-[#05070d] overflow-hidden">
-        <div ref={hostRef} style={{ height: autoH || height }} className="w-full" />
+      <div id="luxtradee-chart-shell" className="relative rounded-2xl border border-white/10 bg-[#05070d] overflow-hidden">
+        {/* Toggle chart besar (permintaan Bos: "tambahin toogle untuk chart") —
+            versi visual di samping; toggle resmi juga ada di topbar Vela
+            (aksi luxtradee-expand). Tinggi: normal = auto-fit 75% viewport,
+            besar = hampir satu layar penuh. */}
+        <button
+          onClick={() => setChartExpanded((v) => !v)}
+          className="absolute right-2 bottom-2 z-30 w-8 h-8 rounded-lg border border-white/10 bg-[#0a0f16]/90 backdrop-blur text-white/60 hover:text-white hover:bg-white/10 inline-flex items-center justify-center transition-colors"
+          aria-label={chartExpanded ? 'Kembalikan ukuran chart normal' : 'Perbesar chart mendekati layar penuh'}
+          title={chartExpanded ? 'Ukuran normal' : 'Chart besar (layar penuh)'}
+        >
+          {chartExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+        </button>
+        <div ref={hostRef} style={{ height: chartExpanded ? 'max(420px, calc(100svh - 110px))' : (autoH || height) }} className="w-full" />
 
         {booting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#05070d] gap-2">
@@ -2399,136 +2652,296 @@ export default function VelaChartTerminal({
         )}
       </div>
 
-      {/* ---------- Strategy Tester (ala TradingView) — skrip strategy() user ----------
-          Permintaan Bos: "buy and sell ga ada propertiesnya didalem ga kaya
-          trading view" → setiap skrip strategy yang jalan di chart kini punya:
-          ringkasan Net P&L / Win Rate / Profit Factor / Max DD + daftar trade
-          lengkap (waktu, harga entry/exit, qty, PnL) — klik baris = lompat ke
-          trade-nya di chart. Posisi: di bawah chart, persis semangat panel
-          Strategy Tester TradingView. */}
-      {strategyTester && (
-        <div className="rounded-2xl border border-white/10 bg-[#0a0f16] overflow-hidden" role="region" aria-label="Strategy Tester — properti trade skrip strategy kamu">
-          <button
-            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-white/[0.03] transition-colors"
-            onClick={() => setTesterOpen((v) => !v)}
-            aria-expanded={testerOpen}
-          >
-            <span className="flex items-center gap-2 min-w-0 text-xs font-semibold text-purple-200">
-              <BarChart3 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> Strategy Tester
-              <span className="text-white/40 font-normal truncate max-w-[260px]">· {strategyTester.title}</span>
-            </span>
-            <span className="flex items-center gap-2 shrink-0">
-              <span className={`text-xs font-bold ${strategyTester.netPnl != null && strategyTester.netPnl < 0 ? 'text-red-300' : 'text-emerald-300'}`}>
-                {fmtTesterPnl(strategyTester.netPnl)}
+      {/* ---------- Strategy Tester (ala TradingView) — LENGKAP ----------
+          Permintaan Bos: "tambahin strategi tester sekarang yg lengkap".
+          Empat tab persis semangat panel Strategy Tester TradingView:
+          · Ringkasan  : Net P&L, Win Rate, PF, Max DD + KURVA EKUITAS
+          · Kinerja    : split LONG vs SHORT + statistik detail
+          · Trade      : daftar trade klik-lompat-ke-chart
+          · Properti   : modal awal, runup, komisi, catatan engine
+          Panel bisa disembunyikan (ikon mata) & kondisinya PERSISTEN —
+          pindah halaman lalu balik, panel & datanya masih ada. */}
+      {strategyTester && testerVisible && (() => {
+        const closed = strategyTester.wins + strategyTester.losses + strategyTester.even
+        const winRate = closed > 0 ? (strategyTester.wins / closed) * 100 : null
+        const pf = strategyTester.grossLoss != null && Math.abs(strategyTester.grossLoss) > 1e-9
+          ? (strategyTester.grossProfit ?? 0) / Math.abs(strategyTester.grossLoss)
+          : strategyTester.grossProfit ? Infinity : null
+        const m = computeTesterMetrics(strategyTester.rows)
+        const eq = equitySvg(m)
+        const eqPositive = m.equityFinal >= 0
+        const totalSide: SideStats = {
+          count: m.long.count + m.short.count,
+          wins: m.long.wins + m.short.wins,
+          losses: m.long.losses + m.short.losses,
+          even: m.long.even + m.short.even,
+          netPnl: m.long.netPnl + m.short.netPnl,
+          winRate,
+          avgWin: m.avgWin,
+          avgLoss: m.avgLoss,
+        }
+        const TAB_ITEMS: Array<{ id: TesterTab; label: string }> = [
+          { id: 'ringkasan', label: 'Ringkasan' },
+          { id: 'kinerja', label: 'Kinerja' },
+          { id: 'trades', label: 'Trade' },
+          { id: 'properti', label: 'Properti' },
+        ]
+        const sideRow = (label: string, s: SideStats) => (
+          <tr className="border-t border-white/[0.04]">
+            <td className={`px-2 py-1.5 font-semibold whitespace-nowrap ${label === 'Long' ? 'text-emerald-300' : label === 'Short' ? 'text-red-300' : 'text-white/85'}`}>{label}</td>
+            <td className="px-2 py-1.5 text-white/70 text-right">{s.count || '-'}</td>
+            <td className="px-2 py-1.5 text-emerald-300/90 text-right">{s.wins || '-'}</td>
+            <td className="px-2 py-1.5 text-white/70 text-right">{s.winRate != null ? `${s.winRate.toFixed(1)}%` : '-'}</td>
+            <td className={`px-2 py-1.5 font-bold text-right ${s.count && s.netPnl < 0 ? 'text-red-300' : s.count ? 'text-emerald-300' : 'text-white/40'}`}>{s.count ? fmtTesterPnl(s.netPnl) : '-'}</td>
+            <td className="px-2 py-1.5 text-emerald-300/80 text-right whitespace-nowrap">{s.avgWin != null ? fmtTesterPnl(s.avgWin) : '-'}</td>
+            <td className="px-2 py-1.5 text-red-300/80 text-right whitespace-nowrap">{s.avgLoss != null ? fmtTesterPnl(s.avgLoss) : '-'}</td>
+          </tr>
+        )
+        const propRow = (k: string, v: string, tone?: 'pos' | 'neg') => (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5">
+            <span className="text-[10.5px] text-white/45">{k}</span>
+            <span className={`text-[11.5px] font-bold ${tone === 'pos' ? 'text-emerald-300' : tone === 'neg' ? 'text-red-300' : 'text-white/85'}`}>{v}</span>
+          </div>
+        )
+        return (
+          <div id="luxtradee-strategy-tester" className="rounded-2xl border border-white/10 bg-[#0a0f16] overflow-hidden" role="region" aria-label="Strategy Tester — hasil backtest skrip strategy kamu">
+            {/* ---------- Header panel ---------- */}
+            <div className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-white/[0.03] transition-colors">
+              <button
+                className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                onClick={() => setTesterOpen((v) => !v)}
+                aria-expanded={testerOpen}
+              >
+                <span className="flex items-center gap-2 min-w-0 text-xs font-semibold text-purple-200">
+                  <BarChart3 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> Strategy Tester
+                  <span className="text-white/40 font-normal truncate max-w-[260px]">· {strategyTester.title}</span>
+                </span>
+              </button>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className={`text-xs font-bold ${strategyTester.netPnl != null && strategyTester.netPnl < 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                  {fmtTesterPnl(strategyTester.netPnl)}
+                </span>
+                <button
+                  onClick={() => setTesterVisible(false)}
+                  className="w-7 h-7 rounded-md inline-flex items-center justify-center text-white/35 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Sembunyikan panel Strategy Tester (aktifkan lagi dari ikon chart di topbar Vela)"
+                  title="Sembunyikan panel"
+                >
+                  <EyeOff className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setTesterOpen((v) => !v)}
+                  className="w-7 h-7 rounded-md inline-flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label={testerOpen ? 'Lipat panel' : 'Buka panel'}
+                  aria-expanded={testerOpen}
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${testerOpen ? '' : '-rotate-90'}`} aria-hidden="true" />
+                </button>
               </span>
-              <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${testerOpen ? '' : '-rotate-90'}`} aria-hidden="true" />
-            </span>
-          </button>
-
-          {testerOpen && (
-            <div className="px-3 pb-3 space-y-2">
-              {/* DIAGNOSTIK — bukti engine beneran jalan + penjelasan saat
-                  0 trade (Bos: "beneran berfungsi ga strategi testernya
-                  kaya trading view?"). Warning engine ditampilkan mentah:
-                  biasanya inilah penyebab kondisi entry tak pernah tepuk. */}
-              {(() => {
-                const closedN = strategyTester.wins + strategyTester.losses + strategyTester.even
-                const when = strategyTester.lastBarTime ? fmtTesterTime(strategyTester.lastBarTime) : null
-                const evaluated = strategyTester.evaluatedBars != null
-                  ? `Engine menilai ${strategyTester.evaluatedBars.toLocaleString('id-ID')} bar harga${when ? ` (s/d ${when})` : ''}${strategyTester.complete ? '' : ' — sejarah masih menyusul'}`
-                  : null
-                if (strategyTester.warnings.length) {
-                  return (
-                    <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-2.5 py-1.5 text-[10.5px] leading-relaxed text-amber-200/90" role="status">
-                      <div className="font-semibold">{evaluated || 'Engine menilai skrip ini'} — ada {strategyTester.warnings.length} warning dari engine:</div>
-                      {strategyTester.warnings.map((w, i) => <div key={i} className="truncate text-amber-200/70" title={w}>- {w}</div>)}
-                      {closedN === 0 && <div className="text-amber-200/70">Warning di atas biasanya penyebab kondisi entry tidak pernah terpicu. Cek juga: filter sesi/jam, timeframe, dan input yang dipakai.</div>}
-                    </div>
-                  )
-                }
-                if (closedN === 0) {
-                  return (
-                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-[10.5px] leading-relaxed text-white/45" role="status">
-                      {evaluated || 'Skrip strategy berjalan di chart.'} — kondisi entry skrip belum terpicu pada data ini, jadi belum ada trade. Catatan: TradingView memakai rentang waktu, feed harga, dan setelan input miliknya sendiri — samakan rentang & input untuk membandingkan hasil.
-                    </div>
-                  )
-                }
-                return evaluated ? <div className="text-[10px] text-white/30">{evaluated}.</div> : null
-              })()}
-
-              {/* Ringkasan performa — angka yang sama dengan Overview TradingView */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
-                {(() => {
-                  const closed = strategyTester.wins + strategyTester.losses + strategyTester.even
-                  const winRate = closed > 0 ? (strategyTester.wins / closed) * 100 : null
-                  const pf = strategyTester.grossLoss != null && Math.abs(strategyTester.grossLoss) > 1e-9
-                    ? (strategyTester.grossProfit ?? 0) / Math.abs(strategyTester.grossLoss)
-                    : strategyTester.grossProfit ? Infinity : null
-                  const chips: Array<{ label: string; value: string; tone: 'pos' | 'neg' | 'net' }> = [
-                    { label: 'Net P&L', value: fmtTesterPnl(strategyTester.netPnl), tone: strategyTester.netPnl != null && strategyTester.netPnl < 0 ? 'neg' : 'pos' },
-                    { label: 'Win Rate', value: winRate != null ? `${winRate.toFixed(1)}%` : '-', tone: 'net' },
-                    { label: 'Profit Factor', value: pf == null ? '-' : pf === Infinity ? '∞' : pf.toFixed(2), tone: 'net' },
-                    { label: 'Max Drawdown', value: strategyTester.maxDrawdown != null ? `-${Math.abs(strategyTester.maxDrawdown).toFixed(2)}` : '-', tone: 'neg' },
-                    { label: 'Trade Closed', value: String(closed), tone: 'net' },
-                    { label: 'Win / Loss', value: `${strategyTester.wins} / ${strategyTester.losses}`, tone: 'net' },
-                  ]
-                  return chips.map((c) => (
-                    <div key={c.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
-                      <div className="text-[9.5px] uppercase tracking-wider text-white/35">{c.label}</div>
-                      <div className={`text-[12.5px] font-bold ${c.tone === 'pos' ? 'text-emerald-300' : c.tone === 'neg' ? 'text-orange-300' : 'text-white/85'}`}>{c.value}</div>
-                    </div>
-                  ))
-                })()}
-              </div>
-
-              {/* Daftar trade — kolom sama semangat List of Trades TradingView */}
-              <div className="max-h-80 overflow-y-auto kscroll rounded-lg border border-white/[0.06]">
-                <table className="w-full text-[11px] border-collapse">
-                  <thead className="sticky top-0 bg-[#0d131c] z-10">
-                    <tr className="text-white/40">
-                      {['#', 'Arah', 'Waktu Entry', 'Harga Entry', 'Waktu Exit', 'Harga Exit', 'Qty', 'P&L'].map((h) => (
-                        <th key={h} className={`px-2 py-1.5 font-semibold text-left whitespace-nowrap ${h === 'P&L' ? 'text-right' : ''}`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {strategyTester.rows.slice().reverse().map((t, idx) => {
-                      const n = strategyTester.rows.length - idx
-                      const isOpen = t.open
-                      const pnlCol = isOpen ? 'text-sky-300' : t.pnl != null && t.pnl < 0 ? 'text-red-300' : 'text-emerald-300'
-                      return (
-                        <tr
-                          key={`${t.entryTime}-${idx}`}
-                          className="border-t border-white/[0.04] hover:bg-white/[0.04] cursor-pointer transition-colors"
-                          onClick={() => jumpToTesterTrade(t)}
-                          title="Klik untuk melompat ke trade ini di chart"
-                        >
-                          <td className="px-2 py-1.5 text-white/35 whitespace-nowrap">{n}</td>
-                          <td className={`px-2 py-1.5 font-semibold whitespace-nowrap ${t.side === 'long' ? 'text-emerald-300' : 'text-red-300'}`}>
-                            {t.side === 'long' ? 'Long' : 'Short'}
-                          </td>
-                          <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{fmtTesterTime(t.entryTime)}</td>
-                          <td className="px-2 py-1.5 text-white/85 whitespace-nowrap">{fmtTesterPrice(t.entryPrice)}</td>
-                          <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{isOpen ? <span className="text-sky-300 font-semibold">OPEN</span> : fmtTesterTime(t.exitTime)}</td>
-                          <td className="px-2 py-1.5 text-white/85 whitespace-nowrap">{isOpen ? '-' : fmtTesterPrice(t.exitPrice)}</td>
-                          <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{fmtTesterQty(t.qty)}</td>
-                          <td className={`px-2 py-1.5 font-bold text-right whitespace-nowrap ${pnlCol}`}>{isOpen ? '…' : fmtTesterPnl(t.pnl)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <p className="text-[10px] text-white/35 leading-relaxed">
-                {strategyTester.truncated && 'Menampilkan 500 trade terakhir. '}
-                {strategyTester.openNow && 'Posisi masih terbuka — garis & PnL diperbarui otomatis saat trade ditutup. '}
-                Klik baris untuk melompat ke trade di chart. Garis entry→exit + label harga & PnL digambar otomatis di chart.
-              </p>
             </div>
-          )}
-        </div>
-      )}
+
+            {testerOpen && (
+              <div className="px-3 pb-3 space-y-2">
+                {/* ---------- Tab bar (ala Strategy Tester TradingView) ---------- */}
+                <div className="flex items-center gap-1 overflow-x-auto kscroll border-b border-white/[0.06]" role="tablist" aria-label="Tab Strategy Tester">
+                  {TAB_ITEMS.map((t) => (
+                    <button
+                      key={t.id}
+                      role="tab"
+                      aria-selected={testerTab === t.id}
+                      onClick={() => setTesterTab(t.id)}
+                      className={`px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${testerTab === t.id ? 'border-purple-400 text-purple-200' : 'border-transparent text-white/40 hover:text-white/70'}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ================= TAB: RINGKASAN ================= */}
+                {testerTab === 'ringkasan' && (
+                  <div className="space-y-2">
+                    {/* DIAGNOSTIK — bukti engine beneran jalan + penjelasan saat 0 trade */}
+                    {(() => {
+                      const when = strategyTester.lastBarTime ? fmtTesterTime(strategyTester.lastBarTime) : null
+                      const evaluated = strategyTester.evaluatedBars != null
+                        ? `Engine menilai ${strategyTester.evaluatedBars.toLocaleString('id-ID')} bar harga${when ? ` (s/d ${when})` : ''}${strategyTester.complete ? '' : ' — sejarah masih menyusul'}`
+                        : null
+                      if (strategyTester.warnings.length) {
+                        return (
+                          <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-2.5 py-1.5 text-[10.5px] leading-relaxed text-amber-200/90" role="status">
+                            <div className="font-semibold">{evaluated || 'Engine menilai skrip ini'} — ada {strategyTester.warnings.length} warning dari engine:</div>
+                            {strategyTester.warnings.map((w, i) => <div key={i} className="truncate text-amber-200/70" title={w}>- {w}</div>)}
+                            {closed === 0 && <div className="text-amber-200/70">Warning di atas biasanya penyebab kondisi entry tidak pernah terpicu. Cek juga: filter sesi/jam, timeframe, dan input yang dipakai.</div>}
+                          </div>
+                        )
+                      }
+                      if (closed === 0) {
+                        return (
+                          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-[10.5px] leading-relaxed text-white/45" role="status">
+                            {evaluated || 'Skrip strategy berjalan di chart.'} — kondisi entry skrip belum terpicu pada data ini, jadi belum ada trade. Catatan: TradingView memakai rentang waktu, feed harga, dan setelan input miliknya sendiri — samakan rentang & input untuk membandingkan hasil.
+                          </div>
+                        )
+                      }
+                      return evaluated ? <div className="text-[10px] text-white/30">{evaluated}.</div> : null
+                    })()}
+
+                    {/* Ringkasan performa — angka yang sama dengan Overview TradingView */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+                      {([
+                        { label: 'Net P&L', value: fmtTesterPnl(strategyTester.netPnl), tone: strategyTester.netPnl != null && strategyTester.netPnl < 0 ? 'neg' : 'pos' },
+                        { label: 'Win Rate', value: winRate != null ? `${winRate.toFixed(1)}%` : '-', tone: 'net' },
+                        { label: 'Profit Factor', value: pf == null ? '-' : pf === Infinity ? '∞' : pf.toFixed(2), tone: 'net' },
+                        { label: 'Max Drawdown', value: strategyTester.maxDrawdown != null ? `-${Math.abs(strategyTester.maxDrawdown).toFixed(2)}` : '-', tone: 'neg' },
+                        { label: 'Trade Closed', value: String(closed), tone: 'net' },
+                        { label: 'Win / Loss', value: `${strategyTester.wins} / ${strategyTester.losses}`, tone: 'net' },
+                      ] as Array<{ label: string; value: string; tone: 'pos' | 'neg' | 'net' }>).map((c) => (
+                        <div key={c.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+                          <div className="text-[9.5px] uppercase tracking-wider text-white/35">{c.label}</div>
+                          <div className={`text-[12.5px] font-bold ${c.tone === 'pos' ? 'text-emerald-300' : c.tone === 'neg' ? 'text-orange-300' : 'text-white/85'}`}>{c.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* KURVA EKUITAS — akumulasi P&L tiap trade tertutup */}
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9.5px] uppercase tracking-wider text-white/35">Equity Curve — akumulasi P&L per trade</span>
+                        <span className={`text-[11px] font-bold ${eqPositive ? 'text-emerald-300' : 'text-red-300'}`}>{fmtTesterPnl(m.equityFinal)}</span>
+                      </div>
+                      {eq.line ? (
+                        <svg viewBox="0 0 100 36" preserveAspectRatio="none" className="w-full h-20" role="img" aria-label="Kurva ekuitas strategy — akumulasi P&L per trade">
+                          <defs>
+                            <linearGradient id="lxEquityFill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={eqPositive ? '#10b981' : '#ef4444'} stopOpacity="0.35" />
+                              <stop offset="100%" stopColor={eqPositive ? '#10b981' : '#ef4444'} stopOpacity="0.02" />
+                            </linearGradient>
+                          </defs>
+                          <line x1="2" y1={eq.zeroY} x2="98" y2={eq.zeroY} stroke="rgba(255,255,255,0.18)" strokeDasharray="2 2" strokeWidth="0.5" />
+                          <path d={eq.area} fill="url(#lxEquityFill)" />
+                          <path d={eq.line} fill="none" stroke={eqPositive ? '#10b981' : '#ef4444'} strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <div className="h-20 flex items-center justify-center text-[10.5px] text-white/35">
+                          Kurva ekuitas muncul setelah ada trade tertutup.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= TAB: KINERJA ================= */}
+                {testerTab === 'kinerja' && (
+                  <div className="space-y-2">
+                    <div className="overflow-x-auto kscroll rounded-lg border border-white/[0.06]">
+                      <table className="w-full text-[11px] border-collapse">
+                        <thead className="bg-[#0d131c]">
+                          <tr className="text-white/40">
+                            {['Sisi', 'Trade', 'Win', 'Win Rate', 'Net P&L', 'Avg Win', 'Avg Loss'].map((h, i) => (
+                              <th key={h} className={`px-2 py-1.5 font-semibold whitespace-nowrap ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sideRow('Long', m.long)}
+                          {sideRow('Short', m.short)}
+                          {sideRow('Total', totalSide)}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+                      {([
+                        { label: 'Avg Trade', value: m.avgTrade != null ? fmtTesterPnl(m.avgTrade) : '-' },
+                        { label: 'Avg Win', value: m.avgWin != null ? fmtTesterPnl(m.avgWin) : '-' },
+                        { label: 'Avg Loss', value: m.avgLoss != null ? fmtTesterPnl(m.avgLoss) : '-' },
+                        { label: 'Largest Win', value: m.largestWin != null ? fmtTesterPnl(m.largestWin) : '-' },
+                        { label: 'Largest Loss', value: m.largestLoss != null ? fmtTesterPnl(m.largestLoss) : '-' },
+                        { label: 'Max Win Beruntun', value: String(m.maxConsecWins || '-') },
+                        { label: 'Max Loss Beruntun', value: String(m.maxConsecLosses || '-') },
+                        { label: 'Avg Durasi Trade', value: fmtTesterDuration(m.avgDurationMs) },
+                        { label: 'Gross Profit', value: strategyTester.grossProfit != null ? fmtTesterPnl(strategyTester.grossProfit) : '-' },
+                        { label: 'Gross Loss', value: strategyTester.grossLoss != null ? fmtTesterPnl(strategyTester.grossLoss) : '-' },
+                      ] as Array<{ label: string; value: string }>).map((c) => (
+                        <div key={c.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+                          <div className="text-[9.5px] uppercase tracking-wider text-white/35">{c.label}</div>
+                          <div className="text-[12px] font-bold text-white/85">{c.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= TAB: TRADE ================= */}
+                {testerTab === 'trades' && (
+                  <div className="space-y-2">
+                    <div className="max-h-80 overflow-y-auto kscroll rounded-lg border border-white/[0.06]">
+                      <table className="w-full text-[11px] border-collapse">
+                        <thead className="sticky top-0 bg-[#0d131c] z-10">
+                          <tr className="text-white/40">
+                            {['#', 'Arah', 'Waktu Entry', 'Harga Entry', 'Waktu Exit', 'Harga Exit', 'Qty', 'P&L'].map((h) => (
+                              <th key={h} className={`px-2 py-1.5 font-semibold text-left whitespace-nowrap ${h === 'P&L' ? 'text-right' : ''}`}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {strategyTester.rows.slice().reverse().map((t, idx) => {
+                            const n = strategyTester.rows.length - idx
+                            const isOpen = t.open
+                            const pnlCol = isOpen ? 'text-sky-300' : t.pnl != null && t.pnl < 0 ? 'text-red-300' : 'text-emerald-300'
+                            return (
+                              <tr
+                                key={`${t.entryTime}-${idx}`}
+                                className="border-t border-white/[0.04] hover:bg-white/[0.04] cursor-pointer transition-colors"
+                                onClick={() => jumpToTesterTrade(t)}
+                                title="Klik untuk melompat ke trade ini di chart"
+                              >
+                                <td className="px-2 py-1.5 text-white/35 whitespace-nowrap">{n}</td>
+                                <td className={`px-2 py-1.5 font-semibold whitespace-nowrap ${t.side === 'long' ? 'text-emerald-300' : 'text-red-300'}`}>
+                                  {t.side === 'long' ? 'Long' : 'Short'}
+                                </td>
+                                <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{fmtTesterTime(t.entryTime)}</td>
+                                <td className="px-2 py-1.5 text-white/85 whitespace-nowrap">{fmtTesterPrice(t.entryPrice)}</td>
+                                <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{isOpen ? <span className="text-sky-300 font-semibold">OPEN</span> : fmtTesterTime(t.exitTime)}</td>
+                                <td className="px-2 py-1.5 text-white/85 whitespace-nowrap">{isOpen ? '-' : fmtTesterPrice(t.exitPrice)}</td>
+                                <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{fmtTesterQty(t.qty)}</td>
+                                <td className={`px-2 py-1.5 font-bold text-right whitespace-nowrap ${pnlCol}`}>{isOpen ? '…' : fmtTesterPnl(t.pnl)}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[10px] text-white/35 leading-relaxed">
+                      {strategyTester.truncated && 'Menampilkan 500 trade terakhir. '}
+                      {strategyTester.openNow && 'Posisi masih terbuka — garis & PnL diperbarui otomatis saat trade ditutup. '}
+                      Klik baris untuk melompat ke trade di chart. Garis entry→exit + label harga & PnL digambar otomatis di chart.
+                    </p>
+                  </div>
+                )}
+
+                {/* ================= TAB: PROPERTI ================= */}
+                {testerTab === 'properti' && (
+                  <div className="space-y-1.5">
+                    {propRow('Modal awal (engine)', strategyTester.initialCapital != null ? String(strategyTester.initialCapital) : 'Default engine')}
+                    {propRow('Net P&L', fmtTesterPnl(strategyTester.netPnl), strategyTester.netPnl != null && strategyTester.netPnl < 0 ? 'neg' : 'pos')}
+                    {propRow('Gross Profit', strategyTester.grossProfit != null ? fmtTesterPnl(strategyTester.grossProfit) : '-')}
+                    {propRow('Gross Loss', strategyTester.grossLoss != null ? fmtTesterPnl(strategyTester.grossLoss) : '-', strategyTester.grossLoss != null && strategyTester.grossLoss < 0 ? 'neg' : undefined)}
+                    {propRow('Max Drawdown', strategyTester.maxDrawdown != null ? `-${Math.abs(strategyTester.maxDrawdown).toFixed(2)}` : '-', 'neg')}
+                    {propRow('Max Runup', strategyTester.maxRunup != null ? `+${Math.abs(strategyTester.maxRunup).toFixed(2)}` : '-')}
+                    {propRow('Total Komisi (dari trade)', m.totalCommission != null ? fmtTesterPnl(m.totalCommission) : 'Tidak dilaporkan engine')}
+                    {propRow('Posisi saat ini', strategyTester.openNow ? 'TERBUKA — masih memegang posisi' : 'Flat (tidak memegang posisi)')}
+                    {propRow('Bar harga dievaluasi', strategyTester.evaluatedBars != null ? `${strategyTester.evaluatedBars.toLocaleString('id-ID')}${strategyTester.complete ? '' : ' (sejarah menyusul)'}` : '-')}
+                    <p className="text-[10px] text-white/35 leading-relaxed pt-1">
+                      Catatan: engine Pine Vela mengisi entry di bar BERIKUTNYA setelah sinyal (fill next-bar, semangat broker nyata).
+                      Angka bisa berbeda dari TradingView karena rentang data, feed harga, komisi, dan setelan input yang berbeda.
+                      Properti strategy (initial_capital, commission dll.) mengikuti nilai bawaan engine pada skrip ini.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Setelan tampilan indikator Eksklusif kini di dialog Settings ASLI
           chart: klik ikon ⚙ pada legenda "LTX Pro" → tab Styles (ala
