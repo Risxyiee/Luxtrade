@@ -32,7 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3 } from 'lucide-react'
+import { Loader2, ScrollText, Bell, X, GraduationCap, TriangleAlert, Trash2, ChevronDown, BarChart3, Settings2, Eye, EyeOff } from 'lucide-react'
 import { DEFAULT_PINE_SLUG, DEFAULT_PINE_NAME, DEFAULT_PINE_DESCRIPTION } from '@/lib/pine-default-meta'
 import { TRADE_MARKER_TYPE, registerTradeMarkerNative } from '@/components/vela/TradeMarkerIndicator'
 import { STRATEGY_PNL_TYPE, registerStrategyPnlNative, type StrategyPnlTrade } from '@/components/vela/StrategyPnlIndicator'
@@ -41,6 +41,15 @@ import {
   TRADE_HIGHLIGHT_EVENT,
   type TradeMarkerPayload,
 } from '@/lib/trade-highlight'
+import {
+  parseVisualCalls,
+  buildStyleRows,
+  rowsToOverrides,
+  applyPineStylesToChart,
+  loadPineStyles,
+  savePineStyles,
+  type StyleRow,
+} from '@/components/vela/pine-style'
 
 /* ---------- Luxtradee Pine® presets (muncul di indicator picker) ---------- */
 const PINE_PRESETS = [
@@ -72,6 +81,10 @@ plot(ta.vwap, color=color.aqua, linewidth=2)`,
 
 /* ---------- Batas indikator preset (SOP Bos: free 1, pro buka semua) ---------- */
 const FREE_INDICATOR_LIMIT = 1
+/* Judul `indicator("...")` yang dideklarasikan tiap preset — dipakai
+   mencocokkan instance hasil auto-add Vela saat boot (source bisa
+   sudah ditulis ulang oleh Styles, judul tetap sama). */
+const PINE_PRESET_TITLES = new Set(PINE_PRESETS.map((p) => /indicator\("([^"]+)"/.exec(p.script)?.[1] || p.name))
 
 /* ============================================================
    PROTECTED CUSTOM PINE SCRIPT® (Task 41) — client-side glue
@@ -1422,12 +1435,35 @@ export default function VelaChartTerminal({
       /* ---- 1) RESTORE preset Pine dari localStorage ---- */
       if (needPresets) {
         restoredPresetsRef.current = true
+
+        /* ---- 0) BERSIHKAN preset auto-add Vela (fix "EMA dobel" + bocor
+           pro) — opsi `indicators:` di Vela bukan sekadar picker: SEMUA
+           entrinya DIBOOT-kan otomatis ke chart (RSI/VWAP tampil meski
+           user free, dan klik chip = nambah DOBEL). Cabut semua instance
+           preset hasil auto-add; chip/restore kami yang menambah ulang
+           dengan kontrol kuota free/Pro yang benar. Pencocokan pakai
+           source ASLI + judul `indicator("...")` (source bisa sudah
+           ditulis ulang oleh Styles). Blok ini jalan TEPAT SEKALI
+           (gate needPresets) — aman dari re-run effect. */
+        try {
+          const presetSources = new Set(PINE_PRESETS.map((p) => p.script))
+          for (const h of ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]) {
+            const src = String(h?.source || '')
+            const ttl = String(h?.title || '')
+            if ((src && presetSources.has(src)) || (ttl && PINE_PRESET_TITLES.has(ttl))) {
+              try { h.remove() } catch { /* diam */ }
+            }
+          }
+        } catch { /* diam */ }
+
         const presetIdx = stored ? stored.presets : []
         for (const i of presetIdx) {
           try {
             const handles = ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]
             const already = handles.some((h) => h?.source === PINE_PRESETS[i].script)
             if (!already) await runOnChart(PINE_PRESETS[i].script)
+            /* Styles tersimpan dipakai ulang otomatis (ala TradingView) */
+            void applyPineStyles(`preset:${i}`, PINE_PRESETS[i].script)
             setActivePresets((m) => ({ ...m, [i]: true }))
           } catch { /* satu preset gagal → lanjut yang lain */ }
         }
@@ -1587,7 +1623,11 @@ export default function VelaChartTerminal({
         if (!s) continue
         try {
           const err = await runOnChart(s.source)
-          if (!err) setActivePines((m) => ({ ...m, [id]: true }))
+          if (!err) {
+            setActivePines((m) => ({ ...m, [id]: true }))
+            /* Styles tersimpan dipakai ulang otomatis (ala TradingView) */
+            void applyPineStyles(`pine:${id}`, s.source)
+          }
         } catch { /* satu gagal → lanjut yang lain */ }
       }
     })()
@@ -1817,6 +1857,69 @@ export default function VelaChartTerminal({
     }
   }, [])
 
+  /* ============================================================
+     EDIT VISUAL PINE (ala tab Styles TradingView) — permintaan Bos:
+     "pineku kurang lengkap, yang tampil di TradingView gabisa edit
+     visual". Preset + Pine milik user kini punya dialog Styles:
+     warna, tebal, jenis garis, tampil/sembunyi per plot — tersimpan
+     per skrip & otomatis dipakai lagi tiap skrip jalan/restore.
+     Mekanisme: source ditulis ulang (kwarg color/linewidth/style)
+     lalu handle.updateCode() — API resmi Vela, gagal compile auto
+     balik ke kode lama.
+     ============================================================ */
+  const styleLastSourceRef = useRef<Record<string, string>>({})
+  const [styleDlg, setStyleDlg] = useState<{ key: string; name: string; baseSource: string } | null>(null)
+  const [styleRows, setStyleRows] = useState<StyleRow[]>([])
+  const [styleBusy, setStyleBusy] = useState(false)
+  const [styleMsg, setStyleMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+
+  const openStyleEditor = useCallback((key: string, name: string, baseSource: string) => {
+    const calls = parseVisualCalls(baseSource)
+    const ov = loadPineStyles(key)?.plots || {}
+    setStyleRows(buildStyleRows(calls, ov))
+    setStyleMsg(calls.length ? null : { kind: 'err', text: 'Skrip ini tidak punya plot()/plotshape()/hline() yang bisa di-styling.' })
+    setStyleDlg({ key, name, baseSource })
+  }, [])
+
+  const patchStyleRow = useCallback((index: number, patch: Partial<StyleRow>) => {
+    setStyleRows((rows) => rows.map((r) => (r.index === index ? { ...r, ...patch } : r)))
+  }, [])
+
+  const applyPineStyles = useCallback(async (key: string, baseSource: string) => {
+    const chart: any = (wsRef.current as any)?.chart
+    if (!chart) return
+    try { await applyPineStylesToChart(chart, key, baseSource, styleLastSourceRef.current) } catch { /* diam */ }
+  }, [])
+
+  const saveStyleEditor = useCallback(async () => {
+    if (!styleDlg) return
+    setStyleBusy(true)
+    try {
+      const calls = parseVisualCalls(styleDlg.baseSource)
+      const plots = rowsToOverrides(calls, styleRows)
+      savePineStyles(styleDlg.key, plots)
+      const chart: any = (wsRef.current as any)?.chart
+      const applied = chart
+        ? await applyPineStylesToChart(chart, styleDlg.key, styleDlg.baseSource, styleLastSourceRef.current, 1)
+        : false
+      setStyleMsg(applied
+        ? { kind: 'ok', text: 'Tampilan diperbarui di chart ✓ — tersimpan otomatis untuk sesi berikutnya.' }
+        : Object.keys(plots).length
+          ? { kind: 'ok', text: 'Tersimpan — dipakai otomatis saat skrip tampil di chart.' }
+          : { kind: 'ok', text: 'Setelan kembali ke bawaan.' })
+    } catch (x: any) {
+      setStyleMsg({ kind: 'err', text: String(x?.message || x).slice(0, 120) })
+    } finally { setStyleBusy(false) }
+  }, [styleDlg, styleRows])
+
+  const resetStyleEditor = useCallback(() => {
+    if (!styleDlg) return
+    const calls = parseVisualCalls(styleDlg.baseSource)
+    setStyleRows(buildStyleRows(calls, {}))
+    savePineStyles(styleDlg.key, {})
+    setStyleMsg({ kind: 'ok', text: 'Setelan direset ke bawaan — klik Terapkan untuk memakai ke chart.' })
+  }, [styleDlg])
+
   /* ---------- Save/Compile Pine (kuota 2×/bulan untuk free) ----------
      FIX "harus masukin lagi": API sekarang UPSERT per nama — nama
      sama = update baris yang sama (UUID tetap → langganan alert
@@ -1841,7 +1944,11 @@ export default function VelaChartTerminal({
         const sid = String(r.script.id)
         /* upsert: ganti entri lama dgn id sama (hindari dobel di daftar) */
         setPineScripts((l) => [r.script, ...l.filter((x) => x.id !== sid)].slice(0, 30))
-        if (!err) setActivePines((m) => ({ ...m, [sid]: true }))
+        if (!err) {
+          setActivePines((m) => ({ ...m, [sid]: true }))
+          /* Styles tersimpan dipakai lagi (bila struktur plot masih cocok) */
+          void applyPineStyles(`pine:${sid}`, pineSource)
+        }
       }
       if (err) { setPineMsg({ kind: 'err', text: `Tersimpan, tapi gagal tampil di chart: ${err}` }) }
       else {
@@ -1853,7 +1960,7 @@ export default function VelaChartTerminal({
     } catch (x: any) {
       setPineMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
     } finally { setPineBusy(false) }
-  }, [pineName, pineSource, runOnChart])
+  }, [pineName, pineSource, runOnChart, applyPineStyles])
 
   const quotaLabel = (q: QuotaBadge | null, unit: string) =>
     !q ? '' : q.isPro ? 'PRO ∞' : `${q.remaining ?? 0} ${unit} lagi`
@@ -1927,14 +2034,18 @@ export default function VelaChartTerminal({
      Klik chip AKTIF → indikator dilepas dari chart (state ikut). */
   const runPreset = useCallback(async (i: number) => {
     if (presetBusy !== null) return
-    /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart --- */
+    /* --- TOGGLE OFF: chip aktif diklik lagi → lepas dari chart ---
+       (source preset bisa SUDAH ditulis ulang oleh Styles — cocokkan
+       juga dgn source terakhir yang kita terapkan) */
     if (activePresets[i]) {
       setPresetBusy(i); setPresetMsg(null)
       try {
         const chart: any = (wsRef.current as any)?.chart
         const handles = ((typeof chart?.indicators === 'function' ? chart.indicators() : []) || []) as any[]
-        const h = handles.find((x) => x?.source === PINE_PRESETS[i].script)
+        const lastSrc = styleLastSourceRef.current[`preset:${i}`]
+        const h = handles.find((x) => x?.source && (x.source === PINE_PRESETS[i].script || x.source === lastSrc))
         if (h) { try { h.remove() } catch { /* diam */ } }
+        if (lastSrc) delete styleLastSourceRef.current[`preset:${i}`]
         setActivePresets((m) => ({ ...m, [i]: false }))
         setPresetMsg(`✕ ${PINE_PRESETS[i].name.replace('Luxtradee — ', '')} dilepas dari chart.`)
       } finally { setPresetBusy(null) }
@@ -1947,9 +2058,11 @@ export default function VelaChartTerminal({
     else {
       setActivePresets((s) => ({ ...s, [i]: true }))
       setPresetMsg(`${short} tampil di chart. Klik chipnya lagi untuk melepas.`)
+      /* Styles tersimpan dipakai ulang otomatis */
+      void applyPineStyles(`preset:${i}`, PINE_PRESETS[i].script)
     }
     setPresetBusy(null)
-  }, [presetBusy, activePresets, runOnChart])
+  }, [presetBusy, activePresets, runOnChart, applyPineStyles])
 
   const lockedPresetMsg = (i: number) => {
     const names = PINE_PRESETS.slice(FREE_INDICATOR_LIMIT).map((x) => x.name.replace('Luxtradee — ', ''))
@@ -2042,11 +2155,25 @@ export default function VelaChartTerminal({
           }
           const active = !!activePresets[i]
           return (
-            <button key={p.name} onClick={() => runPreset(i)} disabled={presetBusy !== null}
-              className={`text-[11px] px-2.5 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1 min-h-[32px] disabled:opacity-50 ${active ? 'border-purple-400/40 bg-purple-400/15 text-purple-200' : 'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/10 hover:text-white'}`}
-              aria-label={`Tambah ${short} ke chart`}>
-              {active ? '✓' : '+'} {short}
-            </button>
+            <span key={p.name} className={`inline-flex items-stretch rounded-full border overflow-hidden min-h-[32px] ${active ? 'border-purple-400/40 bg-purple-400/15' : 'border-white/10 bg-white/[0.03]'}`}>
+              <button onClick={() => runPreset(i)} disabled={presetBusy !== null}
+                className={`text-[11px] pl-2.5 pr-2 py-1.5 inline-flex items-center gap-1 transition-colors disabled:opacity-50 ${active ? 'text-purple-200' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                aria-label={`Tambah ${short} ke chart`}>
+                {active ? '✓' : '+'} {short}
+              </button>
+              {active && (
+                <>
+                  <span className="w-px bg-purple-400/20" aria-hidden="true" />
+                  <button
+                    onClick={() => openStyleEditor(`preset:${i}`, p.name, p.script)}
+                    className="px-2 inline-flex items-center text-purple-100/80 hover:bg-purple-400/15 hover:text-white transition-colors"
+                    aria-label={`Edit tampilan ${short} — warna, tebal, jenis garis, sembunyikan`}
+                    title="Edit tampilan — ala tab Styles TradingView (warna, tebal, sembunyikan)">
+                    <Settings2 className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </span>
           )
         })}
         {presetMsg && (
@@ -2249,6 +2376,13 @@ export default function VelaChartTerminal({
                           🔔 {s.name}
                           {active && <span className="ml-1.5 text-[9px] px-1 py-px rounded bg-sky-400/15 text-sky-300 border border-sky-400/25 align-middle">AKTIF</span>}
                         </button>
+                        <button
+                          onClick={() => openStyleEditor(`pine:${s.id}`, s.name, s.source)}
+                          className="px-1.5 border border-l-0 border-r-0 border-white/5 bg-white/5 hover:bg-purple-400/15 text-white/35 hover:text-purple-200"
+                          title={`Edit tampilan "${s.name}" — ala tab Styles TradingView (warna, tebal, sembunyikan)`}
+                          aria-label={`Edit tampilan skrip ${s.name}`}>
+                          <Settings2 className="w-3.5 h-3.5" />
+                        </button>
                         <button onClick={() => deletePineScript(s.id)}
                           className="px-1.5 rounded-r-lg border border-l-0 border-white/5 bg-white/5 hover:bg-red-400/15 text-white/35 hover:text-red-300"
                           title={`Hapus "${s.name}"`}
@@ -2399,6 +2533,89 @@ export default function VelaChartTerminal({
       {/* Setelan tampilan indikator Eksklusif kini di dialog Settings ASLI
           chart: klik ikon ⚙ pada legenda "LTX Pro" → tab Styles (ala
           TradingView) — switch per kategori visual, tersimpan per skrip. */}
+
+      {/* ---------- Dialog: GAYA TAMPILAN Pine (ala tab Styles TradingView) ----------
+          Permintaan Bos: "pineku kurang lengkap, yang tampil di
+          TradingView gabisa edit visual" → preset + Pine milik user
+          kini bisa edit warna/tebal/jenis garis/sembunyikan per plot. */}
+      <Dialog open={!!styleDlg} onOpenChange={(v) => !v && setStyleDlg(null)}>
+        <DialogContent className="max-w-md bg-[#0a0f16] border-white/10 max-h-[85vh] overflow-y-auto kscroll">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-300 text-base">
+              <Settings2 className="w-4 h-4" /> Gaya Tampilan — {styleDlg?.name}
+            </DialogTitle>
+            <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
+              Ubah warna, tebal, jenis garis, atau sembunyikan tiap plot — sama seperti tab Styles di TradingView. Tersimpan otomatis per skrip.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-1.5">
+            {styleRows.length === 0 && (
+              <div className="text-[11px] text-white/45 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
+                Tidak ada elemen yang bisa diedit di skrip ini (butuh plot(), plotshape(), atau hline()).
+              </div>
+            )}
+            {styleRows.map((r) => (
+              <div key={r.index} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+                <button
+                  onClick={() => patchStyleRow(r.index, { visible: !r.visible })}
+                  className={`shrink-0 w-7 h-7 rounded-md inline-flex items-center justify-center border transition-colors ${r.visible ? 'border-white/10 text-white/70 hover:bg-white/10' : 'border-white/10 bg-white/[0.03] text-white/25'}`}
+                  aria-label={r.visible ? `Sembunyikan ${r.title}` : `Tampilkan ${r.title}`}
+                  title={r.visible ? 'Sembunyikan dari chart' : 'Tampilkan di chart'}
+                >
+                  {r.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                </button>
+                <span className={`flex-1 min-w-0 truncate text-[11px] ${r.visible ? 'text-white/80' : 'text-white/30 line-through'}`} title={r.title}>
+                  {r.kind === 'hline' ? '═ ' : ''}{r.title}
+                </span>
+                <input
+                  type="color"
+                  value={r.color || '#22d3ee'}
+                  onChange={(e) => patchStyleRow(r.index, { color: e.target.value, colorTouched: true })}
+                  disabled={!r.visible}
+                  aria-label={`Warna ${r.title}`}
+                  className="shrink-0 w-8 h-8 rounded-md cursor-pointer bg-transparent border border-white/10 p-0.5 disabled:opacity-40"
+                />
+                {r.width != null && (
+                  <select
+                    value={String(r.width)}
+                    onChange={(e) => patchStyleRow(r.index, { width: Number(e.target.value) })}
+                    disabled={!r.visible}
+                    aria-label={`Tebal garis ${r.title}`}
+                    className="shrink-0 text-[11px] bg-black/40 border border-white/10 rounded-md px-1 py-1.5 text-white/80 outline-none disabled:opacity-40"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (<option key={n} value={String(n)} className="bg-[#0a0f16]">{n}px</option>))}
+                  </select>
+                )}
+                {r.styleOpts && (
+                  <select
+                    value={r.style || r.styleOpts[0].v}
+                    onChange={(e) => patchStyleRow(r.index, { style: e.target.value })}
+                    disabled={!r.visible}
+                    aria-label={`Jenis garis ${r.title}`}
+                    className="shrink-0 text-[11px] bg-black/40 border border-white/10 rounded-md px-1 py-1.5 text-white/80 outline-none max-w-[110px] disabled:opacity-40"
+                  >
+                    {r.styleOpts.map((o) => (<option key={o.v} value={o.v} className="bg-[#0a0f16]">{o.label}</option>))}
+                  </select>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {styleMsg && (
+            <div className={`text-[11px] rounded-lg px-2.5 py-1.5 border ${styleMsg.kind === 'ok' ? 'border-sky-400/30 bg-sky-400/10 text-sky-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+              {styleMsg.text}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" disabled={styleBusy} onClick={resetStyleEditor}>Reset</Button>
+            <Button size="sm" className="bg-purple-600 hover:bg-purple-500 text-white font-semibold" disabled={styleBusy || styleRows.length === 0} onClick={saveStyleEditor}>
+              {styleBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Terapkan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ---------- Dialog paywall upgrade ---------- */}
       <Dialog open={!!upgradeMsg} onOpenChange={(v) => !v && setUpgradeMsg(null)}>

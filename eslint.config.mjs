@@ -44,7 +44,7 @@ const eslintConfig = [
     },
   },
   {
-    ignores: ["node_modules/**", ".next/**", ".wrangler/**", ".open-next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "mini-services/**", "scripts/**", "test-*.js", "test-*.ts"]
+    ignores: ["node_modules/**", ".next/**", ".wrangler/**", ".open-next/**", "out/**", "build/**", "android/**", "tool-results/**", "upload/**", "next-env.d.ts", "examples/**", "skills", "mini-services/**", "scripts/**", "test-*.js", "test-*.ts"]
   }
 ];
 
