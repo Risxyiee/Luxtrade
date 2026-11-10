@@ -21,11 +21,23 @@ export function getSupabaseUrl(): string {
 }
 
 export function getSupabaseAnonKey(): string | undefined {
-  return readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const key = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  // FIX AUTH: legacy JWT key (eyJ...) sudah disabled Supabase (1 Nov 2025).
+  if (key && key.startsWith('eyJ')) {
+    console.error('⚠️ [supabase] Anon key LEGACY JWT (disabled Supabase). Pakai publishable fallback.')
+    return 'sb_publishable_gYf7ekooCy36EmIv8_PKzw_ixj0zKhE'
+  }
+  return key
 }
 
 export function getSupabaseServiceRoleKey(): string | undefined {
-  return readEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const key = readEnv('SUPABASE_SERVICE_ROLE_KEY')
+  // Diagnostik: service_role legacy JWT disabled Supabase → semua query admin
+  // bakal 401. Harus diganti manual ke sb_secret_... (wrangler secret put).
+  if (key && key.startsWith('eyJ')) {
+    console.error('⚠️ [supabase] SUPABASE_SERVICE_ROLE_KEY masih LEGACY JWT — Supabase disable legacy keys. Ganti ke sb_secret_... via wrangler secret put / CF dashboard!')
+  }
+  return key
 }
 
 /** Server-side non-admin client with cookie support (for server components) */

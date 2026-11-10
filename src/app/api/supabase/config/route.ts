@@ -32,6 +32,29 @@ export async function GET() {
   try { if (!url) url = (await getEnvVar('NEXT_PUBLIC_SUPABASE_URL')) || '' } catch {}
   try { if (!anonKey) anonKey = (await getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY')) || '' } catch {}
 
+  // 4. FIX AUTH (login gagal "Legacy API keys are disabled"): Supabase
+  //    menonaktifkan legacy JWT keys (anon/service_role, format eyJ...) per
+  //    1 Nov 2025. Jika env masih menunjuk key legacy — JANGAN kirim ke
+  //    browser. Lebih baik gagal jelas di sini daripada browser teracuni dan
+  //    men-cache key mati selama 24 jam (config-loader).
+  if (anonKey.startsWith('eyJ')) {
+    console.error(
+      '[supabase/config] ❌ NEXT_PUBLIC_SUPABASE_ANON_KEY masih LEGACY JWT key ' +
+      '(Supabase sudah disable legacy API keys). Ganti ke sb_publishable_... ' +
+      'di build env / wrangler config, lalu rebuild deploy.'
+    )
+    return NextResponse.json(
+      {
+        url,
+        anonKey: null,
+        isConfigured: false,
+        source: 'legacy-key-disabled',
+        error: 'Legacy API keys are disabled — deploy masih memakai JWT anon key lama.',
+      },
+      { status: 500, headers: { 'Cache-Control': 'no-store' } }
+    )
+  }
+
   return NextResponse.json(
     {
       url,

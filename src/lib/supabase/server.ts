@@ -14,7 +14,14 @@ function getSupabaseUrl(): string {
 }
 
 function getSupabaseAnonKey(): string | undefined {
-  return readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const key = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  // FIX AUTH: legacy JWT key (eyJ...) sudah disabled Supabase (1 Nov 2025) →
+  // semua call bakal 401 "Legacy API keys are disabled". Fallback publishable.
+  if (key && key.startsWith('eyJ')) {
+    console.error('⚠️ [supabase/server] Anon key LEGACY JWT (disabled Supabase). Pakai publishable fallback.')
+    return 'sb_publishable_gYf7ekooCy36EmIv8_PKzw_ixj0zKhE'
+  }
+  return key
 }
 
 /**

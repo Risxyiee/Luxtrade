@@ -350,17 +350,19 @@ export function applyStyleOverrides(
     if (ov.title) byTitle.set(ov.title, ov)
     byIdx.set(k, ov)
   }
-  /* rencana perubahan — hanya call yang benar-benar beda */
-  const plan = calls
-    .map((c) => ({ c, ov: (c.title && byTitle.get(c.title)) || byIdx.get(`c${c.index}`) || null }))
-    .filter(({ c, ov }): ov is PlotStyleOverride => {
-      if (!ov) return false
-      const colorDirty = ov.color != null && ov.color !== c.color
-      const widthDirty = ov.width != null && c.width != null && ov.width !== c.width
-      const styleDirty = ov.style != null && c.style != null && ov.style !== c.style
-      const visibleDirty = ov.visible != null && ov.visible !== c.visible
-      return colorDirty || widthDirty || styleDirty || visibleDirty
-    })
+  /* rencana perubahan — hanya call yang benar-benar beda
+     (FIX TS: type predicate tidak boleh referensi elemen destrukturisasi —
+      pakai loop + push supaya `ov` benar-benar non-null di `plan`) */
+  const plan: { c: VisualCall; ov: PlotStyleOverride }[] = []
+  for (const c of calls) {
+    const ov = (c.title && byTitle.get(c.title)) || byIdx.get(`c${c.index}`) || null
+    if (!ov) continue
+    const colorDirty = ov.color != null && ov.color !== c.color
+    const widthDirty = ov.width != null && c.width != null && ov.width !== c.width
+    const styleDirty = ov.style != null && c.style != null && ov.style !== c.style
+    const visibleDirty = ov.visible != null && ov.visible !== c.visible
+    if (colorDirty || widthDirty || styleDirty || visibleDirty) plan.push({ c, ov })
+  }
   if (!plan.length) return source
 
   const lines = source.split('\n')

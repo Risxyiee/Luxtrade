@@ -21,17 +21,32 @@ let fetchPromise: Promise<SupabaseConfig> | null = null
 // background supaya tetap segar kalau key di-rotate. Offline → cache tetap
 // terpakai (reload offline pun jalan).
 
-const CONFIG_CACHE_KEY = 'luxtrade_sb_config'
+const CONFIG_CACHE_KEY = 'luxtrade_sb_config_v2'
+// FIX AUTH: cache v1 ('luxtrade_sb_config') pernah menyimpan LEGACY JWT key
+// (zaman sebelum Supabase disable legacy API keys per 1 Nov 2025). Browser
+// yang terlanjur ter-cache akan terus kirim key legacy → login gagal 401
+// "Legacy API keys are disabled" sampai 24 jam. Naik versi cache key = semua
+// cache lama otomatis yatim & diabaikan.
+const CONFIG_CACHE_V1_LEGACY_KEY = 'luxtrade_sb_config'
 const CONFIG_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 jam
+
+/** Deteksi legacy JWT anon/service_role key (format eyJ... = sudah ditonogokan Supabase). */
+export function isLegacySupabaseKey(key: string | null | undefined): boolean {
+  return typeof key === 'string' && key.startsWith('eyJ')
+}
 
 function readLocalConfigCache(): SupabaseConfig | null {
   if (typeof window === 'undefined') return null
+  // Bersihkan cache v1 lama (bisa jadi berisi key legacy) — sekali saja.
+  try { window.localStorage.removeItem(CONFIG_CACHE_V1_LEGACY_KEY) } catch {}
   try {
     const raw = window.localStorage.getItem(CONFIG_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { config?: SupabaseConfig; ts?: number }
     const cfg = parsed?.config
     if (!cfg?.url || !cfg.anonKey || !cfg.isConfigured) return null
+    // FIX AUTH: cache yang berisi key legacy tidak boleh dipakai sama sekali.
+    if (isLegacySupabaseKey(cfg.anonKey)) return null
     if (typeof parsed.ts !== 'number' || Date.now() - parsed.ts > CONFIG_CACHE_TTL) return null
     return cfg
   } catch {
@@ -44,6 +59,9 @@ function writeLocalConfigCache(config: SupabaseConfig): void {
   // Hanya cache config yang BENAR-BENAR terkonfigurasi — jangan pernah
   // menyimpan hasil error/anonKey null (bisa bikin auth mati sampai TTL habis).
   if (!config.isConfigured || !config.anonKey) return
+  // FIX AUTH: JANGAN PERNAH menyimpan legacy JWT key ke cache — ini sumber
+  // login gagal 401 "Legacy API keys are disabled" selama 24 jam penuh.
+  if (isLegacySupabaseKey(config.anonKey)) return
   try {
     window.localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify({ config, ts: Date.now() }))
   } catch {
@@ -72,6 +90,22 @@ async function fetchSupabaseConfig(): Promise<SupabaseConfig> {
     }
 
     const data = await response.json()
+
+    // FIX AUTH: server menembakkan key legacy (misconfig build) → tolak keras.
+    // Jangan sampai key legacy masuk ke client Supabase / localStorage.
+    if (isLegacySupabaseKey(data.anonKey)) {
+      console.error(
+        '[Supabase Config] ❌ Server mengirim LEGACY JWT key (sudah disabled Supabase). ' +
+        'Login akan gagal 401. Perbaiki NEXT_PUBLIC_SUPABASE_ANON_KEY di build env ' +
+        'menjadi sb_publishable_... lalu rebuild deploy.'
+      )
+      return {
+        url: data.url || 'https://klxkdrfsfcoankbaoejn.supabase.co',
+        anonKey: null,
+        isConfigured: false
+      }
+    }
+
     console.log('[Supabase Config] Loaded from API:', {
       url: data.url,
       hasAnonKey: !!data.anonKey,

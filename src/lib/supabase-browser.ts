@@ -19,6 +19,22 @@ export function getSupabaseAnonKey(): string | undefined {
 // Browser client singleton with async initialization
 let browserClient: SupabaseClient | null = null
 let browserClientPromise: Promise<SupabaseClient | null> | null = null
+// FIX AUTH: ingat key yang dipakai membangun client sekarang. Kalau config
+// berubah (revalidate menemukan key baru / key di-rotate), client lama yang
+// terlanjur dibuat dengan key legacy TIDAK BOLEH dipakai terus — tanpa ini,
+// user terjebak 401 "Legacy API keys are disabled" sampai reload dua kali.
+let clientKeyUsed: string | null = null
+
+/** Buang client singleton yang terlanjur dibangun dengan key lama/berbeda. */
+function invalidateClientIfKeyChanged(currentKey: string | null | undefined): void {
+  if (!browserClient || !clientKeyUsed) return
+  if (currentKey && currentKey !== clientKeyUsed) {
+    console.warn('[Supabase] Anon key berubah (rotate/fix config) → rebuild browser client.')
+    browserClient = null
+    browserClientPromise = null
+    clientKeyUsed = null
+  }
+}
 
 /** Browser-only client (call only from client code) - async version */
 export async function getClientBrowserAsync(): Promise<SupabaseClient | null> {
@@ -27,9 +43,14 @@ export async function getClientBrowserAsync(): Promise<SupabaseClient | null> {
     return null
   }
 
-  // Return cached client if available
+  // FIX AUTH: kalau config sudah berubah (key rotate / fix legacy), client
+  // lama tidak valid lagi — rebuild sebelum dipakai.
   if (browserClient) {
-    return browserClient
+    try {
+      const { getSupabaseConfigSync } = await import('./supabase/config-loader')
+      invalidateClientIfKeyChanged(getSupabaseConfigSync()?.anonKey)
+    } catch {}
+    if (browserClient) return browserClient
   }
 
   // Return ongoing initialization if exists
@@ -48,6 +69,7 @@ export async function getClientBrowserAsync(): Promise<SupabaseClient | null> {
         return null
       }
 
+      clientKeyUsed = config.anonKey
       console.log(`[Supabase] Creating browser client with URL: ${config.url}`)
       // SECURITY (audit #5): cookie flags aman (secure di prod, sameSite lax)
       browserClient = createBrowserClient(config.url, config.anonKey, {
@@ -82,6 +104,7 @@ export function getClientBrowser(): SupabaseClient | null {
   const config = getSupabaseConfigSync()
 
   if (config && config.anonKey) {
+    clientKeyUsed = config.anonKey
     console.log(`[Supabase] Creating browser client (sync) with URL: ${config.url}`)
     // SECURITY (audit #5): cookie flags aman (secure di prod, sameSite lax)
     browserClient = createBrowserClient(config.url, config.anonKey, {
