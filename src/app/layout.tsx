@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import CookieConsent from '@/components/CookieConsent';
+import SourceCapture from '@/components/SourceCapture';
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { SupabaseConfigLoader } from "@/components/supabase-config-loader";
@@ -131,6 +132,7 @@ export default function RootLayout({
             <SupabaseConfigLoader />
             <Providers>
               <CookieConsent />
+              <SourceCapture />
               {children}
             </Providers>
             <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
