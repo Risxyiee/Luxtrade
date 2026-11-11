@@ -3,17 +3,29 @@
 import React, { useState } from 'react'
 import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import Image from 'next/image'
+import Link from 'next/link'
 import { type LegalPageTab } from '@/components/LegalPagesModal'
 import { toast } from 'sonner'
 import SocialIcons from './SocialIcons'
 
 interface LandingFooterProps {
   language: 'id' | 'en'
-  openLegalPage: (tab: LegalPageTab) => void
+  /** Masih diterima dari page.tsx (kompatibilitas) — legal kini lewat URL
+   *  nyata /privacy /terms (syarat review TikTok), bukan modal. */
+  openLegalPage?: (tab: LegalPageTab) => void
 }
 
-export default function LandingFooter({ language, openLegalPage }: LandingFooterProps) {
+export default function LandingFooter({ language }: LandingFooterProps) {
   const [email, setEmail] = useState('')
+
+  /* FIX REVIEW TIKTOK (11 Nov): semua tautan legal WAJIB <Link> ke URL
+     sungguhan (/privacy, /terms, dst) — TERLIHAT di DOM tanpa membuka menu
+     atau modal. Dulu semua legal = <button onClick={openLegalPage}> yang
+     membuka modal JS → crawler reviewer TikTok tidak menemukan SATU PUN
+     URL kebijakan privasi di halaman → aplikasi DITOLAK
+     ("tautan aktif dan terlihat jelas tanpa perlu membuka menu").
+     Halaman /privacy /terms /disclaimer /refund-policy /contact sudah
+     ada sebagai halaman publik penuh — arahkan ke sana. */
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,12 +94,12 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               {t('Perusahaan', 'Company')}
             </h3>
             <ul className="space-y-2.5">
-              <li><button onClick={() => openLegalPage('contact')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kontak', 'Contact')}</button></li>
-              <li><a href="/about" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Tentang Kami', 'About Us')}</a></li>
-              <li><button onClick={() => openLegalPage('terms')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Ketentuan Layanan', 'Terms of Service')}</button></li>
-              <li><button onClick={() => openLegalPage('privacy')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kebijakan Privasi', 'Privacy Policy')}</button></li>
-              <li><button onClick={() => openLegalPage('refund')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kebijakan Refund', 'Refund Policy')}</button></li>
-              <li><button onClick={() => openLegalPage('disclaimer')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Disclaimer', 'Disclaimer')}</button></li>
+              <li><Link href="/contact" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kontak', 'Contact')}</Link></li>
+              <li><Link href="/about" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Tentang Kami', 'About Us')}</Link></li>
+              <li><Link href="/terms" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Ketentuan Layanan', 'Terms of Service')}</Link></li>
+              <li><Link href="/privacy" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kebijakan Privasi', 'Privacy Policy')}</Link></li>
+              <li><Link href="/refund-policy" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kebijakan Refund', 'Refund Policy')}</Link></li>
+              <li><Link href="/disclaimer" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Disclaimer', 'Disclaimer')}</Link></li>
             </ul>
           </div>
 
@@ -155,9 +167,9 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <span className="text-[#8892b0] text-[12px]">Powered by <span className="text-[#f0f2ff]/60">Midtrans</span></span>
             </div>
             <span className="text-white/10">•</span>
-            <button onClick={() => openLegalPage('privacy')} className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Privasi', 'Privacy')}</button>
-            <button onClick={() => openLegalPage('terms')} className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Ketentuan', 'Terms')}</button>
-            <button onClick={() => openLegalPage('disclaimer')} className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Disclaimer', 'Disclaimer')}</button>
+            <Link href="/privacy" className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Privasi', 'Privacy')}</Link>
+            <Link href="/terms" className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Ketentuan', 'Terms')}</Link>
+            <Link href="/disclaimer" className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Disclaimer', 'Disclaimer')}</Link>
           </div>
         </div>
       </div>

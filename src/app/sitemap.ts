@@ -28,6 +28,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/blog`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: `${BASE}/auth/signup`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    /* Halaman legal — WAJIB publik & terindeks (syarat review TikTok
+       Login Kit: tautan aktif & terlihat tanpa membuka menu). */
+    { url: `${BASE}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${BASE}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${BASE}/disclaimer`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE}/refund-policy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${BASE}/upgrade`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
