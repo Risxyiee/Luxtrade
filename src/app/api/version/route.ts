@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-11.5'
-const NOTES = 'LOOP BELAJAR tim AI tuntas: rapat mingguan OTOMATIS tiap Senin & review produk tiap Jumat (jadwal briefing), keputusan rapat + pelajaran sekarang masuk prompt draf TikTok Sinta & prioritas harian NBA.'
+const VERSION = '2026-11-11.6'
+const NOTES = 'FIX alarm cron: Growth Sentinel (Kevin) kini punya deadline internal 65 dtk — LLM lambat jatuh ke fallback deterministik sebelum batas 90 dtk worker, cooldown selalu tercatat, tidak ada lagi alarm timeout berulang tiap 15 menit.'
 
 export async function GET() {
   return NextResponse.json(

@@ -89,15 +89,45 @@ async function kvSet(admin: SupabaseClient, key: string, value: string): Promise
 }
 
 /* ── LLM (rantai Mortera → fallback gratis — SOP multi-agent) ────────── */
+/* DISIPLIN WAKTU (fix alarm cron 11-11 10:02 UTC "Operasi dibatalkan
+   karena waktu habis"): worker-entry memotong rute ini di 90 dtk
+   (GROWTH_SENTINEL_TIMEOUT_MS). Dulu rantai LLM Kevin (Mortera sampai
+   60 dtk + fallback callLLM multi-provider berurutan @40 dtk/model)
+   bisa melewati itu saat provider ngambek → fetch worker di-ABORT →
+   (1) alarm palsu ke Bos, (2) cooldown TIDAK tercatat (kvSet lastRun
+   belum sempat jalan) → slot 15-menit berikutnya mengulang aksi LLM yang
+   sama → timeout lagi → siklus alarm tiap 15 menit.
+   Kini SEMUA panggilan LLM Kevin dibungkus deadline 65 dtk: lewat itu →
+   null → pemanggil (cs-hook / lead-welcome) jatuh ke fallback
+   deterministik yang sudah ada sejak awal → route SELALU selesai di
+   bawah batas 90 dtk & cooldown selalu tercatat (tidak ada pengulangan
+   aksi yang sama tiap slot). */
+const LLM_DEADLINE_MS = 65_000
+
 async function callKevin(
   systemPrompt: string, userPrompt: string, maxTokens = 700,
 ): Promise<{ text: string; model: string; notes: string[] } | null> {
-  const notes: string[] = []
-  const mor = await callMorteraDirect(systemPrompt, userPrompt, Math.max(maxTokens, 1024), notes, 0.7, 60_000)
-  if (mor) return { text: mor.text, model: `mortera/${mor.model}`, notes }
-  const fb = await callLLM(systemPrompt, userPrompt, maxTokens)
-  if (fb) return { text: fb.text, model: `${fb.provider}/${fb.model}`, notes: [...notes, ...(fb.notes || [])] }
-  return null
+  const inner = async (): Promise<{ text: string; model: string; notes: string[] } | null> => {
+    const notes: string[] = []
+    /* 60 dtk → 45 dtk: sisakan ruang fallback chain di dalam deadline. */
+    const mor = await callMorteraDirect(systemPrompt, userPrompt, Math.max(maxTokens, 1024), notes, 0.7, 45_000)
+    if (mor) return { text: mor.text, model: `mortera/${mor.model}`, notes }
+    const fb = await callLLM(systemPrompt, userPrompt, maxTokens)
+    if (fb) return { text: fb.text, model: `${fb.provider}/${fb.model}`, notes: [...notes, ...(fb.notes || [])] }
+    return null
+  }
+  return new Promise((resolve) => {
+    let done = false
+    const t = setTimeout(() => {
+      if (done) return
+      done = true
+      console.warn(`[growth-sentinel] LLM melebihi ${LLM_DEADLINE_MS / 1000} dtk — jatuh ke fallback deterministik (anti timeout worker 90 dtk)`)
+      resolve(null)
+    }, LLM_DEADLINE_MS)
+    inner()
+      .then((v) => { if (!done) { done = true; clearTimeout(t); resolve(v) } })
+      .catch(() => { if (!done) { done = true; clearTimeout(t); resolve(null) } })
+  })
 }
 
 /* ── METRIK dari data RIIL (graceful kalau tabel belum ada) ──────────── */
