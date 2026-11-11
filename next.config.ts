@@ -106,7 +106,10 @@ const nextConfig: NextConfig = {
           // diinjeksi otomatis CF pada domain ter-proxy (log csp-report Bos:
           // script-src-elem blocked). Tanpa ini, analytics keblock diam-diam.
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' " +
-            "https://app.midtrans.com https://app.sandbox.midtrans.com https://static.cloudflareinsights.com",
+            "https://app.midtrans.com https://app.sandbox.midtrans.com https://static.cloudflareinsights.com " +
+            // s3.tradingview.com = tv.js — widget chart resmi TradingView
+            // (direktif Bos 2026-11-11: chart default = TradingView).
+            "https://s3.tradingview.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "media-src 'self' https: blob:",
@@ -117,7 +120,10 @@ const nextConfig: NextConfig = {
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",
-          "frame-src https://app.midtrans.com https://app.sandbox.midtrans.com",
+          // s.tradingview.com / www.tradingview.com = iframe widget chart
+          // TradingView (tv.js Advanced Chart embed).
+          "frame-src https://app.midtrans.com https://app.sandbox.midtrans.com " +
+            "https://s.tradingview.com https://www.tradingview.com",
           "frame-ancestors 'none'",
           'report-uri /api/security/csp-report',
         ].join('; '),
