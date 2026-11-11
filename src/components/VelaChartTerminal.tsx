@@ -2073,6 +2073,27 @@ export default function VelaChartTerminal({
     loadAlertSubs()
   }, [loadAlertSubs])
 
+  /* ---------- FIX Bos ("aktifin alert tapi chart masih fresh"):
+     selama ini klik 🔔 hanya mendaftarkan alert DI SERVER (push HP) —
+     chart tidak berubah apa pun, jadi terkesan gagal. Sekarang begitu
+     alert skrip eksklusif berhasil diaktifkan, garis Entry/SL/TP-nya
+     LANGSUNG digambar di chart juga (idem klik chip). ---------- */
+  const ensureProtectedOnChart = useCallback((scriptId: string): 'added' | 'already' | 'failed' => {
+    try {
+      const chart: any = (wsRef.current as any)?.chart
+      if (!chart || typeof chart.addNativeIndicator !== 'function') return 'failed'
+      const handles = ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]
+      const exists = handles.some((x) => x?.nativeType === PROTECTED_TYPE && String(x?.inputValues?.()?.scriptId || '') === scriptId)
+      if (exists) {
+        setActiveProtected((m) => ({ ...m, [scriptId]: true }))
+        return 'already'
+      }
+      chart.addNativeIndicator(PROTECTED_TYPE, { inputs: { scriptId, ...togglesToInputs(scriptId) } })
+      setActiveProtected((m) => ({ ...m, [scriptId]: true }))
+      return 'added'
+    } catch { return 'failed' }
+  }, [])
+
   const saveAlertSub = useCallback(async (opts: { scriptId: string; symbol: string; interval: string; enabled: boolean; withTest?: boolean; scriptKind?: 'protected' | 'pine' }) => {
     setAlertSaving(true)
     setAlertDlgMsg(null)
@@ -2087,8 +2108,15 @@ export default function VelaChartTerminal({
       if (res.status === 401) { setAlertDlgMsg({ kind: 'err', text: 'Sesi habis — login ulang dulu ya.' }); return }
       if (!res.ok) { setAlertDlgMsg({ kind: 'err', text: String(j?.error || `HTTP ${res.status}`) }); return }
       await loadAlertSubs()
+      /* Auto-draw di chart (fix Bos) — hanya utk skrip eksklusif saat
+         alert DINYALAKAN; gagal menggambar TIDAK menggagalkan alert. */
+      const drawn = opts.enabled && (opts.scriptKind || 'protected') === 'protected'
+        ? ensureProtectedOnChart(opts.scriptId)
+        : 'already'
+      const chartNote = drawn === 'added' ? ' Garis Entry/SL/TP skrip sekarang juga tampil di chart.' : ''
+      const withNote = (m: { kind: 'ok' | 'warn'; text: string }) => ({ kind: m.kind, text: `${m.text}${chartNote}` })
       if (!opts.withTest) {
-        setAlertDlgMsg({ kind: 'ok', text: opts.enabled ? `Alert ${opts.symbol} ${opts.interval} dinyalakan.` : `Alert ${opts.symbol} ${opts.interval} dimatikan.` })
+        setAlertDlgMsg({ kind: 'ok', text: opts.enabled ? `Alert ${opts.symbol} ${opts.interval} dinyalakan.${chartNote}` : `Alert ${opts.symbol} ${opts.interval} dimatikan.` })
         return
       }
       /* Test langsung — user langsung lihat hasil evaluasi bar terakhir */
@@ -2102,17 +2130,17 @@ export default function VelaChartTerminal({
         /* 502 = pipeline gagal (candle/engine) → tampilkan alasan NYATA,
            bukan pura-pura "berjalan normal" (keluhan Bos) */
         if (t.status === 502 && tj?.error) {
-          setAlertDlgMsg(alertTestMsg(tj))
+          setAlertDlgMsg(withNote(alertTestMsg(tj)))
           return
         }
-        setAlertDlgMsg({ kind: 'ok', text: `Alert aktif 24 jam — dicek otomatis tiap 5 menit. (Test gagal: ${String(tj?.error || t.status)})` })
+        setAlertDlgMsg(withNote({ kind: 'ok', text: `Alert aktif 24 jam — dicek otomatis tiap 5 menit. (Test gagal: ${String(tj?.error || t.status)})` }))
         return
       }
-      setAlertDlgMsg(alertTestMsg(tj))
+      setAlertDlgMsg(withNote(alertTestMsg(tj)))
     } catch (x: any) {
       setAlertDlgMsg({ kind: 'err', text: String(x?.message || x).slice(0, 140) })
     } finally { setAlertSaving(false) }
-  }, [loadAlertSubs])
+  }, [loadAlertSubs, ensureProtectedOnChart])
 
   const testAlertSub = useCallback(async (sub: AlertSubRow) => {
     setAlertSaving(true)
@@ -3136,7 +3164,7 @@ export default function VelaChartTerminal({
               <Bell className="w-4 h-4" /> Alert Otomatis — {alertDlg?.name}
             </DialogTitle>
             <DialogDescription className="text-white/60 text-xs leading-relaxed pt-0.5">
-              Sinyal Entry/SL/TP skrip ini dicek server tiap 5 menit & muncul sebagai notifikasi di layar HP kamu — tanpa buka chart.
+              Sinyal Entry/SL/TP skrip ini dicek server tiap 5 menit &amp; muncul sebagai notifikasi di layar HP — dan garis sinyalnya langsung digambar di chart di bawah.
             </DialogDescription>
           </DialogHeader>
 
