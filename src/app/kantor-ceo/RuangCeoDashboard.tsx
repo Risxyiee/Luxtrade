@@ -29,6 +29,8 @@ import PendingActionsQueue from './PendingActionsQueue'
 /* PATCH C (tambalan fase bisnis): panel fase + artefak karyawan per ruangan */
 import { PhasePanel, RoleArtifacts, PRE_LAUNCH_TUGAS, ROOM_ROLE, usePhaseData, LoopBelajarPanel } from './PhasePanels'
 import ArtifactsQueue from './ArtifactsQueue'
+/* Roadmap #4 — Laporan KPI karyawan: angka nyata per karyawan (read-only) */
+import KpiPanel from './KpiPanel'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 /* ============================================================
@@ -725,6 +727,10 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
               {/* PATCH C — kartu fase bisnis: progres 10 user pertama, langkah checklist, tombol kerja manual */}
               <PhasePanel data={phaseData} loading={phaseLoading} reload={phaseReload} />
+              {/* ROADMAP #4 — LAPORAN KPI KARYAWAN: angka nyata tiap karyawan
+                  (artikel terbit, video TikTok + views, draf → ACC, MRR,
+                  akademi hari ini) dari database — tanpa LLM, tanpa karangan */}
+              <KpiPanel />
               {/* LOOP BELAJAR (lib/ceo-loop.ts) — keputusan rapat mingguan ACC/tolak,
                   pelajaran, sumber trafik, backlog produk, kill switch otonomi */}
               <LoopBelajarPanel />

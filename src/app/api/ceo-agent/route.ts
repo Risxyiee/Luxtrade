@@ -441,6 +441,258 @@ async function agentMemBlock(e: Env, agent: string, max = 6): Promise<string> {
 }
 
 /* ============================================================
+   PANEL KPI KARYAWAN (roadmap #4) — angka NYATA per karyawan.
+   Sumber read-only (TANPA LLM, TANPA tulis DB — mustahil halusinasi):
+   office_memory    → laporan kerja & akademi 7 hari per karyawan
+   blog_posts       → artikel SEO terbit (Farhan)
+   tiktok_posts     → video TikTok + views/like/komentar (Sinta)
+   ai_pending_actions → draf yang diusulkan ke Bos (Sinta/Maya/Dewi/Farhan)
+   ai_pending_tasks → draf penawaran PRO (Bagas)
+   bug_reports      → bug masuk 7 hari (konteks Raka)
+   agent_kv         → briefing:last, da:last, gh:last, dec:log,
+                      mem:agent:* (memori pribadi), quota/email harian
+   profiles         → total user + user PRO (Putri)
+   Dipakai panel "LAPORAN KPI KARYAWAN" di kantor 3D (KpiPanel.tsx).
+   ============================================================ */
+interface KpiRow { label: string; value: string }
+interface KpiAgentOut {
+  id: string
+  nama: string
+  jabatan: string
+  color: string
+  rows: KpiRow[]
+  lastOut?: string
+  belajar?: string
+  mem7d: number
+  lastWork?: string
+}
+
+/** REST select service_role — null kalau tabel hilang/koneksi gagal (degrade, bukan 500). */
+async function sbSel(e: Env, table: string, select: string, extra = ''): Promise<Record<string, unknown>[] | null> {
+  try {
+    const url = `${sbUrl(e)}/rest/v1/${table}?select=${encodeURIComponent(select)}${extra}`
+    const res = await fetch(url, { headers: sbHPriv(e), signal: timeoutSignal(12_000) })
+    if (!res.ok) return null
+    const rows = (await res.json()) as Record<string, unknown>[]
+    return Array.isArray(rows) ? rows : null
+  } catch { return null }
+}
+
+const KPI_TEAM: Array<{ id: string; nama: string; jabatan: string; color: string }> = [
+  { id: 'COO', nama: 'Bagas', jabatan: 'COO · Jualan', color: '#059669' },
+  { id: 'CTO', nama: 'Raka', jabatan: 'CTO · IT & QA', color: '#0d9488' },
+  { id: 'CSO', nama: 'Maya', jabatan: 'CSO · Customer Success', color: '#be185d' },
+  { id: 'CMO', nama: 'Sinta', jabatan: 'CMO · Marketing & Konten', color: '#7c3aed' },
+  { id: 'CFO', nama: 'Putri', jabatan: 'CFO · Kuota & MRR', color: '#b45309' },
+  { id: 'DA', nama: 'Dewi', jabatan: 'DA · Analisis Trading', color: '#0891b2' },
+  { id: 'GH', nama: 'Farhan', jabatan: 'GH · Growth & SEO', color: '#ea580c' },
+  { id: 'CEO', nama: 'Alexander', jabatan: 'CEO · Koordinator', color: '#64748b' },
+  { id: 'KEVIN', nama: 'Kevin', jabatan: 'Growth Hunter · Komentar', color: '#84cc16' },
+]
+
+const KPI_MEM7D_SRC: Record<string, string> = {
+  COO: 'Bagas', CTO: 'Raka', CSO: 'Maya', CMO: 'Sinta', CFO: 'Putri',
+  DA: 'Dewi', GH: 'Farhan', CEO: 'Alexander',
+}
+
+function kpiClip(s: unknown, n = 90): string {
+  return String(s || '').replace(/\s+/g, ' ').trim().slice(0, n)
+}
+
+async function kpiReport(e: Env) {
+  const d7 = wibDay(-7)
+  const today = wibDay(0)
+  const sevenIso = isoAgo(24 * 7)
+
+  const [om7, blogs, tt, apa, apt, bugs7, usersTotal, proTotal, kvBrief, kvDa, kvGh, kvDec, ...memAgents] = await Promise.all([
+    sbSel(e, 'office_memory', 'agent_name,memory_type,run_date', `&run_date=gte.${d7}&order=created_at.desc&limit=600`),
+    sbSel(e, 'blog_posts', 'title,created_at', '&order=created_at.desc&limit=200'),
+    sbSel(e, 'tiktok_posts', 'caption,views,likes,comments,created_at', '&order=created_at.desc&limit=200'),
+    sbSel(e, 'ai_pending_actions', 'agent_name,action_type,status,created_at', '&order=created_at.desc&limit=300'),
+    sbSel(e, 'ai_pending_tasks', 'agent_type,status,created_at', '&order=created_at.desc&limit=300'),
+    supaCount(e, 'bug_reports', 'created_at=gte.' + sevenIso).catch(() => -1),
+    supaCount(e, 'profiles').catch(() => -1),
+    supaCount(e, 'profiles', 'is_pro=eq.true').catch(() => -1),
+    kvGet(e, 'briefing:last').catch(() => null),
+    kvGet(e, 'da:last').catch(() => null),
+    kvGet(e, 'gh:last').catch(() => null),
+    kvGet(e, 'dec:log').catch(() => null),
+    /* mem:agent:<key> — memori pribadi (maks 20 catatan) per karyawan */
+    ...['coo', 'cto', 'cso', 'cmo', 'cfo', 'da', 'gh', 'ceo', 'kevin'].map((k) =>
+      agentMemList(e, k).catch(() => [] as MemEntry[])),
+  ])
+
+  const memByAgent = new Map<string, { total: number; belajar?: string; lastWork?: string }>()
+  for (const r of om7 || []) {
+    const nama = String(r.agent_name || '')
+    const day = String(r.run_date || '')
+    const cur = memByAgent.get(nama) || { total: 0 }
+    cur.total++
+    if (day && (!cur.lastWork || day > cur.lastWork)) cur.lastWork = day
+    if (r.memory_type === 'belajar' && !cur.belajar) {
+      try {
+        const c = typeof r.content === 'string' ? JSON.parse(r.content) : r.content
+        const topik = (c as { topik?: string })?.topik
+        if (topik) cur.belajar = kpiClip(topik, 60)
+      } catch { /* konten tidak dibaca — hanya hitung */ }
+    }
+    memByAgent.set(nama, cur)
+  }
+  /* Akademi: office_memory tidak menyimpan content di select ringan di atas —
+     ambil topik belajar hari ini lewat query kedua HANYA jika ada 'belajar' hari ini. */
+  const learnersToday = (om7 || []).filter((r) => r.memory_type === 'belajar' && r.run_date === today).length
+  if (learnersToday) {
+    const belajarRows = await sbSel(e, 'office_memory', 'agent_name,content', `&memory_type=eq.belajar&run_date=eq.${today}&limit=12`)
+    for (const r of belajarRows || []) {
+      try {
+        const c = typeof r.content === 'string' ? JSON.parse(r.content) : r.content
+        const topik = (c as { topik?: string })?.topik
+        const cur = memByAgent.get(String(r.agent_name || ''))
+        if (cur && topik) cur.belajar = kpiClip(topik, 60)
+      } catch { /* ignore */ }
+    }
+  }
+
+  const mem7dOf = (key: string): number => {
+    if (key === 'KEVIN') {
+      const list = memAgents[8] || []
+      const cutoff = Date.now() - 7 * 86400_000
+      return list.filter((m) => { const t = Date.parse(String(m.at || '')); return Number.isFinite(t) && t >= cutoff }).length
+    }
+    const nama = KPI_MEM7D_SRC[key]
+    return memByAgent.get(nama)?.total || 0
+  }
+  const lastWorkOf = (key: string): string | undefined => {
+    const nama = KPI_MEM7D_SRC[key]
+    const fromOm = memByAgent.get(nama)?.lastWork
+    if (fromOm) return fromOm
+    /* fallback: tanggal terbaru dari memori pribadi / draf / tabel masing-masing */
+    const keyMap: Record<string, number> = { COO: 0, CTO: 1, CSO: 2, CMO: 3, CFO: 4, DA: 5, GH: 6, CEO: 7, KEVIN: 8 }
+    const list = memAgents[keyMap[key]] || []
+    const cutoff = Date.now() - 30 * 86400_000
+    let best = ''
+    for (const m of list) {
+      const t = Date.parse(String(m.at || ''))
+      if (!Number.isFinite(t) || t < cutoff) continue
+      const day = new Date(t).toISOString().slice(0, 10)
+      if (day > best) best = day
+    }
+    return best || undefined
+  }
+  const belajarOf = (key: string): string | undefined => memByAgent.get(KPI_MEM7D_SRC[key])?.belajar
+
+  /* — Sinta: TikTok + draf skrip — */
+  const ttTotal = tt?.length ?? -1
+  const tt7 = (tt || []).filter((r) => String(r.created_at || '') >= sevenIso).length
+  const sumNum = (rows: Record<string, unknown>[] | null, f: string) =>
+    (rows || []).reduce((a, r) => a + (typeof r[f] === 'number' ? (r[f] as number) : 0), 0)
+  const ttViews = sumNum(tt, 'views'), ttLikes = sumNum(tt, 'likes'), ttComments = sumNum(tt, 'comments')
+  const apa7 = (apa || []).filter((r) => String(r.created_at || '') >= sevenIso)
+  const apaBy = (nama: string) => apa7.filter((r) => String(r.agent_name || '') === nama)
+  const apaPendingAll = (apa || []).filter((r) => String(r.status || '') === 'pending').length
+
+  /* — Farhan: blog — */
+  const blogTotal = blogs?.length ?? -1
+  const blog7 = (blogs || []).filter((r) => String(r.created_at || '') >= sevenIso).length
+  const blogLast = (blogs || [])[0]
+
+  /* — Bagas: ai_pending_tasks (agent_type COO) — */
+  const aptRows = (apt || []).filter((r) => String(r.agent_type || '') === 'COO')
+  const aptSt = (s: string, since = '') => aptRows.filter((r) => String(r.status || '') === s && (!since || String(r.created_at || '') >= since)).length
+
+  /* — Putri: kuota — */
+  const readKv = async (k: string) => parseInt((await kvGet(e, k).catch(() => '0')) || '0', 10) || 0
+  const visionLimit = parseInt(e.DAILY_VISION_LIMIT || '1400', 10)
+  const emailLimit = parseInt(e.RESEND_DAILY_LIMIT || '100', 10)
+  const [qVision, qEmail] = await Promise.all([readKv(`quota:${wibDay(0)}`), readKv(`email:${wibDay(0)}`)])
+  const proPrice = parseInt(e.PRO_PRICE_IDR || '49000', 10)
+  const fmtRp = (n: number) => 'Rp' + n.toLocaleString('id-ID')
+
+  /* — Alexander: briefing + keputusan loop — */
+  let briefAt = ''
+  try { briefAt = String((JSON.parse(kvBrief || 'null') as { at?: string } | null)?.at || '').slice(0, 10) } catch { /* ignore */ }
+  let decOpen = 0
+  try { decOpen = ((JSON.parse(kvDec || '[]') as { status?: string }[]) || []).filter((x) => x.status === 'open' || x.status === 'proposed').length } catch { /* ignore */ }
+
+  const kvDate = (raw: string | null): string => {
+    try {
+      const o = JSON.parse(raw || 'null') as Record<string, unknown> | null
+      const t = String(o?.at || o?.generatedAt || o?.date || '')
+      return t.slice(0, 10)
+    } catch { return (raw || '').slice(0, 10) }
+  }
+
+  const mk = (id: string, rows: KpiRow[], extra?: Partial<KpiAgentOut>): KpiAgentOut => {
+    const meta = KPI_TEAM.find((t) => t.id === id)!
+    return {
+      id, nama: meta.nama, jabatan: meta.jabatan, color: meta.color,
+      rows, mem7d: mem7dOf(id), lastWork: lastWorkOf(id), belajar: belajarOf(id), ...extra,
+    }
+  }
+
+  const agents: KpiAgentOut[] = [
+    mk('COO', [
+      { label: 'Draf penawaran PRO (total)', value: String(aptRows.length) },
+      { label: 'Terkirim / menunggu ACC', value: `${aptSt('approved')} / ${aptSt('pending')}` },
+      { label: 'Terkirim 7 hari', value: String(aptSt('approved', sevenIso)) },
+    ]),
+    mk('CTO', [
+      { label: 'Bug masuk 7 hari', value: bugs7 >= 0 ? String(bugs7) : '-' },
+      { label: 'Laporan QA/security 7 hari', value: String(memByAgent.get('Raka')?.total || 0) },
+      { label: 'Watchdog', value: 'tiap 15 menit (24/7)' },
+    ]),
+    mk('CSO', [
+      { label: 'Draf win-back 7 hari', value: String(apaBy('Maya').length) },
+      { label: 'Semua draf / menunggu ACC', value: `${(apa || []).filter((r) => String(r.agent_name || '') === 'Maya').length} / ${(apa || []).filter((r) => String(r.agent_name || '') === 'Maya' && String(r.status || '') === 'pending').length}` },
+    ]),
+    mk('CMO', [
+      { label: 'Video TikTok tercatat', value: ttTotal >= 0 ? `${ttTotal} (7 hari: ${tt7})` : '-' },
+      { label: 'Views / like / komentar', value: ttTotal >= 0 ? `${fmtN(ttViews)} / ${fmtN(ttLikes)} / ${fmtN(ttComments)}` : '-' },
+      { label: 'Draf skrip 7 hari', value: String(apaBy('Sinta').length) },
+    ], tt && tt.length ? { lastOut: kpiClip(tt[0].caption) } : {}),
+    mk('CFO', [
+      { label: 'Estimasi MRR', value: proTotal > 0 ? `${fmtRp(proTotal * proPrice)} (${proTotal} PRO)` : proTotal === 0 ? 'Rp0 (0 PRO)' : '-' },
+      { label: 'User terdaftar', value: usersTotal >= 0 ? fmtN(usersTotal) : '-' },
+      { label: 'Kuota vision / email hari ini', value: `${qVision}/${visionLimit} · ${qEmail}/${emailLimit}` },
+    ]),
+    mk('DA', [
+      { label: 'Laporan analisis 7 hari', value: String(memByAgent.get('Dewi')?.total || 0) },
+      { label: 'Draf/insight 7 hari', value: String(apaBy('Dewi').length) },
+      { label: 'Analisis terakhir', value: kvDate(kvDa) || 'belum ada' },
+    ]),
+    mk('GH', [
+      { label: 'Artikel SEO terbit', value: blogTotal >= 0 ? `${blogTotal} (7 hari: ${blog7})` : '-' },
+      { label: 'Draf 7 hari', value: String(apaBy('Farhan').length) },
+      { label: 'Eksperimen growth terakhir', value: kvDate(kvGh) || 'belum ada' },
+    ], blogLast ? { lastOut: kpiClip(blogLast.title) } : {}),
+    mk('CEO', [
+      { label: 'Briefing terakhir', value: briefAt || 'belum ada' },
+      { label: 'Keputusan loop belajar (open)', value: String(decOpen) },
+      { label: 'Draf menunggu ACC (semua agen)', value: String(apaPendingAll) },
+    ]),
+    mk('KEVIN', [], (() => {
+      const list = memAgents[8] || []
+      return list.length ? { lastOut: kpiClip(list[0].text, 110) } : {}
+    })()),
+  ]
+
+  return {
+    ok: true,
+    at: new Date().toISOString(),
+    day: today,
+    belajarToday: learnersToday,
+    totals: {
+      blog: blogTotal, blog7,
+      tiktok: ttTotal, tiktok7: tt7,
+      views: ttViews, likes: ttLikes, comments: ttComments,
+      pendingAcc: apaPendingAll + aptSt('pending'),
+      users: usersTotal, pro: proTotal, estMRR: proTotal > 0 ? proTotal * proPrice : 0,
+    },
+    agents,
+  }
+}
+
+/* ============================================================
    AGEN 1 — CTO (IT & QA): ping situs + bug report 24 jam
    ============================================================ */
 function siteStatusNote(status: number): string {
@@ -3324,6 +3576,12 @@ async function handle(req: Request): Promise<Response> {
         want('coo') ? cooPending(e).catch(() => ({ pending: 0, approved24h: 0 })) : Promise.resolve(undefined),
       ])
       return j({ cto, cso, cmo, cfo, coo })
+    }
+    case 'kpi': {
+      // PANEL KPI KARYAWAN — angka nyata read-only per karyawan (tanpa LLM,
+      // tanpa tulis DB). Dipakai KpiPanel.tsx di kantor 3D (room overview).
+      try { return j(await kpiReport(e)) }
+      catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
     }
     case 'diag': {
       // Diagnostik sistem untuk Ruang CTO — periksa env + tes tiap query

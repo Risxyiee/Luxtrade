@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-11.3'
-const NOTES = 'FIX chart fresh saat aktifkan alert Pine (VelaChartTerminal): begitu alert skrip eksklusif dinyalakan via 🔔, garis Entry/SL/TP skrip LANGSUNG digambar di chart (sebelumnya alert hanya di server — chart tak berubah, terkesan gagal) + copy dialog alert diperjelas.'
+const VERSION = '2026-11-11.4'
+const NOTES = 'ROADMAP #4: Panel LAPORAN KPI KARYAWAN di kantor 3D (/kantor-ceo) — angka nyata per karyawan AI (artikel terbit Farhan, video TikTok + views Sinta, draf ACC Bagas/Maya, MRR Putri, akademi harian) dihitung langsung dari database, tanpa LLM.'
 
 export async function GET() {
   return NextResponse.json(
