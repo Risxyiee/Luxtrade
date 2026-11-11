@@ -3,13 +3,13 @@
  * GET /api/forex — candle OHLC & harga forex / gold / US100
  * ============================================================
  * RANTAI SUMBER SE-SKALA CHART (sama dengan /api/candles — Bos:
- * "data chart make twelve aja"):
- *   1. TWELVE DATA (spot-grade: XAU/USD dkk) — candle
- *   2. TRADING VIEW (websocket publik keyless, spot-grade) — candle
- *   3. YAHOO — fallback terakhir (forex/indeks setara spot; logam
- *      = futures, hanya dipakai bila TD+TV mati)
+ * "data ambil dari TradingView" + "data lain yahoo finance hapus aja"):
+ *   1. TRADING VIEW (websocket publik keyless, spot-grade) — candle
+ *   2. TWELVE DATA (spot-grade: XAU/USD dkk) — candle
+ *   YAHOO DIHAPUS TOTAL (2026-11-11) — tidak ada fallback ketiga.
  *   Price-check (limit<=1): gold-api/binance dulu — PERSIS sumber
- *   tail chart → watchlist & panel tidak pernah beda skala dgn chart.
+ *   tail chart → watchlist & panel tidak pernah beda skala dgn chart;
+ *   forex/indeks → candle terakhir TradingView/TwelveData.
  *
  * DIPAKAI OLEH: WatchlistTab (polling harga limit=1) & panel lain.
  * Datafeed CHART VELA lewat /api/candles.
@@ -28,18 +28,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   FOREX_SYMBOLS,
   normalizeSymbol,
-  fetchYahooChart,
   validatePrice,
-  type YahooCandle,
-} from '@/lib/market/yahoo'
-/* RANTAI SE-SKALA CHART (fix Bos: "chart xau putus"): dulu endpoint ini
-   Yahoo-ONLY — XAU/XAG = futures GC=F/SI=F: harga beda $8-15 dari chart
-   Twelve Data spot + bolong 2 jam tiap hari (halt dagang futures) →
-   chart terlihat "putus/melenceng". Sekarang satu skala dengan
-   /api/candles: TradingView → TwelveData → Yahoo (Bos 2026-11-11:
-   "data ambil dari TradingView"), dan price-check
-   (limit<=1) memakai sumber yang SAMA dengan tail chart
-   (gold-api utk XAU/XAG, binance utk crypto) via fetchChartScalePrice. */
+  type OhlcvCandle,
+} from '@/lib/market/symbols'
+/* RANTAI SE-SKALA CHART (fix Bos: "chart xau putus"): satu skala dengan
+   /api/candles: TradingView → TwelveData (Bos 2026-11-11: "data ambil
+   dari TradingView"; Yahoo dihapus), dan price-check (limit<=1)
+   memakai sumber yang SAMA dengan tail chart (gold-api utk XAU/XAG,
+   binance utk crypto) via fetchChartScalePrice. */
 import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 import { fetchTradingViewCandles } from '@/lib/market/tradingview'
 import { fetchChartScalePrice } from '@/lib/market/spot-live'
@@ -148,7 +144,7 @@ export async function GET(request: NextRequest) {
       if (chartScale && Number.isFinite(chartScale.price)) {
         const valid = validatePrice(validSymbol, chartScale.price)
         if (valid != null) {
-          const candle: YahooCandle[] = [{ time: Math.floor(Date.now() / 1000), open: valid, high: valid, low: valid, close: valid }]
+          const candle: OhlcvCandle[] = [{ time: Math.floor(Date.now() / 1000), open: valid, high: valid, low: valid, close: valid }]
           setCache(cacheKey, candle, chartScale.source)
           await setForexKVCache(cacheKey, candle, chartScale.source, 30)
           console.log(`[Forex] ✓ harga ${validSymbol} = ${valid} dari ${chartScale.source} (se-skala chart)`)
@@ -164,10 +160,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── CANDLE — rantai se-skala chart: TradingView → TwelveData → Yahoo ──
-    // (Bos 2026-11-11: "data ambil dari TradingView — semua dari situ")
-    let bars: YahooCandle[] | null = null
-    let sourceLabel = 'yahoo-finance'
+    // ── CANDLE — rantai se-skala chart: TradingView → TwelveData ──
+    // (Bos 2026-11-11: "data ambil dari TradingView — semua dari situ";
+    //  Yahoo Finance dihapus total.)
+    let bars: OhlcvCandle[] | null = null
+    let sourceLabel = 'unavailable'
     try {
       const tv = await fetchTradingViewCandles(validSymbol, interval, limit)
       if (tv && tv.length) { bars = tv; sourceLabel = 'tradingview' }
@@ -176,11 +173,7 @@ export async function GET(request: NextRequest) {
       try {
         const td = await fetchTwelveDataCandles(validSymbol, interval, limit)
         if (td && td.length) { bars = td; sourceLabel = 'twelvedata' }
-      } catch { /* lanjut Yahoo */ }
-    }
-    if (!bars) {
-      const yf = await fetchYahooChart(validSymbol, interval, limit, isPriceCheck)
-      if (yf && yf.length) { bars = yf; sourceLabel = 'yahoo-finance' }
+      } catch { /* lanjut — semua sumber gagal */ }
     }
 
     if (bars && bars.length > 0) {
@@ -198,7 +191,7 @@ export async function GET(request: NextRequest) {
     }
 
     // SUMBER GAGAL — respons jujur (TANPA mock data)
-    console.error(`[Forex] ❌ semua sumber (TD/TV/Yahoo) gagal utk ${validSymbol} ${interval}`)
+    console.error(`[Forex] ❌ semua sumber (TV/TD) gagal utk ${validSymbol} ${interval}`)
     return NextResponse.json({
       success: false,
       symbol: validSymbol,

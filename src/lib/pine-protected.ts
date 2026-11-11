@@ -8,7 +8,7 @@
  *      (Supabase, RLS tanpa policy → hanya service role).
  *   3. Server menjalankan engine PineTS (yang sama dengan chart)
  *      secara HEADLESS terhadap candle server (TradingView →
- *      TwelveData → Yahoo — keyless, tanpa API key),
+ *      TwelveData — keyless, tanpa API key; Yahoo dihapus Bos),
  *      lalu HANYA mengembalikan hasil plot {time, value} + sinyal.
  *   4. Alert Entry/SL/TP terdeteksi server (event `alert()` engine
  *      + alert_rules declaratif), di-dedupe per-bar, lalu diteruskan

@@ -3,26 +3,26 @@
  * server-candles — candle OHLC untuk KEPERLUAN SERVER (spot dulu)
  * ============================================================
  * Dipakai /api/compile-pine (Protected Pine Script®) + alert runner:
- * engine PineTS di server butuh bars. Urutan sumber FINAL (Bos:
- * "data chart make twelve aja"):
+ * engine PineTS di server butuh bars. Urutan sumber FINAL:
  *
- *   0. Twelve Data — SUMBER UTAMA SEMUA simbol (XAU/USD, XAG/USD,
- *      forex major, NDX) via lib twelvedata.ts — butuh
- *      TWELVE_DATA_API_KEY. Spot-grade = skala feed broker.
- *   1. TradingView — websocket publik KEYLESS (spot-grade juga,
- *      OANDA:XAUUSD) — pemadam kebakaran bila TD kena quota.
- *   2. Yahoo       — jaring pengaman terakhir: forex, logam (GC=F),
- *      indeks US100 (NQ=F), crypto (BTC-USD) via lib bersama yahoo.ts
+ *   0. TradingView — SUMBER UTAMA SEMUA simbol (Bos: "data ambil
+ *      dari TradingView") — websocket publik KEYLESS, spot-grade
+ *      OANDA:XAUUSD / FX:* / BINANCE:* — pemadam kebakaran bila TD
+ *      kena quota.
+ *   1. Twelve Data — spot-grade semua simbol (XAU/USD, forex major,
+ *      NDX) via lib twelvedata.ts — butuh TWELVE_DATA_API_KEY.
  *
- * URUTAN SAMA PERSIS dengan /api/candles (chart) → backtest Pine
- * & chart PASTI se-skala (garis Entry/SL/TP match bar chart).
+ * YAHOO FINANCE DIHAPUS TOTAL (Bos: "data lain yahoo finance hapus
+ * aja" — 2026-11-11): tidak ada lagi fallback Yahoo di rantai mana
+ * pun. Urutan SAMA PERSIS dengan /api/candles (chart) → backtest
+ * Pine & chart PASTI se-skala (garis Entry/SL/TP match bar chart).
  * BINANCE DIBUANG (keputusan Bos). Finnhub PARKIR (butuh key) —
  * lib finnhub.ts dipertahankan, tidak dipanggil.
  * Semua fetch di server, tanpa mock. Return null bila semua gagal —
  * penelepon wajib jawab 502 jujur.
  */
 
-import { fetchYahooChart, type YahooCandle } from './yahoo'
+import type { OhlcvCandle } from './symbols'
 import { fetchTwelveDataCandles } from './twelvedata'
 import { fetchTradingViewCandles } from './tradingview'
 import { readStickySource, writeStickySource } from './source-sticky'
@@ -38,16 +38,15 @@ export function intervalSeconds(interval: string): number {
 }
 
 /* ---------- Bentuk candle generik Luxtradee { time(sec), open, high, low, close, volume } ---------- */
-export type LuxCandle = YahooCandle
+export type LuxCandle = OhlcvCandle
 
 /**
  * Sumber candle TERPADU untuk server (compile-pine, alert runner, dll).
- * BOS 2026-11-11: "data ambil dari TradingView" — TRADINGVIEW DULU
- * utk SEMUA simbol (XAUUSD/XAGUSD/forex/US100 — spot OANDA/FX),
- * TwelveData pemadam, Yahoo terakhir. Urutan sama persis dengan
- * /api/candles → skala chart & backtest SELALU seragam (spot),
- * anti campur spot↔futures penyebab Entry/SL/TP tak muncul.
- * Return null bila semua gagal.
+ * TRADINGVIEW DULU utk SEMUA simbol (XAUUSD/XAGUSD/forex/US100/crypto
+ * — spot-grade), TwelveData pemadam. Yahoo sudah dihapus (Bos).
+ * Urutan sama persis dengan /api/candles → skala chart & backtest
+ * SELALU seragam (spot), anti campur skala penyebab Entry/SL/TP tak
+ * muncul. Return null bila semua gagal.
  */
 export async function fetchServerCandles(
   symbol: string,
@@ -60,7 +59,6 @@ export async function fetchServerCandles(
   const CHAIN: Array<{ name: string; run: () => Promise<LuxCandle[] | null> }> = [
     { name: 'tradingview', run: () => fetchTradingViewCandles(symbol, interval, limit) },
     { name: 'twelvedata', run: () => fetchTwelveDataCandles(symbol, interval, limit) },
-    { name: 'yahoo-finance', run: () => fetchYahooChart(symbol, interval, limit, false) },
   ]
 
   const sticky = await readStickySource(stickyKey)

@@ -3,13 +3,14 @@
  * GET /api/forex-batch — harga live BANYAK simbol sekaligus
  * ============================================================
  * FASE 2 PERF: WatchlistTab dulu melakukan N fetch per-simbol
- * setiap 15 detik dengan nocache=true → N hit Yahoo Finance
+ * setiap 15 detik dengan nocache=true → N hit upstream
  * per user per 15s dan SEMUA cache server dilewati.
  *
  * Sekarang: SATU request → server resolve semua simbol lewat
  * lapisan cache bersama (mem + KV, lihat src/lib/market/
- * forex-cache.ts). Hanya cache-miss yang memukul Yahoo, dan
- * hasilnya di-share ke semua user (KV cross-isolate).
+ * forex-cache.ts). Hanya cache-miss yang memukul upstream
+ * (gold-api/binance/TradingView/TwelveData — Yahoo dihapus Bos),
+ * dan hasilnya di-share ke semua user (KV cross-isolate).
  *
  * Nama endpoint SENGAJA bukan prefix /api/forex yang di-cache
  * service worker (PUBLIC_GET_API_PREFIXES) — harga alert harus
@@ -22,14 +23,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { FOREX_SYMBOLS, normalizeSymbol, fetchYahooChart, validatePrice } from '@/lib/market/yahoo'
-/* HARGA SE-SKALA CHART (fix Bos: "chart xau putus"): dulu SEMUA harga
-   watchlist dari Yahoo — XAU/XAG = futures GC=F/SI=F (4127) sementara
-   chart Twelve Data spot (4118) → beda $9 terlihat seperti chart rusak.
-   Sekarang harga watchlist diambil dari SUMBER YANG SAMA dengan tail
-   chart (gold-api utk XAU/XAG, binance utk crypto) — Yahoo hanya
-   fallback utk forex/indeks (skalanya memang setara spot). */
+import { FOREX_SYMBOLS, normalizeSymbol, validatePrice } from '@/lib/market/symbols'
+/* HARGA SE-SKALA CHART (fix Bos: "chart xau putus"): harga watchlist
+   diambil dari SUMBER YANG SAMA dengan tail chart (gold-api utk
+   XAU/XAG, binance utk crypto). YAHOO DIHAPUS TOTAL (Bos 2026-11-11:
+   "data lain yahoo finance hapus aja") — forex/indeks fallback ke
+   candle terakhir TradingView → TwelveData (se-skala chart). */
 import { fetchChartScalePrice } from '@/lib/market/spot-live'
+import { fetchTradingViewCandles } from '@/lib/market/tradingview'
+import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 import {
   getCached,
   setCache,
@@ -38,7 +40,7 @@ import {
   PRICE_FRESH_MS,
 } from '@/lib/market/forex-cache'
 // FASE 3: rate-limit — endpoint ini GET publik TANPA auth (watchlist polling).
-// Dulu: bisa dihitung tanpa batas → Yahoo Finance ikut kena ban IP.
+// Dulu: bisa dihitung tanpa batas → upstream ikut kena ban IP.
 // 30 req/menit/IP = longgar utk polling 15s (4/min) + multi-tab + refresh manual.
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -46,7 +48,7 @@ export const dynamic = 'force-dynamic'
 
 const MAX_SYMBOLS = 30 // guard — watchlist wajar < 30 simbol
 const INTERVAL = '1h'
-const LIMIT = 1 // price check (live tick dari meta Yahoo)
+const LIMIT = 1 // price check (bar terakhir TradingView/TwelveData)
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,7 +104,8 @@ export async function GET(request: NextRequest) {
 
         /* Cache miss → 1) harga SE-SKALA CHART dulu (XAU/XAG → gold-api,
            crypto → binance — persis sumber tail chart /api/candles);
-           2) Yahoo liveTick fallback (forex/indeks — setara spot TD). */
+           2) candle terakhir TradingView → TwelveData (forex/indeks —
+           Yahoo sudah dihapus Bos). */
         const chartScale = await fetchChartScalePrice(symbol)
         if (chartScale && Number.isFinite(chartScale.price)) {
           const valid = validatePrice(symbol, chartScale.price)
@@ -114,12 +117,18 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Yahoo (satu hit per simbol, hasil di-cache utk semua)
-        const yf = await fetchYahooChart(symbol, INTERVAL, LIMIT, true)
-        if (yf && yf.length > 0) {
-          setCache(cacheKey, yf, 'yahoo-finance')
-          await setForexKVCache(cacheKey, yf, 'yahoo-finance', 30)
-          const last = yf[yf.length - 1]
+        // Candle terakhir TradingView → TwelveData (satu hit per simbol,
+        // hasil di-cache utk semua user via mem+KV)
+        let bars = await fetchTradingViewCandles(symbol, INTERVAL, LIMIT).catch(() => null)
+        let src = 'tradingview'
+        if (!bars || !bars.length) {
+          bars = await fetchTwelveDataCandles(symbol, INTERVAL, LIMIT).catch(() => null)
+          src = 'twelvedata'
+        }
+        if (bars && bars.length > 0) {
+          setCache(cacheKey, bars, src)
+          await setForexKVCache(cacheKey, bars, src, 30)
+          const last = bars[bars.length - 1]
           if (last && typeof last.close === 'number') return [rawSym, last.close]
         }
         return [rawSym, null]

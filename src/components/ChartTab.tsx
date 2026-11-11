@@ -13,7 +13,7 @@
  *   awesome-tradingview). Data feed ditarik LANGSUNG oleh chart
  *   TradingView (OANDA / FX / NASDAQ / BINANCE) di browser user —
  *   bukan lagi lewat /api/candles milik server Luxtradee — sehingga
- *   masalah 503 (Yahoo 422, TV WS ditolak IP datacenter, kuota
+ *   masalah 503 (TV WS ditolak IP datacenter, kuota
  *   TwelveData habis) tidak menyentuh chart lagi.
  *   Pemilihan simbol & timeframe tetap tampil ala Luxtradee, hasilnya
  *   dipetakan ke simbol TradingView (OANDA:XAUUSD, FX:GBPUSD, dst).

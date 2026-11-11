@@ -11,7 +11,7 @@
  * DATAFEED (urutan FINAL Bos — BINANCE DIBUANG, satu pintu keyless):
  *   Semua simbol (FX/Gold/US100/crypto) → LuxtradeeForexProvider
  *   via /api/candles: TradingView keyless → Twelve Data
- *   (TWELVE_DATA_API_KEY) → Yahoo keyless. Chart tak pernah
+ *   (TWELVE_DATA_API_KEY). Chart tak pernah
  *   mati 401.
  * - Pine Script®           : @luxalgo/vela-pinets (PineEngine)
  *                            + editor Save/Compile dengan kuota
@@ -438,7 +438,7 @@ export function emitProtectedPlots(ctx: any, plots: ProtectedPlot[], scriptId: s
     /* BUCKET-TOLERANT MATCHING (fix "pine ga ada Entry/SL/TP"):
        dulu nilai plot di-match ke bar dgn kesamaan waktu PERSIS —
        kalau candle server datang dari sumber ber-anchor beda
-       (mis. 4h TradingView mulai 01:00 UTC vs Yahoo 00:00) SATU
+       (mis. 4h TradingView mulai 01:00 UTC vs bucket 00:00) SATU
        MS pun selisih → semua nilai null → garis blank total.
        Sekarang kedua sisi di-snap ke awal bucket TF (floor), jadi
        selisih kecil anchor tetap mendarat di bar yang sama. */
@@ -1575,9 +1575,9 @@ export default function VelaChartTerminal({
           downColor: '#ef4444',
           /* Datafeed (urutan FINAL Bos — BINANCE DIBUANG, semua via feed
              Luxtradee /api/candles: TradingView → Twelve Data →
-             Yahoo; FX/Gold/US100/crypto satu pintu keyless) */
+             TwelveData; FX/Gold/US100/crypto satu pintu keyless) */
           providers: {
-            luxtradee: () => new LuxtradeeForexProvider(), // TV→TD→Yahoo
+            luxtradee: () => new LuxtradeeForexProvider(), // TV→TD
           },
           /* Pine Script® engine — in-process (paling stabil).
              Skrip berat nanti bisa ganti PineWorkerEngine. */

@@ -3,7 +3,7 @@
  * tradingview.ts — fetcher candle TradingView (websocket, keyless)
  * ============================================================
  * Sumber candle UTAMA Luxtradee (urutan FINAL Bos: TradingView →
- * TwelveData → Yahoo — BINANCE DIBUANG). Protokol websocket publik
+ * TwelveData — BINANCE & YAHOO DIBUANG). Protokol websocket publik
  * TradingView (token tamu `unauthorized_user_token`) — tanpa akun,
  * tanpa API key, data grade broker (OANDA:XAUUSD, BINANCE:BTCUSDT).
  *
@@ -21,7 +21,7 @@
  * HANYA untuk server (API route). Tidak boleh diimpor client.
  */
 
-import type { YahooCandle } from './yahoo'
+import type { OhlcvCandle } from './symbols'
 
 const WS_URL = 'wss://data.tradingview.com/socket.io/websocket?from=chart%2F'
 const ORIGIN = 'https://www.tradingview.com'
@@ -213,7 +213,7 @@ export async function fetchTradingViewCandles(
   symbol: string,
   interval: string,
   limit = 300,
-): Promise<YahooCandle[] | null> {
+): Promise<OhlcvCandle[] | null> {
   const tf = TV_INTERVALS[interval]
   if (!tf) return null
   /* KEDALAMAN (Bos): sampai 5000 bar per percobaan — series websocket
@@ -226,7 +226,7 @@ export async function fetchTradingViewCandles(
     try {
       const bars = await runOneAttempt(tvSymbol, tf, count)
       if (!bars || !bars.length) continue
-      const out: YahooCandle[] = bars
+      const out: OhlcvCandle[] = bars
         .map((v) => ({
           time: Math.floor(Number(v[0]) / (Number(v[0]) > 1e12 ? 1000 : 1)),
           open: Number(v[1]), high: Number(v[2]),
@@ -237,7 +237,7 @@ export async function fetchTradingViewCandles(
       if (!out.length) continue
       out.sort((a, b) => a.time - b.time)
       /* Dedupe per open-time lalu ambil `limit` terakhir */
-      const seen = new Map<number, YahooCandle>()
+      const seen = new Map<number, OhlcvCandle>()
       for (const c of out) seen.set(c.time, c)
       const uniq = [...seen.values()]
       return uniq.slice(Math.max(0, uniq.length - limit))

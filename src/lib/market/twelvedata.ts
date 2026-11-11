@@ -4,8 +4,8 @@
  * ============================================================
  * Sumber candle SPOT-grade untuk forex, logam (XAU/USD dkk) &
  * CRYPTO (BTC/USDT dkk) — level harganya paling dekat dengan
- * feed broker/exchange (OANDA/MT4/MT5/Binance) dibanding Yahoo
- * yang berbasis futures (GC=F/NQ=F).
+ * feed broker/exchange (OANDA/MT4/MT5/Binance). (Yahoo Finance
+ * yang berbasis futures GC=F/NQ=F sudah DIHAPUS — keputusan Bos.)
  *
  * CATATAN SDK (Bos minta cek github.com/twelvedata/twelvedata-node):
  * SDK resmi @twelvedata/twelvedata-node bagus untuk proyek Node,
@@ -17,21 +17,20 @@
  *
  * ATURAN AMAN (tanpa risiko 401 di UI):
  *   - API key dibaca dari process.env.TWELVE_DATA_API_KEY.
- *     TANPA key → return null, penelepon otomatis jatuh ke
- *     Yahoo keyless → aplikasi tetap hidup 100%.
+ *     TANPA key → return null, penelepon jatuh ke TradingView
+ *     keyless → aplikasi tetap hidup 100%.
  *   - Free tier Twelve Data = 8 req/menit → rate limiter lokal
  *     (maks 7/menit, sliding window) + cooldown 60 detik setelah
- *     error apa pun (quota/plan/network) → Yahoo yang ambil alih.
+ *     error apa pun (quota/plan/network) → TradingView yang ambil alih.
  *   - SEMUA kesalahan → null (JANGAN pernah mock data).
  *
  * Pemetaan simbol kanonik Luxtradee → Twelve Data:
  *   XAUUSD → XAU/USD, XAGUSD → XAG/USD (spot metal)
  *   EURUSD → EUR/USD, dst. (semua major di FOREX_SYMBOLS)
  *   BTCUSDT → BTC/USDT, dst. (10 pair crypto — lihat TD_SYMBOLS)
- *   US100  → NDX (indeks; bila plan tidak mencakup → fallback
- *            Yahoo NQ=F yang level harganya setara Nasdaq 100.
- *            QQQ sengaja TIDAK dipakai — levelnya ~490 vs NDX ~21rb
- *            bakal merusak skala chart.)
+ *   US100  → NDX (indeks; bila plan tidak mencakup → null, chart
+ *            tetap dilayani TradingView. QQQ sengaja TIDAK dipakai —
+ *            levelnya ~490 vs NDX ~21rb bakal merusak skala chart.)
  *
  * Interval kanonik → Twelve Data:
  *   5m→5min, 15m→15min, 30m→30min, 1h→1h, 2h→2h, 4h→4h,

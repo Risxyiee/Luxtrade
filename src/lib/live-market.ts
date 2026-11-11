@@ -2,12 +2,23 @@
  * Live Market Data Fetcher
  * Fetches REAL-TIME prices from free APIs — NO dummy/mock/hardcoded data.
  *
- * Sources (SEMUA KEYLESS — Task 42 + BINANCE DIBUANG keputusan Bos):
- * 1. Yahoo Finance (free, no key) — forex, stocks, crypto
- * 2. CoinGecko (free, no key) — crypto only
+ * Sources (SEMUA KEYLESS, SE-SKALA CHART):
+ * 1. gold-api / binance (via fetchChartScalePrice) — XAU/XAG/crypto
+ *    (persis sumber tail chart /api/candles)
+ * 2. TradingView (websocket publik, keyless) — semua simbol
+ * 3. TwelveData (butuh TWELVE_DATA_API_KEY) — cadangan spot
+ * 4. CoinGecko (keyless) — crypto saja
+ *
+ * YAHOO FINANCE DIHAPUS TOTAL (Bos 2026-11-11: "data lain yahoo
+ * finance hapus aja").
  *
  * Returns null if ALL sources fail — never returns fake data.
  */
+
+import { fetchChartScalePrice } from '@/lib/market/spot-live'
+import { fetchTradingViewCandles } from '@/lib/market/tradingview'
+import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
+import { normalizeSymbol } from '@/lib/market/symbols'
 
 // ── Cache ──────────────────────────────────────────────────────────
 interface PriceCache { price: number; change24h?: number; source: string; timestamp: number }
@@ -21,49 +32,31 @@ function getPriceCache(key: string): PriceCache | null {
   return null
 }
 
-// ── Yahoo Finance Real-time Price ──────────────────────────────────
-async function fetchYahooPrice(symbol: string): Promise<PriceCache | null> {
-  // Map symbols to Yahoo Finance format
-  const isCrypto = /^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|MATIC|LINK|LTC|UNI|ATOM|FIL|APT|ARB|OP|NEAR|SUI|SEI|PEPE|WIF|SHIB)/i.test(symbol)
-  const isForex = /^(XAU|XAG|EUR|GBP|USD|AUD|NZD|CAD|CHF|JPY){3,6}$/i.test(symbol.replace('/', ''))
-
-  let yahooSymbol: string
-  if (symbol.includes('/')) {
-    yahooSymbol = symbol.replace('/', '') + '=X'
-  } else if (isCrypto && symbol.toUpperCase().endsWith('USD')) {
-    // BTCUSD → BTC-USD
-    yahooSymbol = symbol.slice(0, -3) + '-USD'
-  } else if (isCrypto) {
-    yahooSymbol = symbol + '-USD'
-  } else if (symbol.length === 6 && !symbol.includes('/')) {
-    // EURUSD → EURUSD=X
-    yahooSymbol = symbol + '=X'
-  } else {
-    yahooSymbol = symbol
-  }
-
+// ── Candle terakhir → harga + perubahan 24 jam ──────────────────────
+/** Ambil 2 bar terakhir dari rantai TradingView → TwelveData; harga =
+    close bar terakhir, change24h dihitung dari bar sebelumnya bila
+    rentang waktunya ±24 jam. Se-skala chart /api/candles. */
+async function fetchPriceFromCandles(symbol: string): Promise<PriceCache | null> {
   try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1m&range=1d`,
-      {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)' },
-        signal: AbortSignal.timeout(8000),
-      }
-    )
-    if (!res.ok) return null
-
-    const json = await res.json()
-    const result = json?.chart?.result?.[0]
-    if (!result) return null
-
-    const meta = result.meta
-    const price = meta?.regularMarketPrice
-    const prevPrice = meta?.chartPreviousClose || meta?.previousClose
-    if (!price || price <= 0) return null
-
-    const change24h = prevPrice ? ((price - prevPrice) / prevPrice) * 100 : undefined
-
-    return { price, change24h, source: 'Yahoo Finance', timestamp: Date.now() }
+    const tv = await fetchTradingViewCandles(symbol, '1h', 2).catch(() => null)
+    let bars = tv && tv.length ? tv : null
+    let source = 'TradingView'
+    if (!bars) {
+      const td = await fetchTwelveDataCandles(symbol, '1h', 2).catch(() => null)
+      if (!td || !td.length) return null
+      bars = td
+      source = 'TwelveData'
+    }
+    const last = bars[bars.length - 1]
+    const prev = bars[bars.length - 2]
+    if (!last || !(last.close > 0)) return null
+    /* change24h hanya dihitung bila bar sebelumnya memang ±24 jam lalu
+       (1h × 24) — selain itu undefined (jangan mengarang angka). */
+    let change24h: number | undefined
+    if (prev && prev.close > 0 && last.time - prev.time >= 23 * 3600 && last.time - prev.time <= 25 * 3600) {
+      change24h = ((last.close - prev.close) / prev.close) * 100
+    }
+    return { price: last.close, change24h, source, timestamp: Date.now() }
   } catch {
     return null
   }
@@ -109,24 +102,32 @@ async function fetchCoinGeckoPrice(symbol: string): Promise<PriceCache | null> {
  * Tries multiple sources in order. Returns null if all fail (NEVER fake data).
  */
 export async function fetchLivePrice(symbol: string): Promise<PriceCache | null> {
-  const normalizedSymbol = symbol.toUpperCase().replace('/', '')
-  const cacheKey = `price:${normalizedSymbol}`
+  const canonical = normalizeSymbol(symbol)
+  const cacheKey = `price:${canonical}`
 
   // Check cache
   const cached = getPriceCache(cacheKey)
   if (cached) return cached
 
   // Determine if crypto
-  const isCrypto = /^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|MATIC|LINK|LTC|UNI|ATOM|APT|ARB|OP|NEAR|SUI|SEI|PEPE|WIF|SHIB)/i.test(normalizedSymbol)
+  const isCrypto = /^(BTC|ETH|BNB|SOL|XRP|DOGE|ADA|DOT|AVAX|MATIC|LINK|LTC|UNI|ATOM|APT|ARB|OP|NEAR|SUI|SEI|PEPE|WIF|SHIB)/i.test(canonical)
 
-  // Try sources in order (semua keyless)
-  // 1. Yahoo Finance (free, no key)
-  const yf = await fetchYahooPrice(normalizedSymbol)
-  if (yf) { priceCache.set(cacheKey, yf); return yf }
+  // Try sources in order (semua keyless, se-skala chart)
+  // 1. gold-api / binance — XAU/XAG/crypto (persis sumber tail chart)
+  const chartScale = await fetchChartScalePrice(canonical).catch(() => null)
+  if (chartScale && Number.isFinite(chartScale.price) && chartScale.price > 0) {
+    const out: PriceCache = { price: chartScale.price, source: chartScale.source, timestamp: Date.now() }
+    priceCache.set(cacheKey, out)
+    return out
+  }
 
-  // 2. CoinGecko (crypto only, free)
+  // 2. Candle terakhir TradingView → TwelveData (semua simbol)
+  const fromCandles = await fetchPriceFromCandles(canonical)
+  if (fromCandles) { priceCache.set(cacheKey, fromCandles); return fromCandles }
+
+  // 3. CoinGecko (crypto only, free)
   if (isCrypto) {
-    const cg = await fetchCoinGeckoPrice(normalizedSymbol)
+    const cg = await fetchCoinGeckoPrice(canonical)
     if (cg) { priceCache.set(cacheKey, cg); return cg }
   }
 

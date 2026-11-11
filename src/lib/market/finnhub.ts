@@ -3,7 +3,7 @@
  * finnhub.ts — fetcher candle Finnhub (butuh FINNHUB_API_KEY)
  * ============================================================
  * PARKIR (keputusan Bos): TIDAK DIPAKAI di rantai candle — urutan
- * final rantai adalah TradingView → TwelveData → Yahoo (Binance
+ * final rantai adalah TradingView → TwelveData (Binance & Yahoo
  * dihapus). File ini dipertahankan bila kelak Bos ingin memakai
  * Finnhub lagi. API resmi Finnhub — forex via OANDA:, crypto
  * via BINANCE:. TANPA key → langsung null (skip, bukan error).
@@ -16,7 +16,7 @@
  * HANYA untuk server (API route).
  */
 
-import type { YahooCandle } from './yahoo'
+import type { OhlcvCandle } from './symbols'
 
 const BASE = 'https://finnhub.io/api/v1'
 
@@ -68,7 +68,7 @@ export async function fetchFinnhubCandles(
   symbol: string,
   interval: string,
   limit = 300,
-): Promise<YahooCandle[] | null> {
+): Promise<OhlcvCandle[] | null> {
   const key = String(process.env.FINNHUB_API_KEY || '').trim()
   if (!key) return null
 
@@ -87,7 +87,7 @@ export async function fetchFinnhubCandles(
     if (!res.ok) return null
     const j: any = await res.json().catch(() => null)
     if (!j || j.s !== 'ok' || !Array.isArray(j.t) || !j.t.length) return null
-    const out: YahooCandle[] = j.t
+    const out: OhlcvCandle[] = j.t
       .map((t: number, i: number) => ({
         time: Number(t),
         open: Number(j.o?.[i]), high: Number(j.h?.[i]),
@@ -97,7 +97,7 @@ export async function fetchFinnhubCandles(
       .filter((c) => Number.isFinite(c.time) && Number.isFinite(c.close) && c.close > 0)
     if (!out.length) return null
     out.sort((a, b) => a.time - b.time)
-    const seen = new Map<number, YahooCandle>()
+    const seen = new Map<number, OhlcvCandle>()
     for (const c of out) seen.set(c.time, c)
     const uniq = [...seen.values()]
     return uniq.slice(Math.max(0, uniq.length - limit))

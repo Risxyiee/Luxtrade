@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-11.7'
-const NOTES = 'CHART GANTI TRADINGVIEW RESMI (direktif Bos): chart default kini widget Advanced Chart resmi TradingView (tv.js) — data feed langsung dari server TradingView (OANDA/FX/NASDAQ/BINANCE) di browser utk XAU, GBPUSD, dst; rantai data server dibalik TradingView dulu; fix 422 Yahoo (period1 tepat batas 60 hari); Vela Lab jadi mode lanjutan utk Pine Script & garis alert.'
+const VERSION = '2026-11-11.8'
+const NOTES = 'YAHOO FINANCE DIHAPUS TOTAL (direktif Bos: "data lain yahoo finance hapus aja") — file lib/market/yahoo.ts dihapus; rantai data murni TradingView -> TwelveData (+gold-api/binance utk tick spot) di /api/candles, /api/forex, /api/forex-batch, server-candles (Pine), overlay spot & AI chat; cache KV v10 buang entri skala futures lama. FIX IG: window konten karyawan dibuka sampai 20:59 WIB agar jaring pengaman cron 20:30 benar-benar memposting Reels/konten Sinta yang tertahan.'
 
 export async function GET() {
   return NextResponse.json(

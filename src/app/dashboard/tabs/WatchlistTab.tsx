@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 // PERF (F2): normalisasi simbol PINDAH ke server (/api/forex-batch pakai
-// normalizeSymbol dari lib/market/yahoo) — client kirim simbol apa adanya,
+// normalizeSymbol dari lib/market/symbols) — client kirim simbol apa adanya,
 // kunci respons tetap simbol client sehingga merge priceMap tetap pas.
 
 export interface WatchlistItem {
@@ -232,7 +232,7 @@ export default function WatchlistTab({
       setPriceLoading(true)
       // PERF (F2): SATU request batch tanpa nocache — server menyajikan
       // dari cache mem/KV bila <= 15 dtk (freshness alert tetap terjaga),
-      // hanya cache-miss yang memukul Yahoo. Dulu: N fetch nocache per tick.
+      // hanya cache-miss yang memukul upstream. Dulu: N fetch nocache per tick.
       try {
         const res = await fetch(`/api/forex-batch?symbols=${encodeURIComponent(uniqueSymbols.join(','))}`)
         if (res.ok) {

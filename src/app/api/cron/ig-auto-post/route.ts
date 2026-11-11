@@ -59,14 +59,21 @@ interface QueueRow {
   meta?: { image_urls?: string[] } | null
 }
 
-/* ── WINDOW POSTING 18–19 WIB (permintaan Bos 8 Nov 2026) ──
+/* ── WINDOW POSTING 18–20 WIB (permintaan Bos 8 Nov 2026 + FIX Bos
+   11 Nov 2026: "kok ga post ig karyawanku") ──
    Konten kreatif karyawan (source sinta-video / sinta-content /
-   sinta-carousel) hanya boleh tayang jam 18:00–19:59 WIB Senin–Jumat.
-   Di luar window → baris ditinggal 'pending' (bukan dibuang) →
-   diambil run 18:45 WIB berikutnya. Post pasar/otomatis lain tidak
-   terpengaruh. */
+   sinta-carousel) tayang jam 18:00–20:59 WIB Senin–Jumat.
+   AKAR BUG: dulu window hanya [18,19] — cron jaring pengaman
+   20:30 WIB (13:30 UTC, workflow instagram-cron.yml) selalu MENAHAN
+   konten karyawan (jam 20 di luar window) → Reels/konten yang lolos
+   dari run 18:45 WIB (GitHub Actions sering telat >15 menit, bisa
+   lewat jam 19) TIDAK PERNAH tayang, menggantung 'pending' sampai
+   besok. Sekarang jam 20 ikut dibuka agar jaring pengaman 20:30
+   benar-benar menyelamatkan. Di luar window → baris ditinggal
+   'pending' (bukan dibuang) → diambil run berikutnya. Post pasar/
+   otomatis lain tidak terpengaruh. */
 const CONTENT_SOURCES = new Set(['sinta-video', 'sinta-content', 'sinta-carousel'])
-const CONTENT_WINDOW_HOURS_WIB = [18, 19]
+const CONTENT_WINDOW_HOURS_WIB = [18, 19, 20]
 
 function contentInWindow(): boolean {
   const day = new Date(Date.now() + 7 * 3_600_000).getUTCDay()

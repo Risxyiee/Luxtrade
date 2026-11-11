@@ -3,7 +3,7 @@
  * LuxtradeeForexProvider — DataProvider untuk Vela™ yang menyajikan
  * XAUUSD / XAGUSD / major forex / US100 (Nasdaq) dari datafeed
  * Luxtradee (/api/candles — rantai spot dulu: Twelve Data
- * XAU/USD dkk via TWELVE_DATA_API_KEY, lalu Yahoo publik
+ * XAU/USD dkk via TWELVE_DATA_API_KEY (Yahoo dihapus Bos)
  * TANPA API KEY → chart tak pernah mati 401).
  * ============================================================
  * Kenapa provider ini? Provider native bawaan Vela (Binance/
@@ -15,7 +15,7 @@
  *
  * ROUTING DATAFEED (Task 42 + urutan FINAL Bos — BINANCE DIBUANG):
  *   - Forex / Gold / Silver / Nasdaq (US100) / Crypto → /api/candles
- *     (TradingView keyless → Twelve Data spot → Yahoo keyless;
+ *     (TradingView keyless → Twelve Data spot;
  *     alias NASDAQ, NAS100, GOLD, XAU/USD, BTC, …
  *     dinormalisasi otomatis)
  *   - BINANCE PROVIDER DIBUANG (keputusan Bos) — semua simbol
@@ -46,7 +46,7 @@ import type {
   ProviderInfo,
   SymbolDescriptor,
 } from '@luxalgo/vela'
-import { normalizeSymbol } from '@/lib/market/yahoo'
+import { normalizeSymbol } from '@/lib/market/symbols'
 import { TV_SYMBOL_MAP, TVLiveStream } from '@/lib/tradingview-live'
 
 /* Timeframe kanonik Vela (menit, string) → format /api/candles.
@@ -72,7 +72,7 @@ const SYMBOLS: SymbolDescriptor[] = [
   { ticker: 'NZDUSD', description: 'New Zealand Dollar / US Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'USDCAD', description: 'US Dollar / Canadian Dollar', type: 'forex', group: 'MAJOR' },
   { ticker: 'USDCHF', description: 'US Dollar / Swiss Franc', type: 'forex', group: 'MAJOR' },
-  // Crypto (via TradingView BINANCE:* → Yahoo BTC-USD — tanpa key, tanpa BinanceProvider)
+  // Crypto (via TradingView BINANCE:* — tanpa key, tanpa BinanceProvider)
   { ticker: 'BTCUSDT', description: 'Bitcoin / USDT', type: 'crypto', group: 'CRYPTO' },
   { ticker: 'ETHUSDT', description: 'Ethereum / USDT', type: 'crypto', group: 'CRYPTO' },
   { ticker: 'SOLUSDT', description: 'Solana / USDT', type: 'crypto', group: 'CRYPTO' },
@@ -147,7 +147,7 @@ function sliceRange(bars: OHLCV[], range?: BarRange): OHLCV[] {
              ketersediaan (3000/2000 bar ≈ 6–12 bulan).
    - 1d/1w : 1000/500 bar (≈ 4–10 tahun).
    Server /api/candles menarik penuh (TradingView series 1×req,
-   TwelveData outputsize 5000 + pagination, Yahoo period paging). */
+   TwelveData outputsize 5000 + pagination). */
 const TF_DEPTH: Record<string, number> = {
   '5m': 5000, '15m': 5000, '30m': 5000, '1h': 5000,
   '2h': 3000, '4h': 2000, '1d': 1000, '1w': 500,

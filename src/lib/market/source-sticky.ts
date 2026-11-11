@@ -3,10 +3,11 @@
  * source-sticky — ingat SUMBER CANDLE terakhir yang sukses
  * ============================================================
  * FIX "chart kek setan — kadang ilang kadang kebawah":
- * rantai TradingView → TwelveData → Yahoo punya LEVEL HARGA BEDA
- * (OANDA/XAU-USD spot vs Yahoo GC=F futures selisih $10–40). Kalau
- * antar-request sumber bergantian (TV suka gagal dari IP datacenter),
- * chart berganti skala → candle terlihat lompat/ilang/kebawah.
+ * rantai multi-sumber punya potensi LEVEL HARGA BEDA antar sumber.
+ * Kalau antar-request sumber bergantian (TV suka gagal dari IP
+ * datacenter), chart berganti skala → candle terlihat
+ * lompat/ilang/kebawah. (Yahoo GC=F futures — penyebab historis —
+ * sudah dihapus total dari rantai, keputusan Bos.)
  *
  * Solusi: sumber terakhir yang SUKSES utk (symbol,interval) diingat
  * 15 menit (in-memory per-isolate + KV Cloudflare cross-isolate) dan

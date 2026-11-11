@@ -3,7 +3,8 @@
  * GET /api/candles — datafeed chart Vela (forex, gold, US100, crypto)
  * ============================================================
  * RANTAI SUMBER FINAL (Bos 2026-11-11: "chart & data ambil dari
- * TradingView — xau, gbpusd, semua ambil dari situ"):
+ * TradingView — xau, gbpusd, semua ambil dari situ" + "data lain
+ * yahoo finance hapus aja"):
  *
  *   0. TRADING VIEW (websocket publik, KEYLESS) — SUMBER UTAMA
  *      SEMUA simbol: spot OANDA:XAUUSD/XAGUSD, FX:* forex,
@@ -19,23 +20,21 @@
  *      ketat di lib twelvedata; polling tick live dibungkus
  *      micro-cache 2.5s + base sejarah dari cache.
  *
- *   2. YAHOO Finance chart API (publik, GRATIS, TANPA API KEY)
- *      — jaring pengaman terakhir. Selalu hidup. Crypto
- *      (BTCUSDT → BTC-USD) juga dilayani Yahoo.
- *
- * BINANCE DIBUANG (keputusan Bos). Finnhub PARKIR (butuh key,
- * bukan pilihan Bos utk rantai ini) — lib finnhub.ts dipertahankan.
+ * YAHOO FINANCE DIHAPUS TOTAL (Bos 2026-11-11: "data lain yahoo
+ * finance hapus aja") — tidak ada lagi sumber ketiga; lib
+ * market/yahoo.ts sudah dihapus. Bila TV+TD gagal → respons 503
+ * jujur (tanpa mock). BINANCE DIBUANG (keputusan Bos). Finnhub
+ * PARKIR (butuh key) — lib finnhub.ts dipertahankan.
  *
  * Pemetaan simbol (kanonik Luxtradee):
- *   Gold    : XAUUSD  (TD XAU/USD spot — skala broker)
- *   Silver  : XAGUSD  (TD XAG/USD spot — skala broker)
- *   Nasdaq  : US100   (TD NDX; alias NAS100/NASDAQ/NDX dinormalisasi
+ *   Gold    : XAUUSD  (spot OANDA/TD — skala broker)
+ *   Silver  : XAGUSD  (spot)
+ *   Nasdaq  : US100   (alias NAS100/NASDAQ/NDX dinormalisasi
  *                      masuk sini. QQQ TIDAK dipakai — level ~$490 vs
  *                      NDX ~21rb merusak skala chart)
- *   Forex   : EURUSD, GBPUSD, USDJPY, dst. (TD EUR/USD → Yahoo …=X)
+ *   Forex   : EURUSD, GBPUSD, USDJPY, dst.
  *
  * Interval kanonik: 5m · 15m · 30m · 1h · 2h · 4h · 1d · 1w
- *   (2h/4h diagregasi dari 1h oleh lib bersama market/yahoo.ts)
  *
  * Konversi keluaran → OHLCV standar Vela:
  *   { time: epoch DETIK, open, high, low, close, volume? }
@@ -45,12 +44,9 @@
  * KEDALAMAN HISTORY (Task — permintaan Bos, "minimal 3.000–5.000
  * historical candles ke belakang, terutama 1h/15m — BUKAN cuma 500"):
  *   - Param limit/outputsize diterima sampai 5000 bar per request.
- *   - Sumber dalam rantai menarik penuh: Twelve Data outputsize
- *     ≤5000 (+pagination previous_close bila minta lebih);
- *     TradingView ws series 1×request ≤5000 bar; Yahoo
- *     period1/period2 paging (15m/30m window 60 hari, 1h sampai
- *     730 hari) → akumulasi 3–6 bulan candle tergabung KRONOLOGIS
- *     (ascending lama→baru).
+ *   - Sumber dalam rantai menarik penuh: TradingView ws series
+ *     1×request ≤5000 bar; Twelve Data outputsize ≤5000
+ *     (+pagination bila minta lebih).
  *   - Chart Vela (LuxtradeeForexProvider) meminta depth 5000 utk
  *     5m–1h → backtest Pine & scroll kiri tembus berminggu-minggu.
  *
@@ -62,9 +58,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   FOREX_SYMBOLS,
   normalizeSymbol,
-  fetchYahooChart,
-  type YahooCandle,
-} from '@/lib/market/yahoo'
+  type OhlcvCandle,
+} from '@/lib/market/symbols'
 import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
 import { fetchTradingViewCandles } from '@/lib/market/tradingview'
 import { overlaySpotTail, hasSpotOverlay } from '@/lib/market/spot-live'
@@ -99,7 +94,7 @@ const CANON_INTERVAL_SEC: Record<string, number> = {
    CACHE in-memory + KV Cloudflare
    ============================================================ */
 interface CacheEntry { data: Ohlcv[]; timestamp: number; source: string }
-type Ohlcv = YahooCandle
+type Ohlcv = OhlcvCandle
 
 const cache = new Map<string, CacheEntry>()
 const CACHE_TTL_DEFAULT = 5 * 60 * 1000
@@ -109,7 +104,7 @@ const CACHE_TTL_PRICE = 30 * 1000
 /* LIVE micro-cache — khusus polling tick 3 detik dari chart Vela
    (provider.subscribe). TTL 2.5 detik: N client polling tiap 3 detik
    digabung jadi ±1 fetch upstream per 2.5s per (symbol,interval) —
-   sumber (TradingView WS/TwelveData/Yahoo) tidak banjir request. */
+   sumber (TradingView WS/TwelveData) tidak banjir request. */
 const liveCache = new Map<string, CacheEntry>()
 const LIVE_TTL = 2500
 
@@ -150,19 +145,20 @@ function setCache(key: string, data: Ohlcv[], source: string) {
    batas group-nya geser — penyebab candle 2h/4h melompat).
    v5 → rantai spot 4 lapis + proyeksi grid sumber (tail patch) —
    buang entri KV lama yg ekornya tak ter-patch/campur skala.
-   v6 → METALS SCALE-LOCK (logam Yahoo GC=F/SI=F di semua TF &
-   pull) — buang entri KV lama yg masih campur skala spot↔futures
-   (penyebab "chart gajelas antar TF" & "Entry/SL/TP ga muncul").
+   v6 → METALS SCALE-LOCK (logam di semua TF & pull) — buang entri
+   KV lama yg masih campur skala spot↔futures (penyebab "chart
+   gajelas antar TF" & "Entry/SL/TP ga muncul").
    v7 → BOS: "data chart make twelve aja" — Twelve Data jadi sumber
-   UTAMA semua simbol & TF (bukan Yahoo GC=F lagi); buang entri KV
-   lama berskala futures supaya chart 100% se-skala spot TD.
+   UTAMA semua simbol & TF; buang entri KV lama berskala futures.
    v8 → FILTER BAR SINTETIS TD (fix Bos: "ilang-ilang candlenya"):
    TD mengisi weekend dgn bar flat hantu (96/300 bar 1h!) — buang
    entri KV lama yang masih berisi bar sintetis di luar jam pasar.
    v9 → BOS 2026-11-11: "data ambil dari TradingView" — rantai
-   dibalik: TRADINGVIEW DULU (spot-grade OANDA/FX) → TwelveData
-   → Yahoo; buang entri KV lama agar konsistensi sumber segar. */
-const KV_CACHE_VER = 'v9'
+   dibalik: TRADINGVIEW DULU (spot-grade OANDA/FX) → TwelveData.
+   v10 → BOS: "data lain yahoo finance hapus aja" — Yahoo Finance
+   DIHAPUS TOTAL dari rantai; buang entri KV lama yang masih
+   berskala futures Yahoo (GC=F/SI=F) agar chart 100% spot-grade. */
+const KV_CACHE_VER = 'v10'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {
@@ -197,26 +193,25 @@ async function setKvCache(key: string, data: Ohlcv[], source: string, ttlSeconds
 }
 
 /* ============================================================
-   RANTAI SUMBER BERSAMA — BOS: "data chart make twelve aja"
-   TWELVE DATA DULU untuk SEMUA simbol (termasuk logam) → SATU
+   RANTAI SUMBER BERSAMA — BOS: "data ambil dari TradingView"
+   TRADINGVIEW DULU untuk SEMUA simbol (termasuk logam) → SATU
    skala spot-grade di semua timeframe & semua pull (chart =
-   backtest Pine = tail live). TradingView (spot-grade juga) lalu
-   Yahoo hanya pemadam kebakaran bila TD kena quota/cooldown —
-   chart tidak pernah kosong, tapi skala TD selalu diprioritaskan.
+   backtest Pine = tail live). TwelveData pemadam kebakaran bila
+   TV WS ditolak IP datacenter / kena quota. YAHOO DIHAPUS (Bos).
 
    STICKY SOURCE (lib bersama source-sticky.ts, dipakai juga oleh
    server-candles utk backtest Pine): sumber yang terakhir SUKSES
    untuk (symbol,interval) diingat 15 menit dan DICOBA DULU di
    request berikutnya — chart konsisten satu skala harga (anti
-   lompat spot↔futures antar request); failover tetap jalan bila
-   sumber sticky benar-benar mati.
+   lompat skala antar request); failover tetap jalan bila sumber
+   sticky benar-benar mati. Sticky lama 'yahoo-finance' otomatis
+   diabaikan (tidak ada lagi fetcher dengan nama itu).
    ============================================================ */
 const SOURCE_FETCHERS: Record<string, (s: string, i: string, l: number) => Promise<Ohlcv[] | null>> = {
-  twelvedata: (s, i, l) => fetchTwelveDataCandles(s, i, l),
   tradingview: (s, i, l) => fetchTradingViewCandles(s, i, l),
-  'yahoo-finance': (s, i, l) => fetchYahooChart(s, i, l, l <= 1),
+  twelvedata: (s, i, l) => fetchTwelveDataCandles(s, i, l),
 }
-const SOURCE_ORDER = ['tradingview', 'twelvedata', 'yahoo-finance']
+const SOURCE_ORDER = ['tradingview', 'twelvedata']
 
 async function fetchChain(
   symbol: string,
@@ -238,8 +233,8 @@ async function fetchChain(
     } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
   }
 
-  /* 1..3) URUTAN KANONIK: TradingView → TwelveData → Yahoo (Bos:
-     "semua ambil dari TradingView") */
+  /* 1..2) URUTAN KANONIK: TradingView → TwelveData (Bos: "semua
+     ambil dari TradingView"; Yahoo sudah dihapus) */
   for (const source of SOURCE_ORDER) {
     if (source === sticky) continue // sudah dicoba di atas
     try {
@@ -273,7 +268,7 @@ export async function GET(request: NextRequest) {
     const symbol = normalizeSymbol(rawSymbol)
     /* NORMALISASI KE KANONIK (fix akar "chart kek setan"): dulu nilai
        RAW Vela ('5','60','240','1D',…) diteruskan apa adanya ke
-       fetchChain → YAHOO_INTERVALS['240'] dsb. TIDAK ADA → diam-diam
+       fetchChain → INTERVAL sumber TIDAK ADA → diam-diam
        fallback '1h' → chart 4h/5m/2h menampilkan DATA 1H dengan
        bucket waktu tak selaras; poll live (bucket 4h/5m ASLI) tak
        pernah cocok → candle melompat/ilang/kebawah. Sekarang satu
@@ -303,14 +298,12 @@ export async function GET(request: NextRequest) {
        Pakai micro-cache 2.5s agar banyak client berbagi satu fetch
        upstream; jawaban TANPA cache HTTP (no-store) supaya ujung
        candle bergerak mulus layaknya feed broker.
-       TWELVE DATA-FIRST + HEMAT KUOTA (Bos: "data chart make twelve
-       aja"): TD free 8 req/min — polling tick 3 dtk TIDAK boleh
-       bakar upstream tiap poll. BASE sejarah diambil dari cache
-       (:300 mem/KV ≤15 menit — se-skala dengan chart yang sudah
-       terbuka), lalu overlay SPOT real-time (gold-api utk XAU/XAG,
-       binance-vision utk crypto) menggerakkan ujung candle. Simbol
-       tanpa overlay (forex) tetap fetch fresh via fetchChain
-       (TD dulu). Anti lompat skala futures↔spot saat TD cooldown. */
+       HEMAT KUOTA: polling tick 3 dtk TIDAK boleh bakar upstream tiap
+       poll. BASE sejarah diambil dari cache (:300 mem/KV ≤15 menit —
+       se-skala dengan chart yang sudah terbuka), lalu overlay SPOT
+       real-time (gold-api utk XAU/XAG, binance-vision utk crypto)
+       menggerakkan ujung candle. Simbol tanpa overlay (forex) tetap
+       fetch fresh via fetchChain (TradingView dulu). */
     if (nocache && limit <= 3) {
       const liveKey = `${validSymbol}:${interval}`
       const hit = getLiveCached(liveKey)
@@ -360,7 +353,7 @@ export async function GET(request: NextRequest) {
       if (tail && tail.bars.length) {
         /* Overlay spot real-time SE-SKALA DENGAN SUMBER SEJARAH (fix
            "candle kebawah"): TradingView/TwelveData → gold-api spot;
-           Yahoo (futures) → tick Yahoo sendiri; crypto → binance-vision. */
+           crypto → binance-vision. */
         let liveBars = tail.bars
         let liveSource = tail.source
         if (overlayWanted) {
@@ -449,9 +442,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    /* ---- RANTAI SUMBER: TradingView → TwelveData → Yahoo ----
-       (Bos: "data chart ambil dari TradingView"; limit<=1 →
-       Yahoo liveTick aktif sbg harga real-time) */
+    /* ---- RANTAI SUMBER: TradingView → TwelveData (Yahoo dihapus Bos) ---- */
     const chain = await fetchChain(validSymbol, interval, limit)
     if (chain) {
       setCache(cacheKey, chain.bars, chain.source)

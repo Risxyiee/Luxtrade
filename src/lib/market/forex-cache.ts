@@ -8,19 +8,19 @@
  *   2. Cloudflare KV `luxtradee_kv` (cross-isolate)
  * Aturan freshness: harga live (limit<=1) hanya disajikan dari
  * cache bila usia <= 15 detik — polling alert tetap responsif
- * tanpa memukul Yahoo untuk setiap user/simbol.
+ * tanpa memukul upstream untuk setiap user/simbol.
  */
 
-import { validatePrice } from '@/lib/market/yahoo'
+import { validatePrice } from '@/lib/market/symbols'
 
 export interface CacheEntry { data: any[]; timestamp: number; source: string }
 
-/* VERSI KV — v2 (fix Bos: "chart xau putus"): buang entri KV lama
-   berskala Yahoo FUTURES (XAU GC=F beda $8-15 dari spot TD) supaya
+/* VERSI KV — v3 (Bos: "data lain yahoo finance hapus aja"): buang
+   entri KV lama — termasuk yang masih berskala Yahoo FUTURES — supaya
    semua harga/candle dilayani ulang dari rantai se-skala chart
-   (TwelveData/gold-api). Entri lama jadi yatim & kedaluwarsa sendiri
-   (TTL ≤ 300 dtk) tanpa flush manual Cloudflare. */
-const KV_VER = 'v2'
+   (TradingView/TwelveData/gold-api). Entri lama jadi yatim &
+   kedaluwarsa sendiri (TTL ≤ 300 dtk) tanpa flush manual Cloudflare. */
+const KV_VER = 'v3'
 
 const cache = new Map<string, CacheEntry>()
 export const CACHE_TTL_DEFAULT = 5 * 60 * 1000   // 5 menit (data chart)

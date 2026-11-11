@@ -50,11 +50,11 @@ const PLOT_CACHE_TTL_MS = 3 * 60 * 1000
    juga 2026 bukan 2023"). Dulu 2000 bar FLAT → 1h cuma ±4 bulan
    (Mulai uji 29 Jun 2026), 5m cuma ±7 hari. Sekarang digali
    SEDALAM sumber gratis sanggup — TD pagination ≤30.000 bar
-   (6×5000), Yahoo window intraminut 60 hari & 1h 730 hari
+   (6×5000) — kedalaman per sumber, Yahoo sudah dihapus Bos
    (terukur langsung: GC=F 5m ≈13–15k bar/60d, 1h ≈14.5k bar/730d):
    - 1h  : 30.000 bar ≈ 4 tahun → Mulai uji tembus 2023
    - 2h  : 16.000 bar ≈ 4,4 tahun     - 4h : 12.000 bar ≈ 6,6 tahun
-   - 5m  : 17.000 bar (≈2 bulan — batas keras Yahoo 60 hari)
+   - 5m  : 17.000 bar (≈2 bulan — kedalaman history sumber)
    - 15m : 11.000 bar (≈2+ tahun)     - 30m: 9.000 bar (≈1+ tahun)
    - 1d  : 2.500 bar (±7 tahun)       - 1w : 1.200 bar (±23 tahun)
    Sumber selalu mengembalikan SEBISANYA (bila plan/window lebih
@@ -210,11 +210,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...cached.payload, cached: true })
     }
 
-    /* 6) CANDLE SERVER (TwelveData → TradingView → Yahoo — urutan FINAL Bos)
+    /* 6) CANDLE SERVER (TradingView → TwelveData — urutan FINAL Bos)
        KEDALAMAN per interval (Bos: "mulai uji 2026 bukan 2023" —
        dulu 2000 bar flat → 1h cuma ±4 bulan). Server-candles menarik
        penuh: TD outputsize ≤30.000 via pagination, TV series ≤5000,
-       Yahoo period paging (5m 60 hari, 1h 730 hari). */
+       (Yahoo Finance sudah dihapus total — keputusan Bos). */
     const depth = BACKTEST_DEPTH[interval] || DEFAULT_BACKTEST_DEPTH
     const cd = await fetchServerCandles(symbol, interval, depth)
     if (!cd) {
