@@ -1312,6 +1312,9 @@ async function cmoAgent(e: Env) {
     (posts.length ? `\nWAJIB: ambil pola dari konten berperform terbaik di atas — bukan naskah generik.\n` : '') +
     (await memBlock(e)) +
     (await agentMemBlock(e, 'cmo')) +
+    /* LOOP BELAJAR — keputusan rapat berlaku + pelajaran tim masuk prompt
+       Sinta: draf TikTok WAJIB selaras taruhan konten minggu ini. */
+    (await loopCtxFor(e, 'cmo')) +
     `\nOutput: TEPAT 3 naskah TikTok (hook 3 detik pertama → body → CTA, durasi 30–45 detik per naskah), dipisah baris persis "===DRAF-2===" dan "===DRAF-3===" antar naskah, tanpa penjelasan tambahan.`
 
   /* ═══════ Rantai model SINTA (SOP Multi-Agent) ═══════
@@ -1426,6 +1429,9 @@ async function cmoInstagramCaption(e: Env) {
       : '') +
     (await memBlock(e)) +
     (await agentMemBlock(e, 'cmo')) +
+    /* LOOP BELAJAR — keputusan rapat berlaku + pelajaran tim masuk prompt
+       caption IG (mis. keputusan angle konten minggu ini dari rapat). */
+    (await loopCtxFor(e, 'cmo')) +
     `\nOutput: HANYA caption Instagram (1 post), tanpa penjelasan tambahan, tanpa label "Caption:".`
 
   let caption = ''
@@ -1895,7 +1901,12 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
   try {
     if (!req) throw new Error('req tidak tersedia')
     const auth = req.headers.get('authorization') || ''
-    for (const step of ['emails', 'qa', 'talk', 'work']) {
+    /* LOOP BELAJAR (lib/ceo-loop.ts) — rapat mingguan hanya Senin (weekday 1),
+       review produk hanya Jumat (weekday 5): tiap langkah = invokasi terpisah
+       (budget subrequest sendiri). Dedup mingguan internal ceo-loop.ts
+       (meet:done:<minggu> / prod:done:<minggu>) bikin aman walau briefing
+       dijalankan ulang — tidak ada rapat ganda / biaya LLM ekstra. */
+    for (const step of ['emails', 'qa', 'talk', 'work', ...(wibWeekday() === 1 ? ['meeting'] : []), ...(wibWeekday() === 5 ? ['product'] : [])]) {
       const u2 = new URL(req.url)
       u2.searchParams.set('action', 'briefing-extras')
       u2.searchParams.set('step', step)
@@ -1924,9 +1935,9 @@ async function runMorningBriefing(e: Env, req?: Request, cronKey?: string) {
    di-merge supaya dashboard Ruang CEO tetap lengkap. */
 async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; briefingText: string; summary: Record<string, unknown> }, step = 'all'): Promise<void> {
   const { day, autoOn, briefingText, summary } = ctx
-  /* step = 'emails' | 'qa' | 'talk' | 'all' — tiap langkah kini dijalankan
-     di INVOKASI TERPISAH (budget subrequest sendiri, lihat runMorningBriefing).
-     'all' hanya dipakai fallback inline lama. */
+  /* step = 'emails' | 'qa' | 'talk' | 'work' | 'meeting' | 'product' | 'all' —
+     tiap langkah dijalankan di INVOKASI TERPISAH (budget subrequest sendiri,
+     lihat runMorningBriefing). 'all' hanya dipakai fallback inline lama. */
   const runStep = (s: string) => step === 'all' || step === s
 
   /* AUTO-ACC — kalau owner menyalakannya, CSO kirim email pasif OTOMATIS
@@ -2067,6 +2078,25 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
       if (raw) summary.nba = JSON.parse(raw)
     }
   } catch { /* opsional */ }
+
+  /* LOOP BELAJAR (lib/ceo-loop.ts) — RAPAT MINGGUAN (Senin) & REVIEW PRODUK
+     (Jumat). `step ===` KETAT sengaja: fallback 'all' TIDAK menumpuk dua
+     panggilan LLM berat ini di satu invokasi. Dedup mingguan internal
+     (meet:done:<minggu> / prod:done:<minggu>) → re-run aman, tanpa rapat
+     dobel. Pesan Discord dikirim sendiri oleh lib (d.notify) — di sini cuma
+     menjalankan & mencatat ke briefing:last supaya dashboard tetap lengkap. */
+  try {
+    if (step === 'meeting' && wibWeekday() === 1) {
+      const d = loopDeps(e)
+      const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE)).catch(() => null)
+      if (info) summary.meeting = await runWeeklyMeeting(d, info).catch((x: any) => ({ ok: false, note: String(x?.message || x).slice(0, 140), evaluated: 0, created: 0 }))
+    }
+    if (step === 'product' && wibWeekday() === 5) {
+      const d = loopDeps(e)
+      const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE)).catch(() => null)
+      if (info) summary.product = await runProductReview(d, info).catch((x: any) => ({ ok: false, added: 0, note: String(x?.message || x).slice(0, 140) }))
+    }
+  } catch { /* loop belajar opsional — briefing tidak boleh gagal karenanya */ }
 
   /* Merge hasil langkah ini ke briefing:last (dashboard Ruang CEO tetap
      lengkap). Baca FRESH → tulis utuh: invokasi paralel antar langkah
@@ -3405,7 +3435,10 @@ async function nextBestAction(e: Env, briefingText: string): Promise<string> {
     const brain = await agentBrain(
       e, 'ceo',
       'Kamu wakil CEO Luxtradee (jurnal trading XAUUSD). Dari briefing pagi di bawah, tentukan SATU aksi prioritas tertinggi yang Bos harus kerjakan HARI INI — yang paling berdampak ke pertumbuhan atau paling urgent, dan HANYA Bos yang bisa (bukan yang bisa dikerjakan karyawan AI). LIHAT MEMORI KANTOR: jangan pilih prioritas yang mirip dengan yang sudah dipilih hari-hari sebelumnya kecuali benar-benar masih paling penting. Format jawaban HANYA: "🎯 <aksi konkret> — <alasan 1 kalimat>". Maks 200 karakter, bahasa Indonesia.',
-      briefingText.slice(0, 1600) + (await memBlock(e, 5)) + (await agentMemBlock(e, 'ceo', 5)), 200, 0.4,
+      briefingText.slice(0, 1600) + (await memBlock(e, 5)) + (await agentMemBlock(e, 'ceo', 5)) +
+      /* LOOP BELAJAR — taruhan berjalan + pelajaran ikut dipertimbangkan
+         Alexander saat memilih prioritas harian Bos. */
+      (await loopCtxFor(e, 'ceo')), 200, 0.4,
     )
     const nba = brain.text
     const text = nba.split('\n').filter((s) => s.trim()).slice(0, 2).join(' ').trim().slice(0, 300)

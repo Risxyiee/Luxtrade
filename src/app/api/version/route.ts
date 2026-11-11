@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-11.4'
-const NOTES = 'ROADMAP #4: Panel LAPORAN KPI KARYAWAN di kantor 3D (/kantor-ceo) — angka nyata per karyawan AI (artikel terbit Farhan, video TikTok + views Sinta, draf ACC Bagas/Maya, MRR Putri, akademi harian) dihitung langsung dari database, tanpa LLM.'
+const VERSION = '2026-11-11.5'
+const NOTES = 'LOOP BELAJAR tim AI tuntas: rapat mingguan OTOMATIS tiap Senin & review produk tiap Jumat (jadwal briefing), keputusan rapat + pelajaran sekarang masuk prompt draf TikTok Sinta & prioritas harian NBA.'
 
 export async function GET() {
   return NextResponse.json(
