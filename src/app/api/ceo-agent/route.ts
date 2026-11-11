@@ -846,45 +846,55 @@ async function geminiText(e: Env, systemPrompt: string, userPrompt: string, maxT
    capacity) → sering 429 → briefing jatuh ke templat "OTAK
    ALEXANDER OFFLINE". Nemotron Lightning lebih cepat (1M ctx, latensi
    ~333ms di diag Bos) & tidak tumpang tindih dengan CMO/DA.
-   • Bagas  (COO)  → google/gemma-4-26b-a4b-it:free (route ai-coo-agent)
-   • Raka   (CTO)  → nvidia/nemotron-3.5-lightning:free
-   • Maya   (CSO)  → google/gemma-4-26b-a4b-it:free
-   • Sinta  (CMO)  → google/gemma-4-31b-it:free (kreatif konten)
+   Update diag Bos 11 Nov 2026 (tes LIVE key sk-or-v1-455..f03):
+   nemotron-lightning HIDUP (612 ms), nemotron-ultra HIDUP (329 ms),
+   gemma-4-26b & gemma-4-31b = 429 free-tier (cadangan),
+   xingchen xing4.0-29b = HTTP 404 (DIMATIKAN katalog — dibuang).
+   Alokasi disebar di 2 model hidup biar tidak berebut kuota 20 req/mnt:
+   • Bagas  (COO)  → nvidia/nemotron-3.5-lightning:free (route ai-coo-agent)
+   • Raka   (CTO)  → nvidia/nemotron-3-ultra-550b-a55b:free
+   • Maya   (CSO)  → nvidia/nemotron-3-ultra-550b-a55b:free
+   • Sinta  (CMO)  → nvidia/nemotron-3-ultra-550b-a55b:free (kreatif konten)
    • Putri  (CFO)  → TANPA LLM — murni matematika hardcoded
    • Alexander (CEO) → nvidia/nemotron-3.5-lightning:free (anti-429)
-   • Dewi   (DA)   → google/gemma-4-31b-it:free (analisis data)
-   • Farhan (GH)   → nvidia/nemotron-3.5-lightning:free
-   Cadangan tim: Nemotron Ultra 550B → Xing 4.0.
+   • Dewi   (DA)   → nvidia/nemotron-3.5-lightning:free (analisis data)
+   • Farhan (GH)   → nvidia/nemotron-3-ultra-550b-a55b:free
+   Cadangan tim: gemma-4-26b → gemma-4-31b (model 429 tetap dicoba saat
+   kuota reset — circuit breaker skip 10 menit biar tidak lambat).
    Override per karyawan tanpa ubah kode: env OR_MODEL_CTO (contoh).
    ============================================================ */
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
 type AgentKey = 'coo' | 'cto' | 'cso' | 'cmo' | 'ceo' | 'da' | 'gh'
 /* Task 35: model lama SEMUA 404 di OpenRouter (katalog dikurasi ulang —
    tinggal 16 model gratis). Verifikasi katalog: GET /api/v1/models.
-   Pilihan hidup: Gemma 4 (31B/26B MoE — bahasa Indonesia bagus),
-   Nemotron 3.5 Lightning (cepat, 1M ctx). Override per karyawan
-   tetap bisa via env OR_MODEL_<AGENT> tanpa ubah kode. */
+   Pilihan hidup (diag Bos 11 Nov): Nemotron 3.5 Lightning + Nemotron
+   3 Ultra 550B; Gemma 4 (31B/26B) 429 free-tier → cadangan. Override
+   per karyawan tetap bisa via env OR_MODEL_<AGENT> tanpa ubah kode. */
 const AGENT_MODELS: Record<AgentKey, string> = {
-  coo: 'google/gemma-4-26b-a4b-it:free',
-  cto: 'nvidia/nemotron-3.5-lightning:free',
-  cso: 'google/gemma-4-26b-a4b-it:free',
-  cmo: 'google/gemma-4-31b-it:free',
+  coo: 'nvidia/nemotron-3.5-lightning:free',
+  cto: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+  cso: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+  cmo: 'nvidia/nemotron-3-ultra-550b-a55b:free',
   ceo: 'nvidia/nemotron-3.5-lightning:free',
-  da: 'google/gemma-4-31b-it:free',
-  gh: 'nvidia/nemotron-3.5-lightning:free',
+  da: 'nvidia/nemotron-3.5-lightning:free',
+  gh: 'nvidia/nemotron-3-ultra-550b-a55b:free',
 }
-/* Cadangan resmi seluruh tim (Task 35c — disaring dari data diag LIVE Bos):
-   thinkingmachines/inkling:free DIBUANG — HTTP 403 (diblokir kebijakan
-   OpenRouter, tidak pernah bisa dipakai). Xing 4.0 masih dicadangkan walau
-   kadang 429 (kapasitas shared), Nemotron Ultra 550B terbukti paling sehat
-   (333 ms di diag Bos). Kalau model utama 404/429 → chain turun ke sini. */
+/* Cadangan resmi seluruh tim (diag LIVE Bos 11 Nov 2026):
+   thinkingmachines/inkling:free DIBUANG — HTTP 403 (diblokir kebijakan).
+   xingchen-agi/xing4.0-29b-a4b:free DIBUANG — HTTP 404 (dihapus katalog
+   OpenRouter, tiap percobaan = round-trip sia-sia). Nemotron duo terbukti
+   hidup (lightning 612 ms / ultra 329 ms); Gemma 4 kena 429 free-tier →
+   dicadangkan di belakang (breaker 10 mnt skip sampai kuota reset).
+   Kalau model utama 404/429 → chain turun ke sini. */
 const OR_TEAM_FALLBACKS = [
+  'nvidia/nemotron-3.5-lightning:free',
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'xingchen-agi/xing4.0-29b-a4b:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
 ]
 
 /* ---------- Circuit breaker OpenRouter (Task 35c) ----------
-   Model :free itu SHARED — Gemma 4 & Xing sering 429 karena kapasitas
+   Model :free itu SHARED — Gemma 4 sering 429 karena kapasitas
    pemakaian BERSAMA semua user OpenRouter (bukan salah key/kita). Tanpa
    breaker, tiap agen tetap mencoba model yang lagi sakit → respons lambat
    & tim risiko jatuh ke templat. Solusi: model yang gagal 429/403/5xx

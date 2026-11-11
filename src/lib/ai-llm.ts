@@ -82,7 +82,7 @@ function toGeminiContents(u: LLMUserInput): Array<{ role: 'user' | 'model'; part
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free'
 /* Mortera Cloud — kuda beban prioritas (deposit Rupiah Bos). Default:
    Claude SONNET 5.5 (Rp 2.955/14.775 per 1M — otak premium) → Claude Haiku
    5.5 (Rp 394/1.182, cadangan murah) → GPT-6.1 Terra (Rp 985/4.925).
@@ -99,7 +99,7 @@ const MORTERA_FALLBACKS = ['claude-haiku-5-5', 'gpt-6.1-terra']
 /** Model cadangan kalau model utama sudah dimatikan provider (HTTP 404/400). */
 const GROQ_FALLBACKS = ['llama-3.1-8b-instant']
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.5-flash']
-const OPENROUTER_FALLBACKS = ['deepseek/deepseek-chat-v3-0324:free', 'google/gemini-2.5-flash:free']
+const OPENROUTER_FALLBACKS = ['nvidia/nemotron-3-ultra-550b-a55b:free', 'deepseek/deepseek-chat-v3-0324:free', 'google/gemma-4-26b-a4b-it:free']
 
 /* ── Cooldown antar-panggilan (per isolate Workers) ─────────────── */
 const COOLDOWN_MS_LIMIT = 10 * 60 * 1000

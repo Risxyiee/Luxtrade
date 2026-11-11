@@ -165,10 +165,10 @@ export async function kvIncrKey(cfg: SbConfig, key: string): Promise<number> {
    Catatan limit gratis OpenRouter: 20 req/menit; 50/hari tanpa kredit,
    1000/hari kalau saldo ≥ $10. */
 const OR_LIVE_CHAIN = [
-  'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3.5-lightning:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3.5-lightning:free',      // ✅ hidup (612 ms, diag Bos 11 Nov)
+  'nvidia/nemotron-3-ultra-550b-a55b:free',  // ✅ hidup (329 ms, diag Bos 11 Nov)
+  'google/gemma-4-26b-a4b-it:free',          // ⚠️ 429 free-tier — cadangan
+  'google/gemma-4-31b-it:free',              // ⚠️ 429 free-tier — cadangan
 ]
 
 export interface OrJsonResult { laporan?: string; proposed_action?: any; ai_model?: string; ai_error?: string }
@@ -419,7 +419,7 @@ export async function sintaMarketProposal(cfg: SbConfig): Promise<DetectedPropos
   const j = await orJson(
     `Kamu SINTA (CMO LuxTradee — aplikasi jurnal trading AI). Tugasmu mendeteksi momen market dan menyiapkan konten. ${ANTI_HALUSINASI} Format output: {"laporan":"1-2 kalimat untuk CEO","proposed_action":{"platform":"ig","title":"...","content_body":"..."}}. content_body = caption IG siap posting (maks 500 karakter, bahasa Indonesia santil, ada CTA jurnal trading LuxTradee).`,
     `${dataRiil}\nBuat konten ${arah === 'DROP' ? 'menangkap peluang momentum turun (edukasi risiko + peluang)' : 'mengingatkan disiplin saat harga naik (FOMO control)'}.`,
-    'google/gemma-4-31b-it:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
     'Sinta',
     800,
     cfg,
@@ -498,7 +498,7 @@ export async function mayaWinbackProposal(cfg: SbConfig): Promise<DetectedPropos
   const j = await orJson(
     `Kamu MAYA (CSO LuxTradee). Buat email winback yang hangat, tidak nagih, fokus manfaat. ${ANTI_HALUSINASI} Format: {"laporan":"...","proposed_action":{"subject":"...","html_body":"..."}}. html_body = HTML sederhana (p, b, br) siap kirim.`,
     `${dataRiil}\nBuat 1 subjek + 1 body email winback. ${discount ? `Sebut kode diskon: ${discount}.` : 'JANGAN menyebut diskon/kode apapun.'}`,
-    'google/gemma-4-26b-a4b-it:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
     'Maya',
     800,
     cfg,

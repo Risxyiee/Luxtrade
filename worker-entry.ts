@@ -56,6 +56,23 @@
 //                 dicoba lagi tick berikutnya; slot cron TETAP 4 — ini cuma
 //                 nambah URL ke daftar route slot */15 yang sudah jalan)
 //
+// ══ FIX CPU LIMIT (alarm Bos 11-11-2026 17:30 UTC: 3 rute "Pekerja
+// melampaui batas waktu CPU") ═══════════════════════════════════════
+// Slot */15 dulu menjalankan 10 rute PARALEL dalam SATU invocation
+// scheduled() — semuanya berbagi budget CPU worker yang sama → rute
+// berat (seo-factory, agen sweep, pengawas) saling berebut CPU → 3 rute
+// mati "CPU time exceeded" sekaligus. Kini slot */15 dipecah 2 jalur:
+//   • JALUR CEPAT (tiap slot, ringan/kritis): econ-calendar-notify,
+//     ceo watchdog, price-alerts.
+//   • JALUR BERAT (GILIRAN — 1 rute per slot): tick, sweep proposal,
+//     prop-firm-guard, growth-sentinel, seo-factory, comment-hunter →
+//     tiap rute berat jalan tiap 90 menit (6 slot), CPU per invocation
+//     turun ~60%, dan cooldown internal tiap karyawan tetap jauh lebih
+//     panjang dari itu (growth-sentinel per jam, comment-hunter 2 jam).
+// RIWAYAT PENSUN: /api/cron/pine-alerts DIHAPUS (Velalab dihapus total,
+// commit e540a712) — panggilan hantunya di CRON_ROUTES lama ikut dibuang
+// (tiap 15 menit hanya buang 1 subrequest + 404 + alarm failures palsu).
+//
 // CATATAN slot cron: percobaan pakai slot ke-5 utk tick per-menit
 //   COMMENT HUNTER DIBATALKAN 8 Nov — CF menolak (error 10072: akun
 //   Free sudah genap 5 cron trigger per akun) dan bikin deploy gagal
@@ -64,8 +81,32 @@ const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/ceo-agent?action=product-review'],
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/ceo-agent?action=tick', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
+  /* Slot 15-menit: JALUR CEPAT saja — 3 rute ringan/kritis. Rute berat pindah
+     ke HEAVY_15_ROUND_ROBIN di bawah (giliran 1 rute per slot — fix CPU
+     limit: dulu 10 rute paralel berbagi CPU satu invocation → 3 mati). */
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts'],
 }
+
+/* JALUR BERAT slot 15-menit — GILIRAN: tiap eksekusi hanya 1 rute dari daftar
+   ini (index = nomor slot % panjang daftar). Tiap rute jalan tiap 90 menit
+   (6 slot × 15 menit) — masih jauh lebih rapat daripada cooldown internal
+   masing-masing (growth-sentinel aksi per 1–12 jam, comment-hunter 2 jam,
+   seo-factory maks 3/hari). CPU per invocation tetap kecil meski slot
+   lain (jalur cepat) jalan bersamaan. */
+const HEAVY_15_ROUND_ROBIN = [
+  '/api/ceo-agent?action=tick',
+  '/api/agent-proposals?run=sweep',
+  '/api/cron/prop-firm-guard',
+  '/api/cron/growth-sentinel',
+  '/api/cron/seo-factory',
+  '/api/cron/comment-hunter',
+  /* Jaring pengaman IG (keluhan Bos "kok ga post ig karyawanku"):
+     GH Actions instagram-cron (18:45/20:30 WIB) kadang telat/skipped
+     (runner antre berjam-jam). Worker cron kini ikut memproses antrean
+     instagram_posts di slot giliran — window konten 18:00–20:59 WIB
+     tetap dipegang route (di luar window rute hanya melaporkan). */
+  '/api/cron/ig-auto-post',
+]
 
 /* Route Ceo-Agent pakai ?key=CRON_SECRET sebagai auth cron (bukan Bearer),
    dan bisa jalan lama (briefing = 1 panggilan Gemini + kirim ±50 email
@@ -148,7 +189,18 @@ export default {
     /* PATCH B: filter dueNow — rute non-kritis hanya jalan di jendela pertama
        window intervalnya (mis. comment-hunter tiap 120 menit = 8 slot per
        15 menit pertama tiap 2 jam). */
-    const routes = (CRON_ROUTES[event.cron] || []).filter((r) => dueNow(r, event.scheduledTime))
+    let routes = (CRON_ROUTES[event.cron] || []).filter((r) => dueNow(r, event.scheduledTime))
+
+    /* FIX CPU LIMIT: slot 15-menit menambah TEPAT 1 rute berat bergilir per
+       slot (round-robin). Nomor slot stabil dari scheduledTime → deploy
+       ulang tidak mereset urutan. Comment-hunter tetap hormati dueNow
+       (throttle 2 jamnya sendiri). */
+    if (event.cron === '*/15 * * * *') {
+      const slotNo = Math.floor(event.scheduledTime / 900_000)
+      const heavy = HEAVY_15_ROUND_ROBIN[slotNo % HEAVY_15_ROUND_ROBIN.length]
+      if (dueNow(heavy, event.scheduledTime)) routes.push(heavy)
+    }
+
     if (!routes.length) {
       console.log(`[cron] Slot ${event.cron} dilewati (semua rute belum jatuh tempo jendela intervalnya)`)
       return

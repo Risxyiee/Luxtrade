@@ -91,13 +91,14 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
    OpenRouter :free di bawah hanya jadi cadangan kalau Mortera gagal
    (saldo habis 402 / auth / rate-limit — cooldown ditangani ai-llm). */
 const OR_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const BAGAS_MODEL = 'google/gemma-4-26b-a4b-it:free'
+const BAGAS_MODEL = 'nvidia/nemotron-3.5-lightning:free'
 const BAGAS_FALLBACK_MODELS = [
-  'nvidia/nemotron-3.5-lightning:free',
-  'google/gemma-4-31b-it:free',
-  /* Task 35c: inkling DIBUANG (403 policy-blocked, verifikasi diag live Bos)
-     → diganti Nemotron Ultra 550B (terbukti hidup 333 ms) */
   'nvidia/nemotron-3-ultra-550b-a55b:free',
+  /* Task 35c: inkling DIBUANG (403 policy-blocked, verifikasi diag live Bos)
+     → diganti Nemotron Ultra 550B (terbukti hidup 333 ms).
+     Diag Bos 11 Nov: gemma-4-26b/31b 429 free-tier → cadangan paling belakang. */
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
 ]
 
 async function getOpenRouterKey(): Promise<string> {

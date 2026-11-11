@@ -62,8 +62,16 @@ export const dynamic = 'force-dynamic'
 /** Jeda minimum antar Reels: 20 jam — konten IG max 1x/hari (Senin–Jumat).
  *  Dulu 44 jam (2 hari sekali); Bos minta harian: "1 konten aja sehari". */
 const MIN_GAP_MS = 20 * 60 * 60 * 1000
-/** Window jam WIB yang diizinkan: 18 dan 19 (permintaan Bos: jam 18–19). */
-const WINDOW_HOURS_WIB = [18, 19]
+/** Window jam WIB yang diizinkan: 18–20 (FIX Bos 11-11: "kok ga post ig
+ *  karyawanku" — mode AUTO dulu cuma [18,19]; runner GitHub sering TELAT
+ *  (catatan route sendiri: run terjadwal 19:10 WIB dieksekusi 02:18 WIB),
+ *  Reels yang selesai render jam 20:xx langsung DITOLAK window → hanya
+ *  dijadwalkan besok → Bos merasa karyawan tidak posting. Kini jam 20
+ *  ikut terbuka (senada ig-auto-post CONTENT_WINDOW [18,19,20] v.8) →
+ *  Reels telat masih tayang hari itu via inline publish ATAU diambil
+ *  jaring pengaman ig-auto-post 20:30 WIB. Di luar window → antrean
+ *  besok (konten TIDAK hangus). */
+const WINDOW_HOURS_WIB = [18, 19, 20]
 
 /** 18:00 WIB berikutnya (≥ after) — 18:00 WIB = 11:00 UTC.
  *  Sabtu/Minggu DILEWATI (permintaan Bos: "sabtu minggu libur") —
@@ -273,7 +281,7 @@ export async function POST(request: NextRequest) {
       ? nextWindowStartWib(new Date(cadenceMs)).getTime()
       : base.getTime()
     const alasan = !inWindow
-      ? `di luar window (${hourAuto}:00 WIB — jadwal 18:00–18:59 WIB)`
+      ? `di luar window (${hourAuto}:00 WIB — jadwal 18:00–20:59 WIB)`
       : `cadence 1x/hari (jeda 20 jam — Reels terakhir ${((Date.now() - (lastMs || 0)) / 3_600_000).toFixed(1)} jam lalu)`
     const { data: sched, error: schedErr } = await admin
       .from('instagram_posts')
