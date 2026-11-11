@@ -2,8 +2,8 @@
  * ============================================================
  * server-candles — candle OHLC untuk KEPERLUAN SERVER (spot dulu)
  * ============================================================
- * Dipakai /api/compile-pine (Protected Pine Script®) + alert runner:
- * engine PineTS di server butuh bars. Urutan sumber FINAL:
+ * Dipakai kebutuhan candle server (indikator chart, cron price-alert,
+ * AI insight, dll). Urutan sumber FINAL:
  *
  *   0. TradingView — SUMBER UTAMA SEMUA simbol (Bos: "data ambil
  *      dari TradingView") — websocket publik KEYLESS, spot-grade
@@ -14,8 +14,8 @@
  *
  * YAHOO FINANCE DIHAPUS TOTAL (Bos: "data lain yahoo finance hapus
  * aja" — 2026-11-11): tidak ada lagi fallback Yahoo di rantai mana
- * pun. Urutan SAMA PERSIS dengan /api/candles (chart) → backtest
- * Pine & chart PASTI se-skala (garis Entry/SL/TP match bar chart).
+ * pun. Urutan SAMA PERSIS dengan /api/candles (chart resmi
+ * TradingView) → semua konsumen candle server se-skala spot.
  * BINANCE DIBUANG (keputusan Bos). Finnhub PARKIR (butuh key) —
  * lib finnhub.ts dipertahankan, tidak dipanggil.
  * Semua fetch di server, tanpa mock. Return null bila semua gagal —
@@ -41,12 +41,12 @@ export function intervalSeconds(interval: string): number {
 export type LuxCandle = OhlcvCandle
 
 /**
- * Sumber candle TERPADU untuk server (compile-pine, alert runner, dll).
- * TRADINGVIEW DULU utk SEMUA simbol (XAUUSD/XAGUSD/forex/US100/crypto
- * — spot-grade), TwelveData pemadam. Yahoo sudah dihapus (Bos).
- * Urutan sama persis dengan /api/candles → skala chart & backtest
- * SELALU seragam (spot), anti campur skala penyebab Entry/SL/TP tak
- * muncul. Return null bila semua gagal.
+ * Sumber candle TERPADU untuk kebutuhan server (indikator, cron
+ * price-alert, AI insight, dll). TRADINGVIEW DULU utk SEMUA simbol
+ * (XAUUSD/XAGUSD/forex/US100/crypto — spot-grade), TwelveData pemadam.
+ * Yahoo sudah dihapus (Bos). Urutan sama persis dengan rantai
+ * /api/candles → skala SELALU seragam (spot), anti campur skala.
+ * Return null bila semua gagal.
  */
 export async function fetchServerCandles(
   symbol: string,

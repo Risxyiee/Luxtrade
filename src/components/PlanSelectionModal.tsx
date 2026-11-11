@@ -63,7 +63,7 @@ const plans: Plan[] = [
     features: [
       'UNLIMITED Jurnal + AI Chat tanpa batas',
       'AI Insights & Weekly Report (analisis AI mendalam)',
-      'Editor & alert skrip Pine milikmu — tanpa batas (free: 2 edit/bulan)',
+      'Price Alert & alert TradingView tanpa batas (push HP)',
       'Watchlist Pasar & Market News',
       'Prop Firm Guard (pemantauan aturan otomatis)',
       'Semua fitur jurnal gratis (sudah termasuk paket free)',
@@ -85,7 +85,7 @@ const plans: Plan[] = [
     features: [
       'UNLIMITED Jurnal + AI Chat tanpa batas',
       'AI Insights & Weekly Report (analisis AI mendalam)',
-      'Editor & alert skrip Pine milikmu — tanpa batas (free: 2 edit/bulan)',
+      'Price Alert & alert TradingView tanpa batas (push HP)',
       'Watchlist Pasar & Market News',
       'Prop Firm Guard (pemantauan aturan otomatis)',
       'Semua fitur jurnal gratis (sudah termasuk paket free)',

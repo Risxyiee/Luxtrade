@@ -23,7 +23,7 @@ interface FeatureRow {
 
 // FREEMIUM BARU (9 Nov, sinkron FeatureComparison dengan realita dashboard):
 // - Jurnal & SEMUA analitik data-sendiri (heatmap/psikologi/score/target/ekspor) = GRATIS
-// - Tembok PRO = lapisan AI + otomasi pasar (AI chat/insight/report, alert Pine, watchlist, news, prop firm)
+// - Tembok PRO = lapisan AI + otomasi pasar (AI chat/insight/report, price alert & TradingView alerts, watchlist, news, prop firm)
 // - Chart live gratis 70+ indikator (tanpa sebut brand pihak ketiga)
 const features: FeatureRow[] = [
   {
@@ -102,12 +102,12 @@ const features: FeatureRow[] = [
     pro: { type: 'check' },
   },
   {
-    name: { id: 'Editor Skrip Pine', en: 'Pine Script Editor' },
-    free: { type: 'text', value: '2×/bulan' },
+    name: { id: 'Chart Resmi TradingView', en: 'Official TradingView Chart' },
+    free: { type: 'text', value: 'XAU, forex, crypto' },
     pro: { type: 'unlimited', label: 'Unlimited' },
   },
   {
-    name: { id: 'Alert dari Skrip Pine milikmu (push HP)', en: 'Alerts from your own Pine script (phone push)' },
+    name: { id: 'Price Alert & Alert TradingView (push HP)', en: 'Price & TradingView alerts (phone push)' },
     free: { type: 'cross' },
     pro: { type: 'unlimited', label: 'Unlimited' },
   },

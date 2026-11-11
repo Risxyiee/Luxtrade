@@ -8,12 +8,14 @@
  *
  * Reset otomatis TANPA cron (lazy reset):
  *   - alert  : kalau `alerts_reset_date` ≠ tanggal hari ini (WIB) → 0
- *   - pine   : kalau `pine_reset_month`  ≠ bulan ini    (WIB) → 0
+ *   (kuota edit Pine DIHAPUS — direktif Bos 2026-11-11: "vela lab hapus
+ *   aja, ganti semuanya ke tradingview". Kolom lama di tabel dibiarkan,
+ *   tidak lagi dibaca/ditulis.)
  * Tanggal pembanding dihitung di server, jadi user yang menunggu
  * lewat tengah malam WIB otomatis dapat kuota baru.
  *
  * Aturan (SOP Bos):
- *   - Free : alert maks 2×/hari · edit Pine maks 2×/bulan
+ *   - Free : alert maks 2×/hari
  *   - Pro  : tanpa batas (is_pro === true → pengecekan dilewati)
  */
 
@@ -33,15 +35,12 @@ export function wibMonth(): string {
 
 /* ---------- Batas freemium (satu tempat, mudah diubah) ---------- */
 export const FREE_ALERT_LIMIT_PER_DAY = 2
-export const FREE_PINE_EDITS_PER_MONTH = 2
 
 /* ---------- Tipe ---------- */
 export interface QuotaRow {
   user_id: string
   alerts_today_count: number
   alerts_reset_date: string | null
-  pine_edits_month_count: number
-  pine_reset_month: string | null
 }
 
 export type QuotaResult =
@@ -60,11 +59,10 @@ function admin() {
 async function getQuotaRow(userId: string): Promise<QuotaRow> {
   const supabase = admin()
   const today = wibDay()
-  const month = wibMonth()
 
   const { data, error } = await supabase
     .from('user_quotas')
-    .select('user_id, alerts_today_count, alerts_reset_date, pine_edits_month_count, pine_reset_month')
+    .select('user_id, alerts_today_count, alerts_reset_date')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -74,20 +72,15 @@ async function getQuotaRow(userId: string): Promise<QuotaRow> {
     user_id: userId,
     alerts_today_count: 0,
     alerts_reset_date: null,
-    pine_edits_month_count: 0,
-    pine_reset_month: null,
   }
 
-  /* Lazy reset — tanggal/bulan WIB sudah berganti? nolkan dan simpan. */
+  /* Lazy reset — tanggal WIB sudah berganti? nolkan dan simpan. */
   const alertsStale = row.alerts_reset_date !== today
-  const pineStale = row.pine_reset_month !== month
-  if (!data || alertsStale || pineStale) {
+  if (!data || alertsStale) {
     row = {
       user_id: userId,
       alerts_today_count: alertsStale ? 0 : row.alerts_today_count,
       alerts_reset_date: today,
-      pine_edits_month_count: pineStale ? 0 : row.pine_edits_month_count,
-      pine_reset_month: month,
     }
     const { error: upErr } = await supabase
       .from('user_quotas')
@@ -119,29 +112,6 @@ export async function readIsPro(userId: string): Promise<boolean> {
 }
 
 /* ============================================================
-   PINE SCRIPT — free 2×/bulan
-   ============================================================ */
-
-export async function checkPineQuota(userId: string): Promise<QuotaRow & { isPro: boolean }> {
-  const [row, isPro] = await Promise.all([getQuotaRow(userId), readIsPro(userId)])
-  return { ...row, isPro }
-}
-
-export async function commitPineQuota(userId: string): Promise<void> {
-  const supabase = admin()
-  const row = await getQuotaRow(userId)
-  const { error } = await supabase
-    .from('user_quotas')
-    .update({ pine_edits_month_count: row.pine_edits_month_count + 1, pine_reset_month: wibMonth(), updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
-  if (error) throw new Error(`user_quotas update gagal: ${error.message}`)
-}
-
-export function pineQuotaExceededMessage(): string {
-  return 'Batas edit skrip gratis bulan ini habis (2x/bulan). Upgrade ke Pro (Rp49rb/bulan) untuk edit sepuasnya!'
-}
-
-/* ============================================================
    ALERT — free 2×/hari
    ============================================================
    CATATAN FIX (2026-11-05): tiga fungsi ini LUPA dibuat —
@@ -149,7 +119,7 @@ export function pineQuotaExceededMessage(): string {
    alertQuotaExceededMessage sejak 2026-10-30, tapi belum pernah
    ada di file ini → webpack warning "Attempted import error" saat
    build dan 500 (TypeError) di production setiap /api/send-alert
-   dipanggil. Implementasi mirror persis trio pine di atas. */
+   dipanggil. Trio kuota edit Pine yang lama DIHAPUS (Bos 2026-11-11). */
 
 export async function checkAlertQuota(userId: string): Promise<QuotaRow & { isPro: boolean }> {
   const [row, isPro] = await Promise.all([getQuotaRow(userId), readIsPro(userId)])

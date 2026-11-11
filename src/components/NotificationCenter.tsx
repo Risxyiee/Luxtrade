@@ -5,7 +5,7 @@
  *
  * Sumber data = /api/notifications/feed → tabel notification_log
  * (diisi otomatis oleh push-notify.ts untuk SEMUA alert otomatis:
- * 🚨 guard prop firm, 📈 sinyal Pine, 🎯 price alert,
+ * 🚨 guard prop firm, 📈 sinyal VIP, 🎯 price alert,
  * 💥 big win/loss/streak/daily-limit, 🌅 reminder harian, 📊 rekap
  * mingguan). Desktop & user tanpa push tetap kebagian riwayat.
  *

@@ -1364,7 +1364,10 @@ const RAKA_PROBES: ProbeDef[] = [
   { path: '/api/email-campaigns', method: 'GET', cls: 'sensitive', label: 'EMAIL-CAMPAIGNS blast (harus 401/403)' },
   { path: '/api/seed', method: 'GET', cls: 'sensitive', label: 'SEED database (harus 401/403)' },
   { path: '/api/setup', method: 'GET', cls: 'sensitive', label: 'SETUP database (harus 401/403)' },
-  { path: '/api/cron/pine-alerts', method: 'GET', cls: 'cron', label: 'Cron pine-alerts (harus ber-auth)' },
+  // RUTE DIHAPUS (direktif Bos 2026-11-11: "vela lab hapus aja, ganti
+  // semuanya ke tradingview mulai dari pine alert") — /api/cron/pine-alerts
+  // + /api/pine/* + /api/compile-pine tidak ada lagi; dihapus juga dari
+  // daftar probe agar health check tidak alarm 404 palsu.
 ]
 
 /** Content sanity per probe publik — return '' kalau wajar, atau alasan "isi tidak wajar".

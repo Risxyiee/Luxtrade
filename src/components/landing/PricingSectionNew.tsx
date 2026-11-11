@@ -117,7 +117,7 @@ export default function PricingSectionNew({
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'All Analytics: Heatmap, Psychology, Score, Targets' : 'Semua Analitik: Heatmap, Psikologi, Score, Target'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Import CSV / MT4 / Screenshot + Export CSV/PDF' : 'Impor CSV / MT4 / Screenshot + Ekspor CSV/PDF'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Risk Calculator, Economic Calendar, Streaks & Achievements' : 'Kalkulator Risiko, Kalender Ekonomi, Streak & Pencapaian'}</li>
-              <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Insights, Weekly Report & Pine Alerts (PRO)' : 'AI Insights, Laporan Mingguan & Alert Pine (PRO)'}</li>
+              <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Insights, Weekly Report & Alerts (PRO)' : 'AI Insights, Laporan Mingguan & Alert (PRO)'}</li>
             </ul>
             <Link prefetch={false} href="/auth/signup">
               <span className="block w-full py-3 border border-white/10 rounded-xl hover:bg-white/5 transition-colors text-sm font-medium text-white text-center cursor-pointer">
@@ -204,7 +204,7 @@ export default function PricingSectionNew({
               <ul className="space-y-3 mb-6 text-gray-300 text-sm flex-grow">
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited AI Chat (journal stays free, AI goes deeper)' : 'AI Chat Tanpa Batas (jurnal tetap gratis, AI lebih dalam)'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Insights & AI Weekly Report' : 'AI Insights & Laporan Mingguan AI'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Alerts from YOUR Own Pine Script' : 'Alert Tanpa Batas dari Skrip Pine MILIKMU'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Price & TradingView Alerts (phone push)' : 'Price Alert & Alert TradingView Tanpa Batas (push HP)'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Market Watchlist & Market News' : 'Watchlist Pasar & Market News'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Prop Firm Guard (automated rule monitoring)' : 'Prop Firm Guard (pemantauan aturan otomatis)'}</li>
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Everything in Free (journal & analytics stay free)' : 'Semua fitur Free (jurnal & analitik tetap gratis)'}</li>

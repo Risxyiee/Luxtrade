@@ -61,16 +61,16 @@ export default function PaywallModal({
   const proFeatures = isEnglish ? [
     '🔥 Unlimited AI Chat (journal & analytics stay free)',
     '🧠 AI Insights & AI Weekly Report — mistake patterns detected',
-    '🔔 Unlimited Alerts from Your Own Pine Script (phone push)',
-    '📝 Unlimited Pine Script Editor (free: 2 edits/month)',
+    '🔔 Unlimited Price & TradingView Alerts (phone push)',
+    '📈 Official TradingView Chart + VIP Signals (phone push)',
     '📈 Market Watchlist & Market News',
     '🛡️ Prop Firm Guard — automated rule monitoring',
     '👑 Priority Support',
   ] : [
     '🔥 Tanya AI Tanpa Batas (jurnal & analitik tetap gratis)',
     '🧠 AI Insights & Laporan Mingguan AI — deteksi pola kesalahan',
-    '🔔 Alert Tanpa Batas dari Skrip Pine Milikmu (push HP)',
-    '📝 Editor Skrip Pine Tanpa Batas (free: 2 edit/bulan)',
+    '🔔 Price Alert & Alert TradingView Tanpa Batas (push HP)',
+    '📈 Chart Resmi TradingView + Sinyal VIP (push HP)',
     '📈 Watchlist Pasar & Berita Pasar',
     '🛡️ Prop Firm Guard — pemantauan aturan otomatis',
     '👑 Dukungan Prioritas',
@@ -81,12 +81,12 @@ export default function PaywallModal({
   const lifetimeFeatures = isEnglish ? [
     '👑 LIFETIME ACCESS',
     'All Elite PRO Features Forever',
-    'AI Layer, Pine Alerts & Prop Firm Guard Included',
+    'AI Layer, Price Alerts & Prop Firm Guard Included',
     'No More Monthly Fees',
   ] : [
     '👑 AKSES SEUMUR HIDUP',
     'Semua Fitur Elite PRO Terbuka Selamanya',
-    'Lapisan AI, Alert Pine & Prop Firm Guard Termasuk',
+    'Lapisan AI, Price Alert & Prop Firm Guard Termasuk',
     'Tanpa Biaya Bulanan Lagi',
   ]
 

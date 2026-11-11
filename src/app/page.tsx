@@ -29,7 +29,7 @@ const InteractiveTutorial = dynamic(() => import('@/components/landing/Interacti
 const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const ContentArticles = dynamic(() => import('@/components/landing/ContentArticles').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
-const PineAlertShowcase = dynamic(() => import('@/components/landing/PineAlertShowcase').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+const TradingViewShowcase = dynamic(() => import('@/components/landing/TradingViewShowcase').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { loading: () => loadingDiv })
@@ -149,11 +149,11 @@ export default function LuxTradeLanding() {
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
           <SocialProofBar language={language} />
-          {/* Video animasi fitur Pine Script® + Alert (Konsep 1 — disetujui Bos).
-              DINAikkan ke posisi ke-2 (tepat setelah hero) supaya "video" chart
-              terlihat begitu user scroll sekali — sebelumnya tertutup di y≈5000px
-              di bawah Cara Kerja dan sering gak kelihatannya. */}
-          <PineAlertShowcase language={language} />
+          {/* Chart demo live TradingView (direktif Bos 11 Nov: "ganti
+              semuanya ke tradingview mulai dari pine alert") — pengganti
+              PineAlertShowcase. Dipasang tepat setelah hero supaya chart
+              TradingView terlihat begitu user scroll sekali. */}
+          <TradingViewShowcase language={language} />
           {/* TrustStats removed — fake data */}
           <PartnerBanner language={language} />
           {/* PERF: 2 widget berat (ssr:false) kini baru fetch chunk saat user
@@ -165,8 +165,8 @@ export default function LuxTradeLanding() {
             <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           </LazySection>
           <CaraKerjaSection language={language} />
-          {/* FIX Bos 6 Nov: chart+pine demo dobel bikin bingung → cukup SATU
-              (PineAlertShowcase di atas). LiveChartPineDemo dihapus dari landing. */}
+          {/* FIX Bos 6 Nov: chart demo dobel bikin bingung → cukup SATU
+              (TradingViewShowcase di atas). */}
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}

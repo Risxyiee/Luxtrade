@@ -13,8 +13,9 @@
  * RIWAYAT Pensiun 9 Nov 2026: dulu file ini menjalankan marketListener
  * (WS Twelve Data → engine sinyal VIP EMA broadcast ke user PRO) di
  * jalur Node. Engine DIHAPUS — keputusan Bos: "kita kan jurnal, bukan
- * jualan sinyal". Satu-satunya jalur sinyal sekarang = Pine Script
- * milik user sendiri (pine-alert-runner via GHA + cron CF).
+ * jualan sinyal". Jalur sinyal kini: price-alert server + alert native
+ * TradingView. (Pine-alert-runner via GHA + cron CF DIHAPUS — direktif
+ * Bos 2026-11-11: "ganti semuanya ke tradingview mulai dari pine alert").
  */
 /**
  * Deteksi runtime Cloudflare Workers (workerd).

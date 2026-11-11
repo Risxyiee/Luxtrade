@@ -14,9 +14,8 @@
  * DICOBA DULU di request berikutnya — chart konsisten satu skala,
  * failover tetap jalan kalau sumber sticky benar-benar mati.
  *
- * Dipakai bersama oleh /api/candles (chart Vela) dan server-candles
- * (compile-pine & alert runner) supaya BACKTEST PINE dihitung pada
- * skala harga yang SAMA dengan chart.
+ * Dipakai bersama oleh /api/candles dan server-candles supaya SEMUA
+ * konsumen candle dihitung pada skala harga yang SAMA (spot).
  */
 
 const SOURCE_STICKY_TTL_MS = 15 * 60 * 1000

@@ -31,7 +31,7 @@ const FAQ: Array<{ keys: RegExp; id: string; en: string }> = [
   {
     // harga / berapa / premium / bayar / plan / langganan
     keys: /harga|berapa|biaya|premium|bayar|plan|paket|langganan|berlangganan|price|upgrade|pro\??.*(harga|biaya)|murah/i,
-    id: 'Luxtradee ada plan GRATIS — jurnal trade UNLIMITED & gratis selamanya (catat manual, impor screenshot/MT4-CSV, semua analitik: heatmap/psikologi/score/target, ekspor CSV/PDF) — dan PRO untuk lapisan cerdasnya: AI chat & insight tanpa batas, weekly report AI, alert dari Pine Script milikmu, watchlist & Prop Firm Guard. Detail lengkap di halaman pricing ya! 😊',
+    id: 'Luxtradee ada plan GRATIS — jurnal trade UNLIMITED & gratis selamanya (catat manual, impor screenshot/MT4-CSV, semua analitik: heatmap/psikologi/score/target, ekspor CSV/PDF) — dan PRO untuk lapisan cerdasnya: AI chat & insight tanpa batas, weekly report AI, price alert & alert TradingView, watchlist & Prop Firm Guard. Detail lengkap di halaman pricing ya! 😊',
     en: "Luxtradee has a FREE plan — unlimited trading journal, free forever (manual logging, screenshot/MT4-CSV import, performance charts & stats) — plus PRO for the smart layer: AI analysis, VIP signals, data export, auto-journal. See the pricing page for details! 😊",
   },
   {
@@ -43,8 +43,8 @@ const FAQ: Array<{ keys: RegExp; id: string; en: string }> = [
   {
     // sinyal / entry / buy / sell / vip
     keys: /sinyal|signal|entry|enter|buy|sell|tp|sl|vip|akurat/i,
-    id: 'Luxtradee itu aplikasi JURNAL trading — kami tidak jualan sinyal. Sinyal/alert yang muncul semuanya dari Pine Script milik kamu sendiri (fitur alert otomatis PRO): skrip kamu dievaluasi tiap ±5 menit dan push Entry/SL/TP masuk HP saat terpicu. Daftar gratis, catat trade pertamamu, biarkan AI membaca pola loss-mu. 📓',
-    en: 'Luxtradee is a trading JOURNAL — we do not sell signals. All alerts come from your own Pine Script (PRO auto-alert feature): your script is evaluated every ±5 minutes and Entry/SL/TP pushes land on your phone when it fires. Sign up free, log your first trade, and let AI read your loss patterns. 📓',
+    id: 'Luxtradee itu aplikasi JURNAL trading — kami tidak jualan sinyal. Alert-nya: price alert level harga (push HP) dan alert native TradingView yang kamu buat langsung di chart resmi TradingView (XAU, forex, crypto — semuanya). Daftar gratis, catat trade pertamamu, biarkan AI membaca pola loss-mu. 📓',
+    en: 'Luxtradee is a trading JOURNAL — we do not sell signals. Alerts: price-level alerts (phone push) and native TradingView alerts you create right on the official TradingView chart (gold, forex, crypto — everything). Sign up free, log your first trade, and let AI read your loss patterns. 📓',
   },
   {
     // admin / manusia / cs / bantuan / komplain / refund

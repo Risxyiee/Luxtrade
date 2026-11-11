@@ -4,7 +4,7 @@
  * Semua notifikasi yang HARUS tampil otomatis di layar user lewat sini:
  *   🚨 guard prop firm     (check-alerts.ts — sudah ada, tak diubah)
  *   📅 kalender ekonomi    (econ-calendar-notify — sudah ada, tak diubah)
- *   📈 sinyal Pine         (pine-alert-runner.ts → pushToUser)
+ *   📈 sinyal VIP          (cron vip-signals → pushToUser)
  *   🎯 price alert         (/api/cron/price-alerts → pushToUser)
  *   💥 big win/loss dll    (/api/notifications/send-alert → pushToUser)
  *   🌅 reminder harian     (/api/cron/daily-reminder → pushToUser)
@@ -19,7 +19,7 @@
  *     alert (integrasi Telegram lama SUDAH DIHAPUS; bot token revoked).
  *   - Bersih-bersih OTOMATIS: endpoint balik 410/404 → hapus dari DB.
  *   - Dedupe in-memory 90s per (user+tag) — tameng tik cron ganda;
- *     dedupe lintas-bar tetap di DB (pine_alert_log, watchlist_price_alerts).
+ *     dedupe lintas-bar tetap di DB (watchlist_price_alerts).
  *
  * CF-safe: tanpa API Node, tanpa Prisma.
  */
@@ -177,7 +177,7 @@ export async function pushToUsers(
   return out
 }
 
-/* ── Emoji sinyal Pine berdasarkan arah ─────────────────────────────────── */
+/* ── Emoji sinyal berdasarkan arah ──────────────────────────────────────── */
 export function signalEmoji(signal: string): string {
   const s = signal.toLowerCase()
   if (/sell|short|bear|down|put/.test(s)) return '🔴'

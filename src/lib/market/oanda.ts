@@ -8,7 +8,7 @@
  *
  * Keamanan: OANDA_API_KEY HANYA dibaca di sini (API route / lib
  * server). Token TIDAK PERNAH dikirim ke browser — client hanya
- * menerima hasil candle via /api/forex & /api/compile-pine.
+ * menerima hasil candle via /api/forex.
  *
  * Env (Cloudflare → Settings → Variables & Secrets):
  *   OANDA_API_KEY — token personal access (practice / live)

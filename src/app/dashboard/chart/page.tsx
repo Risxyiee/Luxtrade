@@ -9,9 +9,10 @@
  * pernah dihapus lalu KEMBALI lewat commit revert lama — user yang
  * membuka /dashboard/chart melihat chart BUKAN terminal baru.
  * Alih-alih menghapus lagi (rawan di-restore revert berikutnya),
- * isinya DIGANTI memakai terminal resmi yang sama dengan tab Chart
- * di dashboard: VelaChartTerminal (Vela™ + Pine Script + pineku
- * default "Impulsive Breakout XAUUSD v5" auto-load + alert push HP).
+ * isinya DIGANTI memakai komponen yang sama dengan tab Chart di
+ * dashboard: ChartTab — 100% TradingView (widget resmi tv.js,
+ * data feed langsung TradingView; Vela Lab & Pine DIHAPUS Bos
+ * 2026-11-11: "vela lab hapus aja, ganti semuanya ke tradingview").
  *
  * Semua logika ada di komponen ChartTab — file ini hanya jembatan.
  */

@@ -28,8 +28,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'LuxTradee gratis nggak?',
     q_en: 'Is LuxTradee free?',
-    a_id: 'Jurnal trade unlimited dan gratis selamanya — catat sebanyak apa pun. Paket gratis juga dapat semua analitik (heatmap, psikologi, trading score, target), chart live 70+ indikator, impor CSV/MT4/screenshot, ekspor data, dan 10x tanya AI per bulan. Kalau kamu butuh lapisan cerdas penuh — tanya AI tanpa batas, AI insights & laporan mingguan, alert dari skrip Pine milikmu — upgrade ke PRO.',
-    a_en: "Trade journaling is unlimited and free forever — log as many trades as you want. The free plan also includes full analytics (heatmap, psychology, trading score, targets), a live chart with 70+ indicators, CSV/MT4/screenshot import, data export, and 10x AI chat per month. For the full smart layer — unlimited AI chat, AI insights & weekly report, alerts from your own Pine script — upgrade to PRO.",
+    a_id: 'Jurnal trade unlimited dan gratis selamanya — catat sebanyak apa pun. Paket gratis juga dapat semua analitik (heatmap, psikologi, trading score, target), chart live 70+ indikator, impor CSV/MT4/screenshot, ekspor data, dan 10x tanya AI per bulan. Kalau kamu butuh lapisan cerdas penuh — tanya AI tanpa batas, AI insights & laporan mingguan, price alert & alert TradingView tanpa batas — upgrade ke PRO.',
+    a_en: "Trade journaling is unlimited and free forever — log as many trades as you want. The free plan also includes full analytics (heatmap, psychology, trading score, targets), a live chart with 70+ indicators, CSV/MT4/screenshot import, data export, and 10x AI chat per month. For the full smart layer — unlimited AI chat, AI insights & weekly report, unlimited price & TradingView alerts — upgrade to PRO.",
     category: 'general',
   },
   {

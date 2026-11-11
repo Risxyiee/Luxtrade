@@ -5,13 +5,13 @@
  *
  * TUGAS: tiap hari menerbitkan 2–4 halaman blog SEO dari DATA RIIL (tanpa
  * halusinasi) menarget keyword long-tail Indonesia: "sinyal XAUUSD hari
- * ini", "jam pasar forex wib", "strategi prop firm", "indikator pine
+ * ini", "jam pasar forex wib", "strategi prop firm", "indikator tradingview
  * script xauusd", dst. Matriks = 5 simbol × 6 intent = 30 kombinasi;
  * urutan dirotasi per hari (daySeed = yyyymmdd WIB) supaya tiap hari
  * terbit halaman BERBEDA dan tidak pernah dobel.
  *
  * ANTI-DOORWAY: tiap intent punya konten inti BERBEDA yang bermutu
- * (checklist baca sinyal / tabel sesi WIB / langkah breakout / ide pine
+ * (checklist baca sinyal / tabel sesi WIB / langkah breakout / ide indikator TradingView
  * script / tabel risiko 1–2% / jebakan emosi), lalu keunikan datang dari
  * angka riil (harga, sinyal terakhir, kalender ekonomi, member).
  *
@@ -98,12 +98,12 @@ export const SEO_INTENTS: Array<{
       `Strategi breakout ${s} yang terukur: tandai range sesi Asia (WIB), konfirmasi candle penutupan, aturan entry dan stoploss lengkap step by step.`,
   },
   {
-    key: 'indikator-pine',
-    titleTemplate: (s) => `Indikator Pine Script ${s} — 3 Ide Alert untuk Chart Trading Kamu`,
-    slugTemplate: (s) => `indikator-pine-script-${slugifySeo(s)}`,
-    keyword: (s) => `indikator pine script ${s}`,
+    key: 'indikator-tradingview',
+    titleTemplate: (s) => `Indikator TradingView ${s} — 3 Alert Andalan untuk Chart Kamu`,
+    slugTemplate: (s) => `indikator-tradingview-${slugifySeo(s)}`,
+    keyword: (s) => `indikator tradingview ${s}`,
     metaTemplate: (s) =>
-      `3 ide indikator Pine Script untuk ${s}: alert EMA 9x21 cross, RSI level ekstrem, dan box range sesi Asia WIB — konsep siap kembangkan di TradingView.`,
+      `3 setup indikator TradingView untuk ${s}: alert EMA 9x21 cross, RSI level ekstrem, dan box range sesi Asia WIB — semua bisa dipasang langsung di chart resmi TradingView.`,
   },
   {
     key: 'manajemen-risiko',
@@ -275,16 +275,16 @@ export function intentCoreSection(plan: SeoPagePlan, data: SeoPageData): string 
         `<p>Kesalahan paling mahal pada ${s}: entry pas di garis tanpa konfirmasi, lalu kena spike balik arah. Kalau kamu sering mengalaminya, catat setiap kasus di jurnal — polanya akan kelihatan jelas dalam hitungan minggu, dan di situlah perbaikan mulai.</p>`,
       ].join('\n')
 
-    case 'indikator-pine':
+    case 'indikator-tradingview':
       return [
-        `<h2>3 Ide Indikator Pine Script untuk ${s}</h2>`,
-        `<p>Semua harga di Luxtradee bisa kamu replikasi di TradingView dengan Pine Script. Tiga ide alert yang paling relevan untuk ${label}:</p>`,
+        `<h2>3 Setup Indikator TradingView untuk ${s}</h2>`,
+        `<p>Chart resmi TradingView (dipakai juga di dashboard Luxtradee) punya 100+ indikator bawaan plus sistem alert native. Tiga setup yang paling relevan untuk ${label}:</p>`,
         `<ul>` +
-          `<li><strong>Alert EMA 9×21 cross</strong> — kondisi ta.crossover(ta.ema(close, 9), ta.ema(close, 21)) dan sebaliknya, dibungkus alertcondition() supaya TradingView memberi notifikasi tiap cross di chart ${s}.</li>` +
-          `<li><strong>RSI level ekstrem</strong> — RSI 14 dengan garis 70/30; alert menyala saat RSI keluar dari zona. Bagus sebagai filter "jangan entry di harga jenuh".</li>` +
-          `<li><strong>Box range sesi Asia otomatis</strong> — gambar box high–low jam 07.00–14.00 WIB (zona Asia/Jakarta) dengan box.new, lalu alert saat harga menutup di luar box — persis setup breakout di atas.</li>` +
+          `<li><strong>Alert EMA 9×21 cross</strong> — pasang indikator Moving Average (EMA) 9 dan 21, klik kanan garis → Add Alert → pilih kondisi Crossing. TradingView memberi notifikasi tiap cross di chart ${s} tanpa perlu skrip apa pun.</li>` +
+          `<li><strong>RSI level ekstrem</strong> — indikator RSI (14) dengan garis 70/30; alert menyala saat RSI keluar dari zona. Bagus sebagai filter "jangan entry di harga jenuh".</li>` +
+          `<li><strong>Box range sesi Asia</strong> — gambar rectangle high–low jam 07.00–14.00 WIB (zona Asia/Jakarta) dengan drawing tools TradingView, lalu pasang alert price-crossing di batas box — persis setup breakout di atas.</li>` +
           `</ul>`,
-        `<p>Catatan jujur: ketiganya adalah konsep, bukan script jadi yang tinggal tempel — parameter per simbol beda kebutuhannya. Uji dulu di strategy tester / paper trading sebelum dipakai dengan uang nyata.</p>`,
+        `<p>Catatan jujur: ketiganya adalah konsep, bukan setup jadi yang tinggal tempel — parameter per simbol beda kebutuhannya. Uji dulu di chart demo / paper trading sebelum dipakai dengan uang nyata.</p>`,
       ].join('\n')
 
     case 'manajemen-risiko':
@@ -378,10 +378,11 @@ export function buildSeoPageHtml(plan: SeoPagePlan, data: SeoPageData): string {
   }
 
   /* 2) Posisi produk — jurnal, bukan jualan sinyal (keputusan Bos 9 Nov).
-     Sinyal/alert di Luxtradee = dari Pine Script milik user sendiri. */
+     Sinyal/alert di Luxtradee = price alert server + alert native
+     TradingView (Pine runner dihapus Bos 2026-11-11). */
   bagian.push(`<h2>Jurnal Pintar, Bukan Jualan Sinyal</h2>`)
   bagian.push(
-    `<p>Luxtradee adalah <strong>jurnal trading</strong>: catat trade (bisa impor CSV/statement MT4–MT5 atau upload screenshot), dan AI membaca pola loss-mu otomatis. Tidak ada sinyal buatan tim yang dibagikan — satu-satunya alert di Luxtradee adalah dari <strong>Pine Script milik kamu sendiri</strong>: tulis indikator/strategimu, aktifkan alert otomatis, dan push Entry/SL/TP masuk HP saat kondisimu terpicu.</p>`,
+    `<p>Luxtradee adalah <strong>jurnal trading</strong>: catat trade (bisa impor CSV/statement MT4–MT5 atau upload screenshot), dan AI membaca pola loss-mu otomatis. Tidak ada sinyal buatan tim yang dibagikan — alert di Luxtradee: <strong>price alert level harga</strong> (push HP) dan <strong>alert native TradingView</strong> yang kamu buat langsung di chart resmi TradingView untuk simbol apa pun.</p>`,
   )
 
   /* 3) Konten inti sesuai intent (tiap intent beda — bukan spintax) */

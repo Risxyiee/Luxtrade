@@ -1,13 +1,13 @@
 /**
  * Jam pasar berdasar KALENDER — anti alert/notif saat pasar TUTUP.
  *
- * Insiden 8 Nov 2026 (Minggu, XAU tutup): sinyal VIP + notif Pine tetap
+ * Insiden 8 Nov 2026 (Minggu, XAU tutup): sinyal VIP + notif alert tetap
  * menembak dari data beku harga close Jumat:
  *   - vip-signals: gerbang "bar basi" hanya melindungi bila upstream
  *     menyediakan timestamp bar; kalau tidak (lastClosedAtSec = 0),
  *     evaluasi jalan atas data beku → EMA9×21 cross palsu berulang
  *     (BUY 10:00 WIB → SELL 10:30 WIB padahal pasar tutup).
- *   - pine-alerts (cron CF 15 menit + runner GHA 5 menit): evaluasi
+ *   - price-alerts (cron): alert level harga; Pine-alerts DIHAPUS Bos
  *     data beku → kondisi skrip "terpicu" palsu → push ke HP user.
  *
  * Jadwal XAU/USD (spot, mengikuti New York 17:00 close):
