@@ -42,9 +42,10 @@ export type LuxCandle = YahooCandle
 
 /**
  * Sumber candle TERPADU untuk server (compile-pine, alert runner, dll).
- * BOS: "data chart make twelve aja" — Twelve Data DULU untuk SEMUA
- * simbol (XAUUSD/XAGUSD/forex/US100), urutan sama persis dengan
- * /api/candles → skala chart & backtest SELALU seragam (spot TD),
+ * BOS 2026-11-11: "data ambil dari TradingView" — TRADINGVIEW DULU
+ * utk SEMUA simbol (XAUUSD/XAGUSD/forex/US100 — spot OANDA/FX),
+ * TwelveData pemadam, Yahoo terakhir. Urutan sama persis dengan
+ * /api/candles → skala chart & backtest SELALU seragam (spot),
  * anti campur spot↔futures penyebab Entry/SL/TP tak muncul.
  * Return null bila semua gagal.
  */
@@ -57,8 +58,8 @@ export async function fetchServerCandles(
   const stickyKey = `${symbol}:${interval}`
 
   const CHAIN: Array<{ name: string; run: () => Promise<LuxCandle[] | null> }> = [
-    { name: 'twelvedata', run: () => fetchTwelveDataCandles(symbol, interval, limit) },
     { name: 'tradingview', run: () => fetchTradingViewCandles(symbol, interval, limit) },
+    { name: 'twelvedata', run: () => fetchTwelveDataCandles(symbol, interval, limit) },
     { name: 'yahoo-finance', run: () => fetchYahooChart(symbol, interval, limit, false) },
   ]
 

@@ -2,21 +2,22 @@
  * ============================================================
  * GET /api/candles — datafeed chart Vela (forex, gold, US100, crypto)
  * ============================================================
- * RANTAI SUMBER FINAL (Bos: "data chart make twelve aja"):
+ * RANTAI SUMBER FINAL (Bos 2026-11-11: "chart & data ambil dari
+ * TradingView — xau, gbpusd, semua ambil dari situ"):
  *
- *   0. TWELVE DATA (process.env.TWELVE_DATA_API_KEY) — SUMBER UTAMA
- *      SEMUA simbol: SPOT XAU/USD, XAG/USD, forex major & NDX.
- *      Level harga paling mendekati feed broker (OANDA/MT4/MT5).
- *      Satu sumber untuk SEMUA timeframe & SEMUA pull (chart =
- *      backtest Pine = tail live) → tidak ada lagi campuran skala
- *      antar TF ("chart gajelas antar timeframe beda-beda").
- *      Free tier 8 req/min → rate limiter + cache ketat di lib
- *      twelvedata; polling tick live dibungkus micro-cache 2.5s
- *      + base sejarah dari cache (TD tidak dibakar polling 3 dtk).
+ *   0. TRADING VIEW (websocket publik, KEYLESS) — SUMBER UTAMA
+ *      SEMUA simbol: spot OANDA:XAUUSD/XAGUSD, FX:* forex,
+ *      NASDAQ:NDX utk US100, BINANCE:* utk crypto. Grade feed
+ *      broker (sama dgn chart TradingView asli). Tanpa API key,
+ *      tanpa kuota per-menit. (Chart default user KINI widget
+ *      resmi TradingView via browser — jalur server ini utk
+ *      backtest Pine, cron, & price-check tetap se-skala.)
  *
- *   1. TRADING VIEW (websocket publik, KEYLESS) — pemadam
- *      kebakaran bila TD kena quota/cooldown (spot-grade juga,
- *      OANDA:XAUUSD) → skala tetap konsisten.
+ *   1. TWELVE DATA (process.env.TWELVE_DATA_API_KEY) — pemadam
+ *      kebakaran spot-grade bila TV WS ditolak (IP datacenter
+ *      kadang 403). Free tier 8 req/min → rate limiter + cache
+ *      ketat di lib twelvedata; polling tick live dibungkus
+ *      micro-cache 2.5s + base sejarah dari cache.
  *
  *   2. YAHOO Finance chart API (publik, GRATIS, TANPA API KEY)
  *      — jaring pengaman terakhir. Selalu hidup. Crypto
@@ -157,8 +158,11 @@ function setCache(key: string, data: Ohlcv[], source: string) {
    lama berskala futures supaya chart 100% se-skala spot TD.
    v8 → FILTER BAR SINTETIS TD (fix Bos: "ilang-ilang candlenya"):
    TD mengisi weekend dgn bar flat hantu (96/300 bar 1h!) — buang
-   entri KV lama yang masih berisi bar sintetis di luar jam pasar. */
-const KV_CACHE_VER = 'v8'
+   entri KV lama yang masih berisi bar sintetis di luar jam pasar.
+   v9 → BOS 2026-11-11: "data ambil dari TradingView" — rantai
+   dibalik: TRADINGVIEW DULU (spot-grade OANDA/FX) → TwelveData
+   → Yahoo; buang entri KV lama agar konsistensi sumber segar. */
+const KV_CACHE_VER = 'v9'
 
 async function getKvCache(key: string): Promise<CacheEntry | null> {
   try {
@@ -212,7 +216,7 @@ const SOURCE_FETCHERS: Record<string, (s: string, i: string, l: number) => Promi
   tradingview: (s, i, l) => fetchTradingViewCandles(s, i, l),
   'yahoo-finance': (s, i, l) => fetchYahooChart(s, i, l, l <= 1),
 }
-const SOURCE_ORDER = ['twelvedata', 'tradingview', 'yahoo-finance']
+const SOURCE_ORDER = ['tradingview', 'twelvedata', 'yahoo-finance']
 
 async function fetchChain(
   symbol: string,
@@ -234,7 +238,8 @@ async function fetchChain(
     } catch { /* sticky gagal → jatuh ke urutan kanonik */ }
   }
 
-  /* 1..3) URUTAN KANONIK: TwelveData → TradingView → Yahoo */
+  /* 1..3) URUTAN KANONIK: TradingView → TwelveData → Yahoo (Bos:
+     "semua ambil dari TradingView") */
   for (const source of SOURCE_ORDER) {
     if (source === sticky) continue // sudah dicoba di atas
     try {
@@ -444,8 +449,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    /* ---- RANTAI SUMBER: TwelveData → TradingView → Yahoo ----
-       (Bos: "data chart make twelve aja"; limit<=1 →
+    /* ---- RANTAI SUMBER: TradingView → TwelveData → Yahoo ----
+       (Bos: "data chart ambil dari TradingView"; limit<=1 →
        Yahoo liveTick aktif sbg harga real-time) */
     const chain = await fetchChain(validSymbol, interval, limit)
     if (chain) {

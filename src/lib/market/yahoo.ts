@@ -365,7 +365,14 @@ export async function fetchYahooChart(
        terkumpul ≥ want, window habis, ATAU Yahoo berhenti menyodok
        data (2 halaman kosong berurutan). */
     const nowSec = Math.floor(Date.now() / 1000)
-    const oldestAllowed = nowSec - depth.maxDays * 86400
+    /* MARGIN ANTI-422 (kasus nyata 11-11: limit 5000×15m → period1
+       TEPAT 60 hari lalu → Yahoo menjawab 422 di dua host sekaligus).
+       Yahoo menolak request intraminut yang period1-nya MENYENTUH
+       batas window (60 hari utk 5m/15m/30m, 730 hari utk 1h). Semua
+       window digeser masuk 2 hari (15m jadi 58 hari ≈ 3.700+ bar —
+       masih memenuhi target kedalaman 3.000+ bar Bos). */
+    const marginSec = 2 * 86400
+    const oldestAllowed = nowSec - Math.max(depth.maxDays * 86400 - marginSec, 5 * 86400)
     const chunk = depth.chunkDays * 86400
     const maxPages = Math.ceil((depth.maxDays * 86400) / chunk) + 1
     let period2 = nowSec

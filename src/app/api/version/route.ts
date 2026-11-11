@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-11.6'
-const NOTES = 'FIX alarm cron: Growth Sentinel (Kevin) kini punya deadline internal 65 dtk — LLM lambat jatuh ke fallback deterministik sebelum batas 90 dtk worker, cooldown selalu tercatat, tidak ada lagi alarm timeout berulang tiap 15 menit.'
+const VERSION = '2026-11-11.7'
+const NOTES = 'CHART GANTI TRADINGVIEW RESMI (direktif Bos): chart default kini widget Advanced Chart resmi TradingView (tv.js) — data feed langsung dari server TradingView (OANDA/FX/NASDAQ/BINANCE) di browser utk XAU, GBPUSD, dst; rantai data server dibalik TradingView dulu; fix 422 Yahoo (period1 tepat batas 60 hari); Vela Lab jadi mode lanjutan utk Pine Script & garis alert.'
 
 export async function GET() {
   return NextResponse.json(

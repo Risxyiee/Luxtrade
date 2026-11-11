@@ -36,7 +36,8 @@ import {
    Yahoo-ONLY — XAU/XAG = futures GC=F/SI=F: harga beda $8-15 dari chart
    Twelve Data spot + bolong 2 jam tiap hari (halt dagang futures) →
    chart terlihat "putus/melenceng". Sekarang satu skala dengan
-   /api/candles: TwelveData → TradingView → Yahoo, dan price-check
+   /api/candles: TradingView → TwelveData → Yahoo (Bos 2026-11-11:
+   "data ambil dari TradingView"), dan price-check
    (limit<=1) memakai sumber yang SAMA dengan tail chart
    (gold-api utk XAU/XAG, binance utk crypto) via fetchChartScalePrice. */
 import { fetchTwelveDataCandles } from '@/lib/market/twelvedata'
@@ -163,17 +164,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── CANDLE — rantai se-skala chart: TwelveData → TradingView → Yahoo ──
+    // ── CANDLE — rantai se-skala chart: TradingView → TwelveData → Yahoo ──
+    // (Bos 2026-11-11: "data ambil dari TradingView — semua dari situ")
     let bars: YahooCandle[] | null = null
     let sourceLabel = 'yahoo-finance'
     try {
-      const td = await fetchTwelveDataCandles(validSymbol, interval, limit)
-      if (td && td.length) { bars = td; sourceLabel = 'twelvedata' }
+      const tv = await fetchTradingViewCandles(validSymbol, interval, limit)
+      if (tv && tv.length) { bars = tv; sourceLabel = 'tradingview' }
     } catch { /* lanjut sumber berikutnya */ }
     if (!bars) {
       try {
-        const tv = await fetchTradingViewCandles(validSymbol, interval, limit)
-        if (tv && tv.length) { bars = tv; sourceLabel = 'tradingview' }
+        const td = await fetchTwelveDataCandles(validSymbol, interval, limit)
+        if (td && td.length) { bars = td; sourceLabel = 'twelvedata' }
       } catch { /* lanjut Yahoo */ }
     }
     if (!bars) {
