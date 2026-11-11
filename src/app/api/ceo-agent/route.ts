@@ -36,6 +36,7 @@ import {
   createIssueFromDraft, dropIssueDraft, setAutonomyOff, loopContextBlock,
   type LoopDeps,
 } from '@/lib/ceo-loop'
+import { publishLatestArticle, unpublishBySlug, type PublishInput, type PublishResult } from '@/lib/seo-publish'
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
@@ -1492,6 +1493,21 @@ function loopDeps(e: Env): LoopDeps {
         return new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]).size
       } catch { return -1 }
     },
+  }
+}
+
+/* ── MESIN TERBIT SEO (lib/seo-publish.ts) — adapter PublishInput ──
+   Artefak artikel (Sinta) yang belum terbit dipublikasikan otomatis ke
+   tabel blog_posts + ping IndexNow setiap work/tick. Self-dedup per id
+   artefak (kv seo:pub:<id>) → murah (1x baca KV) saat tidak ada baru. */
+function seoPublishInput(e: Env): PublishInput {
+  return {
+    kvGet: (k) => kvGet(e, k),
+    kvSet: (k, v) => kvSet(e, k, v),
+    sbUrl: sbUrl(e),
+    sbService: sbServiceKey(e),
+    baseUrl: SITE_URL,
+    notify: (t) => { return sendDiscord(e, t) },
   }
 }
 
@@ -3741,7 +3757,12 @@ async function handle(req: Request): Promise<Response> {
         const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
         const only = url.searchParams.get('only') || undefined
         const force = url.searchParams.get('force') === '1'
-        return j({ ok: true, ...(await runDailyWork(d, info, { only, force })) })
+        const res = await runDailyWork(d, info, { only, force })
+        /* MESIN TERBIT SEO: setelah kerja harian, artikel terbaru yang belum
+           terbit langsung dipublikasikan ke /blog + ping IndexNow. */
+        let publish: PublishResult | null = null
+        try { publish = await publishLatestArticle(seoPublishInput(e)) } catch (x: any) { publish = { error: String(x?.message || x).slice(0, 140) } }
+        return j({ ok: true, ...res, publish })
       } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
     }
     case 'tick': {
@@ -3756,7 +3777,26 @@ async function handle(req: Request): Promise<Response> {
       try {
         const d = phaseDeps(e)
         const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
-        return j(await tickDailyWork(d, info))
+        const res = await tickDailyWork(d, info)
+        /* MESIN TERBIT SEO: tick menemukan job artikel? Terbitkan langsung.
+           Tidak ada artikel baru → hanya 1x baca KV (murah). */
+        let publish: PublishResult | null = null
+        try { publish = await publishLatestArticle(seoPublishInput(e)) } catch (x: any) { publish = { error: String(x?.message || x).slice(0, 140) } }
+        return j({ ...res, publish })
+      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'seo-publish': {
+      // MESIN TERBIT SEO — kontrol manual Bos:
+      //   ?mode=publish [&id=<artefak>] [&force=1] → terbitkan sekarang
+      //   ?mode=unpublish&slug=<slug>             → arsipkan artikel
+      // Tanpa param → publishLatestArticle (self-dedup, terbitkan yang belum).
+      try {
+        const input = seoPublishInput(e)
+        const mode = (url.searchParams.get('mode') || 'publish').toLowerCase()
+        if (mode === 'unpublish') return j(await unpublishBySlug(input, url.searchParams.get('slug') || ''))
+        const id = url.searchParams.get('id') || undefined
+        const force = url.searchParams.get('force') === '1'
+        return j(await publishLatestArticle(input, { id, force }))
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
     case 'meeting': {
@@ -3896,6 +3936,7 @@ async function handle(req: Request): Promise<Response> {
           'action=growth-last — hasil rancangan Farhan terakhir',
           'action=phase — fase bisnis saat ini (pre-launch/early/growth; env PHASE_OVERRIDE utk paksa)',
           'action=work [&only=<job-id>][&force=1] — artefak mingguan karyawan AI (kalender konten, onboarding, titik impas, outbound, eksperimen, artikel SEO, audit SEO, seeding) — otomatis tiap briefing via fase-2 step "work"',
+          'action=seo-publish [&id=][&force=1] | ?mode=unpublish&slug= — MESIN TERBIT: artefak artikel → blog_posts + ping IndexNow (jalan otomatis tiap work/tick)',
           'action=art-list — daftar artefak karyawan AI (panel Antrean ACC /kantor-ceo)',
           'action=art-body ?id= — isi lengkap satu artefak',
           'action=meeting [&force=1] — LOOP BELAJAR: rapat mingguan tim AI (evaluasi taruhan + debat + keputusan Alexander, cron Senin)',
