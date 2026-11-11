@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callMorteraDirect } from '@/lib/ai-llm'
+import { DISCORD_COMMANDS } from '@/lib/discord-commands'
+import { getSelfFetch } from '@/lib/cloudflare-bindings'
+import { sendDiscordNotification } from '@/lib/discord'
 
 /**
  * POST /api/discord-interactions
@@ -12,10 +15,16 @@ import { callMorteraDirect } from '@/lib/ai-llm'
  * INTERACTIONS ENDPOINT (HTTP POST) — Discord mengirim payload tiap
  * ada slash command, kita jawab. 100% kompatibel Workers.
  *
- * Perintah yang didukung:
+ * Perintah yang didukung (definisi: src/lib/discord-commands.ts):
  *   /bos <pesan>   → Alexander (CEO AI) jawab pakai modelnya + konteks briefing
  *   /nba-oke       → catat Bos OKE pada prioritas hari ini (sama dgn tombol dashboard)
  *   /nba-not       → catat NOT OKE — prioritas diganti
+ *   /setuju [id]   → ✅ ACC & EKSEKUSI proposal teratas di Antrean Eksekusi
+ *   /tolak [id]    → ❌ tolak proposal (agen dihentikan usulkan hal sama 24 jam)
+ *   /kerjakan [job]→ 🫡 pencicit: 1 tugas karyawan AI jatuh tempo dikerjakan sekarang
+ *   /laksanakan    → 🚀 semua tugas jatuh tempo dikerjakan satu per satu (maks 8)
+ *   /antrean       → 📋 daftar proposal yang menunggu ACC Bos
+ *   /status        → 🏢 fase bisnis + jumlah antrean ACC
  *
  * SETUP SEKALI (Bos) — lihat juga tombol 🤖 Daftarkan /bos di Ruang Rapat:
  *   1. discord.com/developers → New Application → copy APPLICATION ID
@@ -203,22 +212,115 @@ function background(p: Promise<unknown>): void {
   p.catch(() => {})
 }
 
+/* ============================================================
+   JARINGAN INTERNAL (anti-522) + ANTREAN ACC + EKSEKUSI
+   ============================================================
+   /setuju · /tolak · /kerjakan · /laksanakan · /antrean · /status —
+   Bos memimpin kantor dari Discord TANPA buka dashboard.
+   Loop-back fetch PAKAI SELF service binding (getSelfFetch) — fetch
+   ke domain sendiri dari dalam worker terbukti 522 di edge CF. */
+
+async function siteBase(): Promise<string> {
+  const s = envGet('NEXT_PUBLIC_SITE_URL') || envGet('NEXT_PUBLIC_APP_URL') || envGet('NEXT_PUBLIC_BASE_URL')
+  if (s) return s.replace(/\/+$/, '')
+  return process.env.NODE_ENV === 'production' ? 'https://luxtradee.web.id' : 'http://localhost:3000'
+}
+
+async function selfFetcher(): Promise<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>> {
+  try { const f = await getSelfFetch(); if (f) return f } catch { /* fallback */ }
+  return fetch
+}
+
+/** ACC/tolak proposal via /api/execute-action (jalur admin-key internal —
+    keputusan tetap milik Bos: signature interaction sudah diverifikasi
+    Ed25519 sebelum handler ini jalan). */
+async function postExecuteAction(id: string, decision: 'approve' | 'reject'): Promise<{ ok: boolean; detail: string }> {
+  const key = envGet('ADMIN_SECRET') || envGet('CRON_SECRET')
+  if (!key) return { ok: false, detail: 'ADMIN_SECRET/CRON_SECRET belum diset di server — ACC via Discord tidak bisa dieksekusi. Set secret-nya lalu Deploy.' }
+  try {
+    const doFetch = await selfFetcher()
+    const res = await doFetch(`${await siteBase()}/api/execute-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify({ id, decision }),
+      signal: AbortSignal.timeout(110_000),
+    })
+    const data = (await res.json().catch(() => null)) as { error?: string; detail?: string } | null
+    if (!res.ok) return { ok: false, detail: String(data?.error || `HTTP ${res.status}`) }
+    return { ok: true, detail: String(data?.detail || (decision === 'approve' ? 'dieksekusi' : 'ditolak')) }
+  } catch (x: unknown) { return { ok: false, detail: String((x as Error)?.message || x) } }
+}
+
+/** Panggil ceo-agent internal (?key=CRON_SECRET — sama dengan cron). */
+async function ceoAgent(params: string): Promise<{ ok: boolean; json?: Record<string, unknown>; detail: string }> {
+  const key = envGet('CRON_SECRET') || envGet('ADMIN_SECRET')
+  const sep = params.includes('?') ? '&' : '?'
+  try {
+    const doFetch = await selfFetcher()
+    const res = await doFetch(`${await siteBase()}/api/ceo-agent?${params}${key ? `${sep}key=${encodeURIComponent(key)}` : ''}`, {
+      signal: AbortSignal.timeout(110_000),
+    })
+    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null
+    if (!res.ok) return { ok: false, detail: String(json?.error || `HTTP ${res.status}`) }
+    return { ok: true, json: json || {}, detail: '' }
+  } catch (x: unknown) { return { ok: false, detail: String((x as Error)?.message || x) } }
+}
+
+type PendingRow = { id: string; agent_name: string; action_type: string; action_payload?: Record<string, unknown>; status?: string; created_at?: string }
+
+/** Daftar proposal pending dari ai_pending_actions (service_role — tabel
+    admin; anon diblokir RLS). Tabel belum ada? → [] (jujur di pesan). */
+async function listPendingRows(limit = 20): Promise<PendingRow[]> {
+  const url = sbUrl()
+  const k = envGet('SUPABASE_SERVICE_ROLE_KEY') || sbKey()
+  if (!url || !k) return []
+  try {
+    const sel = encodeURIComponent('id,agent_name,action_type,action_payload,status,created_at')
+    const res = await fetch(`${url}/rest/v1/ai_pending_actions?select=${sel}&status=eq.pending&order=created_at.desc&limit=${limit}`, {
+      headers: sbH(), signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return []
+    return (await res.json()) as PendingRow[]
+  } catch { return [] }
+}
+
+/** Ringkasan 1 baris untuk pesan Discord. */
+function describeAction(r: PendingRow): string {
+  const p = (r.action_payload || {}) as Record<string, unknown>
+  const pick = String(p.subject || p.caption || p.title || p.personalized_message || p.body || p.message || '')
+    .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+  const tgt = Array.isArray(p.target_emails) ? ` → ${p.target_emails.length} email` : (p.lead ? ' → lead baru' : '')
+  return `**${r.agent_name}** · ${r.action_type}${tgt}${pick ? ` — "${pick.slice(0, 80)}${pick.length > 80 ? '…' : ''}"` : ''}`
+}
+
+/** Resolve id option (boleh potongan awal UUID) → row. Tanpa id = teratas. */
+function pickRow(rows: PendingRow[], optId: string): PendingRow | null {
+  if (!optId) return rows[0] || null
+  const q = optId.toLowerCase()
+  return rows.find((r) => r.id.toLowerCase() === q || r.id.toLowerCase().startsWith(q)) || null
+}
+
+/** Kirim hasil ke Bos: channel Discord dulu (bot/webhook), kalau gagal →
+    edit pesan konfirmasi awal interaction (token valid 15 menit). */
+async function reportResult(token: string, msg: string): Promise<void> {
+  try {
+    const r = await sendDiscordNotification(msg)
+    if (r?.ok) return
+  } catch { /* lanjut fallback */ }
+  await followUpAnswer(token, msg)
+}
+
 /* ---------- AUTO-REGISTER slash commands (fix "/bos tidak muncul/diam") ----------
    Interactions Endpoint HANYA respons SLASH COMMAND — pesan biasa/mention di
    channel TIDAK memicu event HTTP (itu butuh Gateway WebSocket yang mustahil
-   di Workers). Jadi /bos, /nba-oke, /nba-not WAJIB terdaftar di Discord.
-   Daftar global via REST bot; throttle 6 jam (KV) supaya tidak spam API.
-   Dipicu: GET endpoint ini (buka URL sekali), handshake verifikasi URL, dan
-   cron harian 08:00 (worker-entry.ts) — kalau Bos reset aplikasi/token,
-   command otomatis terdaftar lagi dalam ≤1 hari. */
-const DISCORD_COMMANDS = [
-  {
-    name: 'bos', description: 'Ngobrol dengan Alexander (CEO AI Luxtradee)',
-    options: [{ type: 3, name: 'pesan', description: 'Pertanyaan atau perintahmu', required: true }],
-  },
-  { name: 'nba-oke', description: 'Setujui prioritas hari ini (NBA dieksekusi)' },
-  { name: 'nba-not', description: 'Tolak prioritas hari ini — Alexander pilih ganti' },
-]
+   di Workers). Jadi SEMUA command WAJIB terdaftar di Discord.
+   Definisi SATU SUMBER di src/lib/discord-commands.ts (bulk overwrite PUT →
+   command yang tidak ada di daftar otomatis DIHAPUS Discord, makanya semua
+   harus lewat satu array yang sama).
+   Throttle 6 jam (KV) supaya tidak spam API. Dipicu: GET endpoint ini (buka
+   URL sekali), handshake verifikasi URL, dan cron harian 08:00
+   (worker-entry.ts) — kalau Bos reset aplikasi/token, command otomatis
+   terdaftar lagi dalam ≤1 hari. */
 
 async function registerCommandsOnce(): Promise<void> {
   const appId = envGet('DISCORD_APP_ID')
@@ -284,6 +386,104 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    /* ── /setuju · /tolak — ACC/tolak proposal karyawan (Antrean Eksekusi) ──
+       Alur: resolve id (REST cepat) → jawab type 4 langsung → eksekusi
+       di background via /api/execute-action (jalur admin-key) → hasil
+       diterbitkan ke channel (fallback: edit pesan konfirmasi). */
+    if (name === 'setuju' || name === 'tolak') {
+      const decision: 'approve' | 'reject' = name === 'setuju' ? 'approve' : 'reject'
+      const optId = String(it.data?.options?.find((o) => o.name === 'id')?.value || '').trim()
+      const rows = await listPendingRows(20)
+      if (!rows.length)
+        return NextResponse.json({ type: 4, data: { content: '✅ Antrean ACC kosong Bos — tidak ada proposal yang menunggu keputusan. Karyawan lagi nunggu kerja: /kerjakan atau /laksanakan.' } })
+      const row = pickRow(rows, optId)
+      if (!row)
+        return NextResponse.json({ type: 4, data: { content: `❌ Proposal id "${optId.slice(0, 12)}" tidak ditemukan di antrean — ketik /antrean untuk lihat daftar lengkap.` } })
+      const desc = describeAction(row)
+      background((async () => {
+        const r = await postExecuteAction(row.id, decision)
+        const msg = r.ok
+          ? decision === 'approve'
+            ? `✅ ACC via Discord — ${desc}\n🛠 Hasil eksekusi: ${r.detail}`
+            : `❌ Ditolak via Discord — ${desc}\n(Agen tidak akan mengusulkan hal sama dalam 24 jam)`
+          : `⚠️ ACC ${desc} GAGAL dieksekusi: ${r.detail}\nProposal tetap pending — coba lagi, atau ACC di /kantor-ceo.`
+        await reportResult(token, msg)
+      })())
+      return NextResponse.json({ type: 4, data: { content: `⏳ ${decision === 'approve' ? 'ACC' : 'Tolak'} diterima Bos — ${desc}\nEksekusi jalan di belakang; hasil kuterbitkan di channel sebentar lagi…` } })
+    }
+
+    /* ── /kerjakan — pencicit: 1 tugas jatuh tempo (atau job spesifik force) ── */
+    if (name === 'kerjakan') {
+      const job = String(it.data?.options?.find((o) => o.name === 'job')?.value || '').trim()
+      background((async () => {
+        const r = await ceoAgent(job ? `action=work&only=${encodeURIComponent(job)}&force=1` : 'action=tick')
+        if (!r.ok) { await reportResult(token, `⚠️ Kerja gagal dijalankan: ${r.detail.slice(0, 300)}`); return }
+        const d = r.json || {}
+        if (d.idle) { await reportResult(token, '😴 Bos, tidak ada tugas jatuh tempo sekarang — semua job hari ini sudah dikerjakan.'); return }
+        const made = Array.isArray(d.made) ? d.made.map(String) : []
+        const failed = Array.isArray(d.failed) ? d.failed.map(String) : []
+        const label = String(d.label || d.ran || 'tugas')
+        await reportResult(token,
+          `🫡 **${label}** selesai dikerjakan${made.length ? `\n📦 Artefak: ${made.join(', ')}` : ''}${failed.length ? `\n⚠️ Gagal: ${failed.join(', ')}` : ''}`)
+      })())
+      return NextResponse.json({ type: 4, data: { content: job
+        ? `🫡 Siap Bos — job "${job}" dipaksakan jalan sekarang. Hasil kuterbitkan di channel…`
+        : '🫡 Pencicit dinyalakan — 1 tugas jatuh tempo dikerjakan sekarang. Hasil kuterbitkan di channel…' } })
+    }
+
+    /* ── /laksanakan — semua tugas jatuh tempo, tick berulang (maks 8) ──
+       Tick dedup harian → aman diulang; kalau worker mati di tengah, slot
+       cron 15-menit otomatis melanjutkan sisa pekerjaan. */
+    if (name === 'laksanakan') {
+      background((async () => {
+        const done: string[] = []
+        const failed: string[] = []
+        for (let i = 0; i < 8; i++) {
+          const r = await ceoAgent('action=tick')
+          if (!r.ok) { failed.push(`tick ${i + 1}: ${String(r.detail).slice(0, 80)}`); break }
+          const d = r.json || {}
+          if (d.idle) break
+          done.push(String(d.label || d.ran || 'job'))
+          if (Array.isArray(d.failed) && d.failed.length) for (const f of (d.failed as unknown[]).slice(0, 3)) failed.push(String(f))
+          await new Promise((res) => setTimeout(res, 1500))
+        }
+        if (!done.length && !failed.length)
+          await reportResult(token, '😴 LAKSANAKAN selesai cek: semua tugas hari ini sudah dikerjakan — tidak ada yang tersisa.')
+        else
+          await reportResult(token,
+            `🚀 **LAKSANAKAN selesai** — ${done.length} tugas dikerjakan:\n✅ ${done.join(' · ') || '—'}${failed.length ? `\n⚠️ Gagal: ${failed.join(' · ')}` : ''}${done.length >= 8 ? '\n♻️ Masih ada antrian — tick otomatis melanjutkan tiap 15 menit.' : ''}`)
+      })())
+      return NextResponse.json({ type: 4, data: { content: '🚀 Siap Bos — semua tugas jatuh tempo dikerjakan satu per satu sekarang (maks 8 per putaran). Rekap kuterbitkan di channel…' } })
+    }
+
+    /* ── /antrean — daftar proposal menunggu ACC ── */
+    if (name === 'antrean') {
+      background((async () => {
+        const rows = await listPendingRows(10)
+        if (!rows.length) { await followUpAnswer(token, '✅ Antrean ACC kosong — tidak ada proposal yang menunggu keputusan Bos.'); return }
+        const lines = rows.map((r, i) => `${i + 1}. ${describeAction(r)}\n   id: \`${r.id.slice(0, 8)}\``)
+        await followUpAnswer(token, `📋 **ANTREAN ACC** (${rows.length} proposal):\n\n${lines.join('\n\n')}\n\nACC: /setuju (tanpa id = teratas) atau /setuju id:\`8 karakter awal\`. Tolak: /tolak.`)
+      })())
+      return NextResponse.json({ type: 5 })
+    }
+
+    /* ── /status — fase bisnis + antrean ── */
+    if (name === 'status') {
+      background((async () => {
+        const [pend, phase] = await Promise.all([listPendingRows(10), ceoAgent('action=phase')])
+        const p = (phase.json || {}) as Record<string, unknown>
+        const fase = String(p.phase || (p.info as Record<string, unknown> | undefined)?.phase || '?')
+        const wib = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+        await followUpAnswer(token,
+          `🏢 **KANTOR LUXTRADEE** — ${wib} WIB\n` +
+          `📊 Fase bisnis: **${fase}**\n` +
+          `📋 Antrean ACC: **${pend.length}** proposal menunggu${pend.length ? ' → /antrean untuk daftar, /setuju untuk ACC teratas' : ''}\n` +
+          `🫡 Kerja karyawan: /kerjakan (1 tugas) · /laksanakan (semua)\n` +
+          `💬 Tanya aku: /bos pesan:<pertanyaan>`)
+      })())
+      return NextResponse.json({ type: 5 })
+    }
+
     if (name === 'bos') {
       const q = String(it.data?.options?.find(o => o.name === 'pesan')?.value || '').trim()
       if (!q)
@@ -295,7 +495,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ type: 4, data: { content: 'Perintah belum dikenal — pakai /bos, /nba-oke, atau /nba-not.' } })
+  return NextResponse.json({ type: 4, data: { content: 'Perintah belum dikenal — pakai /bos, /setuju, /tolak, /kerjakan, /laksanakan, /antrean, /status, /nba-oke, atau /nba-not.' } })
 }
 
 export async function GET() {
@@ -307,15 +507,24 @@ export async function GET() {
     ok: true,
     secretsReady: ready,
     message: ready
-      ? 'Endpoint Interactions aktif — slash command /bos · /nba-oke · /nba-not dijamin terdaftar (global). CATATAN: bot ini merespons SLASH COMMAND saja; pesan biasa/mention di channel tidak bisa dijawab oleh Interactions Endpoint (butuh Gateway WebSocket yang tidak tersedia di Cloudflare Workers).'
+      ? 'Endpoint Interactions aktif — 9 slash command dijamin terdaftar (global): /bos · /setuju · /tolak · /kerjakan · /laksanakan · /antrean · /status · /nba-oke · /nba-not. CATATAN: bot ini merespons SLASH COMMAND saja; pesan biasa/mention di channel tidak bisa dijawab oleh Interactions Endpoint (butuh Gateway WebSocket yang tidak tersedia di Cloudflare Workers).'
       : 'Endpoint hidup, tapi secret belum lengkap — set DISCORD_APP_ID · DISCORD_BOT_TOKEN · DISCORD_PUBLIC_KEY di Cloudflare Workers (Settings → Variables & Secrets) lalu Deploy.',
     setup: [
       '1. discord.com/developers → aplikasi Alexander → General Information',
       '2. Interactions Endpoint URL: https://luxtradee.web.id/api/discord-interactions',
       '3. Secret wajib: DISCORD_PUBLIC_KEY · DISCORD_BOT_TOKEN · DISCORD_APP_ID',
       '4. Klik tombol 🤖 Daftarkan /bos di Ruang Rapat (/kantor-ceo) ATAU buka URL endpoint ini sekali',
-      '5. DI DISCORD KETIK: /bos pesan:halo — PESAN BIASA TIDAK DIJAWAB (batasan serverless)',
+      '5. DI DISCORD KETIK SLASH COMMAND — PESAN BIASA TIDAK DIJAWAB (batasan serverless)',
     ],
-    commands: ['/bos <pesan> — ngobrol dengan Alexander', '/nba-oke — setujui prioritas hari ini', '/nba-not — tolak & minta ganti'],
+    commands: [
+      '/bos <pesan> — ngobrol dengan Alexander',
+      '/setuju [id] — ACC & eksekusi proposal teratas di Antrean',
+      '/tolak [id] — tolak proposal',
+      '/kerjakan [job] — pencicit: 1 tugas jatuh tempo dikerjakan sekarang',
+      '/laksanakan — semua tugas jatuh tempo satu per satu',
+      '/antrean — daftar proposal menunggu ACC',
+      '/status — fase bisnis + antrean',
+      '/nba-oke · /nba-not — setujui/tolak prioritas hari ini',
+    ],
   })
 }

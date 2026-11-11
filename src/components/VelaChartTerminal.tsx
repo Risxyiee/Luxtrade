@@ -814,6 +814,36 @@ if strategy.position_size < 0
 const INDICATOR_STORE_KEY = 'luxtradee_active_indicators'
 const PINE_DRAFT_KEY = 'luxtradee_pine_draft'
 
+/* ---------- CIRCUIT BREAKER PINE (Bug B — "abis masang pine di chart,
+   website fresh gabisa dipencet apa apa") ----------
+   pine-guard menolak skrip berbahaya SEBELUM jalan, tapi guard statis
+   tidak bisa menangkap SEMUA kasus hang (loop yang lolos heuristik,
+   kompilasi raksasa, dsb.). Kalau main thread beku:
+   - timeout 45 dtk TIDAK menolong (setTimeout ikut beku),
+   - flag ini TERTINGGAL di localStorage (ditulis sebelum Pine jalan,
+     dihapus hanya kalau run selesai),
+   - fresh-load berikutnya membaca flag → AUTO-RESTORE Pine DIBATALKAN
+     (semua skrip) + banner pemberitahuan → halaman HIDUP LAGI dan
+     skrip pembunuh bisa dihapus dari editor.
+   Run manual (▶ / Save) tetap boleh — flag ditulis lagi, jadi kalau
+   beku lagi, reload tetap menyelamatkan halaman. */
+const PINE_RUN_FLAG = 'luxtradee_pine_running'
+function pineRunMark(runKey?: string): void {
+  try { localStorage.setItem(PINE_RUN_FLAG, JSON.stringify({ key: runKey || '', at: Date.now() })) } catch { /* diam */ }
+}
+function pineRunClear(): void {
+  try { localStorage.removeItem(PINE_RUN_FLAG) } catch { /* diam */ }
+}
+/** Baca & HAPUS flag sekaligus (idempotent — sekali boot cukup). */
+function pineRunCrashed(): boolean {
+  try {
+    const raw = localStorage.getItem(PINE_RUN_FLAG)
+    if (!raw) return false
+    localStorage.removeItem(PINE_RUN_FLAG)
+    return true
+  } catch { return false }
+}
+
 interface StoredIndicatorState { v: 1; presets: number[]; protected: string[]; pines: string[]; savedAt: number }
 
 function loadStoredIndicators(): StoredIndicatorState | null {
@@ -1385,6 +1415,17 @@ export default function VelaChartTerminal({
   const [pineScripts, setPineScripts] = useState<PineScriptRow[]>([])
   const [pineQuota, setPineQuota] = useState<QuotaBadge | null>(null)
 
+  /* CIRCUIT BREAKER Pine — dibaca SEKALI per mount (lazy init): flag
+     “sedang jalan” yang tertinggal di localStorage = sesi terakhir beku
+     saat menjalankan Pine → auto-restore dibatalkan + banner. */
+  const pineBootRef = useRef<{ frozen: boolean } | null>(null)
+  if (!pineBootRef.current) pineBootRef.current = { frozen: pineRunCrashed() }
+  const [pineFrozenNotice, setPineFrozenNotice] = useState<string | null>(null)
+  useEffect(() => {
+    if (!pineBootRef.current?.frozen) return
+    setPineFrozenNotice('⚠️ Skrip Pine TIDAK dipulihkan otomatis — sesi terakhir halaman membeku saat menjalankan Pine. Buka editor Pine (📐) untuk menjalankan manual atau hapus skrip yang terlalu berat.')
+  }, [])
+
   /* ---------- Upgrade paywall dialog ---------- */
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
 
@@ -1710,15 +1751,19 @@ export default function VelaChartTerminal({
         } catch { /* diam */ }
 
         const presetIdx = stored ? stored.presets : []
-        for (const i of presetIdx) {
-          try {
-            const handles = ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]
-            const already = handles.some((h) => h?.source === PINE_PRESETS[i].script)
-            if (!already) await runOnChart(PINE_PRESETS[i].script)
-            /* Styles tersimpan dipakai ulang otomatis (ala TradingView) */
-            void applyPineStyles(`preset:${i}`, PINE_PRESETS[i].script)
-            setActivePresets((m) => ({ ...m, [i]: true }))
-          } catch { /* satu preset gagal → lanjut yang lain */ }
+        /* CIRCUIT BREAKER: boot sebelumnya beku saat menjalankan Pine →
+           jangan restore apa pun — biarkan halaman hidup (banner muncul). */
+        if (!pineBootRef.current?.frozen) {
+          for (const i of presetIdx) {
+            try {
+              const handles = ((typeof chart.indicators === 'function' ? chart.indicators() : []) || []) as any[]
+              const already = handles.some((h) => h?.source === PINE_PRESETS[i].script)
+              if (!already) await runOnChart(PINE_PRESETS[i].script, `restore:preset:${i}`)
+              /* Styles tersimpan dipakai ulang otomatis (ala TradingView) */
+              void applyPineStyles(`preset:${i}`, PINE_PRESETS[i].script)
+              setActivePresets((m) => ({ ...m, [i]: true }))
+            } catch { /* satu preset gagal → lanjut yang lain */ }
+          }
         }
       }
 
@@ -1854,7 +1899,9 @@ export default function VelaChartTerminal({
      masukin lagi": id skrip yang pernah aktif di chart disimpan di
      localStorage; setiap terminal dibuka, source-nya diambil dari
      /api/pine/save (GET) lalu dijalankan ulang ke chart otomatis —
-     user TIDAK perlu memasukkan ulang pinenya. */
+     user TIDAK perlu memasukkan ulang pinenya.
+     CIRCUIT BREAKER: boot sebelumnya beku saat menjalankan Pine →
+     restore DIBATALKAN (banner sudah dipasang effect boot). */
   useEffect(() => {
     if (booting) return
     if (restoredPinesRef.current) return
@@ -1862,6 +1909,7 @@ export default function VelaChartTerminal({
     restoredPinesRef.current = true
     const ids = (loadStoredIndicators()?.pines || []).filter((id) => pineScripts.some((s) => s.id === id))
     if (!ids.length) return
+    if (pineBootRef.current?.frozen) return // skip — halaman dulu beku
     ;(async () => {
       /* tunggu chart siap (maks ±20 detik) */
       for (let i = 0; i < 20; i++) {
@@ -1875,7 +1923,7 @@ export default function VelaChartTerminal({
         const s = pineScripts.find((x) => x.id === id)
         if (!s) continue
         try {
-          const err = await runOnChart(s.source)
+          const err = await runOnChart(s.source, `restore:pine:${id}`)
           if (!err) {
             setActivePines((m) => ({ ...m, [id]: true }))
             /* Styles tersimpan dipakai ulang otomatis (ala TradingView) */
@@ -2102,7 +2150,7 @@ export default function VelaChartTerminal({
      halaman (fresh load ikut kena karena Pine aktif di-restore otomatis).
      Guard menolak skrip berbahaya SEBELUM menyentuh chart; race-timeout
      mencegah promise yang tak pernah resolve menggantung UI selamanya. */
-  const runOnChart = useCallback(async (source: string): Promise<string | null> => {
+  const runOnChart = useCallback(async (source: string, runKey?: string): Promise<string | null> => {
     const guard = pineGuardCheck(source)
     if (!guard.ok) return guard.reason || 'Skrip ditolak pine-guard.'
     const chart: any = (wsRef.current as any)?.chart
@@ -2112,12 +2160,17 @@ export default function VelaChartTerminal({
         const t = setTimeout(() => reject(new Error(msg)), ms)
         p.then((v) => { clearTimeout(t); resolve(v) }, (e2) => { clearTimeout(t); reject(e2) })
       })
+    /* Circuit breaker: flag “sedang menjalankan Pine” — tertinggal = beku.
+       (Lihat komentar CIRCUIT BREAKER PINE di konstanta PINE_RUN_FLAG.) */
+    pineRunMark(runKey)
     try {
       if (typeof chart.runIndicator === 'function')
         await withTimeout(Promise.resolve(chart.runIndicator(source)), 45_000, 'Chart tidak merespons dalam 45 detik — skrip terlalu berat untuk engine web. Sederhanakan kodenya (kurangi loop/plot).')
       else await withTimeout(Promise.resolve(chart.addIndicator(source)), 45_000, 'Chart tidak merespons dalam 45 detik — skrip terlalu berat.')
+      pineRunClear()
       return null
     } catch (x: any) {
+      pineRunClear()
       /* runIndicator Vela mengembalikan error terstruktur — tampilkan apa adanya */
       const m = String(x?.message || x?.reason || x).replace(/https?:\/\/\S+/g, '').slice(0, 180)
       return m || 'Skrip gagal dikompilasi.'
@@ -2206,7 +2259,7 @@ export default function VelaChartTerminal({
       }
       if (!res.ok) { setPineMsg({ kind: 'err', text: String(r?.error || `HTTP ${res.status}`) }); return }
       /* Sukses simpan → compile langsung ke chart + tandai AKTIF */
-      const err = await runOnChart(pineSource)
+      const err = await runOnChart(pineSource, `save:${pineName}`)
       if (r?.script) {
         const sid = String(r.script.id)
         /* upsert: ganti entri lama dgn id sama (hindari dobel di daftar) */
@@ -2327,7 +2380,7 @@ export default function VelaChartTerminal({
       return
     }
     setPresetBusy(i); setPresetMsg(null)
-    const err = await runOnChart(PINE_PRESETS[i].script)
+    const err = await runOnChart(PINE_PRESETS[i].script, `preset:${i}`)
     const short = PINE_PRESETS[i].name.replace('Luxtradee — ', '')
     if (err) setPresetMsg(`Gagal: ${short}: ${err}`)
     else {
@@ -2572,6 +2625,16 @@ export default function VelaChartTerminal({
           </div>
         )}
 
+        {/* ---------- Banner circuit breaker Pine (sesi lalu beku) ---------- */}
+        {pineFrozenNotice && (
+          <div className="absolute left-2 top-2 z-40 max-w-[min(92vw,430px)] rounded-lg border border-orange-400/40 bg-orange-950/80 px-3 py-2 text-[11px] text-orange-200 shadow-lg backdrop-blur" role="alert">
+            <div className="flex items-start gap-2">
+              <span className="flex-1 leading-relaxed">{pineFrozenNotice}</span>
+              <button onClick={() => setPineFrozenNotice(null)} className="text-white/40 hover:text-white shrink-0" aria-label="Tutup pemberitahuan"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
+        )}
+
         {/* ---------- Drawer: Pine Script editor ---------- */}
         {pineOpen && (
           <div className="absolute right-2 top-2 bottom-2 w-[min(92vw,380px)] z-30 flex flex-col rounded-xl border border-white/10 bg-[#0a0f16]/95 backdrop-blur shadow-2xl">
@@ -2617,7 +2680,7 @@ export default function VelaChartTerminal({
                              permintaan Bos 2026-11-05: "klik nama pinenya ada
                              tambahkan alert". */
                           setPineName(s.name); setPineSource(s.source)
-                          const err = await runOnChart(s.source)
+                          const err = await runOnChart(s.source, `pine:${s.id}`)
                           if (!err) setActivePines((m) => ({ ...m, [s.id]: true }))
                           setPineMsg(err
                             ? { kind: 'err', text: `⚠️ ${s.name}: ${err}` }

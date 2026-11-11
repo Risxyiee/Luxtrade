@@ -107,6 +107,21 @@ async function isOwner(req: NextRequest): Promise<boolean> {
   } catch { return false }
 }
 
+/** Jalur ADMIN INTERNAL (slash command Discord /setuju · /tolak):
+    keputusan tetap milik Bos — interaction Discord sudah diverifikasi
+    tanda tangan Ed25519 DISCORD_PUBLIC_KEY oleh /api/discord-interactions
+    sebelum meneruskan ke sini. Jalur ini HANYA dibuka dengan secret server
+    (x-admin-key ATAU Bearer ADMIN_SECRET/CRON_SECRET) — tidak bisa dipakai
+    browser umum. */
+function isAdminKey(req: NextRequest): boolean {
+  const key = envGet('ADMIN_SECRET') || envGet('CRON_SECRET')
+  if (!key) return false
+  const k = (req.headers.get('x-admin-key') || '').trim()
+  const auth = req.headers.get('authorization') || ''
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
+  return k === key || bearer === key
+}
+
 function simpleHtml(body: string): string {
   return String(body || '')
     .split(/\n{2,}/)
@@ -502,7 +517,10 @@ async function executePayload(actionType: string, payload: Record<string, any>, 
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await isOwner(req))) {
+  /* Dua jalur keputusan: (1) Bos login di dashboard (Bearer Supabase OWNER),
+     (2) slash command Discord /setuju · /tolak (x-admin-key — interaction
+     sudah diverifikasi signature Discord sebelum diteruskan). */
+  if (!(await isOwner(req)) && !isAdminKey(req)) {
     return NextResponse.json({ error: 'Unauthorized — eksekusi khusus CEO (Bos).' }, { status: 401 })
   }
   let body: { id?: string; decision?: string }

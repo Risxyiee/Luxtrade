@@ -26,6 +26,7 @@ import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 import { callMorteraDirect } from '@/lib/ai-llm'
 import { harnessWrap } from '@/lib/harness-prompt'
+import { DISCORD_COMMANDS } from '@/lib/discord-commands'
 import {
   getPhase, runDailyWork, tickDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
   wibWeekday, type PhaseDeps,
@@ -3433,8 +3434,11 @@ async function handle(req: Request): Promise<Response> {
       }
     }
     case 'discord-setup': {
-      // ⭐ Daftarkan slash command bot Alexander (/bos, /nba-oke, /nba-not)
-      // ke Discord — dipanggil 1× setelah 3 secret dipasang.
+      // ⭐ Daftarkan SLASH COMMAND Discord (SATU SUMBER definisi:
+      // src/lib/discord-commands.ts — /bos · /setuju · /tolak · /kerjakan ·
+      // /laksanakan · /antrean · /status · /nba-oke · /nba-not).
+      // WAJIB pakai array yang sama dgn /api/discord-interactions karena
+      // bulk overwrite PUT menghapus command yang tidak ada di daftar.
       const appId = cleanEnv(e.DISCORD_APP_ID)
       const botToken = cleanEnv(e.DISCORD_BOT_TOKEN)
       if (!appId || !botToken)
@@ -3447,21 +3451,14 @@ async function handle(req: Request): Promise<Response> {
             '3. Tab General Information → copy PUBLIC KEY → secret DISCORD_PUBLIC_KEY',
             '4. Interactions Endpoint URL: https://luxtradee.web.id/api/discord-interactions',
             '5. OAuth2 → URL Generator → scope bot+applications.commands → invite ke server',
-            '6. Klik tombol ini lagi untuk daftarkan perintah /bos',
+            '6. Klik tombol ini lagi untuk daftarkan semua perintah',
           ],
         })
       try {
         const res = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bot ${botToken}` },
-          body: JSON.stringify([
-            {
-              name: 'bos', description: 'Ngobrol langsung dengan Alexander (CEO AI Luxtradee)',
-              options: [{ name: 'pesan', description: 'Apa yang mau kamu tanyakan?', type: 3, required: true }],
-            },
-            { name: 'nba-oke', description: 'Jawab OKE untuk prioritas NBA hari ini (dieksekusi)' },
-            { name: 'nba-not', description: 'Jawab NOT OKE — minta Alexander ganti prioritas' },
-          ]),
+          body: JSON.stringify(DISCORD_COMMANDS),
           signal: timeoutSignal(15_000),
         })
         const data = (await res.json().catch(() => null)) as unknown
@@ -3469,7 +3466,8 @@ async function handle(req: Request): Promise<Response> {
           const m = JSON.stringify(data).slice(0, 160)
           return j({ ok: false, error: `Discord HTTP ${res.status} — ${m}` })
         }
-        return j({ ok: true, message: 'Perintah /bos · /nba-oke · /nba-not terdaftar — coba di channel Discord (mungkin perlu restart Discord)' })
+        const names = DISCORD_COMMANDS.map((c) => '/' + c.name).join(' · ')
+        return j({ ok: true, message: `${DISCORD_COMMANDS.length} perintah terdaftar: ${names} — coba di channel Discord (mungkin perlu restart Discord)` })
       } catch (x: any) {
         return j({ ok: false, error: String(x?.message || x) })
       }
