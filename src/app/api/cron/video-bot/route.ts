@@ -324,11 +324,18 @@ TUGASMU: tulis 4-5 scene utk template itu DENGAN ANGLE & TOPIK yang ditugaskan, 
 
 ATURAN KERAS:
 - IKUTI TUGASAN ANGLE & TOPIK: konten hari ini WAJIB membahas topik yang ditugaskan dengan sudut (angle) yang ditugaskan. Hook WAJIB memvariasikan salah satu pola hook angle tsb (boleh dimodifikasi, JANGAN salin mentah).
+
+ATURAN 3 DETIK PERTAMA (DATA BOS 11 NOV: 163 views, cuma 13% lolos 3 detik, rata-rata nonton 2 detik — video lama MULAI GELAP & PELAN = mati):
+- Detik 0-1 WAJIB: title hook menghajar + sub (subtitle di layar) SUDAH TERBACA. Penonton scroll TANPA SUARA — jangan simpan konteks penting di VO saja; sub = subtitle wajib, bukan pelengkap.
+- DILARANG hook yang butuh setup/dengan pembukaan pelan. Kata pertama VO LANGSUNG INTI — "hai guys", "di video ini", "pernah ga sih" = GAGAL.
+- VO scene pertama maksimal 120 karakter dan habis di bawah 6 detik.
+- Scene penutup (cta): sub WAJIB berisi 1 PERTANYAAN SPESIFIK yang gampang dijawab komen (mis. "kamu sering loss jam berapa? komen", "tim buy atau sell?") — bukan cuma "cek link di bio". Pertanyaan = komentar = distribusi.
+
 - Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
 - Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, maks 120 karakter, natural — angka dibaca dengan huruf).
 - Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
 - VARIASI LINGUISTIK: jangan mulai hook dengan kata/frasa yang sama dengan daftar "jangan ulangi"; ganti struktur kalimat (pertanyaan / pernyataan / angka / perintah) dibanding run sebelumnya.
-- caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio".
+- caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio" + 1 pertanyaan spesifik buat komen (2 kalimat terakhir).
 - igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, 8-12 hashtag relevan trading Indonesia.
 - 4-5 hashtag untuk TikTok.
 - Carousel: 4-6 slides. Slide pertama kind='cover' (hook, TANPA vo), slide terakhir kind='cta' (ajak save/share + cek link di bio), slide tengah kind 'point'|'chart'|'stat'|'quote'. Isi carousel = versi SAVEABLE dari topik video (poin-poin padat layak disave user), BUKAN salinan mentah scene video. title ≤ 40 karakter, sub ≤ 90 karakter.

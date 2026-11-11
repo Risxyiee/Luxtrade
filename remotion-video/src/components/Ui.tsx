@@ -77,17 +77,23 @@ export const rise = (
 
 /* ---------------- scene chrome ---------------- */
 
-/** Wraps every scene: subtle fade-in (first 8f) / fade-out (last 8f). */
+/** Wraps every scene: subtle fade-in (first 8f) / fade-out (last 8f).
+ *  `instantIn` — scene PEMBUKA (hook) langsung full-opacity: data Bos 11 Nov
+ *  (163 views, 13% lolos 3 dtk) — fade-in 0.27 dtk = layar hitam di detik
+ *  pertama = jempol lanjut scroll. */
 export const SceneShell: React.FC<{
   durationInFrames: number;
+  instantIn?: boolean;
   children: React.ReactNode;
-}> = ({ durationInFrames, children }) => {
+}> = ({ durationInFrames, instantIn = false, children }) => {
   const frame = useCurrentFrame();
-  const fadeIn = interpolate(frame, [0, 8], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: EASE,
-  });
+  const fadeIn = instantIn
+    ? 1
+    : interpolate(frame, [0, 8], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: EASE,
+      });
   const fadeOut = interpolate(
     frame,
     [durationInFrames - 8, durationInFrames],

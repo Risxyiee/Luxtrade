@@ -62,103 +62,131 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
   const ringP = interpolate(frame, [0, 90], [0, 1], { extrapolateRight: "extend" });
   const ringScale = 0.85 + 0.3 * Math.sin(ringP * Math.PI * 2);
 
+  /* ── ATURAN 3 DETIK PERTAMA (data Bos: 163 views, 13% lolos 3 dtk) ──
+     - zoom-punch: scale 1.14 → 1.0 dalam 12 frame (gerak = perhatian)
+     - spotlight terang sejak frame 0 (anti "layar gelap")
+     - flash putih 5 frame pertama (pop)
+     - kata muncul 3 frame antar-kata (dulu 7 = hook lengkap baru
+       terbaca di ~1.3 dtk), spring lebih kaku
+     - subtitle (sub) terlihat sejak ~0.5 dtk — penonton scroll
+       TANPA SUARA, subtitle bukan pelengkap */
+  const punch = interpolate(frame, [0, 12], [1.14, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
+  });
+  const flash = interpolate(frame, [0, 5], [0.2, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
   return (
-    <SceneShell durationInFrames={durationInFrames}>
-      {/* cincin denyut latar */}
-      <div
-        style={{
-          position: "absolute",
-          top: 640,
-          left: "50%",
-          width: 760,
-          height: 760,
-          marginLeft: -380,
-          borderRadius: "50%",
-          border: "3px solid rgba(34,211,238,0.28)",
-          transform: `scale(${ringScale})`,
-          opacity: 0.5,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 640,
-          left: "50%",
-          width: 540,
-          height: 540,
-          marginLeft: -270,
-          borderRadius: "50%",
-          border: "2px solid rgba(59,130,246,0.2)",
-          transform: `scale(${2 - ringScale})`,
-          opacity: 0.4,
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          top: 620,
-          left: 70,
-          right: 70,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 10,
-        }}
-      >
-        {words.map((w, i) => {
-          const s = spring({ fps, frame: Math.max(0, frame - i * 7), config: { damping: 12, stiffness: 200, mass: 0.9 } });
-          return (
-            <div
-              key={i}
-              style={{
-                fontFamily: FONT,
-                fontWeight: 900,
-                fontSize: 118,
-                lineHeight: 1.02,
-                letterSpacing: 1,
-                color: i === words.length - 1 ? C.accent : C.white,
-                textShadow: "0 0 60px rgba(34,211,238,0.45)",
-                opacity: clamp01(s),
-                transform: `translateY(${(1 - s) * 110}px) rotate(${(1 - s) * -4}deg)`,
-              }}
-            >
-              {w}
-            </div>
-          );
-        })}
-
-        {/* underline swipe */}
-        {(() => {
-          const p = interpolate(frame, [words.length * 7 + 6, words.length * 7 + 22], [0, 1], { easing: Easing.bezier(0.16, 1, 0.3, 1), extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-          return (
-            <div
-              style={{
-                marginTop: 22,
-                width: 360 * p,
-                height: 14,
-                borderRadius: 999,
-                background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
-                boxShadow: "0 0 26px rgba(34,211,238,0.6)",
-              }}
-            />
-          );
-        })()}
+    <SceneShell durationInFrames={durationInFrames} instantIn>
+      <AbsoluteFill style={{ transform: `scale(${punch})` }}>
+        {/* spotlight terang di balik teks — detik 0 tidak boleh gelap */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(circle at 50% 42%, rgba(34,211,238,0.34), rgba(59,130,246,0.14) 45%, rgba(5,5,10,0) 72%)",
+          }}
+        />
+        {/* flash putih singkat frame 0-5 */}
+        <div style={{ position: "absolute", inset: 0, background: "#FFFFFF", opacity: flash }} />
+        {/* cincin denyut latar (lebih terlihat dari sebelumnya) */}
+        <div
+          style={{
+            position: "absolute",
+            top: 640,
+            left: "50%",
+            width: 760,
+            height: 760,
+            marginLeft: -380,
+            borderRadius: "50%",
+            border: "3px solid rgba(34,211,238,0.4)",
+            transform: `scale(${ringScale})`,
+            opacity: 0.7,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 640,
+            left: "50%",
+            width: 540,
+            height: 540,
+            marginLeft: -270,
+            borderRadius: "50%",
+            border: "2px solid rgba(59,130,246,0.3)",
+            transform: `scale(${2 - ringScale})`,
+            opacity: 0.55,
+          }}
+        />
 
         <div
           style={{
-            marginTop: 34,
-            fontFamily: FONT,
-            fontWeight: 500,
-            fontSize: 38,
-            color: C.muted,
-            maxWidth: 880,
-            ...rise(frame, words.length * 7 + 10, 34),
+            position: "absolute",
+            top: 620,
+            left: 70,
+            right: 70,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 10,
           }}
         >
-          {sub}
+          {words.map((w, i) => {
+            const s = spring({ fps, frame: Math.max(0, frame - i * 3), config: { damping: 15, stiffness: 260, mass: 0.9 } });
+            return (
+              <div
+                key={i}
+                style={{
+                  fontFamily: FONT,
+                  fontWeight: 900,
+                  fontSize: 118,
+                  lineHeight: 1.02,
+                  letterSpacing: 1,
+                  color: i === words.length - 1 ? C.accent : C.white,
+                  textShadow: "0 0 60px rgba(34,211,238,0.45)",
+                  opacity: clamp01(s),
+                  transform: `translateY(${(1 - s) * 70}px) rotate(${(1 - s) * -3}deg)`,
+                }}
+              >
+                {w}
+              </div>
+            );
+          })}
+
+          {/* underline swipe */}
+          {(() => {
+            const p = interpolate(frame, [words.length * 3 + 2, words.length * 3 + 14], [0, 1], { easing: Easing.bezier(0.16, 1, 0.3, 1), extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+            return (
+              <div
+                style={{
+                  marginTop: 22,
+                  width: 360 * p,
+                  height: 14,
+                  borderRadius: 999,
+                  background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
+                  boxShadow: "0 0 26px rgba(34,211,238,0.6)",
+                }}
+              />
+            );
+          })()}
+
+          <div
+            style={{
+              marginTop: 34,
+              fontFamily: FONT,
+              fontWeight: 700,
+              fontSize: 38,
+              color: "#E5E7EB",
+              maxWidth: 880,
+              ...rise(frame, words.length * 3 + 6, 34),
+            }}
+          >
+            {sub}
+          </div>
         </div>
-      </div>
+      </AbsoluteFill>
     </SceneShell>
   );
 };

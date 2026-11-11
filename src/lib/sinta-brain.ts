@@ -114,6 +114,9 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
       'Ini alasan akun kamu ngecil pelan-pelan tiap minggu',
       'Berhenti ngelakuin ini sebelum entry lagi',
       'Yang bikin MC bukan strateginya — kebiasaan ini',
+      /* FORMAT TERBUKTI BOS (11 Nov): Pola Loss — data jurnal + pertanyaan */
+      'Kenapa loss kamu selalu hari Jumat?',
+      'Loss kamu ada polanya — cek jurnal kamu',
     ],
   },
   edukasi: {
@@ -126,6 +129,9 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
       'Kenapa harga balik ke sini dulu sebelum jalan?',
       'Inilah konsep yang paling sering disalahpahami pemula',
       'Kalau kamu paham ini, setengah TradingView nggak kamu butuhin',
+      /* FORMAT TERBUKTI BOS (11 Nov): Bedah 1 Trade — 1 alasan entry,
+         sengaja TIDAK dijelaskan semua biar orang nanya di komen */
+      'Buy XAUUSD di sini, SL di sini — kenapa?',
     ],
   },
   'myth-buster': {
@@ -148,6 +154,9 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
       '3 kesalahan yang bikin kamu ... — nomor 2 paling sering',
       'Stop ngelakuin 3 ini mulai besok',
       'Cek jurnal kamu: kesalahan nomor ini pasti ada',
+      /* FORMAT TERBUKTI BOS (11 Nov): Kesalahan Prop Firm — drawdown,
+         overlot, tanpa guard; tutup 3 dtk fitur Guard Luxtradee */
+      '3 alasan trader gagal challenge prop firm',
     ],
   },
   storytelling: {
@@ -159,6 +168,9 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
       'Dari MC 3 kali jadi konsisten — yang berubah cuma 1 kebiasaan',
       '2 bulan lalu dia mau hapus app trading-nya',
       'Modal kecil, disiplin besar — cerita singkat',
+      /* FORMAT TERBUKTI BOS (11 Nov): POV Trader — teks besar detik 0,
+         cerita EMOSI (bukan fitur) → save & share */
+      'POV: udah profit $210, lalu ...',
     ],
   },
   'stat-fakta': {
@@ -187,7 +199,7 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
     id: 'tanya-audiens',
     label: 'Pertanyaan buat komentar (engagement)',
     guidance:
-      'Hook = pertanyaan nyata yang punya 2 kubus jawaban. Tengah: argumen tiap kubus (adil dua-duanya). Akhir: "komentar jawabanmu — konten berikutnya ngikutin yang paling banyak". Ini konten komentarmu sendiri.',
+      'Hook = pertanyaan nyata yang punya 2 kubus jawaban. Tengah: argumen tiap kubus (adil dua-duanya). Akhir: "komentar jawabanmu — konten berikutnya ngikutin yang paling banyak". Ini konten komentarmu sendiri. PERTANYAAN SPESIFIK MENANG (data Bos): "kamu sering loss jam berapa?" lebih hidup komennya daripada pertanyaan umum — spesifik = gampang dijawab = komen bertambah.',
     hookPatterns: [
       'Kamu tim scalping atau swing? Jawab jujur',
       'News bikin kamu profit atau malah loss?',
@@ -214,6 +226,9 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
       'Screenshot doang, jurnal kecatat sendiri. Begini:',
       'Alert masuk pas kamu tidur — ini cara kerjanya',
       'Fitur ini yang paling sering disalahpahami:',
+      /* FORMAT TERBUKTI BOS (11 Nov): Before vs After — kontras waktu
+         manual vs otomatis, demo layar tercepat */
+      'Jurnal manual 15 menit — cara ini 4 detik',
     ],
   },
   'promo-cta': {
