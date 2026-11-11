@@ -20,6 +20,11 @@
 //                 + Dewi (Data Analyst) + Farhan (Growth Hacker) — LAPORAN HARIAN
 //                 (dulu cuma Senin — Bos harus klik manual kalau mau harian)
 //   0 3 * * 1  → laporan mingguan Senin 10:00 WIB
+//               + LOOP BELAJAR (lib/ceo-loop.ts): rapat mingguan tim AI
+//                 (evaluasi taruhan minggu lalu + debat 5 peran + Alexander
+//                 pilih maks 2 taruhan baru) dan review produk Raka
+//                 (backlog perbaikan website berbukti data → ACC Bos →
+//                 issue GitHub). Numpang slot Senin — nol slot cron baru.
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
 //               + SWEEP proposal agen otonom (Task 34: 7 agen deteksi trigger
 //                 → INSERT ai_pending_actions → CEO ACC di Antrean Eksekusi)
@@ -58,7 +63,7 @@
 const CRON_ROUTES = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
-  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
+  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/ceo-agent?action=product-review'],
   '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/ceo-agent?action=tick', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
 }
 

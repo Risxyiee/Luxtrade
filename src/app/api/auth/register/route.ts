@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { trackSignupFromCookies, SRC_USED_COOKIE, SRC_USED_COOKIE_OPTS } from '@/lib/src-track'
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,7 +63,14 @@ export async function POST(request: NextRequest) {
 
     // User is now fully managed in Supabase Auth with metadata
 
-    return NextResponse.json({
+    /* LOOP BELAJAR — ATRIBUSI PENDAFTAR: cookie lux_src (dipasang /api/src-track
+       saat kunjungan pertama) menentukan sumber pendaftar ini (last-touch).
+       Dedup via cookie lux_src_used → dobel panggil tetap aman. Gagal KV =
+       pendaftaran tetap sukses (atribusi opsional, jangan blokir user). */
+    let attribution: { src: string; recorded: boolean; dup: boolean } | null = null
+    try { attribution = await trackSignupFromCookies(request.cookies) } catch { /* opsional */ }
+
+    const okRes = NextResponse.json({
       success: true,
       message: 'Akun berhasil dibuat. Silakan cek email untuk konfirmasi.',
       user: {
@@ -70,6 +78,8 @@ export async function POST(request: NextRequest) {
         email: data.user?.email,
       },
     })
+    if (attribution && !attribution.dup) okRes.cookies.set(SRC_USED_COOKIE, '1', SRC_USED_COOKIE_OPTS)
+    return okRes
   } catch (error) {
     console.error('❌ Registration error:', error)
     return NextResponse.json(

@@ -74,6 +74,22 @@ export default function LuxTradeLanding() {
     let mounted = true
     const controller = new AbortController()
 
+    /* LOOP BELAJAR — beacon atribusi sumber (lib/ceo-loop.ts): 1× per sesi
+       browser, sumber = utm_source → ?src= → ?ref= → hostname referrer →
+       'direct'. Server yang men-deuplikasi per hari via cookie. Fire-and-forget,
+       gagal = diam saja (atribusi opsional, jangan ganggu landing). */
+    try {
+      if (!sessionStorage.getItem('lux_src_hit')) {
+        sessionStorage.setItem('lux_src_hit', '1')
+        const qs = new URLSearchParams(window.location.search)
+        let src = (qs.get('utm_source') || qs.get('src') || qs.get('ref') || '').toLowerCase()
+        if (!src && document.referrer) {
+          try { src = new URL(document.referrer).hostname.replace(/^www\./, '').split('.')[0].toLowerCase() } catch { src = '' }
+        }
+        fetch(`/api/src-track?src=${encodeURIComponent(src || 'direct')}`, { keepalive: true }).catch(() => {})
+      }
+    } catch { /* sessionStorage bisa diblokir — abaikan */ }
+
     const fetchWithTimeout = (url: string, timeoutMs = 3000) =>
       Promise.race([
         fetch(url, { signal: controller.signal }).then(res => res.ok ? res.json() : null).catch(() => null),

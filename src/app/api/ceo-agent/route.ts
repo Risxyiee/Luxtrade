@@ -31,6 +31,11 @@ import {
   getPhase, runDailyWork, tickDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
   wibWeekday, weekKey, inputHash, inputsUnchanged, markInputs, type PhaseDeps,
 } from '@/lib/ceo-phase'
+import {
+  runWeeklyMeeting, runProductReview, getLoopSnapshot, ackDecision, reportManual,
+  createIssueFromDraft, dropIssueDraft, setAutonomyOff, loopContextBlock,
+  type LoopDeps,
+} from '@/lib/ceo-loop'
 export const dynamic = 'force-dynamic'
 
 interface Env { [k: string]: string | undefined }
@@ -1426,7 +1431,14 @@ function phaseDeps(e: Env): PhaseDeps {
     kvSet: (k, v) => kvSet(e, k, v),
     count: (table, filters) => supaCount(e, table, filters || ''),
     brain: async (agent, system, user, maxTokens, temperature) => {
-      const r = await agentBrain(e, agent as AgentKey, system, user, maxTokens, temperature)
+      /* LOOP BELAJAR (lib/ceo-loop.ts) — keputusan rapat berlaku + pelajaran
+         tim disuntik ke prompt SEMUA karyawan yang kerjanya lewat PhaseDeps
+         (work/tick/rapat/review) supaya kerja harian benar-benar selaras
+         dengan keputusan mingguan, bukan sekadar disimpan. Cache 60 dtk per
+         peran → hemat subrequest Supabase (loopContextBlock cuma baca KV,
+         tidak ada rekursi ke brain). */
+      const ctx = await loopCtxFor(e, agent)
+      const r = await agentBrain(e, agent as AgentKey, system, ctx ? user + ctx : user, maxTokens, temperature)
       return { text: r.text, provider: r.provider, model: r.model }
     },
     mem: async (who, text) => { await memAdd(e, who, text) },
@@ -1437,6 +1449,49 @@ function phaseDeps(e: Env): PhaseDeps {
     wibDay: (off) => wibDay(off),
     isoAgo: (h) => isoAgo(h),
     excludeEmails: ex,
+  }
+}
+
+/* LOOP BELAJAR — cache konteks 60 dtk per peran (KV agent_kv dibaca paling
+   2×/60 dtk per isolate meski banyak panggilan brain). */
+let loopCtxCache: { at: number; per: Record<string, string> } = { at: 0, per: {} }
+async function loopCtxFor(e: Env, role: string): Promise<string> {
+  const now = Date.now()
+  if (now - loopCtxCache.at > 60_000) loopCtxCache = { at: now, per: {} }
+  if (loopCtxCache.per[role] !== undefined) return loopCtxCache.per[role]
+  /* loopContextBlock hanya memakai kvGet — cast parsial cukup aman. */
+  const kvOnly = { kvGet: (k: string) => kvGet(e, k) } as unknown as LoopDeps
+  const txt = await loopContextBlock(kvOnly, role).catch(() => '')
+  loopCtxCache.per[role] = txt
+  return txt
+}
+
+/** LoopDeps = PhaseDeps + akses Supabase mentah (service_role) + user aktif.
+    Dipakai rapat mingguan, review produk, snapshot & aksi Bos (action loop-*). */
+function loopDeps(e: Env): LoopDeps {
+  const d = phaseDeps(e)
+  return {
+    ...d,
+    sbGet: async (path) => {
+      const res = await fetch(`${sbUrl(e)}/rest/v1/${path.startsWith('/') ? path.slice(1) : path}`, {
+        headers: { ...sbHPriv(e), 'Content-Type': 'application/json' }, signal: timeoutSignal(10_000),
+      })
+      if (!res.ok) throw new Error(`Supabase ${path} HTTP ${res.status}`)
+      return res.json()
+    },
+    activeUsers: async (hours) => {
+      /* user UNIK yang upload trade dalam N jam terakhir — dedup di kode
+         (REST Supabase tidak punya COUNT DISTINCT; sampel dibatasi 5000 baris
+         — fase bisnis kantor ini jauh dari limit itu). */
+      try {
+        const res = await fetch(`${sbUrl(e)}/rest/v1/trades?select=user_id&user_id=not.is.null&created_at=gte.${isoAgo(hours)}&limit=5000`, {
+          headers: sbHPriv(e), signal: timeoutSignal(10_000),
+        })
+        if (!res.ok) return -1
+        const rows = (await res.json()) as { user_id?: string | null }[]
+        return new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]).size
+      } catch { return -1 }
+    },
   }
 }
 
@@ -3704,6 +3759,78 @@ async function handle(req: Request): Promise<Response> {
         return j(await tickDailyWork(d, info))
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
+    case 'meeting': {
+      // LOOP BELAJAR (lib/ceo-loop.ts runWeeklyMeeting) — rapat mingguan tim AI:
+      // evaluasi taruhan minggu lalu (KODE), debat 5 peran, Alexander pilih
+      // maks 2 taruhan baru, pelajaran disimpan → hasil lapor Discord.
+      // Cron Senin 10:00 WIB (worker-entry) + tombol manual di Loop Belajar.
+      try {
+        const d = loopDeps(e)
+        const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
+        return j(await runWeeklyMeeting(d, info, { force: url.searchParams.get('force') === '1' }))
+      } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'product-review': {
+      // LOOP BELAJAR — Raka (CTO) usulkan maks 3 perbaikan website BERBUKTI
+      // data (funnel/QA/E2E/bug/audit SEO) → draf backlog; issue GitHub
+      // dibuat HANYA setelah Bos ACC (action=issue-create). Cron Senin.
+      try {
+        const d = loopDeps(e)
+        const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
+        return j(await runProductReview(d, info, { force: url.searchParams.get('force') === '1' }))
+      } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'loop': {
+      // Snapshot Loop Belajar utk panel dashboard: keputusan (+progres live),
+      // pelajaran, sumber trafik 7 hari, backlog produk, rapat terakhir,
+      // status kill switch otonomi, kesiapan GitHub.
+      try {
+        const d = loopDeps(e)
+        const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
+        return j(await getLoopSnapshot(d, info))
+      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'dec-acc': case 'dec-drop': {
+      // Aksi Bos atas keputusan rapat: ACC (proposed→open) / tolak+veto.
+      const id = url.searchParams.get('id') || ''
+      if (!id) return j({ error: 'id wajib — ?id=<decision-id>' }, 400)
+      try {
+        return j(await ackDecision(loopDeps(e), id, action === 'dec-acc' ? 'open' : 'dropped'))
+      } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'manual-report': {
+      // Bos lapor angka manual utk taruhan bermetrik 'manual' (?id=&value=5).
+      const id = url.searchParams.get('id') || ''
+      const value = Number(url.searchParams.get('value'))
+      if (!id || !Number.isFinite(value)) return j({ error: 'id & value (angka) wajib' }, 400)
+      try {
+        return j(await reportManual(loopDeps(e), id, Math.round(value)))
+      } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'issue-create': {
+      // ACC draf backlog → buat issue GitHub (butuh GITHUB_TOKEN Issues:write
+      // + GITHUB_REPO owner/repo). TANPA push/PR — agen tidak bisa deploy.
+      const id = url.searchParams.get('id') || ''
+      if (!id) return j({ error: 'id wajib — ?id=<issue-draft-id>' }, 400)
+      try { return j(await createIssueFromDraft(loopDeps(e), id)) }
+      catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'issue-drop': {
+      const id = url.searchParams.get('id') || ''
+      if (!id) return j({ error: 'id wajib' }, 400)
+      try { return j(await dropIssueDraft(loopDeps(e), id)) }
+      catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
+    case 'autopilot': {
+      // Kill switch otonomi: set=off → semua keputusan baru wajib ACC Bos;
+      // set=on → jenis aksi 'auto' jalan sendiri (klasifikasi KODE di ceo-loop).
+      const set = (url.searchParams.get('set') || '').toLowerCase()
+      if (set !== 'on' && set !== 'off') return j({ error: 'set=on|off wajib' }, 400)
+      try {
+        await setAutonomyOff(loopDeps(e), set === 'off')
+        return j({ ok: true, autonomyOff: set === 'off' })
+      } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
+    }
     case 'art-list': {
       // ARTEFAK karyawan AI (lib/ceo-phase.ts) — metadata (maks 30 terakhir).
       // Dipakai panel "Antrean ACC — Artefak" di /kantor-ceo supaya barang
@@ -3771,6 +3898,13 @@ async function handle(req: Request): Promise<Response> {
           'action=work [&only=<job-id>][&force=1] — artefak mingguan karyawan AI (kalender konten, onboarding, titik impas, outbound, eksperimen, artikel SEO, audit SEO, seeding) — otomatis tiap briefing via fase-2 step "work"',
           'action=art-list — daftar artefak karyawan AI (panel Antrean ACC /kantor-ceo)',
           'action=art-body ?id= — isi lengkap satu artefak',
+          'action=meeting [&force=1] — LOOP BELAJAR: rapat mingguan tim AI (evaluasi taruhan + debat + keputusan Alexander, cron Senin)',
+          'action=product-review [&force=1] — LOOP BELAJAR: backlog perbaikan website berbukti data dari Raka (cron Senin)',
+          'action=loop — snapshot Loop Belajar utk dashboard (keputusan, pelajaran, sumber trafik, backlog)',
+          'action=dec-acc|dec-drop ?id= — ACC/tolak keputusan rapat mingguan',
+          'action=manual-report ?id=&value= — lapor angka taruhan bermetrik manual',
+          'action=issue-create|issue-drop ?id= — ACC (buat issue GitHub) / buang draf backlog produk',
+          'action=autopilot ?set=on|off — kill switch otonomi (off = semua keputusan wajib ACC Bos)',
           'action=discord-test — kirim pesan tes ke Discord (diagnosa)',
         ],
       })

@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Sparkles, Trash2, X } from 'lucide-react'
 import PendingActionsQueue from './PendingActionsQueue'
 /* PATCH C (tambalan fase bisnis): panel fase + artefak karyawan per ruangan */
-import { PhasePanel, RoleArtifacts, PRE_LAUNCH_TUGAS, ROOM_ROLE, usePhaseData } from './PhasePanels'
+import { PhasePanel, RoleArtifacts, PRE_LAUNCH_TUGAS, ROOM_ROLE, usePhaseData, LoopBelajarPanel } from './PhasePanels'
 import ArtifactsQueue from './ArtifactsQueue'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
@@ -725,6 +725,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
               {/* PATCH C — kartu fase bisnis: progres 10 user pertama, langkah checklist, tombol kerja manual */}
               <PhasePanel data={phaseData} loading={phaseLoading} reload={phaseReload} />
+              {/* LOOP BELAJAR (lib/ceo-loop.ts) — keputusan rapat mingguan ACC/tolak,
+                  pelajaran, sumber trafik, backlog produk, kill switch otonomi */}
+              <LoopBelajarPanel />
               <PendingActionsQueue />
               {/* Spec perbaikan kantor AI — barang jadi karyawan AI (artefak mingguan) terlihat & bisa disalin Bos */}
               <ArtifactsQueue />

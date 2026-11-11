@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.11'
-const NOTES = 'Tambalan fase bisnis lengkap: (1) Dewi & Farhan dedup input-hash mingguan + flag skipped (tidak bakar LLM untuk laporan kembar); (2) caption cadangan IG tak lagi sebut data komunitas saat <20 trade; (3) ACC via Discord /nba-oke kini memajukan checklist peluncuran lewat action nba-verdict; (4) action phase membawa launch+artifacts utk panel baru; (5) PhasePanels di Ruang Rapat: kartu fase, progres 10 user, langkah checklist, tombol kerja manual + artefak per ruangan karyawan + mode pre-launch di kartu tim; (6) comment-hunter cukup dipanggil di jendela pertama tiap 2 jam (hemat subrequest cron)'
+const VERSION = '2026-11-10.12'
+const NOTES = 'LOOP BELAJAR tim AI (lib/ceo-loop.ts, file Bos): (1) rapat mingguan Senin — evaluasi taruhan minggu lalu via KODE, debat 5 peran, Alexander pilih maks 2 taruhan baru bermetrik, pelajaran disimpan & dipakai rapat berikutnya; (2) konteks keputusan+pelajaran disuntik ke prompt semua karyawan lewat PhaseDeps (cache 60 dtk); (3) atribusi sumber kunjungan & pendaftar: endpoint baru /api/src-track (cookie lux_src 30 hari, dedup harian) + beacon landing + hook register/signUp → KV src:day:*; (4) otonomi bertingkat auto/acc klasifikasi KODE + kill switch action=autopilot; (5) agen produk Raka: backlog perbaikan website berbukti data → ACC Bos → issue GitHub (token Issues:write, tanpa push/PR); (6) panel Loop Belajar di Ringkasan Kantor CEO: ACC/tolak keputusan, lapor angka manual, sumber trafik, backlog, autopilot; cron Senin numpang slot 0 3 * * 1 (nol slot baru)'
 
 export async function GET() {
   return NextResponse.json(

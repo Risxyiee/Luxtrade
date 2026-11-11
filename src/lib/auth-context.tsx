@@ -293,6 +293,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         },
       });
+      /* LOOP BELAJAR — atribusi pendaftar: alur client-side signUp melapor ke
+         /api/src-track?signup=1 (cookie lux_src dipasang saat kunjungan).
+         Alur /api/auth/register mencatat versi server-side sendiri; keduanya
+         dedup via cookie lux_src_used. Fire-and-forget — tak boleh ganggu UX. */
+      if (!error) { try { fetch('/api/src-track?signup=1', { keepalive: true }).catch(() => {}) } catch { /* opsional */ } }
       return { error };
     } catch (err) {
       return { error: err as Error };
