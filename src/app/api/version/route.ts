@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.12'
-const NOTES = 'LOOP BELAJAR tim AI (lib/ceo-loop.ts, file Bos): (1) rapat mingguan Senin — evaluasi taruhan minggu lalu via KODE, debat 5 peran, Alexander pilih maks 2 taruhan baru bermetrik, pelajaran disimpan & dipakai rapat berikutnya; (2) konteks keputusan+pelajaran disuntik ke prompt semua karyawan lewat PhaseDeps (cache 60 dtk); (3) atribusi sumber kunjungan & pendaftar: endpoint baru /api/src-track (cookie lux_src 30 hari, dedup harian) + beacon landing + hook register/signUp → KV src:day:*; (4) otonomi bertingkat auto/acc klasifikasi KODE + kill switch action=autopilot; (5) agen produk Raka: backlog perbaikan website berbukti data → ACC Bos → issue GitHub (token Issues:write, tanpa push/PR); (6) panel Loop Belajar di Ringkasan Kantor CEO: ACC/tolak keputusan, lapor angka manual, sumber trafik, backlog, autopilot; cron Senin numpang slot 0 3 * * 1 (nol slot baru)'
+const VERSION = '2026-11-11.3'
+const NOTES = 'FIX chart fresh saat aktifkan alert Pine (VelaChartTerminal): begitu alert skrip eksklusif dinyalakan via 🔔, garis Entry/SL/TP skrip LANGSUNG digambar di chart (sebelumnya alert hanya di server — chart tak berubah, terkesan gagal) + copy dialog alert diperjelas.'
 
 export async function GET() {
   return NextResponse.json(
