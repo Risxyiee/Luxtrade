@@ -371,18 +371,21 @@ export async function POST(req: NextRequest) {
 
     if (name === 'nba-oke' || name === 'nba-not') {
       const v = name === 'nba-oke' ? 'oke' : 'not'
-      /* Task 35g: pakai tanggal WIB (dulu UTC — jam 00:00–06:59 WIB verdict Bos
-         ditulis ke key "kemarin" → briefing baca key hari ini & verdict terasa hilang) */
-      const day = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
-      await kvSetRaw(`nba-verdict:${day}`, v)
+      /* PATCH A8 (tambalan fase bisnis): JANGAN tulis nba-verdict langsung ke
+         KV — ACC via Discord ikut memajukan CHECKLIST PELUNCURAN (majukan
+         langkah hanya bila NBA berasal dari checklist) + mencatat memori
+         + laporan Discord. Semua itu logika /api/ceo-agent?action=nba-verdict
+         → panggil internal via ceoAgent (SELF binding, key CRON_SECRET). */
+      background((async () => {
+        const r = await ceoAgent(`action=nba-verdict&verdict=${v}`)
+        if (!r.ok)
+          await memAddRaw('CEO Alexander', `Bos jawab ${v.toUpperCase()} untuk NBA hari ini (via Discord) — sinkron ke kantor gagal: ${String(r.detail).slice(0, 120)}`)
+      })())
       let snippet = ''
       try { snippet = String(JSON.parse((await kvGetRaw('nba:last')) || '{}')?.text || '').slice(0, 90) } catch { /* ignore */ }
-      await memAddRaw('CEO Alexander', v === 'oke'
-        ? `Bos konfirmasi OKE untuk NBA hari ini (via Discord): "${snippet}…" — dieksekusi`
-        : `Bos jawab NOT OKE untuk NBA hari ini (via Discord): "${snippet}…" — prioritas diganti`)
       return NextResponse.json({
         type: 4,
-        data: { content: v === 'oke' ? `✅ OKE dicatat Bos — NBA dieksekusi: ${snippet}` : `❌ NOT OKE dicatat — besok Alexander pilih prioritas baru.` },
+        data: { content: v === 'oke' ? `✅ OKE dicatat Bos — NBA dieksekusi: ${snippet}${snippet ? '' : ' (cek Ruang Rapat untuk detail)'}` : `❌ NOT OKE dicatat — besok Alexander pilih prioritas baru.` },
       })
     }
 
@@ -472,7 +475,10 @@ export async function POST(req: NextRequest) {
       background((async () => {
         const [pend, phase] = await Promise.all([listPendingRows(10), ceoAgent('action=phase')])
         const p = (phase.json || {}) as Record<string, unknown>
-        const fase = String(p.phase || (p.info as Record<string, unknown> | undefined)?.phase || '?')
+        /* Bentuk response action=phase (patch A11): { phase: infoObj, launch, artifacts }.
+           Baca infoObj.phase; fallback p.phase kalau bentuknya string (versi lama). */
+        const pi = p.phase as Record<string, unknown> | string | undefined
+        const fase = typeof pi === 'string' ? pi : String((pi as Record<string, unknown> | undefined)?.phase || '?')
         const wib = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
         await followUpAnswer(token,
           `🏢 **KANTOR LUXTRADEE** — ${wib} WIB\n` +

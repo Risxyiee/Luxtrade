@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-10.10'
-const NOTES = 'Kantor di Discord: 6 slash command ACC baru — /setuju [id] (ACC & eksekusi proposal Antrean Eksekusi via jalur admin-key execute-action), /tolak [id], /kerjakan [job] (pencicit 1 tugas jatuh tempo), /laksanakan (semua tugas tick berulang maks 8), /antrean (daftar pending), /status (fase bisnis) — definisi SATU SUMBER lib/discord-commands.ts dipakai auto-register interactions + tombol discord-setup (bulk overwrite tidak lagi saling menghapus). Sirkuit pemutus Pine: flag localStorage tertinggal = sesi terakhir beku saat menjalankan Pine → fresh load MEMBATALKAN auto-restore + banner peringatan (halaman hidup lagi, skrip pembunuh bisa dihapus)'
+const VERSION = '2026-11-10.11'
+const NOTES = 'Tambalan fase bisnis lengkap: (1) Dewi & Farhan dedup input-hash mingguan + flag skipped (tidak bakar LLM untuk laporan kembar); (2) caption cadangan IG tak lagi sebut data komunitas saat <20 trade; (3) ACC via Discord /nba-oke kini memajukan checklist peluncuran lewat action nba-verdict; (4) action phase membawa launch+artifacts utk panel baru; (5) PhasePanels di Ruang Rapat: kartu fase, progres 10 user, langkah checklist, tombol kerja manual + artefak per ruangan karyawan + mode pre-launch di kartu tim; (6) comment-hunter cukup dipanggil di jendela pertama tiap 2 jam (hemat subrequest cron)'
 
 export async function GET() {
   return NextResponse.json(

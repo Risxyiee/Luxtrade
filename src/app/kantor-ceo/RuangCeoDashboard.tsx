@@ -26,6 +26,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Sparkles, Trash2, X } from 'lucide-react'
 import PendingActionsQueue from './PendingActionsQueue'
+/* PATCH C (tambalan fase bisnis): panel fase + artefak karyawan per ruangan */
+import { PhasePanel, RoleArtifacts, PRE_LAUNCH_TUGAS, ROOM_ROLE, usePhaseData } from './PhasePanels'
 import ArtifactsQueue from './ArtifactsQueue'
 import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
@@ -388,7 +390,7 @@ function StaffMemory({ agent }: { agent: string }) {
    Terbuka = detail terstruktur: status kerja, jam kerja, data dibaca,
    model AI, tugas bernomor, laporan, batas jujur, ide — plus memori
    pribadi karyawan (riwayat kerja yang dia ingat). TANPA EMOJI. */
-function EmployeeCard({ m, open, onToggle, live }: { m: TeamMember; open: boolean; onToggle: () => void; live: { tone: 'ok' | 'warn' | 'idle'; text: string } }) {
+function EmployeeCard({ m, open, onToggle, live, preLaunch }: { m: TeamMember; open: boolean; onToggle: () => void; live: { tone: 'ok' | 'warn' | 'idle'; text: string }; preLaunch?: boolean }) {
   const bright = BRIGHT[m.color] || m.color
   return (
     <div
@@ -457,6 +459,21 @@ function EmployeeCard({ m, open, onToggle, live }: { m: TeamMember; open: boolea
             </ol>
           </div>
 
+          {/* PATCH C — saat pre-launch: tugas harian karyawan DIGANTI mode hemat
+              (lihat PRE_LAUNCH_TUGAS di PhasePanels). Daftar di atas aktif
+              kembali otomatis begitu fase naik ke early/growth. */}
+          {preLaunch && PRE_LAUNCH_TUGAS[m.id] ? (
+            <div className="rounded-xl bg-violet-400/5 border border-violet-300/20 px-2.5 py-2">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-violet-300/80 mb-1">Mode pre-launch (aktif sekarang)</div>
+              <ul className="m-0 p-0 list-none flex flex-col gap-0.5">
+                {PRE_LAUNCH_TUGAS[m.id].map((t, i) => (
+                  <li key={i} className="flex gap-1.5 text-white/75"><span className="text-violet-300/70 shrink-0" aria-hidden="true">–</span><span>{t}</span></li>
+                ))}
+              </ul>
+              <div className="text-white/40 text-[9.5px] mt-1">Daftar Tugas di atas aktif kembali otomatis saat fase naik ke early/growth.</div>
+            </div>
+          ) : null}
+
           <span className="block text-white/70"><b className="text-white/85">Laporan:</b> {m.lapor}</span>
 
           <div className="rounded-xl bg-amber-400/5 border border-amber-300/20 px-2.5 py-2">
@@ -519,6 +536,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   /* Akordeon Tim AI: satu karyawan terbuka pada satu waktu (null = semua tertutup) */
   const [openStaff, setOpenStaff] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
+  /* PATCH C — data fase bisnis + artefak karyawan (reload tiap sheet dibuka) */
+  const { data: phaseData, loading: phaseLoading, reload: phaseReload } = usePhaseData(isSheetOpen)
+  const preLaunch = phaseData?.phase.phase === 'pre-launch'
 
   /* Bacakan/berhentikan briefing (suara browser, lang id-ID) */
   const toggleSpeak = () => {
@@ -556,7 +576,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   /* ---------- Status live per karyawan — dari data agen NYATA.
      Dipakai kartu detail karyawan (Ruang Struktur) supaya "detail
      karyawan" berisi logika kerja beneran, bukan cuma deskripsi statis. */
-  const liveOf = (id: string): { tone: 'ok' | 'warn' | 'idle'; text: string } => {
+  const liveBase = (id: string): { tone: 'ok' | 'warn' | 'idle'; text: string } => {
     switch (id) {
       case 'COO':
         return coo
@@ -599,6 +619,15 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
       default:
         return { tone: 'idle', text: '' }
     }
+  }
+
+  /* PATCH C — saat pre-launch, status karyawan ditambah info artefak
+     terbarunya (barang jadi terlihat langsung di kartu). */
+  const liveOf = (id: string): { tone: 'ok' | 'warn' | 'idle'; text: string } => {
+    const b = liveBase(id)
+    if (!preLaunch) return b
+    const a = phaseData?.artifacts.find((x) => x.role === id.toLowerCase())
+    return a ? { ...b, text: `${b.text ? b.text + ' · ' : ''}artefak: ${noEmoji(a.title)}`.slice(0, 220) } : b
   }
 
   /* ---------- Horizontal Agent Dock — status langsung dari data agen ---------- */
@@ -694,6 +723,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               </div>
               <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Kevin (Growth Hunter) · Alexander (CEO)</div>
               {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
+              {/* PATCH C — kartu fase bisnis: progres 10 user pertama, langkah checklist, tombol kerja manual */}
+              <PhasePanel data={phaseData} loading={phaseLoading} reload={phaseReload} />
               <PendingActionsQueue />
               {/* Spec perbaikan kantor AI — barang jadi karyawan AI (artefak mingguan) terlihat & bisa disalin Bos */}
               <ArtifactsQueue />
@@ -1291,6 +1322,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     open={openStaff === 'KEVIN'}
                     onToggle={() => setOpenStaff(openStaff === 'KEVIN' ? null : 'KEVIN')}
                     live={liveOf('KEVIN')}
+                    preLaunch={preLaunch}
                   />
                 ) : null
               })()}
@@ -1310,6 +1342,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     open={openStaff === m.id}
                     onToggle={() => setOpenStaff(openStaff === m.id ? null : m.id)}
                     live={liveOf(m.id)}
+                    preLaunch={preLaunch}
                   />
                 ))}
                 <div className="rounded-2xl border border-dashed border-amber-300/40 bg-amber-400/5 px-3 py-2.5 text-[10.5px] leading-relaxed mb-1">
@@ -1327,6 +1360,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               </div>
             </div>
           ) : null}
+          {/* PATCH C — artefak karyawan ruangan ini (barang jadi, bisa disalin Bos) */}
+          {ROOM_ROLE[room] && phaseData ? <RoleArtifacts role={ROOM_ROLE[room]} artifacts={phaseData.artifacts} /> : null}
         </div>
 
         {/* ===== HORIZONTAL AGENT DOCK — scroll menyamping, snap ===== */}

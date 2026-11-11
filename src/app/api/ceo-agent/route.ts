@@ -29,7 +29,7 @@ import { harnessWrap } from '@/lib/harness-prompt'
 import { DISCORD_COMMANDS } from '@/lib/discord-commands'
 import {
   getPhase, runDailyWork, tickDailyWork, currentLaunchStep, advanceLaunchStep, buildCompactBriefing,
-  wibWeekday, type PhaseDeps,
+  wibWeekday, weekKey, inputHash, inputsUnchanged, markInputs, type PhaseDeps,
 } from '@/lib/ceo-phase'
 export const dynamic = 'force-dynamic'
 
@@ -1185,16 +1185,20 @@ async function cmoInstagramCaption(e: Env) {
     fallbackError = String(brainErr?.message || brainErr).slice(0, 160)
   }
 
-  /* Fallback caption: tetap educational walau LLM gagal */
+  /* Fallback caption: tetap educational walau LLM gagal.
+     PATCH A4: data komunitas hanya disebut kalau sampel layak (≥20 trade) —
+     dulu caption cadangan posting "0 trade tercatat" ke IG publik = memalukan. */
   if (!caption || caption.length < 80) {
     caption = [
       `Trader XAUUSD, baca ini sebelum buka posisi hari ini.`,
       ``,
-      `Data komunitas Luxtradee 24 jam terakhir:`,
-      `- ${fmtN(totalTrades)} trade tercatat`,
-      `- Win rate agregat: ${winRate}%`,
-      `- Pair teratas: ${topPair}`,
-      ``,
+      ...(totalTrades >= 20 ? [
+        `Data komunitas Luxtradee 24 jam terakhir:`,
+        `- ${fmtN(totalTrades)} trade tercatat`,
+        `- Win rate agregat: ${winRate}%`,
+        `- Pair teratas: ${topPair}`,
+        ``,
+      ] : []),
       `Pelajaran hari ini: konsistensi lebih penting daripada 1 big win. ` +
       `Trader yang jurnal setiap trade-nya punya data buat evaluasi — yang cuma hafal di kepala, nggak.`,
       ``,
@@ -2712,6 +2716,7 @@ interface DaInsight {
   stats: { uploads30: number; uploads7: number; traders30: number; winRate: number; topSymbol: string; topSession: string; bestHour: string; emotion?: { counted: number; best: string; bestWr: number; worst: string; worstWr: number } | null }
   dupToday?: boolean
   sampleOk?: boolean
+  skipped?: boolean
 }
 
 async function fetchTrades30(e: Env) {
@@ -2795,6 +2800,18 @@ async function analystAgent(e: Env): Promise<DaInsight> {
     return out
   }
 
+  /* DEDUP INPUT (patch A9): statistik identik dengan run minggu ini →
+     pakai hasil lama, JANGAN panggil LLM untuk laporan kembar.
+     Hash hanya ditandai SETELAH analisis sukses (bukan fallback). */
+  const pdDa = phaseDeps(e)
+  const daHash = await inputHash({ stats, week: weekKey(pdDa) })
+  if (await inputsUnchanged(pdDa, 'da', daHash)) {
+    try {
+      const p = JSON.parse((await kvGet(e, 'da:last')) || 'null') as DaInsight | null
+      if (p?.insight) return { ...p, skipped: true, dupToday: true }
+    } catch { /* lanjut analisis */ }
+  }
+
   /* Learning loop: baca insight sendiri sebelumnya → evaluasi, jangan mengulang */
   let prev = ''
   try {
@@ -2853,6 +2870,7 @@ async function analystAgent(e: Env): Promise<DaInsight> {
     ]
   }
 
+  if (provider !== 'fallback') await markInputs(pdDa, 'da', daHash)
   const out: DaInsight = { ...base, provider, insight, patterns, recommendations }
   await kvSet(e, 'da:last', JSON.stringify(out)).catch(() => {})
   if (insight) await memAdd(e, 'DA Dewi', `Analisis 30 hari (${stats.traders30} trader, WR ${stats.winRate}%, favorit ${stats.topSymbol}): ${insight}`)
@@ -2884,6 +2902,7 @@ interface GhInsight {
   funnel: { total: number; pro: number; baru7: number; referred: number; onboarded: number; activated7: number }
   ab?: { A: AbVariantStat; B: AbVariantStat; winner: string }
   dupToday?: boolean
+  skipped?: boolean
 }
 
 /* ---------- 🧪 A/B CTA Landing — eksperimen otomatis Farhan ----------
@@ -2935,6 +2954,17 @@ async function growthAgent(e: Env): Promise<GhInsight> {
     const out: GhInsight = { ...base, provider: 'fallback', insight: 'Belum ada pendaftar — fokus pertama: distribusi konten (TikTok CMO) sebelum eksperimen funnel.', experiments: [] }
     await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
     return out
+  }
+
+  /* DEDUP INPUT (patch A10): funnel identik dengan run minggu ini →
+     pakai hasil lama (hemat kuota, laporan kembar tidak dibuat). */
+  const pdGh = phaseDeps(e)
+  const ghHash = await inputHash({ funnel, week: weekKey(pdGh) })
+  if (await inputsUnchanged(pdGh, 'gh', ghHash)) {
+    try {
+      const p = JSON.parse((await kvGet(e, 'gh:last')) || 'null') as GhInsight | null
+      if (p?.insight) return { ...p, skipped: true, dupToday: true }
+    } catch { /* lanjut */ }
   }
 
   let daLine = ''
@@ -3007,6 +3037,7 @@ async function growthAgent(e: Env): Promise<GhInsight> {
       { name: 'Reward referral 2 arah', how: `Benefit PRO untuk pengundang & diundang. Saat ini baru ${referred} user dari referral — potensi gratis belum digarap.`, metric: 'Pendaftar dari referral mingguan naik', effort: 'sedang' },
     ]
   }
+  if (provider !== 'fallback') await markInputs(pdGh, 'gh', ghHash)
   const out: GhInsight = { ...base, provider, insight, experiments, ab: ab || undefined }
   await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})
   if (insight) await memAdd(e, 'GH Farhan', `Funnel (${funnel.total} pendaftar, PRO ${funnel.pro}): ${insight}`)
@@ -3597,7 +3628,7 @@ async function handle(req: Request): Promise<Response> {
         }
         await kvSet(e, dk, new Date().toISOString())
         const da = await analystAgent(e)
-        try { await sendDiscord(e, daToDiscord(da)) } catch { /* ignore */ }
+        if (!da.skipped) try { await sendDiscord(e, daToDiscord(da)) } catch { /* ignore */ }
         return j({ da })
       } catch (x: any) { return j({ daError: String(x?.message || x).slice(0, 160) }, 200) }
     }
@@ -3619,7 +3650,7 @@ async function handle(req: Request): Promise<Response> {
         }
         await kvSet(e, gk, new Date().toISOString())
         const gh = await growthAgent(e)
-        try { await sendDiscord(e, ghToDiscord(gh)) } catch { /* ignore */ }
+        if (!gh.skipped) try { await sendDiscord(e, ghToDiscord(gh)) } catch { /* ignore */ }
         return j({ gh })
       } catch (x: any) { return j({ ghError: String(x?.message || x).slice(0, 160) }, 200) }
     }
@@ -3631,21 +3662,32 @@ async function handle(req: Request): Promise<Response> {
       } catch { return j({ gh: null }) }
     }
     case 'phase': {
-      // FASE BISNIS saat ini (lib/ceo-phase.ts): pre-launch | early | growth.
-      // Override manual: env PHASE_OVERRIDE. Dipakai briefing/NBA/artefak.
-      try { return j(await getPhase(phaseDeps(e), cleanEnv(e.PHASE_OVERRIDE))) } catch (x: any) { return j({ error: String(x?.message || x) }, 500) }
+      // FASE BISNIS (patch A11 — bentuk response dipakai PhasePanels di
+      // RuangCeoDashboard): info fase + langkah checklist peluncuran + artefak.
+      // Override manual: env PHASE_OVERRIDE. Pemakai lama (discord /status) tetap
+      // aman: field `phase` kini berupa OBJEK info — /status membaca p.phase/info.phase.
+      try {
+        const pd = phaseDeps(e)
+        const info = await getPhase(pd, cleanEnv(e.PHASE_OVERRIDE))
+        const launch = await currentLaunchStep(pd)
+        let artifacts: unknown[] = []
+        try { artifacts = JSON.parse((await kvGet(e, 'art:index')) || '[]') } catch { /* kosong */ }
+        return j({ phase: info, launch, artifacts: Array.isArray(artifacts) ? artifacts.slice(0, 30) : [] })
+      } catch (x: any) { return j({ error: String(x?.message || x) }, 500) }
     }
     case 'work': {
       // ARTEFAK MINGGUAN karyawan AI (lib/ceo-phase.ts runDailyWork) —
       // otomatis via briefing fase-2; tombol manual untuk uji/re-run.
       // ?only=<job-id> (mis. cmo:calendar) · ?force=1 abaikan dedup harian.
+      // PATCH A11: response di-spread di ROOT (kompatibel ArtifactsQueue yang
+      // membaca js.made/js.failed) + flag ok (dipakai PhasePanel).
       try {
         const d = phaseDeps(e)
         const info = await getPhase(d, cleanEnv(e.PHASE_OVERRIDE))
         const only = url.searchParams.get('only') || undefined
         const force = url.searchParams.get('force') === '1'
-        return j(await runDailyWork(d, info, { only, force }))
-      } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
+        return j({ ok: true, ...(await runDailyWork(d, info, { only, force })) })
+      } catch (x: any) { return j({ ok: false, error: String(x?.message || x).slice(0, 160) }, 500) }
     }
     case 'tick': {
       // MESIN KERJA 24 JAM tanpa slot cron Cloudflare baru (lib/ceo-phase.ts

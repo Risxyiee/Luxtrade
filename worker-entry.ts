@@ -86,6 +86,16 @@ const GROWTH_SENTINEL_TIMEOUT_MS = 90_000
    balasan + 1 LLM opsional → 90 dtk. */
 const SEO_FACTORY_TIMEOUT_MS = 60_000
 const COMMENT_HUNTER_TIMEOUT_MS = 90_000
+/* PATCH B (tambalan fase bisnis): rute yang cukup dipanggil tiap N menit —
+   tick tetap jalan tiap 15 menit, sisanya hanya dipanggil di jendela pertama
+   window N menitnya. Comment Hunter sudah punya throttle internal 2 jam,
+   jadi tidak perlu benar-benar dipanggil tiap 15 menit (hemat subrequest +
+   risiko timeout kecil). */
+const EVERY_MIN: Record<string, number> = { '/api/cron/comment-hunter': 120 }
+const dueNow = (route: string, t: number) => {
+  const n = EVERY_MIN[route]
+  return !n || Math.floor(t / 60_000) % n < 15
+}
 const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
 const timeoutFor = (route: string) =>
   ceoRoute(route)
@@ -130,9 +140,12 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const routes = CRON_ROUTES[event.cron]
-    if (!routes) {
-      console.warn(`[cron] No routes mapped for: ${event.cron}`)
+    /* PATCH B: filter dueNow — rute non-kritis hanya jalan di jendela pertama
+       window intervalnya (mis. comment-hunter tiap 120 menit = 8 slot per
+       15 menit pertama tiap 2 jam). */
+    const routes = (CRON_ROUTES[event.cron] || []).filter((r) => dueNow(r, event.scheduledTime))
+    if (!routes.length) {
+      console.log(`[cron] Slot ${event.cron} dilewati (semua rute belum jatuh tempo jendela intervalnya)`)
       return
     }
 
