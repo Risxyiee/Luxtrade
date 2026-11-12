@@ -182,7 +182,7 @@ export interface PushPayload {
   badge?: string
   url?: string
   tag?: string
-  type?: 'trade' | 'price-alert' | 'news' | 'general'
+  type?: 'trade' | 'price-alert' | 'strategy-alert' | 'news' | 'general'
   /* Urgensi APNs: 'high' = sajikan SEGERA (push tes & alarm), 'normal' =
      boleh ditunda device idle (default). Header HTTP 'Urgency' web push. */
   urgency?: 'high' | 'normal'

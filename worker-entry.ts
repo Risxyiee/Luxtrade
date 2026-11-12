@@ -63,7 +63,8 @@
 // berat (seo-factory, agen sweep, pengawas) saling berebut CPU → 3 rute
 // mati "CPU time exceeded" sekaligus. Kini slot */15 dipecah 2 jalur:
 //   • JALUR CEPAT (tiap slot, ringan/kritis): econ-calendar-notify,
-//     ceo watchdog, price-alerts.
+//     ceo watchdog, price-alerts, strategy-alerts (alert indikator
+//     ala Pine — RSI/EMA/MACD, cap 30 group fetch — tetap ringan).
 //   • JALUR BERAT (GILIRAN — 1 rute per slot): tick, sweep proposal,
 //     prop-firm-guard, growth-sentinel, seo-factory, comment-hunter →
 //     tiap rute berat jalan tiap 90 menit (6 slot), CPU per invocation
@@ -84,7 +85,7 @@ const CRON_ROUTES = {
   /* Slot 15-menit: JALUR CEPAT saja — 3 rute ringan/kritis. Rute berat pindah
      ke HEAVY_15_ROUND_ROBIN di bawah (giliran 1 rute per slot — fix CPU
      limit: dulu 10 rute paralel berbagi CPU satu invocation → 3 mati). */
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts'],
+  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/strategy-alerts'],
 }
 
 /* JALUR BERAT slot 15-menit — GILIRAN: tiap eksekusi hanya 1 rute dari daftar
@@ -118,6 +119,9 @@ const HEAVY_15_ROUND_ROBIN = [
 const CEO_TIMEOUT_MS = 120_000
 const DEFAULT_TIMEOUT_MS = 30_000
 const PRICE_ALERTS_TIMEOUT_MS = 90_000
+/* strategy-alerts (alert indikator ala Pine): maks 30 group × 1 fetch
+   candle 120-bar (~2 dtk) + evaluasi matematika murni → 90 dtk. */
+const STRATEGY_ALERTS_TIMEOUT_MS = 90_000
 /* Prop-firm-guard: loop semua challenge aktif × query trades (DB-only,
    tanpa fetch quote) — 60 dtk cukup utk user banyak. */
 const PROP_GUARD_TIMEOUT_MS = 60_000
@@ -148,6 +152,8 @@ const timeoutFor = (route: string) =>
     ? CEO_TIMEOUT_MS
     : route.startsWith('/api/cron/price-alerts')
       ? PRICE_ALERTS_TIMEOUT_MS
+      : route.startsWith('/api/cron/strategy-alerts')
+        ? STRATEGY_ALERTS_TIMEOUT_MS
       : route.startsWith('/api/cron/growth-sentinel')
         ? GROWTH_SENTINEL_TIMEOUT_MS
       : route.startsWith('/api/cron/seo-factory')

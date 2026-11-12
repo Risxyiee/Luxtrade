@@ -63,11 +63,11 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
       },
       {
         icon: Bell,
-        title: language === 'id' ? 'Alert harga otomatis — tanpa langganan TradingView' : 'Automatic price alerts — no TradingView subscription',
+        title: language === 'id' ? 'Alert harga & indikator ala Pine — gratis' : 'Price & indicator alerts ala Pine — free',
         desc:
           language === 'id'
-            ? 'Pasang level harga di Luxtradee, server kami cek tiap 15 menit & kirim notifikasi push ke HP saat kena — pengganti alert TradingView yang wajib langganan Essential ±$13/bulan.'
-            : 'Set a price level in Luxtradee — our server checks every 15 minutes and pushes a phone notification when hit — replacing TradingView alerts that require an Essential plan (~$13/mo).',
+            ? 'RSI, cross EMA, MACD, level harga — server kami hitung sendiri tiap 15 menit & push notif ke HP saat kondisi kena. Pengganti alert Pine TradingView yang wajib langganan Essential ±$13/bulan.'
+            : 'RSI, EMA crosses, MACD, price levels — our server computes them every 15 minutes and pushes to your phone. Replaces Pine alerts that require a TradingView Essential plan (~$13/mo).',
       },
       {
         icon: Globe,
@@ -137,7 +137,7 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             {t.cta}
           </a>
           <p className="mt-3 text-[11px] text-white/40">
-            Chart TradingView asli + alert push ke HP —{' '}
+            Alert harga + indikator (RSI/EMA/MACD) push ke HP —{' '}
             <span className="text-blue-300 font-semibold">hemat ±$13/bulan</span> dibanding alert
             berbayar TradingView.
           </p>
