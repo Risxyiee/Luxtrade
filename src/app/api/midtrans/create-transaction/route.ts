@@ -252,13 +252,22 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 10. Consume promo quota if applied ─────────────────────
+    // AUDIT 2026-11 FIX: dulu kirim { code, userId } TANPA cookie → apply
+    // selalu 401/400 (param salah + tak ter-autentikasi). Sekarang: param
+    // sesuai kontrak apply (promoCode + plan) + cookie user diteruskan.
     if (promoCode && discountPercent > 0) {
       try {
         const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'
         await fetch(`${origin}/api/promo/apply`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: promoCode, userId: user.id }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('Cookie') || '',
+          },
+          body: JSON.stringify({
+            promoCode,
+            plan: plan === 'PRO_LIFETIME' ? 'LIFETIME' : 'PRO',
+          }),
         })
       } catch (consumeErr) {
         console.warn('[Midtrans create-transaction] Failed to consume promo quota:', consumeErr)

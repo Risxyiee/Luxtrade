@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
     // STEP 1: Auth + parse body
     // ══════════════════════════════════════════════════════════════
     const body = await request.json()
-    const { promoCode: code, plan } = body
+    // AUDIT 2026-11: terima promoCode ATAU code (caller lama pakai "code"),
+    // plan opsional default 'PRO' supaya /api/promo/claim & konsumsi internal
+    // dari create-transaction tidak gagal validasi.
+    const code = body.promoCode || body.code
+    const plan: string = body.plan || 'PRO'
     console.log(`[promo/apply:${logId}] code=${code?.trim()?.toUpperCase()}, plan=${plan}`)
 
     const result = await createClientForApi(request)
@@ -50,7 +54,6 @@ export async function POST(request: NextRequest) {
     if (!code || !plan) {
       return NextResponse.json({ success: false, message: 'promoCode and plan are required' }, { status: 400 })
     }
-
     const normalizedCode = code.trim().toUpperCase()
     const now = new Date().toISOString()
 

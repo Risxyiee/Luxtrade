@@ -43,6 +43,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
+    // KEPEMILIKAN (audit 2026-11): invoice milik orang lain tidak boleh
+    // dilihat statusnya apalagi memicu alur konfirmasi.
+    if (order.userId !== user.id) {
+      console.warn(`[Confirm Payment] ownership reject: user ${user.id} ≠ order ${order.userId} (${invoiceNumber})`)
+      return NextResponse.json({ error: 'Invoice bukan milik akun ini' }, { status: 403 })
+    }
+
     // If already SUCCESS, return immediately
     if (order.status === 'SUCCESS') {
       return NextResponse.json({

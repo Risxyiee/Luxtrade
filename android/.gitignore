@@ -52,10 +52,10 @@ captures/
 # Comment next line if keeping position of elements in Navigation Editor is relevant for you
 .idea/navEditor.xml
 
-# Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+# Keystore files — AUDIT 2026-11: signing key TIDAK boleh masuk repo publik.
+# (keystore.jks sempat ter-commit — rotasi key direkomendasikan, lihat laporan audit)
+*.jks
+*.keystore
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
