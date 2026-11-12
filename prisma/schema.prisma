@@ -525,9 +525,10 @@ model PushSubscription {
   @@map("push_subscriptions")
 }
 
-// Log sinyal VIP Real-time Alert Engine (lihat src/services/marketListener.ts).
-// Runtime produksi membaca/menulis tabel ini via Supabase service-role
-// (Prisma mati di CF Workers) — migrasi SQL: supabase-migrations/041_market_alerts.sql
+// Log sinyal VIP Real-time Alert Engine — RIWAYAT: engine DIHAPUS 9 Nov 2026
+// (keputusan Bos: "kita kan jurnal, bukan jualan sinyal"); model disimpan
+// hanya agar skema tetap cocok dengan tabel lama di database.
+// Migrasi SQL: supabase-migrations/041_market_alerts.sql
 model MarketAlert {
   id             String   @id @default(uuid())
   symbol         String   @default("XAU/USD")

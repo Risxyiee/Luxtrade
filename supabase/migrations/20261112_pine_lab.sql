@@ -3,6 +3,15 @@
 -- di Supabase SQL Editor (sistem migrasi Luxtradee: file SQL
 -- dieksekusi manual oleh Bos, sama seperti migration lain).
 -- ============================================================
+-- !!! SUPERSEDED — JANGAN JALANKAN FILE INI !!!
+-- Digantikan oleh: supabase/migrations/20261113_pine_lab_fix.sql
+-- Alasan: (1) tabel pine_scripts lama era pine-alert di produksi
+--     tidak punya kolom `active` → index (active) gagal 42703;
+--     (2) kolom `trigger` = kata tercadang PostgreSQL → wajib
+--     kutip ganda, versi lama di file ini error syntax.
+-- File 20261113 mengerjakan semuanya secara idempotent + aman
+-- untuk database dalam kondisi apa pun.
+-- ============================================================
 -- Fitur: /pine-lab — halaman eksperimen script "Lux Script"
 -- (subset Pine Script) untuk user ber-flag `pine_lab`.
 -- Semua tabel RLS-deny (hanya service role yang membaca/menulis —
@@ -47,7 +56,7 @@ create table if not exists public.pine_runs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   script_id uuid references public.pine_scripts(id) on delete cascade,
-  trigger text not null default 'manual',   -- 'manual' | 'cron'
+  "trigger" text not null default 'manual',   -- 'manual' | 'cron' (kata tercadang → wajib kutip)
   ok boolean not null default true,
   duration_ms integer not null default 0,
   bars integer not null default 0,
