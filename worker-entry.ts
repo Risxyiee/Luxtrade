@@ -63,8 +63,10 @@
 // berat (seo-factory, agen sweep, pengawas) saling berebut CPU → 3 rute
 // mati "CPU time exceeded" sekaligus. Kini slot */15 dipecah 2 jalur:
 //   • JALUR CEPAT (tiap slot, ringan/kritis): econ-calendar-notify,
-//     ceo watchdog, price-alerts, strategy-alerts (alert indikator
-//     ala Pine — RSI/EMA/MACD, cap 30 group fetch — tetap ringan).
+//     ceo watchdog, price-alerts.
+//     (RIWAYAT: strategy-alerts — alert indikator ala Pine — DIHAPUS
+//     11-11 perintah Bos: "alert pine hapus aja dulu" — Bos coba
+//     Pine sendiri dulu, fitur dinonaktifkan sementara.)
 //   • JALUR BERAT (GILIRAN — 1 rute per slot): tick, sweep proposal,
 //     prop-firm-guard, growth-sentinel, seo-factory, comment-hunter →
 //     tiap rute berat jalan tiap 90 menit (6 slot), CPU per invocation
@@ -82,13 +84,14 @@
    — GANTI isi slot 15-menit lama, TANPA nambah trigger (tetap 1 slot;
    CF Free maks 5 trigger/akun, kita cuma pakai 4). Slot kini nembak
    tiap 5 menit dan tiap rute ATUR CADENCENYA SENDIRI via EVERY_MIN:
-     • strategy-alerts  → TIAP 5 MENIT (alert strategi Bos: tidak kelamaan)
      • econ-calendar-notify, ceo watchdog, price-alerts → tetap 15 menit
        (%15 < 5 — hanya slot :00/:15/:30/:45 yang due)
      • comment-hunter → tetap 120 menit
+     (RIWAYAT: strategy-alerts TIAP 5 MENIT — DIHAPUS 11-11, Bos:
+     "alert pine hapus aja dulu".)
    JALUR BERAT tetap giliran 1 rute/slot 15-menit (hanya jalan di
    menit ke-0/15/30/45 — slotNo bucket 900_000 dipertahankan). */
-const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/strategy-alerts']
+const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts']
 const CRON_ROUTES: Record<string, string[]> = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
@@ -130,9 +133,6 @@ const HEAVY_15_ROUND_ROBIN = [
 const CEO_TIMEOUT_MS = 120_000
 const DEFAULT_TIMEOUT_MS = 30_000
 const PRICE_ALERTS_TIMEOUT_MS = 90_000
-/* strategy-alerts (alert indikator ala Pine): maks 30 group × 1 fetch
-   candle 120-bar (~2 dtk) + evaluasi matematika murni → 90 dtk. */
-const STRATEGY_ALERTS_TIMEOUT_MS = 90_000
 /* Prop-firm-guard: loop semua challenge aktif × query trades (DB-only,
    tanpa fetch quote) — 60 dtk cukup utk user banyak. */
 const PROP_GUARD_TIMEOUT_MS = 60_000
@@ -149,8 +149,8 @@ const SEO_FACTORY_TIMEOUT_MS = 60_000
 const COMMENT_HUNTER_TIMEOUT_MS = 90_000
 /* PATCH B (tambalan fase bisnis): rute yang cukup dipanggil tiap N menit —
    WINDOW kini 5 menit (slot nembak tiap 5 menit): dueNow = menit % N < 5.
-   strategy-alerts TIDAK masuk peta → due tiap slot = tiap 5 menit
-   (permintaan Bos: 15 menit kelamaan). Rute lain jaga jadwal lama. */
+   (RIWAYAT: strategy-alerts TIDAK masuk peta → due tiap slot = tiap 5
+   menit — rute DIHAPUS 11-11.) Rute lain jaga jadwal lama. */
 const EVERY_MIN: Record<string, number> = {
   '/api/cron/econ-calendar-notify': 15,
   '/api/ceo-agent?action=watchdog': 15,
@@ -167,8 +167,6 @@ const timeoutFor = (route: string) =>
     ? CEO_TIMEOUT_MS
     : route.startsWith('/api/cron/price-alerts')
       ? PRICE_ALERTS_TIMEOUT_MS
-      : route.startsWith('/api/cron/strategy-alerts')
-        ? STRATEGY_ALERTS_TIMEOUT_MS
       : route.startsWith('/api/cron/growth-sentinel')
         ? GROWTH_SENTINEL_TIMEOUT_MS
       : route.startsWith('/api/cron/seo-factory')

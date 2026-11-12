@@ -35,20 +35,22 @@ const MARKER = '__LTX_CRON_SCHEDULED__'
 
 /* Handler scheduled — mirip worker-entry.ts (salinan utk jalur deploy
    yang memakai worker generated sebagai main; worker-entry.ts tetap
-   sumber utama). Arsitektur slot MENIT-5: strategy-alerts tiap 5 menit,
-   rute cepat lain 15 menit (EVERY_MIN), jalur berat giliran 15-menit. */
+   sumber utama). Arsitektur slot MENIT-5: rute cepat 15 menit
+   (EVERY_MIN), jalur berat giliran 15-menit.
+   RIWAYAT: strategy-alerts (alert ala Pine) DIHAPUS 11-11 perintah Bos
+   "alert pine hapus aja dulu" — pine dinonaktifkan sementara. */
 const SCHEDULED_CODE = `
   /* ==== ${MARKER} (injected by scripts/patch-cf-worker-cron.mjs) ====
      Cron trigger CF → panggil route API Next.js.
      - 0 1 harian  = 08:00 WIB (daily-reminder + downgrade + COO + CEO briefing/analyst/growth + AUTO-ACC)
      - 0 3 harian  = 10:00 WIB (re-engage + downgrade)
      - 0 3 Senin   = 10:00 WIB (weekly-summary + CEO weekly)
-     - tiap 5 menit = strategy-alerts TIAP 5 MENIT (Bos: "15 menit kelamaan")
-       + econ-calendar/watchdog/price-alerts tetap 15 menit (EVERY_MIN)
+     - tiap 5 menit = econ-calendar/watchdog/price-alerts tetap 15 menit (EVERY_MIN)
        + jalur berat giliran 1 rute per slot 15-menit
-     RIWAYAT: pine-alerts (Velalab) DIHAPUS; vip-signals DIHAPUS 9 Nov. */
+     RIWAYAT: pine-alerts (Velalab) DIHAPUS; vip-signals DIHAPUS 9 Nov;
+     strategy-alerts DIHAPUS 11-11 (pine dinonaktifkan Bos sementara). */
   async scheduled(event, env, ctx) {
-    const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/strategy-alerts']
+    const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts']
     const HEAVY = ['/api/ceo-agent?action=tick', '/api/agent-proposals?run=sweep', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter', '/api/cron/ig-auto-post']
     const CRON_ROUTES = {
       '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
@@ -80,11 +82,10 @@ const SCHEDULED_CODE = `
           if (isCeo && ceoKey) path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(ceoKey)
           const headers = { 'Content-Type': 'application/json' }
           if (cronSecret) { headers['Authorization'] = 'Bearer ' + cronSecret; headers['x-cron-secret'] = cronSecret }
-          const isStrategy = route.startsWith('/api/cron/strategy-alerts')
           const isPrice = route.startsWith('/api/cron/price-alerts')
           const res = await fetch(siteUrl + path, {
             method: 'GET', headers,
-            signal: AbortSignal.timeout(isCeo ? 120000 : (isStrategy || isPrice) ? 90000 : 30000)
+            signal: AbortSignal.timeout(isCeo ? 120000 : isPrice ? 90000 : 30000)
           })
           if (!res.ok) {
             const body = await res.text().catch(() => '')

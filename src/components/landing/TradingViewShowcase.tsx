@@ -7,18 +7,19 @@
  * Direktif Bos 2026-11-11: "vela lab hapus aja, ganti semuanya
  * ke tradingview mulai dari pine alert."
  *
- * Bagian landing yang dulu menjual "Pine Script® + Alert" kini
+ * Revisi Bos (11-11, tahap kedua): "untuk marketing dan promosi
+ * pine di website semuanya dihapus dulu" → bullet "alert ala
+ * Pine" + klaim hemat langganan TradingView DIHAPUS. Yang tinggal
  * menjual fitur yang BENAR-BENAR ADA: chart resmi TradingView
  * (widget tv.js — data feed langsung dari server TradingView di
- * browser user) + alert native TradingView (dibuat langsung di
- * chart, tanpa engine Pine milik server lagi).
+ * browser user).
  *
  * Chart demo live di bawah: XAU/USD 15m — data feed TradingView.
  * ============================================================
  */
 
 import dynamic from 'next/dynamic'
-import { TrendingUp, Bell, Database, Wrench, Globe } from 'lucide-react'
+import { TrendingUp, Database, Wrench, Globe } from 'lucide-react'
 
 const TradingViewChart = dynamic(() => import('@/components/tradingview/TradingViewChart'), {
   ssr: false, // tv.js menyentuh window — client-only
@@ -62,14 +63,6 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             : 'RSI, MACD, Fibonacci and more — every built-in TradingView tool, no extra paywall.',
       },
       {
-        icon: Bell,
-        title: language === 'id' ? 'Alert harga & indikator ala Pine — gratis' : 'Price & indicator alerts ala Pine — free',
-        desc:
-          language === 'id'
-            ? 'RSI, cross EMA, MACD, level harga — server kami hitung sendiri tiap 15 menit & push notif ke HP saat kondisi kena. Pengganti alert Pine TradingView yang wajib langganan Essential ±$13/bulan.'
-            : 'RSI, EMA crosses, MACD, price levels — our server computes them every 15 minutes and pushes to your phone. Replaces Pine alerts that require a TradingView Essential plan (~$13/mo).',
-      },
-      {
         icon: Globe,
         title: language === 'id' ? 'Semua pair, satu tempat' : 'Every pair, one place',
         desc:
@@ -78,7 +71,7 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             : 'Metals, forex, indices, crypto — just type any symbol right in the chart symbol box.',
       },
     ],
-    cta: language === 'id' ? 'Coba Chart + Alert Gratis' : 'Try Chart + Free Alerts',
+    cta: language === 'id' ? 'Coba Chart Gratis' : 'Try the Chart for Free',
     demoLabel: language === 'id' ? 'Demo live — XAU/USD 15m, feed TradingView' : 'Live demo — XAU/USD 15m, TradingView feed',
   }
 
@@ -114,7 +107,7 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
         </div>
 
         {/* ---------- Bullets ---------- */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {t.bullets.map((b) => (
             <div
               key={b.title}
@@ -133,13 +126,12 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             href="/auth/signup"
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-6 py-3 text-sm font-bold text-white transition-colors min-h-[48px]"
           >
-            <Bell className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4" />
             {t.cta}
           </a>
           <p className="mt-3 text-[11px] text-white/40">
-            Alert harga + indikator (RSI/EMA/MACD) push ke HP —{' '}
-            <span className="text-blue-300 font-semibold">hemat ±$13/bulan</span> dibanding alert
-            berbayar TradingView.
+            Chart &amp; data feed resmi TradingView —{' '}
+            <span className="text-blue-300 font-semibold">gratis untuk semua user</span> Luxtradee.
           </p>
         </div>
       </div>

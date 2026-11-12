@@ -100,6 +100,19 @@ const MUST_BE_GONE = [
   { path: '/api/auth/force-confirm', methods: ['POST'] },
   // cron pine-alerts — dihapus 0f67ea25 (diganti strategy-alerts)
   { path: '/api/cron/pine-alerts', methods: ['GET', 'POST'] },
+  // Pine engine + alert strategi ala Pine — DIHAPUS 11-11 (Bos: "alert
+  // pine hapus aja dulu" — fitur pine dinonaktifkan sementara, Bos coba
+  // Pine sendiri dulu). Sumber metode: kode pra-penghapusan di git.
+  { path: '/api/strategy-alerts', methods: ['GET', 'POST', 'PATCH', 'DELETE'] },
+  { path: '/api/cron/strategy-alerts', methods: ['GET', 'POST'] },
+  { path: '/api/pine/scripts', methods: ['GET', 'POST'] },
+  { path: '/api/pine/scripts/test-id/backtest', methods: ['POST'] },
+  { path: '/api/pine/events', methods: ['GET'] },
+  { path: '/api/pine/channels', methods: ['GET', 'POST', 'PATCH', 'DELETE'] },
+  { path: '/api/pine/validate', methods: ['POST'] },
+  { path: '/api/pine/live-run', methods: ['POST'] },
+  { path: '/api/pine/cron-live', methods: ['GET', 'POST'] },
+  { path: '/api/pine/champion-template', methods: ['GET'] },
   // admin tanpa auth-check — POST-only
   { path: '/api/admin/simple-test', methods: ['GET'] },
   { path: '/api/admin/test-activation', methods: ['GET'] },

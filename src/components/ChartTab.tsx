@@ -7,18 +7,19 @@
  * Bos: "vela lab hapus aja, ganti semuanya ke tradingview mulai
  * dari pine alert dan gedein dikit chartnya."
  *
- * Yang berubah:
- *   - Vela Lab / terminal lama DIHAPUS TOTAL (Pine editor, strategy
- *     tester, trade marker — semua sudah tidak ada).
- *   - Chart = widget resmi TradingView (tv.js, daftar
+ * Revisi Bos (11-11, tahap kedua): "untuk marketing dan promosi
+ * pine di website semuanya dihapus dulu, biarin chart di
+ * websiteku kek gitu, alert pine hapus aja dulu" →
+ *   - Tombol "Buat Alert" + AlertCreatorModal DIHAPUS (mesin alert
+ *     ala Pine + alert indikator RSI/EMA/MACD dinonaktifkan sampai
+ *     waktu yang tidak ditentukan — Bos coba Pine sendiri dulu).
+ *   - Alert level harga tetap ada lewat Watchlist (target harga →
+ *     cron /api/cron/price-alerts) — tidak tersentuh.
+ *   - Yang tersisa: chart TradingView murni (tv.js, daftar
  *     awesome-tradingview). Data feed ditarik LANGSUNG oleh chart
  *     TradingView (OANDA / FX / NASDAQ / BINANCE) di browser user —
  *     bukan lewat /api/candles milik server Luxtradee — sehingga
  *     masalah 503/422 upstream tidak menyentuh chart lagi.
- *   - PINE ALERT DIGANTI TRADINGVIEW ALERT: tombol "Buat Alert"
- *     membuka chart TradingView dengan simbol terpilih — alert
- *     ( crossing, level harga, indikator, dsb.) dibuat native di
- *     TradingView, bukan lagi lewat engine Pine milik server.
  *   - Chart DIGEDEIN: 85vh (sebelumnya 70vh).
  *
  * Pemilihan simbol & timeframe disimpan di localStorage.
@@ -27,9 +28,8 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { TrendingUp, Bell } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 import { TV_WIDGET_SYMBOLS } from '@/components/tradingview/TradingViewChart'
-import AlertCreatorModal from '@/components/tradingview/AlertCreatorModal'
 
 const TradingViewChartClient = dynamic(() => import('@/components/tradingview/TradingViewChart'), {
   ssr: false, // tv.js menyentuh window/document — wajib client-only
@@ -77,7 +77,6 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   const [symbol, setSymbol] = useState('XAUUSD')
   const [tf, setTf] = useState('15m')
   const [hydrated, setHydrated] = useState(false)
-  const [alertOpen, setAlertOpen] = useState(false)
 
   /* Pulihkan pilihan terakhir user (tanpa hydration mismatch: state
      default server = XAUUSD/15m, pembacaan localStorage di mount) */
@@ -118,19 +117,6 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
             Chart &amp; data feed resmi <span className="text-white/80 font-medium">TradingView</span> — indikator, drawing tools &amp; alert lengkap di dalam chart
           </p>
         </div>
-
-        {/* Tombol alert — MESIN ALERT LUXTRADEE (Bos: solusi murah utk
-            pengguna TradingView yang bayar Essential ±$13/bln cuma buat
-            alert). Pasang level → cron 15-menit cek → push ke HP. */}
-        <button
-          type="button"
-          onClick={() => setAlertOpen(true)}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-purple-500/20 border border-purple-400/30 px-4 py-2.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/30 hover:text-purple-100 transition-colors min-h-[44px]"
-          title="Pasang alert level harga — notifikasi push ke HP, tanpa langganan TradingView"
-        >
-          <Bell className="w-4 h-4" />
-          Buat Alert
-        </button>
       </div>
 
       {/* ---------- Bar simbol & timeframe ---------- */}
@@ -191,19 +177,10 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
           Simbol lain bisa diketik langsung di kotak simbol chart.
         </p>
         <p>
-          Alert harga otomatis via <span className="text-purple-300 font-semibold">Buat Alert</span> —
-          server Luxtradee cek tiap 15 menit &amp; push ke HP saat level kena, tanpa langganan TradingView.
+          Butuh alert harga? Pasang <span className="text-purple-300 font-semibold">target harga di Watchlist</span> —
+          server cek tiap 15 menit &amp; push ke HP saat level kena.
         </p>
       </div>
-
-      {/* ---------- Modal Buat Alert (mesin sendiri, GRATIS) ---------- */}
-      <AlertCreatorModal
-        open={alertOpen}
-        onClose={() => setAlertOpen(false)}
-        symbol={symbol}
-        onSymbolChange={setSymbol}
-        symbolOptions={SYMBOL_CHIPS}
-      />
     </div>
   )
 }

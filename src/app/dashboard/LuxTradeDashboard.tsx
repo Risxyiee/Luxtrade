@@ -58,7 +58,6 @@ const menuItems = [
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender' },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal' },
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan' },
-  { id: 'pine', label: 'Pine Signals', labelId: 'Pine Signals' },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar' },
   { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi' },
   { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian' },
