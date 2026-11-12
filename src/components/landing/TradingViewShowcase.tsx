@@ -63,11 +63,11 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
       },
       {
         icon: Bell,
-        title: language === 'id' ? 'Alert native TradingView' : 'Native TradingView alerts',
+        title: language === 'id' ? 'Alert harga otomatis — tanpa langganan TradingView' : 'Automatic price alerts — no TradingView subscription',
         desc:
           language === 'id'
-            ? 'Alert crossing, level harga & indikator dibuat langsung di chart — tombol "Buat Alert" membuka chart TradingView dengan simbol terpilih.'
-            : 'Crossing, price-level & indicator alerts are created right on the chart — the "Create Alert" button opens TradingView with your symbol preselected.',
+            ? 'Pasang level harga di Luxtradee, server kami cek tiap 15 menit & kirim notifikasi push ke HP saat kena — pengganti alert TradingView yang wajib langganan Essential ±$13/bulan.'
+            : 'Set a price level in Luxtradee — our server checks every 15 minutes and pushes a phone notification when hit — replacing TradingView alerts that require an Essential plan (~$13/mo).',
       },
       {
         icon: Globe,
@@ -78,7 +78,7 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             : 'Metals, forex, indices, crypto — just type any symbol right in the chart symbol box.',
       },
     ],
-    cta: language === 'id' ? 'Coba Chart & Alert TradingView' : 'Try TradingView Chart & Alerts',
+    cta: language === 'id' ? 'Coba Chart + Alert Gratis' : 'Try Chart + Free Alerts',
     demoLabel: language === 'id' ? 'Demo live — XAU/USD 15m, feed TradingView' : 'Live demo — XAU/USD 15m, TradingView feed',
   }
 
@@ -130,14 +130,17 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
         {/* ---------- CTA ---------- */}
         <div className="mt-8 text-center">
           <a
-            href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/auth/signup"
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-6 py-3 text-sm font-bold text-white transition-colors min-h-[48px]"
           >
             <Bell className="w-4 h-4" />
             {t.cta}
           </a>
+          <p className="mt-3 text-[11px] text-white/40">
+            Chart TradingView asli + alert push ke HP —{' '}
+            <span className="text-blue-300 font-semibold">hemat ±$13/bulan</span> dibanding alert
+            berbayar TradingView.
+          </p>
         </div>
       </div>
     </section>

@@ -27,8 +27,9 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { TrendingUp, Bell, ExternalLink } from 'lucide-react'
+import { TrendingUp, Bell } from 'lucide-react'
 import { TV_WIDGET_SYMBOLS } from '@/components/tradingview/TradingViewChart'
+import AlertCreatorModal from '@/components/tradingview/AlertCreatorModal'
 
 const TradingViewChartClient = dynamic(() => import('@/components/tradingview/TradingViewChart'), {
   ssr: false, // tv.js menyentuh window/document — wajib client-only
@@ -76,6 +77,7 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   const [symbol, setSymbol] = useState('XAUUSD')
   const [tf, setTf] = useState('15m')
   const [hydrated, setHydrated] = useState(false)
+  const [alertOpen, setAlertOpen] = useState(false)
 
   /* Pulihkan pilihan terakhir user (tanpa hydration mismatch: state
      default server = XAUUSD/15m, pembacaan localStorage di mount) */
@@ -117,18 +119,18 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
           </p>
         </div>
 
-        {/* Tombol alert — pengganti Pine alert (langsung di TradingView) */}
-        <a
-          href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(activeTvSymbol)}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* Tombol alert — MESIN ALERT LUXTRADEE (Bos: solusi murah utk
+            pengguna TradingView yang bayar Essential ±$13/bln cuma buat
+            alert). Pasang level → cron 15-menit cek → push ke HP. */}
+        <button
+          type="button"
+          onClick={() => setAlertOpen(true)}
           className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-purple-500/20 border border-purple-400/30 px-4 py-2.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/30 hover:text-purple-100 transition-colors min-h-[44px]"
-          title="Buat alert crossing/level/indikator langsung di chart TradingView"
+          title="Pasang alert level harga — notifikasi push ke HP, tanpa langganan TradingView"
         >
           <Bell className="w-4 h-4" />
-          Buat Alert di TradingView
-          <ExternalLink className="w-3 h-3 opacity-60" />
-        </a>
+          Buat Alert
+        </button>
       </div>
 
       {/* ---------- Bar simbol & timeframe ---------- */}
@@ -189,10 +191,19 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
           Simbol lain bisa diketik langsung di kotak simbol chart.
         </p>
         <p>
-          Alert crossing/level/indikator dibuat langsung di chart TradingView (tombol jam ⏰ di toolbar chart atau tombol
-          <span className="text-purple-300 font-semibold"> Buat Alert</span> di atas).
+          Alert harga otomatis via <span className="text-purple-300 font-semibold">Buat Alert</span> —
+          server Luxtradee cek tiap 15 menit &amp; push ke HP saat level kena, tanpa langganan TradingView.
         </p>
       </div>
+
+      {/* ---------- Modal Buat Alert (mesin sendiri, GRATIS) ---------- */}
+      <AlertCreatorModal
+        open={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        symbol={symbol}
+        onSymbolChange={setSymbol}
+        symbolOptions={SYMBOL_CHIPS}
+      />
     </div>
   )
 }
