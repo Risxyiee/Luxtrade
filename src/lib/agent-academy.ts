@@ -202,6 +202,101 @@ export const AGENT_CURRICULUM: Record<string, string[]> = {
   ],
 }
 
+/* ═══════════════════════ 🧠 SKILL PAKET KARPATHY (Bos 2026-11) ═══════════════════════
+ * Bos menyimpan 4 rujukan Andrej Karpathy dan menyuruhnya jadi skill karyawan:
+ *   1. github.com/karpathy/autoresearch — agen AI eksperimen otomatis semalaman:
+ *      ubah kode → latih 5 menit → cek metrik → keep-or-discard → ulangi.
+ *      Manusia TIDAK menyentuh kode; yang diiterasi adalah file instruksi (program.md).
+ *   2. gist llm-wiki — pola basis pengetahuan yang MENGUMPAL: LLM tidak sekadar
+ *      RAG (mengulang mencari tiap pertanyaan) tapi membangun & merawat wiki
+ *      markdown permanen. Tiga lapis: sumber mentah (tak boleh diubah) → wiki
+ *      (milik LLM) → skema (aturan, dikembangkan bersama). Operasi: INGEST
+ *      (baca sumber → ringkasan → perbarui halaman terkait → log), QUERY
+ *      (jawaban bagus DIFILE KEMBALI jadi halaman), LINT (kesehatan: kontradiksi,
+ *      klaim basi, halaman yatim, konsep tanpa halaman). index.md + log.md.
+ *   3. github.com/karpathy/nanoGPT — minimalisme: latih/finetune GPT cukup
+ *      beberapa file. Sedikit bagian bergerak = sedikit titik gagal.
+ *   4. github.com/karpathy/nanochat — pipeline LLM lengkap 1 GPU (tokenisasi →
+ *      pretraining → finetune → evaluasi → inference); "ChatGPT terbaik yang
+ *      $100 bisa beli": GPT-2 dulu $43.000 (2019) kini $48 (spot ~$15). Satu
+ *      DIAL kompleksitas (--depth) mengatur semuanya, hyperparameter lain
+ *      dihitung otomatis; speedrun leaderboard GPT-2 (metrik val_bpb/CORE).
+ *
+ * Cara pakai: topik-topik di bawah digabung ke kurikulum harian (fullCurriculum)
+ * → rotasi hash tanggal otomatis → karyawan belajar skill ini bergantian tanpa
+ * perlu diingatkan. Gaya sama dgn kurikulum inti: SATU baris konkret per topik. */
+export const KARPATHY_SKILL_PACK: Record<string, string[]> = {
+  raka: [
+    'autoresearch — loop eksperimen otomatis: ubah SATU variabel → ukur metrik objektif → keep-or-discard → ulangi; ciri eksperimen yang tidak buang waktu',
+    'autoresearch — metrik tunggal val_bpb (bits per byte, lower is better): pilih angka perbandingan yang adil antar percobaan, bebas bias arsitektur',
+    'autoresearch — "program instruksi, bukan kode": yang diiterasi manusia adalah file instruksi utk agen AI (program.md); pola delegasi org riset otomatis',
+    'nanochat — pola DIAL TUNGGAL: satu parameter (depth) menentukan seluruh konfigurasi, hyperparameter lain dihitung otomatis — minim salah setel',
+    'nanochat — pipeline penuh satu node: tokenisasi → pretraining → finetune → evaluasi → inference bisa sederhana & utuh di satu mesin',
+    'nanoGPT — minimalisme: latih GPT cukup beberapa file; makin sedikit bagian bergerak, makin sedikit titik gagal yang dirawat',
+  ],
+  dewi: [
+    'llm-wiki — pengetahuan yang menggumpal: ringkasan dibangun sekali lalu dirawat, bukan diturunkan ulang dari nol tiap pertanyaan (anti-RAG-mindset)',
+    'llm-wiki — operasi INGEST: baca sumber baru → tulis halaman ringkasan → perbarui halaman topik terkait → catat log; satu sumber menyentuh banyak halaman',
+    'llm-wiki — operasi LINT: rutin cari kontradiksi antar halaman, klaim basi, halaman yatim, konsep penting tanpa halaman — kesehatan basis pengetahuan',
+    'llm-wiki — jawaban bagus difile kembali: analisis yang sudah dibuat tidak boleh hilang di riwayat chat, simpan jadi halaman wiki baru',
+    'nanochat — satu metrik utama per eksperimen (val_bpb): angka kunci yang sama dipakai membandingkan semua run secara adil',
+    'autoresearch — eksperimen kecil tiap malam: banyak putaran kecil dengan keep-or-discard lebih cepat maju daripada satu analisis besar yang jarang',
+  ],
+  alexander: [
+    'autoresearch — desain ORG RISET: instruksi untuk agen AI diiterasi seperti kode; program.md adalah produk utama, bukan pelengkap',
+    'autoresearch — keputusan keep-or-discard berbasis metrik objektif semalaman, bukan perasaan atau rapat panjang',
+    'llm-wiki — SCHEMA = disiplin: dokumen aturan yang mengubah agen generik jadi penjaga pengetahuan yang disiplin; ikut dikembangkan seiring waktu',
+    'llm-wiki — pemisahan tiga lapis: sumber mentah tak boleh diutak-atik, wiki milik agen, skema milik bersama — tanggung jawab jelas',
+    'nanochat — kepemimpinan dial tunggal: satu kenop prioritas (mis. depth) yang menentukan arah, parameter turunannya dihitung otomatis',
+    'nanochat — pelajaran biaya $100: GPT-2 $43.000 (2019) → $48 (2026); selalu tanya "dial apa yang membuat biaya runtuh 100x"',
+  ],
+  farhan: [
+    'llm-wiki — bangun wiki riset konten: halaman per topik saling tertaut (entity pages), bukan dokumen lepas — authority mengalir antar halaman',
+    'llm-wiki — ingest disiplin satu-per-satu: baca sumber → ringkasan → perbarui halaman terkait → log; kecil tiap hari tapi menggumpal',
+    'llm-wiki — jawaban bagus jadi artikel: analisis dari percakapan/riset difile jadi halaman permanen, bukan hilang di chat',
+    'llm-wiki — lint mingguan konten: deteksi klaim basi (angka tahun lalu), halaman yatim tanpa link internal, topik panas yang belum punya halaman',
+    'nanochat — speedrun leaderboard: komunitas berlomba memangkas waktu proses; konten yang tercepat menjawab kebutuhan pencari yang menang',
+    'autoresearch — eksperimen semalaman otomatis: daftar variasi judul/hook dijalankan sistematis, yang metriknya kalah dibuang tanpa drama',
+  ],
+  sinta: [
+    'llm-wiki — wiki topik tren pasar: halaman per topik (prop firm, emas, budgeting) diperbarui tiap riset — pengetahuan pasar menumpuk lintas hari',
+    'llm-wiki — halaman entitas per kreator kompetitor: pantau pola hook per orang, bukan impresi acak yang tidak bisa disimpulkan',
+    'llm-wiki — lint sudut cerita: deteksi angle basi yang sudah terpakai sendiri/kompetitor sebelum skrip baru dibuat',
+    'llm-wiki — index.md + log.md: indeks ringkas per kategori + catatan kronologis; dua kacamata berbeda untuk navigasi pengetahuan pasar',
+    'autoresearch — loop variasi hook otomatis: eksperimen kecil tiap run dengan metrik tunggal, keep-or-discard yang menang',
+    'nanochat — gagasan speedrun: waktu ide→publikasi yang dipangkas terus adalah leaderboard yang benar untuk konten',
+  ],
+  maya: [
+    'llm-wiki — halaman entitas per segmen user: profil segmen diperbarui tiap interaksi, bukan mengingat ulang dari nol tiap email',
+    'llm-wiki — pengetahuan menggumpal: catatan win-back hari ini menjadi konteks email berikutnya — hubungan terasa lanjut, bukan reset',
+    'llm-wiki — jawaban dari percakapan difile: pertanyaan user yang sering muncul jadi halaman jawaban permanen yang dirawat',
+    'llm-wiki — lint empati: deteksi janji/klaim di template lama yang sudah kontradiktif atau tidak relevan dengan kondisi terbaru',
+    'nanochat — satu dial kepuasan per eksperimen retensi: ukur SATU hal dengan adil antar percobaan, sisanya jangan ikut diubah',
+    'autoresearch — putaran kecil konsisten: kontak kecil mingguan yang dievaluasi metriknya lebih hidup daripada kampanye besar yang jarang',
+  ],
+  bagas: [
+    'llm-wiki — halaman entri per lead hangat: setiap balasan lead diperbarui ke halamannya — konteks menjual menumpuk antar email',
+    'llm-wiki — ingest sinyal disiplin: klik/balas/buka → perbarui profil lead → catat log; tidak ada sinyal hangat yang hilang',
+    'llm-wiki — lint pipeline penjualan: deteksi lead yatim (lama tak disentuh) dan klaim penawaran basi yang kontradiktif antar email',
+    'autoresearch — keep-or-discard pada copy: A/B dgn SATU metrik (reply rate), yang kalah dibuang otomatis tanpa perdebatan selera',
+    'autoresearch — loop follow-up semalaman: antrian dijalankan sistematis oleh agen; manusia hanya meracik instruksi (program.md)',
+    'nanochat — dial tunggal biaya kampanye: satu kenop pengendali (frekuensi/segment) ditentukan, sisanya ikut otomatis — hemat & minim salah',
+  ],
+  putri: [
+    'nanochat — pelajaran biaya AI: GPT-2 $43.000 (2019) → $48 (2026), spot ~$15; anggarkan dgn asumsi biaya turun, jadi jangan kontrak mahal jangka panjang',
+    'nanochat — temukan dial biaya utama tiap layanan: satu parameter (depth) menentukan keseluruhan biaya; temukan kenop serupa di stack kita',
+    'autoresearch — budget eksperimen tetap kecil (5 menit): banyak lari murah yang dievaluasi metrik > satu lari besar mahal yang tidak jelas hasilnya',
+    'llm-wiki — wiki keputusan biaya: catatan keputusan pengeluaran jadi halaman yang dirawat & dicari, bukan hilang di riwayat chat',
+    'llm-wiki — lint keuangan: deteksi kontradiksi antar laporan dan "halaman yatim" — langganan/tool yang tak terpakai tapi tetap bayar',
+    'nanochat — leaderboard publik memicu efisiensi: metrik biaya tim dibuka antar divisi agar semua berlomba hemat',
+  ],
+}
+
+/** Kurikulum penuh = kurikulum inti + paket skill tambahan Bos (karpathy). */
+export function fullCurriculum(agentKey: string): string[] {
+  return [...(AGENT_CURRICULUM[agentKey] || []), ...(KARPATHY_SKILL_PACK[agentKey] || [])]
+}
+
 /* ═══════════════════════ ROTASI TOPIK HARIAN ═══════════════════════ */
 
 /** Hash stabil dari tanggal WIB (YYYY-MM-DD) — rotasi deterministik. */
@@ -211,9 +306,10 @@ export function academyDayIndex(dateStr: string): number {
   return h
 }
 
-/** Topik kurikulum hari ini utk agen — beda tiap hari, beda urutan tiap agen. */
+/** Topik kurikulum hari ini utk agen — beda tiap hari, beda urutan tiap agen.
+ *  Kurikulum penuh = inti + SKILL PAKET KARPATHY (fullCurriculum). */
 export function pickTodayTopic(agentKey: string, dateStr: string): { topic: string; index: number } {
-  const cur = AGENT_CURRICULUM[agentKey] || []
+  const cur = fullCurriculum(agentKey)
   if (!cur.length) return { topic: '', index: -1 }
   const index = academyDayIndex(dateStr) % cur.length
   return { topic: cur[index], index }
