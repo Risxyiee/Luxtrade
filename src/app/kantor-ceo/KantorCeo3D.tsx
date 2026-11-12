@@ -568,7 +568,11 @@ export default function KantorCeo3D() {
 
       /* ---------- arsitektur ---------- */
       const tileTex=(w,h,fn,rx,ry)=>{const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'));const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t}
-      const flat=(x,z,w,d,y,m)=>{const o=new THREE.Mesh(new THREE.PlaneGeometry(w,d),m);o.rotation.x=-PI/2;o.position.set(x,y,z);o.receiveShadow=true;scene.add(o)}
+      const flat=(x,z,w,d,y,m)=>{const o=new THREE.Mesh(new THREE.PlaneGeometry(w,d),m);o.rotation.x=-PI/2;o.position.set(x,y,z);o.receiveShadow=true;scene.add(o);return o}
+      /* FIX 12-11: flat wajib return — rug2 (renovasi 11-11) menyambung
+         .position.y = crash "Cannot read properties of undefined (reading
+         'position')" di tengah konstruksi scene → 8 karyawan tidak pernah
+         dibuat & kantor kosong (laporan Bos: "kantor ceo agent ga tampil"). */
       flat(-3.55,1,23.9,22,.003,M('#fff',{roughness:.95,map:tileTex(128,128,g=>{g.fillStyle='#d7dbe4';g.fillRect(0,0,128,128);for(let i=0;i<500;i++){g.fillStyle=`rgba(148,158,178,${rnd(.06,.12)})`;g.fillRect(rnd(0,128),rnd(0,128),2,2)}},12,11)}))
       flat(13.45,1,10.1,22,.004,M('#fff',{roughness:.25,metalness:.2,map:tileTex(128,128,g=>{g.fillStyle='#cfc6ba';g.fillRect(0,0,128,128);g.strokeStyle='#b3a894';g.lineWidth=3;g.strokeRect(0,0,128,128)},10,22)}))
       flat(13.45,3.9,10.1,8.2,.006,M('#fff',{roughness:.5,map:tileTex(128,128,g=>{for(let y=0;y<128;y+=16){g.fillStyle=`hsl(26,${rnd(40,50)}%,${rnd(58,66)}%)`;g.fillRect(0,y,128,15);g.fillStyle='#a17c50';g.fillRect(0,y+15,128,1)}},5,4)}))
