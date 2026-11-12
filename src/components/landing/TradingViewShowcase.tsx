@@ -24,7 +24,7 @@ const TradingViewChart = dynamic(() => import('@/components/tradingview/TradingV
   ssr: false, // tv.js menyentuh window — client-only
   loading: () => (
     <div className="flex items-center justify-center h-full rounded-2xl border border-white/5 bg-white/[0.02]">
-      <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
     </div>
   ),
 })
@@ -86,13 +86,13 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
     <section className="relative py-16 md:py-24 px-4 overflow-hidden" aria-labelledby="tv-showcase-title">
       {/* latar aksen halus */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[720px] h-[720px] rounded-full bg-purple-500/[0.05] blur-3xl" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[720px] h-[720px] rounded-full bg-blue-500/[0.05] blur-3xl" />
       </div>
 
       <div className="relative max-w-6xl mx-auto">
         {/* ---------- Header ---------- */}
         <div className="text-center max-w-3xl mx-auto">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/30 bg-purple-500/10 px-3 py-1 text-[11px] font-bold tracking-wider text-purple-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-[11px] font-bold tracking-wider text-blue-300">
             <TrendingUp className="w-3.5 h-3.5" />
             {t.badge}
           </span>
@@ -103,12 +103,12 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
         </div>
 
         {/* ---------- Chart demo live ---------- */}
-        <div className="mt-8 md:mt-10 rounded-2xl border border-white/10 bg-[#0b0b12] overflow-hidden shadow-2xl shadow-purple-500/5">
+        <div className="mt-8 md:mt-10 rounded-2xl border border-white/10 bg-[#0b0b12] overflow-hidden shadow-2xl shadow-blue-500/5">
           <div className="h-[420px] md:h-[520px]">
             <TradingViewChart symbol="XAUUSD" interval="15m" />
           </div>
           <div className="border-t border-white/5 px-4 py-2.5 text-[11px] text-white/40 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
             {t.demoLabel}
           </div>
         </div>
@@ -118,9 +118,9 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
           {t.bullets.map((b) => (
             <div
               key={b.title}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:border-purple-400/30 transition-colors"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:border-blue-400/30 transition-colors"
             >
-              <b.icon className="w-5 h-5 text-purple-400" />
+              <b.icon className="w-5 h-5 text-blue-400" />
               <h3 className="mt-3 font-bold text-sm">{b.title}</h3>
               <p className="mt-1.5 text-white/50 text-xs leading-relaxed">{b.desc}</p>
             </div>
@@ -133,7 +133,7 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-500 px-6 py-3 text-sm font-bold text-white transition-colors min-h-[48px]"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-6 py-3 text-sm font-bold text-white transition-colors min-h-[48px]"
           >
             <Bell className="w-4 h-4" />
             {t.cta}

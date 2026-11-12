@@ -37,12 +37,12 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
           className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden"
         >
           {/* Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/40 via-[#0a1a15] to-teal-950/40" />
-          <div className="absolute inset-0 border border-emerald-500/15 rounded-2xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-950/40 via-[#0a1018] to-sky-950/40" />
+          <div className="absolute inset-0 border border-blue-500/15 rounded-2xl" />
 
           {/* Subtle glow */}
           <motion.div
-            className="absolute -top-20 -right-20 w-56 h-56 bg-emerald-500/8 rounded-full blur-3xl"
+            className="absolute -top-20 -right-20 w-56 h-56 bg-blue-500/8 rounded-full blur-3xl"
             animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -58,7 +58,7 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
             >
               <div className="relative">
                 {/* Glow ring behind logo */}
-                <div className="absolute -inset-2 bg-emerald-500/15 rounded-2xl blur-md group-hover/logo:bg-emerald-500/25 transition-colors" />
+                <div className="absolute -inset-2 bg-blue-500/15 rounded-2xl blur-md group-hover/logo:bg-blue-500/25 transition-colors" />
                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/5 border border-white/10 p-1.5 flex items-center justify-center">
                   <Image
                     src="/primeacademyfx-logo.png"
@@ -75,8 +75,8 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
             {/* Text Content */}
             <div className="flex-1 text-center sm:text-left min-w-0">
               <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
-                <Building2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span className="text-[11px] uppercase tracking-[0.15em] text-emerald-400/90 font-bold">
+                <Building2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                <span className="text-[11px] uppercase tracking-[0.15em] text-blue-400/90 font-bold">
                   {isEn ? 'Partner ProFirm' : 'Partner ProFirm'}
                 </span>
               </div>
@@ -98,7 +98,7 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
                 href={PARTNER_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-bold text-white hover:from-emerald-400 hover:to-teal-400 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/25"
+                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-sm font-bold text-white hover:from-blue-400 hover:to-sky-400 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-blue-500/20 hover:shadow-blue-400/25"
               >
                 {isEn ? 'Visit Partner' : 'Kunjungi Partner'}
                 <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

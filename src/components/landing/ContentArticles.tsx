@@ -105,7 +105,7 @@ export default function ContentArticles({ language = 'id' }: ContentArticlesProp
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-400 text-sm font-mono">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm font-mono">
             <BookOpen className="w-3 h-3" />
             {language === 'en' ? 'LEARNING HUB' : 'PUSTA BELAJAR'}
           </span>
