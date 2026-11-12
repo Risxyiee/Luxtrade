@@ -48,6 +48,8 @@ export interface PineCandle {
 /** Hasil mentah dari pine-worker (sebelum dinormalisasi) */
 export interface PineRawRunResult {
   ok: true;
+  /** Jalur eksekusi: 'worker' = worker_threads (Node/Bun), 'inline' = fallback tanpa worker */
+  mode?: 'worker' | 'inline';
   /** alerts dari alert()/alertcondition() — urutan bar */
   alerts: {
     type: string;

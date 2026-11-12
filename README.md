@@ -288,11 +288,15 @@ dulu aspek lisensi ini (bukan nasihat hukum).
 6. **Re-run penuh per candle close** (bukan incremental), event baru ditentukan
    lewat kunci idempotensi di tabel `pine_events`. Candle berjalan tidak pernah
    memicu event.
-7. **Runtime**: eksekusi Pine butuh worker_threads (Node.js/Bun). Di Cloudflare
-   Workers edge (deploy utama) worker_threads tidak tersedia → API membalas
-   pesan jelas (`WorkerSpawnError`). Jalankan mode live/backtest di runtime
-   Node/Bun yang berbagi DB Supabase yang sama, atau trigger dari luar:
-   `curl -X POST -H "Authorization: Bearer $PINE_CRON_SECRET" <host>/api/pine/cron-live`.
+7. **Runtime**: eksekusi Pine di server butuh worker_threads (Node.js/Bun).
+   Di Cloudflare Workers edge (deploy utama) worker_threads tidak tersedia:
+   - **Backtest & chart** otomatis pindah eksekusi ke BROWSER (Web Worker
+     `browser-worker.mjs` + build browser PineTS) — plots, trade broker, dan
+     sinyal tetap tampil penuh di chart. Toast memberi tahu mode browser.
+   - **Validasi** tetap jalan di edge (statis; dry-run dilewati dengan warning).
+   - **Mode live (cron alert)** masih butuh runtime Node/Bun yang berbagi DB
+     Supabase yang sama — trigger dari luar:
+     `curl -X POST -H "Authorization: Bearer $PINE_CRON_SECRET" <host>/api/pine/cron-live`.
 8. **Batas**: source ≤ 50.000 byte, ≤ 20.000 bar, rate limit 12 run/menit &
    60 run/jam per user, timeout 5 dtk, loop guard 500k iterasi.
 9. **Sinyal bukan nasihat keuangan** — disclaimer tampil di UI.
@@ -301,7 +305,11 @@ dulu aspek lisensi ini (bukan nasihat hukum).
 
 ## License
 
-Private project. All rights reserved.
+Luxtradee dirilis di bawah **GNU Affero General Public License v3.0**
+(lihat `LICENSE`). Alasannya: proyek ini memakai [PineTS](https://github.com/LuxAlgo/PineTS)
+(LuxAlgo) yang berlisensi AGPL-3.0 / komersial — memakai versi AGPL berarti
+keseluruhan karya gabungan wajib ikut AGPL-3.0. Dependensi pihak ketiga lainnya
+mempertahankan lisensinya masing-masing. Rincian kewajiban lisensi PineTS: lihat bagian "Lisensi PineTS" di atas.
 
 ---
 

@@ -1,10 +1,10 @@
 /**
  * GET /api/pine/champion-template — sumber Pine port Champion v6
  * (file referensi parity Uji A) sebagai template awal editor user.
+ * Edge-safe: dibaca dari konstanta hasil bundling (CF Workers tanpa FS).
  */
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { CHAMPION_V6_SOURCE } from '@/lib/pine/champion-v6-source';
 import { getAuthenticatedUser } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
@@ -14,11 +14,5 @@ export async function GET(request: Request) {
   if (!auth.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  try {
-    const p = path.join(process.cwd(), 'src', 'lib', 'pine', 'champion-v6.pine');
-    const source = readFileSync(p, 'utf8');
-    return NextResponse.json({ success: true, source });
-  } catch {
-    return NextResponse.json({ error: 'Template tidak tersedia' }, { status: 404 });
-  }
+  return NextResponse.json({ success: true, source: CHAMPION_V6_SOURCE });
 }

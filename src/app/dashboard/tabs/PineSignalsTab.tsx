@@ -24,6 +24,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PineSignalsChart, { type ChartCandle, type ChartEvent, type ChartPlot } from '@/components/pine/PineSignalsChart';
+import { runPineBrowser } from '@/lib/pine/browser-runner';
+import { normalizeRunResult } from '@/lib/pine/normalize';
 
 interface PineScript {
   id: string;
@@ -257,11 +259,12 @@ export default function PineSignalsTab({
     setBtEvents([]);
     setBtCandles([]);
     setBtPlots([]);
+    setBtSummary(null);
     try {
       // candle untuk chart: satu fetch dibagi komponen (Vela feed, detik)
       const candlePromise = fetch('/api/candles?symbol=XAUUSD&interval=1h&limit=3000')
         .then((r) => r.json())
-        .then((j) => (j?.data || []) as { time: number; open: number; high: number; low: number; close: number }[])
+        .then((j) => (j?.data || []) as { time: number; open: number; high: number; low: number; close: number; volume?: number }[])
         .catch(() => []);
 
       const res = await fetch(`/api/pine/scripts/${s.id}/backtest`, {
@@ -270,31 +273,78 @@ export default function PineSignalsTab({
         body: JSON.stringify({ bars: 3000 }),
       });
       const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error || 'Backtest gagal');
-        return;
-      }
       const candlesRaw = await candlePromise;
-      const secToMs = candlesRaw.map((c) => ({
+      const candlesMs: ChartCandle[] = candlesRaw.map((c) => ({
         time: c.time < 1e12 ? c.time * 1000 : c.time,
         open: c.open,
         high: c.high,
         low: c.low,
         close: c.close,
       }));
-      setBtCandles(secToMs);
-      setBtEvents(json.events || []);
-      setBtPlots(
-        Object.entries(json.plots || {}).map(([nm, data]) => ({
+
+      let events: ChartEvent[] = json.events || [];
+      let plots: ChartPlot[] = Object.entries(json.plots || {}).map(([nm, data]) => ({
+        name: nm,
+        data: (data as { time: number; value: number | null }[]).map((d) => ({
+          time: d.time < 1e12 ? d.time * 1000 : d.time,
+          value: d.value,
+        })),
+      }));
+      let broker = json.broker as { positionSize: number; openTrades: number; closedTrades: number } | undefined;
+      let durationMs = json.durationMs as number | undefined;
+      let modeNote = '';
+
+      // Server edge tanpa worker_threads (Cloudflare) -> eksekusi penuh di browser
+      const needBrowser = (!res.ok && json.workerUnsupported) || (res.ok && json.mode === 'inline');
+      if (needBrowser) {
+        toast.message('Server edge tanpa worker_threads — mengeksekusi script di browser…');
+        const br = await runPineBrowser({
+          source: s.source,
+          candles: candlesMs.map((c) => ({ ...c, volume: 0 })),
+          symbol: s.symbol,
+          timeframe: s.timeframe.toLowerCase(),
+        });
+        if (!br.ok) {
+          toast.error(`${br.error.name}: ${br.error.message}`);
+          return;
+        }
+        events = normalizeRunResult(br, {
+          scriptId: s.id,
+          scriptName: s.name,
+          symbol: s.symbol,
+          timeframe: s.timeframe,
+          kind: br.strategy ? 'strategy' : 'indicator',
+        }) as unknown as ChartEvent[];
+        plots = Object.entries(br.plots || {}).map(([nm, data]) => ({
           name: nm,
-          data: (data as { time: number; value: number | null }[]).map((d) => ({
-            time: d.time < 1e12 ? d.time * 1000 : d.time,
+          data: data.map((d) => ({
+            time: d.time && d.time < 1e12 ? d.time * 1000 : (d.time ?? 0),
             value: d.value,
           })),
-        }))
-      );
-      setBtSummary({ broker: json.broker, durationMs: json.durationMs, barCount: json.barCount });
-      toast.success(`${(json.events || []).length} event dari ${json.barCount} candle (${json.durationMs} ms)`);
+        }));
+        broker = br.strategy
+          ? {
+              positionSize: Number(br.strategy.position_size ?? 0),
+              openTrades: br.strategy.opentrades.length,
+              closedTrades: br.strategy.closedtrades.length,
+            }
+          : undefined;
+        durationMs = br.durationMs;
+        modeNote = ' · mode browser';
+      } else if (!res.ok) {
+        toast.error(json.error || 'Backtest gagal');
+        return;
+      }
+
+      if (candlesMs.length === 0) {
+        toast.error('Data candle tidak tersedia');
+        return;
+      }
+      setBtCandles(candlesMs);
+      setBtEvents(events);
+      setBtPlots(plots);
+      setBtSummary({ broker, durationMs, barCount: json.barCount ?? candlesMs.length });
+      toast.success(`${events.length} event dari ${json.barCount ?? candlesMs.length} candle (${durationMs ?? '?'} ms)${modeNote}`);
     } catch {
       toast.error('Backtest gagal dijalankan');
     } finally {

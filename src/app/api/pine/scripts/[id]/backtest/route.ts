@@ -55,10 +55,12 @@ export async function POST(request: NextRequest, ctx: Ctx) {
       error: bt.result.ok ? undefined : `${bt.result.error.name}: ${bt.result.error.message}`,
     });
     if (!bt.result.ok) {
+      const isWorkerUnsupported = bt.result.error.name === 'WorkerSpawnError';
       return NextResponse.json(
         {
           success: false,
           error: `${bt.result.error.name}: ${bt.result.error.message}`,
+          workerUnsupported: isWorkerUnsupported,
           droppedDup: bt.droppedDup,
           droppedOrder: bt.droppedOrder,
           barCount: bt.barCount,
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     }
     return NextResponse.json({
       success: true,
+      mode: bt.result.mode ?? 'worker',
       events: bt.events,
       plots,
       barCount: bt.barCount,

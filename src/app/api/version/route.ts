@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-12.1'
-const NOTES = 'FITUR PRO PINE SIGNALS: runtime Pine Script v5/v6 di server via PineTS (pinets) — user tempel script sendiri, validasi (statis+dry-run dengan nomor baris), backtest di candle H1 yang sudah close, event standar identik champion-signal.js (Uji A PASS 13 skenario × 3000 candle: PLACE/REPLACE/CANCEL EXPIRED+OUT_OF_SESSION, meta ADX 0 selisih), sandbox worker thread (timeout 5 dtk + loop guard + tanpa jaringan; Uji B/C/D PASS), idempotensi anti alert ganda (id = scriptId:candleTime:side:event), chart Lightweight Charts v5 (addSeries/CandlestickSeries + createSeriesMarkers + pane ADX + price line entry/SL/TP), alert push/Telegram/webhook, SQL supabase/migrations/20261112_pine_signals.sql (dieksekusi manual Bos). Catatan runtime: eksekusi Pine butuh Node/Bun (worker_threads) — di CF Workers edge API memberi pesan jelas. Versi sebelumnya: 11.18 = fix kantor CEO kosong (three.js flat helper).'
+const VERSION = '2026-11-12.2'
+const NOTES = 'PINE SIGNALS EDGE-READY + LICENSE AGPL-3.0: (1) backtest & chart di Cloudflare Workers kini jalan penuh — server tanpa worker_threads otomatis meneruskan eksekusi ke BROWSER via Web Worker browser-worker.mjs (build browser PineTS: plots, trade broker, marker sinyal tetap tampil; toast memberi tahu mode browser); (2) validasi di edge tidak lagi memblokir simpan script (dry-run dilewati + warning, validasi statis tetap jalan); (3) inline fallback runPine (tanpa plots) untuk live-run di runtime tanpa worker; (4) template Champion v6 di-bundle sebagai konstanta (edge-safe, tidak lagi 404 di CF); (5) LICENSE AGPL-3.0 resmi + README License section (keputusan Bos: pakai PineTS via AGPL, repo tetap publik, bebas biaya); (6) SQL supabase/migrations/20261112_pine_signals.sql tetap dieksekusi manual Bos. Batasan: cron live alert masih butuh runner Node/Bun eksternal. Versi sebelumnya: 11.12.1 = fitur Pine Signals awal; 11.18 = fix kantor CEO kosong (three.js flat helper).'
 
 export async function GET() {
   return NextResponse.json(

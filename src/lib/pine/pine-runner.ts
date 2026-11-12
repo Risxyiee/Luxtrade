@@ -217,12 +217,26 @@ export async function runPine(opts: RunPineOptions): Promise<RunPineOutcome> {
 
   const result: PineRunResult = await runInWorker(payload, timeoutMs);
 
+  // Fallback runtime tanpa worker_threads (mis. Cloudflare Workers edge):
+  // coba jalankan inline (tanpa timeout hard, hanya loop guard). Bila inline
+  // juga gagal (modul tidak tersedia di edge), kembalikan error worker yang
+  // lebih jelas — pemanggil (backtest) akan meneruskan ke eksekusi browser.
+  let finalResult: PineRunResult = result;
+  if (!result.ok && result.error.name === 'WorkerSpawnError') {
+    const inline = await runPineInline({ ...opts, candles, skipSanitize: true });
+    if (inline.ok) {
+      finalResult = { ...inline, mode: 'inline' };
+    }
+  } else if (result.ok) {
+    finalResult = { ...result, mode: 'worker' };
+  }
+
   const kind =
-    result.ok && result.strategy ? 'strategy' : result.ok ? 'indicator' : 'unknown';
+    finalResult.ok && finalResult.strategy ? 'strategy' : finalResult.ok ? 'indicator' : 'unknown';
 
   const events =
-    result.ok
-      ? normalizeRunResult(result, {
+    finalResult.ok
+      ? normalizeRunResult(finalResult, {
           scriptId: opts.scriptId || 'pine',
           scriptName: opts.scriptName,
           symbol: opts.symbol || 'XAUUSD',
@@ -231,7 +245,7 @@ export async function runPine(opts: RunPineOptions): Promise<RunPineOutcome> {
         })
       : [];
 
-  return { result, events, droppedDup, droppedOrder, barCount: candles.length };
+  return { result: finalResult, events, droppedDup, droppedOrder, barCount: candles.length };
 }
 
 /**
@@ -301,26 +315,25 @@ export interface PineValidationResult {
   warnings: PineValidationIssue[];
 }
 
-let capsPromise: Promise<Record<string, string[]>> | null = null;
+let capsCache: Record<string, string[]> | null = null;
 
 /** Ambil daftar fungsi yang didukung PineTS per namespace (diprobe sekali). */
-export function getCapabilities(): Promise<Record<string, string[]>> {
-  if (capsPromise) return capsPromise;
-  capsPromise = (async () => {
-    try {
-      const outcome = await runPine({
-        source: `//@version=6\nindicator("caps")\nplot(1)\n`,
-        candles: [1, 2, 3].map((i) => ({ time: 1731384000000 + i * 3_600_000, open: 2000, high: 2001, low: 1999, close: 2000 })),
-        skipSanitize: true,
-        timeoutMs: 4_000,
-      });
-      if (outcome.result.ok && outcome.result.capabilities) {
-        return outcome.result.capabilities;
-      }
-    } catch { /* ignore */ }
-    return {};
-  })();
-  return capsPromise;
+export async function getCapabilities(): Promise<Record<string, string[]>> {
+  // hanya sukses yang di-cache — runtime tanpa worker (edge) mencoba lagi tiap validasi
+  if (capsCache) return capsCache;
+  try {
+    const outcome = await runPine({
+      source: `//@version=6\nindicator("caps")\nplot(1)\n`,
+      candles: [1, 2, 3].map((i) => ({ time: 1731384000000 + i * 3_600_000, open: 2000, high: 2001, low: 1999, close: 2000 })),
+      skipSanitize: true,
+      timeoutMs: 4_000,
+    });
+    if (outcome.result.ok && outcome.result.capabilities && Object.keys(outcome.result.capabilities).length > 0) {
+      capsCache = outcome.result.capabilities;
+      return capsCache;
+    }
+  } catch { /* ignore */ }
+  return {};
 }
 
 const SCAN_NAMESPACES = ['ta', 'math', 'str', 'array', 'input', 'strategy'];
@@ -424,6 +437,15 @@ export async function validatePineSource(source: string, opts?: { candles?: Pine
 
   if (!outcome.result.ok) {
     const e = outcome.result.error;
+    if (e.name === 'WorkerSpawnError') {
+      // Runtime tanpa worker_threads (mis. Cloudflare Workers edge): lewati
+      // dry-run, cukup validasi statis — eksekusi penuh ditangani di browser.
+      warnings.push({
+        severity: 'warning',
+        message: 'Dry-run dilewati: server edge tidak mendukung eksekusi Pine (worker_threads). Validasi statis saja — uji script lewat tombol Backtest (dieksekusi di browser).',
+      });
+      return { ok: true, errors, warnings };
+    }
     let line: number | undefined;
     let col: number | undefined;
     const m = /\bat (\d+):(\d+)/.exec(e.message);
