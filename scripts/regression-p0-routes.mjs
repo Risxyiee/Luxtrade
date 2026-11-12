@@ -98,6 +98,8 @@ const MUST_BE_GONE = [
   // auth backdoor — POST-only
   { path: '/api/auth/admin-login', methods: ['POST'] },
   { path: '/api/auth/force-confirm', methods: ['POST'] },
+  // cron pine-alerts — dihapus 0f67ea25 (diganti strategy-alerts)
+  { path: '/api/cron/pine-alerts', methods: ['GET', 'POST'] },
   // admin tanpa auth-check — POST-only
   { path: '/api/admin/simple-test', methods: ['GET'] },
   { path: '/api/admin/test-activation', methods: ['GET'] },
@@ -146,7 +148,8 @@ const MUST_REJECT_ANON = [
   { path: '/api/seed', methods: ['POST'] },
   { path: '/api/setup', methods: ['GET', 'POST'] },
   { path: '/api/setup-db', methods: ['GET', 'POST'] },
-  { path: '/api/cron/pine-alerts', methods: ['GET', 'POST'] },
+  // pine-alerts DIHAPUS di 0f67ea25 (diganti /api/cron/strategy-alerts, tanpa
+  // jalur Pine lagi) → pindah ke MUST_BE_GONE agar probe-nya mengharapkan 404.
   // execRisk: saat NODE_ENV=development TANPA CRON_SECRET, route ini lolos gate
   // dan MENJEKSEKUSI job downgrade sungguhan (bisa mengubah data user PRO).
   // Default: dilewati. Set ALLOW_EXEC_RISK=1 untuk memaksa (dengan sadar).
