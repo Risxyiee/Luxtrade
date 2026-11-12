@@ -27,8 +27,8 @@
  */
 
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
-import { TrendingUp } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { TrendingUp, Maximize2, Minimize2 } from 'lucide-react'
 import { TV_WIDGET_SYMBOLS } from '@/components/tradingview/TradingViewChart'
 
 const TradingViewChartClient = dynamic(() => import('@/components/tradingview/TradingViewChart'), {
@@ -77,6 +77,31 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   const [symbol, setSymbol] = useState('XAUUSD')
   const [tf, setTf] = useState('15m')
   const [hydrated, setHydrated] = useState(false)
+  /* MODE FOKUS (laporan Bos: "mau gambar garis di chart gabisa, kursor
+     ga fokus ke chartnya") — fullscreen chart via requestFullscreen:
+     satu klik → chart (termasuk bar simbol/TF) mengisi seluruh layar,
+     tidak ada elemen halaman lain yang bisa menangkap kursor → drawing
+     tools TradingView 100% fokus. ESC / tombol yang sama untuk keluar. */
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    try {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen()
+      } else if (shellRef.current) {
+        void shellRef.current.requestFullscreen()
+      }
+    } catch {
+      /* browser menolak fullscreen (iframe sandbox dsb.) — abaikan */
+    }
+  }, [])
 
   /* Pulihkan pilihan terakhir user (tanpa hydration mismatch: state
      default server = XAUUSD/15m, pembacaan localStorage di mount) */
@@ -117,56 +142,79 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
             Chart &amp; data feed resmi <span className="text-white/80 font-medium">TradingView</span> — indikator, drawing tools &amp; alert lengkap di dalam chart
           </p>
         </div>
+
+        {/* Mode Fokus — fullscreen chart agar gambar garis bebas gangguan
+            kursor elemen halaman lain (laporan Bos 11-11) */}
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-purple-500/20 border border-purple-400/30 px-4 py-2.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/30 hover:text-purple-100 transition-colors min-h-[44px]"
+          title={isFullscreen ? 'Keluar dari mode fokus (ESC)' : 'Mode fokus — chart penuh 1 layar, bebas gangguan untuk menggambar'}
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          {isFullscreen ? 'Keluar Fokus' : 'Mode Fokus'}
+        </button>
       </div>
 
-      {/* ---------- Bar simbol & timeframe ---------- */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold w-12 shrink-0">Simbol</span>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 [scrollbar-width:thin]">
-            {SYMBOL_CHIPS.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSymbol(c.id)}
-                aria-pressed={symbol === c.id}
-                className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors border min-h-[32px] ${
-                  symbol === c.id
-                    ? 'bg-purple-500/20 text-purple-200 border-purple-400/40'
-                    : 'bg-white/[0.03] text-white/60 border-white/10 hover:bg-white/10 hover:text-white/90'
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
+      {/* ---------- Shell: bar simbol/TF + chart (satuan fullscreen) ---------- */}
+      <div
+        ref={shellRef}
+        className="rounded-2xl border border-white/10 bg-[#07070c] p-3 space-y-3"
+        style={isFullscreen ? { height: '100vh', borderRadius: 0, overflow: 'hidden' } : undefined}
+      >
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold w-12 shrink-0">Simbol</span>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 [scrollbar-width:thin]">
+              {SYMBOL_CHIPS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSymbol(c.id)}
+                  aria-pressed={symbol === c.id}
+                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors border min-h-[32px] ${
+                    symbol === c.id
+                      ? 'bg-purple-500/20 text-purple-200 border-purple-400/40'
+                      : 'bg-white/[0.03] text-white/60 border-white/10 hover:bg-white/10 hover:text-white/90'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold w-12 shrink-0">TF</span>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 [scrollbar-width:thin]">
+              {TF_CHIPS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setTf(c.id)}
+                  aria-pressed={tf === c.id}
+                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors border min-h-[32px] ${
+                    tf === c.id
+                      ? 'bg-purple-500/20 text-purple-200 border-purple-400/40'
+                      : 'bg-white/[0.03] text-white/60 border-white/10 hover:bg-white/10 hover:text-white/90'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold w-12 shrink-0">TF</span>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 [scrollbar-width:thin]">
-            {TF_CHIPS.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setTf(c.id)}
-                aria-pressed={tf === c.id}
-                className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors border min-h-[32px] ${
-                  tf === c.id
-                    ? 'bg-purple-500/20 text-purple-200 border-purple-400/40'
-                    : 'bg-white/[0.03] text-white/60 border-white/10 hover:bg-white/10 hover:text-white/90'
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* ---------- Widget chart resmi TradingView (DIGEDEIN: 85vh) ---------- */}
-      <div className="rounded-2xl border border-white/10 bg-[#0b0b12] overflow-hidden">
-        <div className="h-[85vh] min-h-[560px]">
-          <TradingViewChartClient symbol={symbol} interval={tf} />
+        {/* ---------- Widget chart resmi TradingView (DIGEDEIN: 85vh) ----------
+            isolate + z-0: stacking context sendiri — tidak ada elemen halaman
+            (banner/overlay) yang bisa menyela di atas iframe chart.
+            select-none: drag di sekitar chart tidak ikut menyeleksi teks.
+            Mode fokus: tinggi menyesuaikan sisa layar (bar simbol/TF tetap
+            terjangkau) supaya seluruh chart terlihat tanpa scroll. */}
+        <div className="relative isolate z-0 rounded-2xl border border-white/10 bg-[#0b0b12] overflow-hidden select-none">
+          <div className={isFullscreen ? 'h-[calc(100vh-150px)]' : 'h-[85vh] min-h-[560px]'}>
+            <TradingViewChartClient symbol={symbol} interval={tf} />
+          </div>
         </div>
       </div>
 

@@ -50,7 +50,7 @@ const SCHEDULED_CODE = `
      RIWAYAT: pine-alerts (Velalab) DIHAPUS; vip-signals DIHAPUS 9 Nov;
      strategy-alerts DIHAPUS 11-11 (pine dinonaktifkan Bos sementara). */
   async scheduled(event, env, ctx) {
-    const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts']
+    const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/pine-lab']
     const HEAVY = ['/api/ceo-agent?action=tick', '/api/agent-proposals?run=sweep', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter', '/api/cron/ig-auto-post']
     const CRON_ROUTES = {
       '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],

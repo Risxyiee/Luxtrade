@@ -63,10 +63,11 @@
 // berat (seo-factory, agen sweep, pengawas) saling berebut CPU → 3 rute
 // mati "CPU time exceeded" sekaligus. Kini slot */15 dipecah 2 jalur:
 //   • JALUR CEPAT (tiap slot, ringan/kritis): econ-calendar-notify,
-//     ceo watchdog, price-alerts.
+//     ceo watchdog, price-alerts, pine-lab (Pine Lab jam-an — hanya
+//     menit 0-4 yang benar-benar run; PRIVATE feature-flag pine_lab).
 //     (RIWAYAT: strategy-alerts — alert indikator ala Pine — DIHAPUS
-//     11-11 perintah Bos: "alert pine hapus aja dulu" — Bos coba
-//     Pine sendiri dulu, fitur dinonaktifkan sementara.)
+//     11-11 perintah Bos: "alert pine hapus aja dulu" — digantikan
+//     Pine Lab privat sesuai spek revisi Bos.)
 //   • JALUR BERAT (GILIRAN — 1 rute per slot): tick, sweep proposal,
 //     prop-firm-guard, growth-sentinel, seo-factory, comment-hunter →
 //     tiap rute berat jalan tiap 90 menit (6 slot), CPU per invocation
@@ -91,7 +92,7 @@
      "alert pine hapus aja dulu".)
    JALUR BERAT tetap giliran 1 rute/slot 15-menit (hanya jalan di
    menit ke-0/15/30/45 — slotNo bucket 900_000 dipertahankan). */
-const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts']
+const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/pine-lab']
 const CRON_ROUTES: Record<string, string[]> = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
@@ -155,6 +156,7 @@ const EVERY_MIN: Record<string, number> = {
   '/api/cron/econ-calendar-notify': 15,
   '/api/ceo-agent?action=watchdog': 15,
   '/api/cron/price-alerts': 15,
+  '/api/cron/pine-lab': 60, // jendela 60 menit → siklus penuh hanya di menit 0-4
   '/api/cron/comment-hunter': 120,
 }
 const dueNow = (route: string, t: number) => {

@@ -161,6 +161,13 @@ const MUST_REJECT_ANON = [
   { path: '/api/seed', methods: ['POST'] },
   { path: '/api/setup', methods: ['GET', 'POST'] },
   { path: '/api/setup-db', methods: ['GET', 'POST'] },
+  // Pine Lab (privat, feature-flag) — anonim WAJIB ditolak 401/403.
+  // Flag check = user tanpa flag juga 403; user_id selalu difilter server.
+  { path: '/api/pine-lab/access', methods: ['GET'] },
+  { path: '/api/pine-lab/scripts', methods: ['GET', 'POST'] },
+  { path: '/api/pine-lab/scripts/test-id', methods: ['GET', 'PATCH', 'DELETE'] },
+  { path: '/api/pine-lab/scripts/test-id/run', methods: ['POST'] },
+  { path: '/api/cron/pine-lab', methods: ['GET', 'POST'] },
   // pine-alerts DIHAPUS di 0f67ea25 (diganti /api/cron/strategy-alerts, tanpa
   // jalur Pine lagi) → pindah ke MUST_BE_GONE agar probe-nya mengharapkan 404.
   // execRisk: saat NODE_ENV=development TANPA CRON_SECRET, route ini lolos gate

@@ -56,9 +56,14 @@ export default function CookieConsent() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 40 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="fixed bottom-6 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 px-4"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 px-4"
         >
-          <div className="rounded-2xl border border-blue-900/30 bg-[#080b12]/90 p-5 shadow-2xl backdrop-blur-md">
+          {/* FIX (laporan Bos: "mau gambar garis di chart gabisa, kursor ga
+              fokus"): banner ini dipasang di ROOT layout — dia ikut menutupi
+              bagian bawah chart TradingView (fixed bottom z-50) dan MENELAN
+              klik/drag area gambar. Wrapper kini pointer-events-none — hanya
+              kartu dialognya yang menangkap klik, sisa area tembus. */}
+          <div className="pointer-events-auto rounded-2xl border border-blue-900/30 bg-[#080b12]/90 p-5 shadow-2xl backdrop-blur-md">
             <div className="mb-4 flex items-start gap-3">
               <Cookie className="mt-0.5 size-5 shrink-0 text-cyan-400" />
               <p className="text-sm leading-relaxed text-gray-300">{text}</p>
