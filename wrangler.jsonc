@@ -104,15 +104,19 @@
         // 0 1 * * *  = 08:00 WIB harian  (daily-reminder + downgrade-expired-pro + ai-cs-agent + ceo briefing + AUTO-ACC)
         // 0 3 * * *  = 10:00 WIB harian  (re-engage + downgrade-expired-pro)
         // 0 3 * * 1  = Senin 10:00 WIB   (weekly-summary + ai-marketing-agent + ceo weekly report)
-        // */15 * * * = tiap 15 menit     (econ-calendar-notify + ceo watchdog 24/7)
+        // */5 * * *  = tiap 5 menit      (strategy-alerts TIAP 5 MENIT — permintaan
+        //            Bos "15 menit kelamaan"; econ/watchdog/price-alerts tetap
+        //            15 menit via EVERY_MIN di worker-entry.ts — TANPA slot baru,
+        //            ganti isi slot */15 lama, tetap 4 trigger total)
         "triggers": {
                 // SLOT MENIT DIBATALKAN (log build CF 8 Nov 06:54 — error 10072):
                 // "This account has reached the Workers Free limit of 5 cron
                 // triggers per account" → akun sudah penuh, cron * * * * *
-                // DITOLAK CF dan bikin SELURUH deploy gagal. Pemburu Komentar
-                // kembali numpang slot */15 (throttle internal 2 jam tetap
-                // bikin reaksinya tepat). Mau tick per-menit beneran → upgrade
-                // Workers Paid (Durable Objects alarms) ATAU hapus cron lain.
-                "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/15 * * * *"]
+                // DITOLAK CF dan bikin SELURUH deploy gagal. Solusi 11 Nov:
+                // slot */15 DIUBAH jadi */5 (jumlah trigger TETAP 4 — bukan
+                // nambah), tiap rute atur cadensanya sendiri via EVERY_MIN.
+                // Mau tick per-menit beneran → upgrade Workers Paid (Durable
+                // Objects alarms) ATAU hapus cron lain.
+                "crons": ["0 1 * * *", "0 3 * * *", "0 3 * * 1", "*/5 * * * *"]
         }
 }

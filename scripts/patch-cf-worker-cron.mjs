@@ -33,32 +33,43 @@ const workerPath = join(root, '.open-next', 'worker.js')
 
 const MARKER = '__LTX_CRON_SCHEDULED__'
 
-/* Handler scheduled — identik dengan worker-entry.ts (single source:
-   worker-entry.ts tetap ada; salinan ini hanya untuk jalur deploy yang
-   memakai worker generated sebagai main). */
+/* Handler scheduled — mirip worker-entry.ts (salinan utk jalur deploy
+   yang memakai worker generated sebagai main; worker-entry.ts tetap
+   sumber utama). Arsitektur slot MENIT-5: strategy-alerts tiap 5 menit,
+   rute cepat lain 15 menit (EVERY_MIN), jalur berat giliran 15-menit. */
 const SCHEDULED_CODE = `
   /* ==== ${MARKER} (injected by scripts/patch-cf-worker-cron.mjs) ====
-     Cron trigger CF → panggil route API Next.js (identik worker-entry.ts).
+     Cron trigger CF → panggil route API Next.js.
      - 0 1 harian  = 08:00 WIB (daily-reminder + downgrade + COO + CEO briefing/analyst/growth + AUTO-ACC)
      - 0 3 harian  = 10:00 WIB (re-engage + downgrade)
      - 0 3 Senin   = 10:00 WIB (weekly-summary + CEO weekly)
-     - tiap 15 menit = econ-calendar + watchdog + agent sweep + pine-alerts
-       + price-alerts + prop-firm-guard + growth-sentinel + seo-factory
-       + comment-hunter
-     RIWAYAT: vip-signals (engine EMA broadcast sinyal VIP) DIHAPUS 9 Nov
-     2026 — keputusan Bos "kita kan jurnal, bukan jualan sinyal"; sinyal
-     hanya dari Pine Script user (pine-alerts). */
+     - tiap 5 menit = strategy-alerts TIAP 5 MENIT (Bos: "15 menit kelamaan")
+       + econ-calendar/watchdog/price-alerts tetap 15 menit (EVERY_MIN)
+       + jalur berat giliran 1 rute per slot 15-menit
+     RIWAYAT: pine-alerts (Velalab) DIHAPUS; vip-signals DIHAPUS 9 Nov. */
   async scheduled(event, env, ctx) {
+    const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/strategy-alerts']
+    const HEAVY = ['/api/ceo-agent?action=tick', '/api/agent-proposals?run=sweep', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter', '/api/cron/ig-auto-post']
     const CRON_ROUTES = {
-      '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics'],
+      '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
       '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
-      '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly'],
-      '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/agent-proposals?run=sweep', '/api/cron/pine-alerts', '/api/cron/price-alerts', '/api/cron/prop-firm-guard', '/api/cron/growth-sentinel', '/api/cron/seo-factory', '/api/cron/comment-hunter'],
+      '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/ceo-agent?action=product-review'],
+      '*/5 * * * *': FAST_5MIN,
+      '*/15 * * * *': FAST_5MIN,
     }
-    const routes = CRON_ROUTES[event.cron]
-    if (!routes) { console.warn('[cron] No routes mapped for:', event.cron); return }
+    const EVERY_MIN = { '/api/cron/econ-calendar-notify': 15, '/api/ceo-agent?action=watchdog': 15, '/api/cron/price-alerts': 15, '/api/cron/comment-hunter': 120 }
+    const dueNow = (r, t) => { const n = EVERY_MIN[r]; return !n || Math.floor(t / 60000) % n < 5 }
+    const t = event.scheduledTime
+    let routes = (CRON_ROUTES[event.cron] || []).filter((r) => dueNow(r, t))
+    if (event.cron === '*/5 * * * *' || event.cron === '*/15 * * * *') {
+      if (Math.floor(t / 60000) % 15 < 5) {
+        const heavy = HEAVY[Math.floor(t / 900000) % HEAVY.length]
+        if (dueNow(heavy, t)) routes.push(heavy)
+      }
+    }
+    if (!routes.length) { console.log('[cron] Slot', event.cron, 'dilewati (belum jatuh tempo)'); return }
     const siteUrl = String(env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id').replace(/\\/+$/, '')
-    const cronSecret = env.CRON_SECRET || env.VAPID_PRIVATE_KEY || ''
+    const cronSecret = env.CRON_SECRET || env.PINE_ALERT_CRON_SECRET || ''
     console.log('[cron] Triggered:', event.cron, '→', routes.join(', '))
     for (const route of routes) {
       ctx.waitUntil((async () => {
@@ -68,13 +79,17 @@ const SCHEDULED_CODE = `
           let path = route
           if (isCeo && ceoKey) path += (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(ceoKey)
           const headers = { 'Content-Type': 'application/json' }
-          if (cronSecret) headers['Authorization'] = 'Bearer ' + cronSecret
+          if (cronSecret) { headers['Authorization'] = 'Bearer ' + cronSecret; headers['x-cron-secret'] = cronSecret }
+          const isStrategy = route.startsWith('/api/cron/strategy-alerts')
+          const isPrice = route.startsWith('/api/cron/price-alerts')
           const res = await fetch(siteUrl + path, {
             method: 'GET', headers,
-            signal: AbortSignal.timeout(isCeo ? 120000 : 30000)
+            signal: AbortSignal.timeout(isCeo ? 120000 : (isStrategy || isPrice) ? 90000 : 30000)
           })
-          if (!res.ok) console.error('[cron]', route, '→', res.status)
-          else console.log('[cron]', route, 'OK:', (await res.text()).slice(0, 200))
+          if (!res.ok) {
+            const body = await res.text().catch(() => '')
+            console.error('[cron]', route, '→', res.status, body.slice(0, 300))
+          } else console.log('[cron]', route, 'OK:', (await res.text()).slice(0, 200))
         } catch (err) {
           console.error('[cron]', route, 'error:', err && err.message ? err.message : err)
         }

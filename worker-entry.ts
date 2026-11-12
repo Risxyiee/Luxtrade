@@ -77,15 +77,26 @@
 // CATATAN slot cron: percobaan pakai slot ke-5 utk tick per-menit
 //   COMMENT HUNTER DIBATALKAN 8 Nov — CF menolak (error 10072: akun
 //   Free sudah genap 5 cron trigger per akun) dan bikin deploy gagal
-//   setelah script ter-upload. Comment Hunter kembali ke slot */15.
-const CRON_ROUTES = {
+//   setelah script ter-upload. Comment Hunter kembali ke slot menit-5.
+/* Slot MENIT-5 (Bos 11-11: "gabisa setiap 5 menit kah? 15 menit kelamaan")
+   — GANTI isi slot 15-menit lama, TANPA nambah trigger (tetap 1 slot;
+   CF Free maks 5 trigger/akun, kita cuma pakai 4). Slot kini nembak
+   tiap 5 menit dan tiap rute ATUR CADENCENYA SENDIRI via EVERY_MIN:
+     • strategy-alerts  → TIAP 5 MENIT (alert strategi Bos: tidak kelamaan)
+     • econ-calendar-notify, ceo watchdog, price-alerts → tetap 15 menit
+       (%15 < 5 — hanya slot :00/:15/:30/:45 yang due)
+     • comment-hunter → tetap 120 menit
+   JALUR BERAT tetap giliran 1 rute/slot 15-menit (hanya jalan di
+   menit ke-0/15/30/45 — slotNo bucket 900_000 dipertahankan). */
+const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/strategy-alerts']
+const CRON_ROUTES: Record<string, string[]> = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/ceo-agent?action=product-review'],
-  /* Slot 15-menit: JALUR CEPAT saja — 3 rute ringan/kritis. Rute berat pindah
-     ke HEAVY_15_ROUND_ROBIN di bawah (giliran 1 rute per slot — fix CPU
-     limit: dulu 10 rute paralel berbagi CPU satu invocation → 3 mati). */
-  '*/15 * * * *': ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/strategy-alerts'],
+  // Kunci '5-menit' dipakai wrangler baru; kunci '15-menit' disimpan sbg
+  // alias transisi (deploy lama yang masih pakai trigger 15-menit tetap jalan).
+  '*/5 * * * *': FAST_5MIN,
+  '*/15 * * * *': FAST_5MIN,
 }
 
 /* JALUR BERAT slot 15-menit — GILIRAN: tiap eksekusi hanya 1 rute dari daftar
@@ -137,14 +148,18 @@ const GROWTH_SENTINEL_TIMEOUT_MS = 90_000
 const SEO_FACTORY_TIMEOUT_MS = 60_000
 const COMMENT_HUNTER_TIMEOUT_MS = 90_000
 /* PATCH B (tambalan fase bisnis): rute yang cukup dipanggil tiap N menit —
-   tick tetap jalan tiap 15 menit, sisanya hanya dipanggil di jendela pertama
-   window N menitnya. Comment Hunter sudah punya throttle internal 2 jam,
-   jadi tidak perlu benar-benar dipanggil tiap 15 menit (hemat subrequest +
-   risiko timeout kecil). */
-const EVERY_MIN: Record<string, number> = { '/api/cron/comment-hunter': 120 }
+   WINDOW kini 5 menit (slot nembak tiap 5 menit): dueNow = menit % N < 5.
+   strategy-alerts TIDAK masuk peta → due tiap slot = tiap 5 menit
+   (permintaan Bos: 15 menit kelamaan). Rute lain jaga jadwal lama. */
+const EVERY_MIN: Record<string, number> = {
+  '/api/cron/econ-calendar-notify': 15,
+  '/api/ceo-agent?action=watchdog': 15,
+  '/api/cron/price-alerts': 15,
+  '/api/cron/comment-hunter': 120,
+}
 const dueNow = (route: string, t: number) => {
   const n = EVERY_MIN[route]
-  return !n || Math.floor(t / 60_000) % n < 15
+  return !n || Math.floor(t / 60_000) % n < 5
 }
 const ceoRoute = (route: string) => route.startsWith('/api/ceo-agent') || route.startsWith('/api/agent-proposals')
 const timeoutFor = (route: string) =>
@@ -197,14 +212,17 @@ export default {
        15 menit pertama tiap 2 jam). */
     let routes = (CRON_ROUTES[event.cron] || []).filter((r) => dueNow(r, event.scheduledTime))
 
-    /* FIX CPU LIMIT: slot 15-menit menambah TEPAT 1 rute berat bergilir per
-       slot (round-robin). Nomor slot stabil dari scheduledTime → deploy
-       ulang tidak mereset urutan. Comment-hunter tetap hormati dueNow
-       (throttle 2 jamnya sendiri). */
-    if (event.cron === '*/15 * * * *') {
-      const slotNo = Math.floor(event.scheduledTime / 900_000)
-      const heavy = HEAVY_15_ROUND_ROBIN[slotNo % HEAVY_15_ROUND_ROBIN.length]
-      if (dueNow(heavy, event.scheduledTime)) routes.push(heavy)
+    /* FIX CPU LIMIT: JALUR BERAT hanya di slot menit 0/15/30/45 (menit %15 < 5)
+       — TEPAT 1 rute berat bergilir per slot 15-menit (round-robin). Nomor
+       slot stabil dari scheduledTime → deploy ulang tidak mereset urutan.
+       Comment-hunter tetap hormati dueNow (throttle 2 jamnya sendiri). */
+    if (event.cron === '*/5 * * * *' || event.cron === '*/15 * * * *') {
+      const t = event.scheduledTime
+      if (Math.floor(t / 60_000) % 15 < 5) {
+        const slotNo = Math.floor(t / 900_000)
+        const heavy = HEAVY_15_ROUND_ROBIN[slotNo % HEAVY_15_ROUND_ROBIN.length]
+        if (dueNow(heavy, t)) routes.push(heavy)
+      }
     }
 
     if (!routes.length) {
@@ -269,8 +287,11 @@ export default {
           })
 
           if (!res.ok) {
-            console.error(`[cron] ${route} → ${res.status}`)
-            failures.push({ route, status: res.status })
+            /* Catat ISI respons di log + payload health-alert — gagal cron
+               jadi terdiagnosis (bukan cuma angka status). */
+            const body = await res.text().catch(() => '')
+            console.error(`[cron] ${route} → ${res.status} ${body.slice(0, 300)}`)
+            failures.push({ route, status: res.status, error: body.slice(0, 300) })
           } else {
             const body = await res.text()
             console.log(`[cron] ${route} OK:`, body.substring(0, 200))

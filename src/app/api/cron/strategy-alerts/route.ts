@@ -158,31 +158,72 @@ async function handle(): Promise<NextResponse> {
       return NextResponse.json({ error: 'Supabase admin tidak tersedia' }, { status: 500 })
     }
 
-    /* 1. Alert aktif (cap MAX_ALERTS — hemat DB & CPU) */
+    /* 1. Alert aktif (cap MAX_ALERTS — hemat DB & CPU). select('*')
+           kebal skema lama/baru — kolom baru dibaca defensif di bawah. */
     const { data: rows, error } = await supabase
       .from('strategy_alerts')
-      .select(
-        'id, user_id, symbol, cond_type, timeframe, rsi_period, rsi_level, ema_fast, ema_slow, body_min_pct, adx_len, adx_smooth, adx_min, fractal_len, use_fractal, sess_start, sess_end, notes, last_bar_time, trigger_count'
-      )
+      .select('*')
       .eq('active', true)
       .limit(MAX_ALERTS)
     if (error) {
-      /* Tabel belum ada (migrasi SQL 20261111 belum dijalankan via
-         Supabase SQL Editor) → LAPOR dengan tenang, jangan 500
-         (500 memicu health-alert + email admin tiap 15 menit). */
+      /* Tabel belum ada / schema cache PostgREST belum reload (migrasi
+         SQL 20261111 belum dijalankan via Supabase SQL Editor) → LAPOR
+         dengan tenang, JANGAN 500 (500 memicu health-alert + email
+         admin tiap run). PostgREST memakai PGRST205 utk tabel yang
+         tidak dikenalnya — bukan cuma 42P01. */
       const code = (error as { code?: string }).code || ''
-      if (code === '42P01' || /does not exist/i.test(error.message || '')) {
+      const msg = error.message || ''
+      if (
+        code === '42P01' || code === 'PGRST205' ||
+        /does not exist|schema cache|could not find the table/i.test(msg)
+      ) {
         return NextResponse.json({
           ok: true,
           table_missing: true,
-          note: 'Tabel strategy_alerts belum ada — jalankan supabase/migrations/20261111_strategy_alerts.sql di Supabase SQL Editor.',
+          note: 'Tabel strategy_alerts belum ada/belum terbaca — jalankan supabase/migrations/20261111_strategy_alerts.sql di Supabase SQL Editor.',
         })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: msg }, { status: 500 })
     }
-    const alerts = ((rows ?? []) as StrategyAlertRow[]).filter((r) => r.symbol && r.cond_type)
+    /* select('*') — kebal schema lama/baru: kolom breakout (body_min_pct,
+       adx_*, fractal_*, sess_*) dibaca defensif. Kalau alert MOM dibuat
+       sebelum kolomnya ada (SQL lama), alert dilewati — bukan 500. */
+    let schemaOldSkipped = 0
+    const alerts: StrategyAlertRow[] = []
+    for (const r of (rows ?? []) as Record<string, unknown>[]) {
+      const condType = String(r.cond_type || '')
+      if (!r.symbol || !condType) continue
+      const isMom = condType === 'MOM_BRK_UP' || condType === 'MOM_BRK_DN'
+      const hasBrkCols = r.body_min_pct !== undefined || r.adx_len !== undefined || r.fractal_len !== undefined
+      if (isMom && !hasBrkCols) {
+        schemaOldSkipped++
+        continue
+      }
+      alerts.push({
+        id: String(r.id),
+        user_id: String(r.user_id),
+        symbol: String(r.symbol),
+        cond_type: condType as StrategyCondType,
+        timeframe: String(r.timeframe || '15m'),
+        rsi_period: (r.rsi_period as number | null) ?? null,
+        rsi_level: r.rsi_level != null ? Number(r.rsi_level) : null,
+        ema_fast: (r.ema_fast as number | null) ?? null,
+        ema_slow: (r.ema_slow as number | null) ?? null,
+        body_min_pct: r.body_min_pct != null ? Number(r.body_min_pct) : null,
+        adx_len: (r.adx_len as number | null) ?? null,
+        adx_smooth: (r.adx_smooth as number | null) ?? null,
+        adx_min: r.adx_min != null ? Number(r.adx_min) : null,
+        fractal_len: (r.fractal_len as number | null) ?? null,
+        use_fractal: (r.use_fractal as boolean | null) ?? null,
+        sess_start: (r.sess_start as string | null) ?? null,
+        sess_end: (r.sess_end as string | null) ?? null,
+        notes: (r.notes as string | null) ?? null,
+        last_bar_time: (r.last_bar_time as number | null) ?? null,
+        trigger_count: Number(r.trigger_count) || 0,
+      })
+    }
     if (!alerts.length) {
-      return NextResponse.json({ ok: true, checked: 0, groups: 0, pushed: 0 })
+      return NextResponse.json({ ok: true, checked: 0, groups: 0, pushed: 0, schemaOldSkipped })
     }
 
     /* 2. Group per (symbol, timeframe) → 1 fetch candle per group */
@@ -273,6 +314,7 @@ async function handle(): Promise<NextResponse> {
       groups: groupMap.size,
       pushed,
       skippedDedupe,
+      schemaOldSkipped,
       details,
       elapsed_ms: Date.now() - startTime,
     })
