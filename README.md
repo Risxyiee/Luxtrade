@@ -217,6 +217,76 @@ bun run lint             # Cek code quality
 
 ---
 
+## Pine Signals (PRO) — runtime Pine Script di server
+
+User menempel Pine Script (v5/v6) miliknya, server menjalankannya pada candle
+H1 yang **sudah close**, menampilkan sinyal di chart (Lightweight Charts v5),
+dan mengirim alert (web push / Telegram / webhook). Event memakai format standar
+yang sama dengan `src/lib/signals/champion-signal.js` (engine Champion v6 — file
+referensi, tidak diubah).
+
+### Komponen
+
+| File | Peran |
+| --- | --- |
+| `src/lib/signals/champion-signal.js` | Engine Champion v6 (referensi parity, tidak diubah) |
+| `src/lib/pine/champion-v6.pine` | Port Pine v5 setia dari engine di atas |
+| `src/lib/pine/pine-runner.ts` | Sandbox worker thread + timeout + rate limit + validasi |
+| `src/lib/pine/pine-worker.mjs` | Realm eksekusi PineTS (tanpa jaringan, loop guard) |
+| `src/lib/pine/normalize.ts` | Konversi alert → event standar (idempoten) |
+| `src/lib/pine/live.ts` | Mode live per candle close + backtest |
+| `supabase/migrations/20261112_pine_signals.sql` | DDL (dieksekusi manual di Supabase SQL Editor) |
+| `scripts/pine-test-a.ts` | Uji A parity; `scripts/pine-test-bcd.ts` = Uji B/C/D |
+
+### Hasil uji penerimaan
+
+- **Uji A** — `bun scripts/pine-test-a.ts`: 13 skenario × 3000 candle H1, event
+  Pine (via pine-runner) **identik** dengan champion-signal.js: jumlah, isi
+  (entry/sl/tp/side/candleTime), urutan, termasuk `CANCEL_PENDING`
+  (EXPIRED + OUT_OF_SESSION), `REPLACE_LIMIT`, dan meta ADX/DI (0 selisih).
+- **Uji B** — infinite loop dihentikan loop-guard PineTS (±0,2 dtk); loop berat
+  dihentikan timeout hard worker (5 dtk); server tetap responsif.
+- **Uji C** — id event deterministik `${scriptId}:${candleTime}:${side}:${event}`;
+  penyisipan DB pre-select-diff → restart/retry tidak pernah alert ganda.
+- **Uji D** — candle duplikat/out-of-order dibuang di runner DAN engine.
+
+### Lisensi PineTS — WAJIB DIBACA SEBELUM RILIS BERBAYAR
+
+Paket `pinets` (PineTS, LuxAlgo) berlisensi **AGPL-3.0-only** dengan opsi
+**lisensi komersial**. Menyalurkan fitur ini sebagai bagian dari layanan web
+berbayar (SaaS) memicu kewajiban copyleft AGPL **kecuali** membeli lisensi
+komersial ke LuxAlgo (`business@luxalgo.com`). Sebelum monetisasi, selesaikan
+dulu aspek lisensi ini (bukan nasihat hukum).
+
+### Asumsi & batasan (jujur)
+
+1. **Tidak dijamin 100% sama dengan TradingView.** Kecocokan terverifikasi
+   terhadap engine JS Champion v6 (Uji A), bukan terhadap broker-emu TradingView
+   untuk script arbitrer (fitur lanjutan seperti bar magnifier, request.security
+   lintas-timeframe, calc_on_order_fills tidak didukung/diabaikan).
+2. **Model fill broker server** (hasil probe PineTS 0.13.1): order limit aktif
+   mulai bar setelah pemasangan; BUY limit terisi saat `low <= level` (harga
+   `min(open, level)`, gap-through termasuk); stop diprioritaskan di atas TP
+   bila keduanya kena di bar yang sama; re-call `strategy.entry` id sama saat
+   pending membuat order hilang di PineTS → template Champion selalu
+   `strategy.cancel` dulu sebelum entry baru.
+3. **Warm-up**: ADX Pine baru valid ±bar ke-23; engine JS mem-seed RMA dengan
+   nol sejak bar ke-14; keduanya konvergen & identik setelahnya. Produksi selalu
+   memakai window ≥ 500 bar (live: 1200) sehingga tidak relevan.
+4. **Re-run penuh per candle close** (bukan incremental), event baru ditentukan
+   lewat kunci idempotensi di tabel `pine_events`. Candle berjalan tidak pernah
+   memicu event.
+5. **Runtime**: eksekusi Pine butuh worker_threads (Node.js/Bun). Di Cloudflare
+   Workers edge (deploy utama) worker_threads tidak tersedia → API membalas
+   pesan jelas (`WorkerSpawnError`). Jalankan mode live/backtest di runtime
+   Node/Bun yang berbagi DB Supabase yang sama, atau trigger dari luar:
+   `curl -X POST -H "Authorization: Bearer $PINE_CRON_SECRET" <host>/api/pine/cron-live`.
+6. **Batas**: source ≤ 50.000 byte, ≤ 20.000 bar, rate limit 12 run/menit &
+   60 run/jam per user, timeout 5 dtk, loop guard 500k iterasi.
+7. **Sinyal bukan nasihat keuangan** — disclaimer tampil di UI.
+
+---
+
 ## License
 
 Private project. All rights reserved.

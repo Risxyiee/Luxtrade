@@ -28,6 +28,8 @@ const CommunityTab = dynamic(() => import('../tabs/CommunityTab').then(m => ({ d
 const ChartTab = dynamic(() => import('@/components/ChartTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const OnboardingTab = dynamic(() => import('../tabs/OnboardingTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const PropFirmGuardTab = dynamic(() => import('../tabs/PropFirmGuardTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+// Pine Signals (PRO) — chart lightweight-charts v5 dimuat hanya saat tab dibuka
+const PineSignalsTab = dynamic(() => import('../tabs/PineSignalsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 // P1: tab Affiliate kini ter-wire (dulu 1.115 baris yatim tanpa pemakaian)
 const AffiliateTab = dynamic(() => import('../tabs/AffiliateTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
@@ -215,6 +217,10 @@ export default function TabContent({
               onUpgrade={() => setPlanSelectionModalOpen(true)}
               language={language}
             />
+          )}
+
+          {activeTab === 'pine' && (
+            <PineSignalsTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
           )}
 
           {activeTab === 'analytics' && (

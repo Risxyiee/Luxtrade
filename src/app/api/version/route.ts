@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const VERSION = '2026-11-11.18'
-const NOTES = 'FIX KANTOR CEO KOSONG (Bos: "kantor ceo agent ga tampil eror keknya"): TypeError "Cannot read properties of undefined (reading position)" di chunk three.js — helper flat() tidak return mesh, dipakai rug2 (renovasi kantor 11-11) dgn .position.y → crash di tengah konstruksi scene → dinding/kamar/8 karyawan tidak pernah dibuat. flat kini return o. Log error test-create di CF = probe verifikasi sendiri (curl), backdoor sudah mati 405. Versi sebelumnya: 11.17 = security hardening 9 temuan audit + purge 35 route backdoor (admin-login takeover, debug env bocor, create-admin, invoice ownership, webhook Midtrans, promo, keystore).'
+const VERSION = '2026-11-12.1'
+const NOTES = 'FITUR PRO PINE SIGNALS: runtime Pine Script v5/v6 di server via PineTS (pinets) — user tempel script sendiri, validasi (statis+dry-run dengan nomor baris), backtest di candle H1 yang sudah close, event standar identik champion-signal.js (Uji A PASS 13 skenario × 3000 candle: PLACE/REPLACE/CANCEL EXPIRED+OUT_OF_SESSION, meta ADX 0 selisih), sandbox worker thread (timeout 5 dtk + loop guard + tanpa jaringan; Uji B/C/D PASS), idempotensi anti alert ganda (id = scriptId:candleTime:side:event), chart Lightweight Charts v5 (addSeries/CandlestickSeries + createSeriesMarkers + pane ADX + price line entry/SL/TP), alert push/Telegram/webhook, SQL supabase/migrations/20261112_pine_signals.sql (dieksekusi manual Bos). Catatan runtime: eksekusi Pine butuh Node/Bun (worker_threads) — di CF Workers edge API memberi pesan jelas. Versi sebelumnya: 11.18 = fix kantor CEO kosong (three.js flat helper).'
 
 export async function GET() {
   return NextResponse.json(

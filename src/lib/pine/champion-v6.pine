@@ -1,0 +1,191 @@
+//@version=5
+// ============================================================================
+//  CHAMPION XAUUSD H1 v6 — Pine Script (port setia dari champion-signal.js)
+// ============================================================================
+//  Port ini meniru 1:1 state machine engine Node.js:
+//   - indikator: ta.dmi(adxLen, adxSmooth) + fractal pivot (loop manual,
+//     kiri strict >, kanan >=) — persis _updateDmi/_updatePivots di JS
+//   - filter sinyal: body%, breakout 2 bar, fractal, DI, sesi WIB
+//   - manajemen order: (a) posisi open -> pending selesai, (b) EXPIRED,
+//     (c) OUT_OF_SESSION, (d) PLACE/REPLACE + CANCEL OPPOSITE_SIGNAL,
+//     (e) CLOSE_POSITION END_OF_SESSION (endSess)
+//  Event standar dikirim via alert() berformat JSON — normalizer di website
+//  mem-parsing JSON ini menjadi event PLACE_LIMIT/REPLACE_LIMIT/CANCEL_PENDING/
+//  CLOSE_POSITION yang identik dengan champion-signal.js.
+//
+//  CATATAN broker PineTS (hasil probe):
+//   - order limit aktif mulai bar SETELAH dipasang (Q1)
+//   - BUY limit fill saat open > level dan low <= level, harga fill = level
+//   - stop diprioritaskan di atas TP bila keduanya tersentuh di bar sama
+//   - re-call strategy.entry dengan id sama saat pending membuat order hilang,
+//     jadi replace selalu strategy.cancel() dulu lalu entry baru (R1)
+// ============================================================================
+strategy("Champion XAUUSD H1 v6", shorttitle="ChampV6", overlay=true,
+     default_qty_type=strategy.fixed, default_qty_value=7,
+     pyramiding=0, calc_on_order_fills=false, process_orders_on_close=false,
+     initial_capital=100000)
+
+// ---------------- INPUT (bisa dioverride runtime via Indicator inputs) ------
+strategyName = input.string("ChampionXAUUSD_H1_v6", "strategyName")
+symbolName   = input.string("XAUUSD", "symbol")
+tfName       = input.string("H1", "timeframe")
+
+bodyMin      = input.int(83, "bodyMin", minval=0, maxval=100)
+adxLen       = input.int(10, "adxLen", minval=1)
+adxSmooth    = input.int(14, "adxSmooth", minval=1)
+adxMin       = input.float(17.0, "adxMin", minval=0.0)
+allowLong    = input.bool(true, "allowLong")
+allowShort   = input.bool(false, "allowShort")
+
+useFractal   = input.bool(true, "useFractal")
+frLen        = input.int(3, "frLen", minval=1)
+
+retestMode   = input.string("CLOSE", "retestMode", options=["OPEN", "MID", "CLOSE"])
+retestBars   = input.int(9, "retestBars", minval=1)
+
+slUsd        = input.float(20.0, "slUsd", minval=0.01)
+tpUsd        = input.float(40.0, "tpUsd", minval=0.01)
+qtyOz        = input.float(7.0, "qtyOz", minval=0.01)
+sessionStr   = input.string("0730-2200", "session")
+utcOffsetMin = input.int(420, "utcOffsetMin")
+endSess      = input.bool(false, "endSess")
+
+// ---------------- HELPERS ----------------------------------------------------
+f_round2(x) => math.round(x * 100) / 100.0
+f_numOrNull(x) => na(x) ? "null" : str.tostring(math.round(x * 100) / 100.0)
+
+// ---------------- DMI / ADX (dipanggil top-level tiap bar) -------------------
+[diPlusV, diMinusV, adxV] = ta.dmi(adxLen, adxSmooth)
+
+// ---------------- FRAKTAL (loop manual, sama dengan _updatePivots) ----------
+// window rolling 30 candle (high & low), persis cap hist[30] di JS
+var highs = array.new_float(0)
+var lows  = array.new_float(0)
+array.push(highs, high)
+array.push(lows, low)
+if array.size(highs) > 30
+    array.shift(highs)
+    array.shift(lows)
+
+var float lastPH = na
+var float lastPL = na
+hn = array.size(highs)
+if hn >= 2 * frLen + 1
+    ci = hn - 1 - frLen
+    centerH = array.get(highs, ci)
+    centerL = array.get(lows, ci)
+    isH = true
+    isL = true
+    for i = 1 to frLen
+        leftH  = array.get(highs, ci - i)
+        rightH = array.get(highs, ci + i)
+        leftL  = array.get(lows, ci - i)
+        rightL = array.get(lows, ci + i)
+        // kiri strict lebih rendah, kanan boleh sama (sama dengan JS)
+        if not (centerH > leftH) or not (centerH >= rightH)
+            isH := false
+        if not (centerL < leftL) or not (centerL <= rightL)
+            isL := false
+    if isH
+        lastPH := centerH
+    if isL
+        lastPL := centerL
+
+// ---------------- SESI (formula sama dengan _inSession) ---------------------
+// minuteOfDay dari waktu OPEN candle (ms UTC) + offset menit, mod 1440
+mod1440(x) => ((x % 1440) + 1440) % 1440
+minuteOfDay = mod1440(int(math.floor(time / 60000.0)) + utcOffsetMin)
+// parse "HHMM-HHMM"
+sessHH1 = str.tonumber(str.substring(sessionStr, 0, 2))
+sessMM1 = str.tonumber(str.substring(sessionStr, 2, 4))
+sessHH2 = str.tonumber(str.substring(sessionStr, 5, 7))
+sessMM2 = str.tonumber(str.substring(sessionStr, 7, 9))
+sessStart = int(sessHH1 * 60 + sessMM1)
+sessEnd   = int(sessHH2 * 60 + sessMM2)
+inSess = sessStart <= sessEnd ? (minuteOfDay >= sessStart and minuteOfDay < sessEnd) : (minuteOfDay >= sessStart or minuteOfDay < sessEnd)
+
+// ---------------- KONDISI SINYAL (urutan sama dengan JS) --------------------
+rng = high - low
+bodyPct = rng > 0 ? math.abs(close - open) / rng * 100.0 : 0.0
+
+brkUp = close > math.max(high[1], high[2])
+brkDn = close < math.min(low[1], low[2])
+bodyOk = bodyPct >= bodyMin
+adxOk = adxV >= adxMin          // na -> false, sama seperti adx !== null
+fracUp = not useFractal or na(lastPH) or close > lastPH
+fracDn = not useFractal or na(lastPL) or close < lastPL
+diUp = diPlusV > diMinusV
+diDn = diMinusV > diPlusV
+
+nOk = bar_index >= 2
+longSig = allowLong and nOk and close > open and brkUp and bodyOk and adxOk and diUp and fracUp and inSess
+shortSig = allowShort and nOk and close < open and brkDn and bodyOk and adxOk and diDn and fracDn and inSess
+
+// ---------------- STATE PENDING (var) ---------------------------------------
+var int   pendSide  = 0   // 1 = BUY, -1 = SELL, 0 = tidak ada
+var float pendLevel = na
+var int   pendBar   = 0
+
+posOpen = strategy.position_size != 0
+
+// ---------------- MANAJEMEN ORDER (urutan SAMA dengan engine) ---------------
+// (a) posisi kebuka -> pending selesai
+if posOpen
+    pendSide := 0
+
+// (b) kedaluwarsa
+if pendSide != 0 and (bar_index - pendBar) >= retestBars
+    alert('{"event":"CANCEL_PENDING","strategy":"' + strategyName + '","symbol":"' + symbolName + '","timeframe":"' + tfName + '","candleTime":' + str.tostring(time) + ',"reason":"EXPIRED","side":"' + (pendSide == 1 ? "BUY" : "SELL") + '","orderRef":"' + strategyName + ':' + (pendSide == 1 ? "ChampLong" : "ChampShort") + '"}', alert.freq_once_per_bar)
+    strategy.cancel(pendSide == 1 ? "ChampLong" : "ChampShort")
+    pendSide := 0
+
+// (c) keluar sesi
+if pendSide != 0 and not inSess
+    alert('{"event":"CANCEL_PENDING","strategy":"' + strategyName + '","symbol":"' + symbolName + '","timeframe":"' + tfName + '","candleTime":' + str.tostring(time) + ',"reason":"OUT_OF_SESSION","side":"' + (pendSide == 1 ? "BUY" : "SELL") + '","orderRef":"' + strategyName + ':' + (pendSide == 1 ? "ChampLong" : "ChampShort") + '"}', alert.freq_once_per_bar)
+    strategy.cancel(pendSide == 1 ? "ChampLong" : "ChampShort")
+    pendSide := 0
+
+// (d) pasang order limit retest (hanya kalau flat)
+flat = not posOpen
+sigSide = longSig ? 1 : shortSig ? -1 : 0
+if sigSide != 0 and flat
+    level = retestMode == "OPEN" ? open : retestMode == "MID" ? (open + close) / 2.0 : close
+    dir = sigSide == 1 ? 1.0 : -1.0
+    entryPrice = f_round2(level)
+    slPrice = f_round2(level - dir * slUsd)
+    tpPrice = f_round2(level + dir * tpUsd)
+    sideStr = sigSide == 1 ? "BUY" : "SELL"
+    idStr = strategyName + ":" + str.tostring(time) + ":" + sideStr
+    orderRef = strategyName + ":" + (sigSide == 1 ? "ChampLong" : "ChampShort")
+    // kalau ada pending arah lawan -> batalkan dulu
+    if pendSide != 0 and pendSide != sigSide
+        alert('{"event":"CANCEL_PENDING","strategy":"' + strategyName + '","symbol":"' + symbolName + '","timeframe":"' + tfName + '","candleTime":' + str.tostring(time) + ',"reason":"OPPOSITE_SIGNAL","side":"' + (pendSide == 1 ? "BUY" : "SELL") + '","orderRef":"' + strategyName + ':' + (pendSide == 1 ? "ChampLong" : "ChampShort") + '"}', alert.freq_once_per_bar)
+        strategy.cancel(pendSide == 1 ? "ChampLong" : "ChampShort")
+    replacing = pendSide != 0 and pendSide == sigSide
+    // simpan state pending
+    pendSide := sigSide
+    pendLevel := level
+    pendBar := bar_index
+    // event JSON lengkap (identik dengan champion-signal.js)
+    alert('{"event":"' + (replacing ? "REPLACE_LIMIT" : "PLACE_LIMIT") + '","strategy":"' + strategyName + '","symbol":"' + symbolName + '","timeframe":"' + tfName + '","candleTime":' + str.tostring(time) + ',"id":"' + idStr + '","orderRef":"' + orderRef + '","side":"' + sideStr + '","orderType":"LIMIT","entry":' + str.tostring(entryPrice) + ',"sl":' + str.tostring(slPrice) + ',"tp":' + str.tostring(tpPrice) + ',"qtyOz":' + str.tostring(qtyOz) + ',"lot":' + str.tostring(math.round(qtyOz / 100.0 * 100) / 100.0) + ',"maxBarsToFill":' + str.tostring(retestBars) + ',"meta":{"adx":' + f_numOrNull(adxV) + ',"diPlus":' + f_numOrNull(diPlusV) + ',"diMinus":' + f_numOrNull(diMinusV) + ',"bodyPct":' + f_numOrNull(bodyPct) + ',"lastFractalHigh":' + f_numOrNull(lastPH) + ',"lastFractalLow":' + f_numOrNull(lastPL) + ',"retestMode":"' + retestMode + '"}}', alert.freq_once_per_bar)
+    // order broker: PENTING — re-call entry dengan id sama saat pending membuat
+    // order hilang di PineTS (quirk, lihat probe Q2). Pola aman: cancel dulu,
+    // lalu entry baru + update bracket (terverifikasi probe R1).
+    if replacing
+        strategy.cancel(sigSide == 1 ? "ChampLong" : "ChampShort")
+    if sigSide == 1
+        strategy.entry("ChampLong", strategy.long, qty=qtyOz, limit=level)
+        strategy.exit("ChampExitLong", from_entry="ChampLong", stop=slPrice, limit=tpPrice)
+    else
+        strategy.entry("ChampShort", strategy.short, qty=qtyOz, limit=level)
+        strategy.exit("ChampExitShort", from_entry="ChampShort", stop=slPrice, limit=tpPrice)
+
+// (e) tutup paksa di akhir sesi
+if endSess and not inSess and posOpen
+    alert('{"event":"CLOSE_POSITION","strategy":"' + strategyName + '","symbol":"' + symbolName + '","timeframe":"' + tfName + '","candleTime":' + str.tostring(time) + ',"reason":"END_OF_SESSION"}', alert.freq_once_per_bar)
+    strategy.close_all(comment="END_OF_SESSION")
+
+// ---------------- PLOT (untuk pane indikator di website) --------------------
+plot(adxV, "ADX", color=color.orange)
+plot(diPlusV, "DI+", color=color.teal)
+plot(diMinusV, "DI-", color=color.maroon)

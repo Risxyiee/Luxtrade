@@ -4,7 +4,7 @@ import {
   BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Lock, Users, CreditCard, CandlestickChart,
-  Rocket, Shield, Gift
+  Rocket, Shield, Gift, Zap
 } from 'lucide-react'
 
 const menuCategories: Record<string, { label: string; proType?: string }> = {
@@ -24,6 +24,7 @@ const menuItems = [
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
 
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'pasar', proOnly: false },
+  { id: 'pine', label: 'Pine Signals', labelId: 'Pine Signals', icon: Zap, category: 'pasar', proOnly: true, proType: 'cyan' },
   { id: 'chart', label: 'Live Chart', labelId: 'Chart Live', icon: CandlestickChart, category: 'pasar', proOnly: false },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'pasar', proOnly: false },
   { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'pasar', proOnly: false },
