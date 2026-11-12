@@ -58,6 +58,9 @@ interface StrategyItem {
   rsi_level: number | null
   ema_fast: number | null
   ema_slow: number | null
+  body_min_pct: number | null
+  adx_min: number | null
+  fractal_len: number | null
   notes: string | null
   active: boolean
   trigger_count: number
@@ -76,11 +79,13 @@ const COND_OPTIONS = [
   { value: 'PRICE_X_EMA_BELOW', label: 'Harga tembus EMA ke bawah' },
   { value: 'MACD_CROSS_UP', label: 'MACD cross naik signal' },
   { value: 'MACD_CROSS_DOWN', label: 'MACD cross turun signal' },
+  { value: 'MOM_BRK_UP', label: 'Breakout momentum NAIK (candle kuat + ADX + fractal)' },
+  { value: 'MOM_BRK_DN', label: 'Breakout momentum TURUN (candle kuat + ADX + fractal)' },
 ] as const
 
 const TF_OPTIONS = ['5m', '15m', '30m', '1h', '2h', '4h', '1d']
 
-function strategyLabel(a: Pick<StrategyItem, 'cond_type' | 'rsi_period' | 'rsi_level' | 'ema_fast' | 'ema_slow'>): string {
+function strategyLabel(a: Pick<StrategyItem, 'cond_type' | 'rsi_period' | 'rsi_level' | 'ema_fast' | 'ema_slow' | 'body_min_pct' | 'adx_min' | 'fractal_len'>): string {
   switch (a.cond_type) {
     case 'RSI_ABOVE': return `RSI${a.rsi_period || 14} > ${a.rsi_level}`
     case 'RSI_BELOW': return `RSI${a.rsi_period || 14} < ${a.rsi_level}`
@@ -90,6 +95,8 @@ function strategyLabel(a: Pick<StrategyItem, 'cond_type' | 'rsi_period' | 'rsi_l
     case 'PRICE_X_EMA_BELOW': return `Harga cross↓ EMA${a.ema_slow || 21}`
     case 'MACD_CROSS_UP': return 'MACD cross↑ signal'
     case 'MACD_CROSS_DOWN': return 'MACD cross↓ signal'
+    case 'MOM_BRK_UP': return `Breakout NAIK (body ${a.body_min_pct ?? 0}% · ADX ${a.adx_min ?? 0}${a.fractal_len ? ` · frak ${a.fractal_len}` : ''})`
+    case 'MOM_BRK_DN': return `Breakout TURUN (body ${a.body_min_pct ?? 0}% · ADX ${a.adx_min ?? 0}${a.fractal_len ? ` · frak ${a.fractal_len}` : ''})`
     default: return a.cond_type
   }
 }
@@ -126,6 +133,14 @@ export default function AlertCreatorModal({
   const [rsiLevel, setRsiLevel] = useState('30')
   const [emaFast, setEmaFast] = useState('9')
   const [emaSlow, setEmaSlow] = useState('21')
+  // Breakout momentum
+  const [bodyMin, setBodyMin] = useState('83')
+  const [adxLen, setAdxLen] = useState('10')
+  const [adxSmooth, setAdxSmooth] = useState('14')
+  const [adxMin, setAdxMin] = useState('17')
+  const [fractalLen, setFractalLen] = useState('2')
+  const [sessStart, setSessStart] = useState('07:30')
+  const [sessEnd, setSessEnd] = useState('22:00')
 
   // --- state umum ---
   const [loading, setLoading] = useState(false)
@@ -190,6 +205,7 @@ export default function AlertCreatorModal({
   const isEmaCross = condType === 'EMA_CROSS_UP' || condType === 'EMA_CROSS_DOWN'
   const isPriceXEma = condType === 'PRICE_X_EMA_ABOVE' || condType === 'PRICE_X_EMA_BELOW'
   const isMacd = condType === 'MACD_CROSS_UP' || condType === 'MACD_CROSS_DOWN'
+  const isMomBrk = condType === 'MOM_BRK_UP' || condType === 'MOM_BRK_DN'
 
   function resetForm() {
     setTarget('')
@@ -288,6 +304,14 @@ export default function AlertCreatorModal({
         }
       } else if (isPriceXEma) {
         payload.ema_slow = parseInt(emaSlow) || 21
+      } else if (isMomBrk) {
+        payload.body_min_pct = parseFloat(bodyMin.replace(',', '.')) || 0
+        payload.adx_len = parseInt(adxLen) || 10
+        payload.adx_smooth = parseInt(adxSmooth) || 14
+        payload.adx_min = parseFloat(adxMin.replace(',', '.')) || 0
+        payload.fractal_len = parseInt(fractalLen) || 0
+        payload.sess_start = sessStart.trim()
+        payload.sess_end = sessEnd.trim()
       }
       if (notes.trim()) payload.notes = notes.trim()
 
@@ -637,6 +661,69 @@ export default function AlertCreatorModal({
                   Memakai setting standar Pine <span className="font-mono text-white/80">MACD(12, 26, 9)</span> — cross
                   garis MACD melawan garis signal.
                 </p>
+              )}
+
+              {isMomBrk && (
+                <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3">
+                  <p className="text-[11px] leading-relaxed text-white/50">
+                    Sinyal saat <span className="text-white/80">candle close</span> tembus high/low 2 bar sebelumnya
+                    dengan body minimal, dikuatkan ADX + arah DI + tembus fractal — hanya di dalam sesi WIB.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="mom-body" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        Body minimal (%)
+                      </label>
+                      <input id="mom-body" inputMode="decimal" value={bodyMin}
+                        onChange={(e) => setBodyMin(e.target.value)} placeholder="83" className={inputCls} />
+                    </div>
+                    <div>
+                      <label htmlFor="mom-adxmin" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        ADX minimal
+                      </label>
+                      <input id="mom-adxmin" inputMode="decimal" value={adxMin}
+                        onChange={(e) => setAdxMin(e.target.value)} placeholder="17" className={inputCls} />
+                    </div>
+                    <div>
+                      <label htmlFor="mom-adxlen" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        ADX DI length
+                      </label>
+                      <input id="mom-adxlen" inputMode="numeric" value={adxLen}
+                        onChange={(e) => setAdxLen(e.target.value)} placeholder="10" className={inputCls} />
+                    </div>
+                    <div>
+                      <label htmlFor="mom-adxsmooth" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        ADX smoothing
+                      </label>
+                      <input id="mom-adxsmooth" inputMode="numeric" value={adxSmooth}
+                        onChange={(e) => setAdxSmooth(e.target.value)} placeholder="14" className={inputCls} />
+                    </div>
+                    <div>
+                      <label htmlFor="mom-frac" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        Fractal (0 = mati)
+                      </label>
+                      <input id="mom-frac" inputMode="numeric" value={fractalLen}
+                        onChange={(e) => setFractalLen(e.target.value)} placeholder="2" className={inputCls} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor="mom-ss" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                          Sesi mulai
+                        </label>
+                        <input id="mom-ss" value={sessStart} onChange={(e) => setSessStart(e.target.value)}
+                          placeholder="07:30" className={inputCls} />
+                      </div>
+                      <div>
+                        <label htmlFor="mom-se" className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                          Sesi selesai
+                        </label>
+                        <input id="mom-se" value={sessEnd} onChange={(e) => setSessEnd(e.target.value)}
+                          placeholder="22:00" className={inputCls} />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/30">Sesi memakai jam WIB (Asia/Jakarta).</p>
+                </div>
               )}
 
               <div>

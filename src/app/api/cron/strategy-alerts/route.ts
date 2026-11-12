@@ -5,6 +5,7 @@ import { getSelfFetch } from '@/lib/cloudflare-bindings'
 import { isXauMarketOpen } from '@/lib/market-hours'
 import {
   evaluateStrategy,
+  evalMomentumBreakout,
   condLabel,
   type StrategyCondType,
 } from '@/lib/market/indicators'
@@ -86,6 +87,14 @@ interface StrategyAlertRow {
   rsi_level: number | null
   ema_fast: number | null
   ema_slow: number | null
+  body_min_pct: number | null
+  adx_len: number | null
+  adx_smooth: number | null
+  adx_min: number | null
+  fractal_len: number | null
+  use_fractal: boolean | null
+  sess_start: string | null
+  sess_end: string | null
   notes: string | null
   last_bar_time: number | null
   trigger_count: number
@@ -93,6 +102,9 @@ interface StrategyAlertRow {
 
 interface OhlcvBar {
   time: number
+  open: number
+  high: number
+  low: number
   close: number
 }
 
@@ -111,7 +123,14 @@ async function fetchCandles(symbol: string, timeframe: string): Promise<OhlcvBar
     for (const b of bars) {
       const t = Number(b?.time)
       const c = Number(b?.close)
-      if (Number.isFinite(t) && Number.isFinite(c) && c > 0) clean.push({ time: t, close: c })
+      if (!(Number.isFinite(t) && Number.isFinite(c) && c > 0)) continue
+      clean.push({
+        time: t,
+        close: c,
+        open: Number(b?.open),
+        high: Number(b?.high),
+        low: Number(b?.low),
+      })
     }
     return clean.length ? clean : null
   } catch {
@@ -143,7 +162,7 @@ async function handle(): Promise<NextResponse> {
     const { data: rows, error } = await supabase
       .from('strategy_alerts')
       .select(
-        'id, user_id, symbol, cond_type, timeframe, rsi_period, rsi_level, ema_fast, ema_slow, notes, last_bar_time, trigger_count'
+        'id, user_id, symbol, cond_type, timeframe, rsi_period, rsi_level, ema_fast, ema_slow, body_min_pct, adx_len, adx_smooth, adx_min, fractal_len, use_fractal, sess_start, sess_end, notes, last_bar_time, trigger_count'
       )
       .eq('active', true)
       .limit(MAX_ALERTS)
@@ -197,8 +216,19 @@ async function handle(): Promise<NextResponse> {
           rsiLevel: a.rsi_level != null ? Number(a.rsi_level) : null,
           emaFast: a.ema_fast,
           emaSlow: a.ema_slow,
+          bodyMinPct: a.body_min_pct != null ? Number(a.body_min_pct) : null,
+          adxLen: a.adx_len,
+          adxSmooth: a.adx_smooth,
+          adxMin: a.adx_min != null ? Number(a.adx_min) : null,
+          fractalLen: a.use_fractal === false ? 0 : a.fractal_len,
+          sessStart: a.sess_start,
+          sessEnd: a.sess_end,
         }
-        const evalRes = evaluateStrategy(params, bars)
+        /* Breakout momentum = jalur evaluator khusus (butuh OHLC penuh);
+           kondisi lain cukup close. */
+        const evalRes = (a.cond_type === 'MOM_BRK_UP' || a.cond_type === 'MOM_BRK_DN')
+          ? evalMomentumBreakout(params, bars, a.cond_type === 'MOM_BRK_UP' ? 'up' : 'dn')
+          : evaluateStrategy(params, bars)
         if (!evalRes.hit) continue
 
         /* Dedupe "Once Per Bar": bar yang sama tidak push dua kali */

@@ -54,6 +54,8 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
   return Math.min(Math.max(n, min), max)
 }
 
+const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
+
 function validateBody(body: Record<string, unknown>): { error?: string; data?: Record<string, unknown> } {
   const condType = String(body.cond_type || '')
   if (!isStrategyCondType(condType)) {
@@ -81,6 +83,23 @@ function validateBody(body: Record<string, unknown>): { error?: string; data?: R
   } else if (condType === 'PRICE_X_EMA_ABOVE' || condType === 'PRICE_X_EMA_BELOW') {
     data.ema_fast = null
     data.ema_slow = clampInt(body.ema_slow, 2, 200, 21)
+  } else if (condType === 'MOM_BRK_UP' || condType === 'MOM_BRK_DN') {
+    /* Breakout momentum: body% + ADX/DMI + fractal + sesi WIB.
+       Semua parameter opsional — nilai wajar default di server. */
+    data.body_min_pct = clampInt(body.body_min_pct, 0, 100, 0)
+    data.adx_len = clampInt(body.adx_len, 1, 50, 10)
+    data.adx_smooth = clampInt(body.adx_smooth, 1, 50, 14)
+    data.adx_min = clampInt(body.adx_min, 0, 60, 0)
+    const fr = clampInt(body.fractal_len, 0, 10, 0)
+    data.fractal_len = fr
+    data.use_fractal = fr >= 1
+    const ss = String(body.sess_start || '').trim()
+    const se = String(body.sess_end || '').trim()
+    if (ss && !HHMM_RE.test(ss)) return { error: 'Sesi mulai harus format HH:MM, mis. 07:30' }
+    if (se && !HHMM_RE.test(se)) return { error: 'Sesi selesai harus format HH:MM, mis. 22:00' }
+    data.sess_start = ss || null
+    data.sess_end = se || null
+    data.tz_name = 'Asia/Jakarta'
   }
   // MACD_* : default Pine 12/26/9 — tanpa parameter
 
