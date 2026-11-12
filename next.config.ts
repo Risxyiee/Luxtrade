@@ -79,14 +79,14 @@ const nextConfig: NextConfig = {
   async headers() {
     // 'unsafe-eval' WAJIB di SEMUA environment (dev + produksi):
     //  1) Dev: React/Next runtime (Fast Refresh) memakai eval di main-app.js.
-    //  2) Produksi: fitur inti Pine Script® di VelaChartTerminal memakai
-    //     engine @luxalgo/vela-pinets yang meng-compile kode Pine user →
-    //     JS via new Function() — di browser. Tanpa 'unsafe-eval' CSP
-    //     memblokirnya → error "[c1] Refused to evaluate a string as
-    //     JavaScript" → Bos tidak bisa masang skrip di Pine editor
-    //     (bug report 6 Nov 2026, screenshot IMG_9419).
-    //     Skrip default di SISI SERVER tetap pakai runner native
-    //     (pine-default-native.ts, tanpa eval) untuk Cloudflare Workers.
+    //  2) Produksi: beberapa lib vendor (mis. chart/widget pihak ketiga)
+    //     masih memakai new Function() — membuangnya berisiko memblokir
+    //     fitur yang terlihat sehat lalu mati senyap.
+    //     (RIWAYAT: dulu dipakai engine Pine di browser — engine itu
+    //     SUDAH DIHAPUS 11-11 perintah Bos; unsafe-eval dipertahankan
+    //     untuk poin 1 & 2.)
+    //     Skrip default Pine Lab dieksekusi di SISI SERVER via Lux Engine
+    //     (src/engine/lux — clean-room, tanpa eval).
     const securityHeaders = [
       { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
       { key: 'X-Frame-Options', value: 'DENY' },

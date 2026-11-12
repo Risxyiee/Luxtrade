@@ -23,8 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { pushToUser } from '@/lib/push-notify'
-import { PINE_LAB_FLAG } from '@/lib/pine-lab/access'
-import { PINE_LAB_CONFIG } from '@/lib/pine-lab/config'
+import { PINE_LAB_CONFIG, PINE_LAB_FLAG } from '@/lib/pine-lab/config'
 import { fetchCandles, makeEventId } from '@/lib/pine-lab/runner'
 import { runLuxScript } from '@/engine/lux'
 import type { LuxCandle } from '@/engine/lux'
@@ -182,11 +181,13 @@ async function runCycle(): Promise<NextResponse> {
           script_id: script.id,
           event_id: makeEventId(script.id, ev),
         }))
-        // ignoreDuplicates + unique index (user, script, event_id):
+        // upsert + ignoreDuplicates (INSERT ... ON CONFLICT DO NOTHING) —
+        // WAJIB lewat .upsert(): .insert() tidak mendukung ignoreDuplicates.
+        // unique index (user, script, event_id) dibuat di 20261113_pine_lab_fix.sql;
         // yang balik HANYA baris benar-benar baru → itu yang dipush.
         const { data: inserted } = await admin
           .from('pine_events_sent')
-          .insert(rows, { ignoreDuplicates: true, onConflict: 'user_id,script_id,event_id' })
+          .upsert(rows, { ignoreDuplicates: true, onConflict: 'user_id,script_id,event_id' })
           .select('event_id')
         const newIds = new Set((inserted ?? []).map((r) => r.event_id))
         const fresh = events.filter((ev) => newIds.has(makeEventId(script.id, ev)))

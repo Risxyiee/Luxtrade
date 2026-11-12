@@ -4,7 +4,7 @@
  * Semua notifikasi yang HARUS tampil otomatis di layar user lewat sini:
  *   🚨 guard prop firm     (check-alerts.ts — sudah ada, tak diubah)
  *   📅 kalender ekonomi    (econ-calendar-notify — sudah ada, tak diubah)
- *   📈 sinyal VIP          (cron vip-signals → pushToUser)
+ *   🧪 Pine Lab            (cron pine-lab → pushToUser)
  *   🎯 price alert         (/api/cron/price-alerts → pushToUser)
  *   💥 big win/loss dll    (/api/notifications/send-alert → pushToUser)
  *   🌅 reminder harian     (/api/cron/daily-reminder → pushToUser)
