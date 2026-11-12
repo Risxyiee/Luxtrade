@@ -270,20 +270,32 @@ dulu aspek lisensi ini (bukan nasihat hukum).
    bila keduanya kena di bar yang sama; re-call `strategy.entry` id sama saat
    pending membuat order hilang di PineTS → template Champion selalu
    `strategy.cancel` dulu sebelum entry baru.
-3. **Warm-up**: ADX Pine baru valid ±bar ke-23; engine JS mem-seed RMA dengan
+3. **Pine asli Bos sudah diverifikasi** (`src/lib/pine/champion-v6-original.pine`,
+   file utuh tanpa diubah): lolos validasi website; pada 3000 candle — sesi
+   `time(tf, session, "Asia/Jakarta")` vs formula engine = **0 beda**; fill
+   broker PineTS vs simulator = **0 beda**; setiap bar order engine terdeteksi
+   sinyal di Pine asli. Satu-satunya beda: aturan tie fractal — `ta.pivothigh`
+   (kiri boleh sama, kanan strict) vs engine JS (kiri strict, kanan boleh sama)
+   → nilai `lastPH/lastPL` beda di 36/15.000 bar, **0 bar sinyal berubah**.
+   Script asli hanya mengirim alert teks "sinyal" (tanpa event cancel/replace)
+   dan alertnya fire di SEMUA bar sinyal (termasuk saat posisi open/pending) —
+   by design; edisi website (`champion-v6.pine`) menambahkan alert JSON agar
+   event PLACE/REPLACE/CANCEL/CLOSE lengkap, logika keputusan identik.
+4. **Warm-up
+5. **Warm-up**: ADX Pine baru valid ±bar ke-23; engine JS mem-seed RMA dengan
    nol sejak bar ke-14; keduanya konvergen & identik setelahnya. Produksi selalu
    memakai window ≥ 500 bar (live: 1200) sehingga tidak relevan.
-4. **Re-run penuh per candle close** (bukan incremental), event baru ditentukan
+6. **Re-run penuh per candle close** (bukan incremental), event baru ditentukan
    lewat kunci idempotensi di tabel `pine_events`. Candle berjalan tidak pernah
    memicu event.
-5. **Runtime**: eksekusi Pine butuh worker_threads (Node.js/Bun). Di Cloudflare
+7. **Runtime**: eksekusi Pine butuh worker_threads (Node.js/Bun). Di Cloudflare
    Workers edge (deploy utama) worker_threads tidak tersedia → API membalas
    pesan jelas (`WorkerSpawnError`). Jalankan mode live/backtest di runtime
    Node/Bun yang berbagi DB Supabase yang sama, atau trigger dari luar:
    `curl -X POST -H "Authorization: Bearer $PINE_CRON_SECRET" <host>/api/pine/cron-live`.
-6. **Batas**: source ≤ 50.000 byte, ≤ 20.000 bar, rate limit 12 run/menit &
+8. **Batas**: source ≤ 50.000 byte, ≤ 20.000 bar, rate limit 12 run/menit &
    60 run/jam per user, timeout 5 dtk, loop guard 500k iterasi.
-7. **Sinyal bukan nasihat keuangan** — disclaimer tampil di UI.
+9. **Sinyal bukan nasihat keuangan** — disclaimer tampil di UI.
 
 ---
 
