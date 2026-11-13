@@ -142,7 +142,13 @@ export function exportAllDataAsJSON(
 
 // ==================== PDF EXPORTS ====================
 
-/** Export trading report to PDF (dashboard report) */
+/** Export trading report to PDF (dashboard report).
+    FIX (laporan Bos 14-11: "weekly report hasil save ke file jelek"):
+    dulu TEMA GELAP setengah jalan — teks body putih [255,255,255] tapi
+    kertas PDF putih tanpa fill gelap → "Ringkasan Performa" & tabel
+    invisible/tidak terbaca. Sekarang tema TERANG penuh (kertas putih,
+    teks gelap, aksen emas Luxtradee) + label Bahasa Indonesia + tanggal
+    locale id-ID. */
 export async function exportToPDF(
   trades: Trade[],
   analytics: Analytics | null,
@@ -152,76 +158,75 @@ export async function exportToPDF(
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
 
-  // Header
-  doc.setFillColor(10, 6, 18)
-  doc.rect(0, 0, pageWidth, 40, 'F')
+  // Header band emas
+  doc.setFillColor(251, 191, 36)
+  doc.rect(0, 0, pageWidth, 34, 'F')
 
-  doc.setTextColor(251, 191, 36)
-  doc.setFontSize(24)
+  doc.setTextColor(30, 22, 4)
+  doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.text('LuxTradee', 14, 20)
+  doc.text('LuxTradee', 14, 15)
 
-  doc.setTextColor(148, 163, 184)
-  doc.setFontSize(10)
-  doc.text('Trading Journal Report', 14, 28)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Laporan Jurnal Trading', 14, 23)
 
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(10)
-  doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+  doc.setFontSize(9)
+  doc.setTextColor(60, 45, 10)
+  doc.text(`Dibuat: ${new Date().toLocaleDateString('id-ID', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  })}`, pageWidth - 14, 20, { align: 'right' })
-  doc.text(`Trader: ${username}`, pageWidth - 14, 28, { align: 'right' })
+  })}`, pageWidth - 14, 15, { align: 'right' })
+  doc.text(`Trader: ${username}`, pageWidth - 14, 23, { align: 'right' })
 
-  let yPos = 50
+  let yPos = 44
 
-  // Summary Section
+  // Ringkasan
   if (analytics) {
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(14)
+    doc.setTextColor(15, 23, 42)
+    doc.setFontSize(13)
     doc.setFont('helvetica', 'bold')
-    doc.text('Performance Summary', 14, yPos)
-    yPos += 10
+    doc.text('Ringkasan Performa', 14, yPos)
+    yPos += 4
 
-    // Calculate actual best win streak
     const bestWinStreak = calculateBestWinStreak(trades)
 
-    // Summary boxes
     const summaryData = [
-      ['Total Trades', analytics.totalTrades.toString()],
-      ['Win Rate', `${analytics.winRate.toFixed(1)}%`],
-      ['Total P/L', `$${analytics.totalPL.toFixed(2)}`],
-      ['Profit Factor', analytics.profitFactor.toFixed(2)],
-      ['Best Win Streak', bestWinStreak.toString()],
+      ['Jumlah Trade', analytics.totalTrades.toString()],
+      ['Rasio Menang', `${analytics.winRate.toFixed(1)}%`],
+      ['Total Laba/Rugi', `$${analytics.totalPL.toFixed(2)}`],
+      ['Faktor Profit', analytics.profitFactor.toFixed(2)],
+      ['Streak Menang Terbaik', bestWinStreak.toString()],
     ]
 
     autoTable(doc, {
-      startY: yPos,
+      startY: yPos + 4,
       head: [],
       body: summaryData,
       theme: 'plain',
       styles: {
         fontSize: 10,
-        cellPadding: 4,
-        textColor: [255, 255, 255],
+        cellPadding: 3.5,
+        textColor: [30, 41, 59],
       },
       columnStyles: {
-        0: { cellWidth: 50, fontStyle: 'bold', textColor: [148, 163, 184] },
-        1: { cellWidth: 40, textColor: analytics.totalPL >= 0 ? [16, 185, 129] : [239, 68, 68] },
+        0: { cellWidth: 60, fontStyle: 'bold', textColor: [100, 116, 139] },
+        1: { cellWidth: 40, textColor: analytics.totalPL >= 0 ? [5, 150, 105] : [220, 38, 38], fontStyle: 'bold' },
       },
       margin: { left: 14 },
     })
 
-    yPos = (doc as any).lastAutoTable.finalY + 15
+    yPos = (doc as any).lastAutoTable.finalY + 12
 
-    // Session Performance
+    // Performa Sesi
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('Session Performance', 14, yPos)
-    yPos += 5
+    doc.setTextColor(15, 23, 42)
+    doc.text('Performa Sesi', 14, yPos)
+    yPos += 4
 
     autoTable(doc, {
-      startY: yPos,
-      head: [['Session', 'Trades', 'P/L', 'Win Rate']],
+      startY: yPos + 3,
+      head: [['Sesi', 'Trade', 'Laba/Rugi', 'Rasio Menang']],
       body: analytics.sessionPerformance.map(s => [
         s.session,
         s.trades.toString(),
@@ -230,30 +235,30 @@ export async function exportToPDF(
       ]),
       theme: 'striped',
       headStyles: {
-        fillColor: [139, 92, 246],
+        fillColor: [30, 41, 59],
         textColor: [255, 255, 255],
         fontStyle: 'bold'
       },
       styles: {
         fontSize: 9,
-        textColor: [255, 255, 255],
+        textColor: [30, 41, 59],
       },
-      alternateRowStyles: { fillColor: [30, 20, 50] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
       margin: { left: 14 },
     })
 
-    yPos = (doc as any).lastAutoTable.finalY + 15
+    yPos = (doc as any).lastAutoTable.finalY + 12
   }
 
-  // Trades Table
+  // Riwayat Trade (halaman baru)
   doc.addPage()
   yPos = 20
 
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(14)
+  doc.setTextColor(15, 23, 42)
+  doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
-  doc.text('Trade History', 14, yPos)
-  yPos += 5
+  doc.text('Riwayat Trade', 14, yPos)
+  yPos += 4
 
   const tradeRows = trades.slice(0, 50).map(trade => [
     trade.symbol,
@@ -262,39 +267,45 @@ export async function exportToPDF(
     trade.open_price.toFixed(trade.open_price > 100 ? 2 : 5),
     trade.close_price.toFixed(trade.close_price > 100 ? 2 : 5),
     `$${trade.profit_loss.toFixed(2)}`,
-    new Date(trade.close_time).toLocaleDateString(),
+    new Date(trade.close_time).toLocaleDateString('id-ID'),
     trade.session || '-'
   ])
 
   autoTable(doc, {
-    startY: yPos,
-    head: [['Symbol', 'Type', 'Lot', 'Entry', 'Exit', 'P/L', 'Date', 'Session']],
+    startY: yPos + 3,
+    head: [['Simbol', 'Arah', 'Lot', 'Entry', 'Exit', 'Laba/Rugi', 'Tanggal', 'Sesi']],
     body: tradeRows,
     theme: 'striped',
     headStyles: {
-      fillColor: [251, 191, 36],
-      textColor: [0, 0, 0],
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
       fontStyle: 'bold'
     },
     styles: {
       fontSize: 8,
-      textColor: [255, 255, 255],
+      textColor: [30, 41, 59],
     },
-    alternateRowStyles: { fillColor: [30, 20, 50] },
-    columnStyles: {
-      5: { textColor: trades[0]?.profit_loss >= 0 ? [16, 185, 129] : [239, 68, 68] }
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    /* Laba/rugi diwarnai per BARIS (dulu per KOLOM global — semua sel kolom
+       P/L satu warna mengikuti trade pertama). */
+    didParseCell: (data: any) => {
+      if (data.section === 'body' && data.column.index === 5) {
+        const row = data.row.raw as any[]
+        const pl = Number(String(row[5]).replace(/[^0-9.\-]/g, ''))
+        if (!isNaN(pl)) data.cell.styles.textColor = pl >= 0 ? [5, 150, 105] : [220, 38, 38]
+      }
     },
     margin: { left: 10, right: 10 },
   })
 
-  // Footer on each page
+  // Footer tiap halaman
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(148, 163, 184)
     doc.text(
-      `Page ${i} of ${pageCount} | Generated by LuxTradee Trading Journal`,
+      `Halaman ${i} dari ${pageCount} | Dibuat dengan LuxTradee — Jurnal Trading`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: 'center' }
@@ -302,7 +313,7 @@ export async function exportToPDF(
   }
 
   // Save PDF
-  doc.save(`luxtradee-report-${new Date().toISOString().split('T')[0]}.pdf`)
+  doc.save(`luxtradee-laporan-${new Date().toISOString().split('T')[0]}.pdf`)
 }
 
 /** Export journal entries to PDF using jsPDF autotable */

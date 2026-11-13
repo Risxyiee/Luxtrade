@@ -93,6 +93,34 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   const [gestureLock, setGestureLock] = useState(false)
   const lockPage = gestureLock || cssFullscreen || isFullscreen
 
+  /* AUTO-KUNCI di perangkat SENTUH (laporan Bos 14-11: "masih gabisa
+     narik garis") — dulu Kunci Geser harus dinyalakan manual, Bos tidak
+     tahu/ketemu tombolnya. Sekarang di HP/tablet kunci langsung ON begitu
+     tab chart dibuka: chart sudah mengisi ±85vh, halaman memang jarang
+     perlu di-scroll saat menggambar. Bisa dimatikan manual lewat tombol
+     yang sama. Desktop (mouse) tidak dibekukan. */
+  const autoLockTried = useRef(false)
+  useEffect(() => {
+    if (autoLockTried.current) return
+    autoLockTried.current = true
+    try {
+      const coarse = window.matchMedia?.('(pointer: coarse)')?.matches ?? false
+      const touch = 'ontouchstart' in window || (navigator.maxTouchPoints ?? 0) > 0
+      if (coarse || touch) setGestureLock(true)
+    } catch { /* diam — pakai default tidak dikunci */ }
+  }, [])
+
+  /* overscroll-behavior: contain permanen di scroller dashboard selama tab
+     chart terpasang — memutus scroll-chaining dari iframe TradingView ke
+     halaman induk (sumber "website gerak sendiri" di iOS). */
+  useEffect(() => {
+    const main = document.getElementById('main-content')
+    if (!main) return
+    const prev = main.style.overscrollBehavior ?? ''
+    main.style.overscrollBehavior = 'contain'
+    return () => { main.style.overscrollBehavior = prev }
+  }, [])
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
     document.addEventListener('fullscreenchange', onChange)
@@ -112,12 +140,22 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   /* Scroll-lock iOS: html/body overflow hidden + body position fixed dengan
      top = -scrollY → halaman BENAR-BENAR tidak bisa bergeser (overflow:hidden
      saja sering diabaikan Safari iPhone), posisi scroll dipulihkan saat
-     dilepas. Jalan selama mode fokus maupun kunci geser manual. */
+     dilepas. Jalan selama mode fokus maupun kunci geser manual.
+
+     FIX (laporan Bos 14-11: masih gabisa narik garis): dulu cuma html/body
+     yang dibekukan — padahal scroller yang sesungguhnya di dashboard ini
+     adalah <main id="main-content" class="overflow-auto">. Sentuhan yang
+     tidak dikonsumsi iframe TradingView di-chain jadi scroll ke elemen ini
+     → halaman tetap ikut bergeser. Kini main juga diberi overflow:hidden
+     + overscroll-behavior:none selama kunci aktif. */
   useEffect(() => {
     if (!lockPage || typeof document === 'undefined') return
     const html = document.documentElement
     const body = document.body
+    const main = document.getElementById('main-content')
     const prevScrollY = window.scrollY
+    const prevMainOverflow = main?.style.overflow ?? ''
+    const prevMainOverscroll = main?.style.overscrollBehavior ?? ''
     html.style.overflow = 'hidden'
     body.style.overflow = 'hidden'
     body.style.position = 'fixed'
@@ -125,6 +163,10 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
     body.style.right = '0'
     body.style.width = '100%'
     body.style.top = `-${prevScrollY}px`
+    if (main) {
+      main.style.overflow = 'hidden'
+      main.style.overscrollBehavior = 'none'
+    }
     return () => {
       html.style.overflow = ''
       body.style.overflow = ''
@@ -133,6 +175,10 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
       body.style.right = ''
       body.style.width = ''
       body.style.top = ''
+      if (main) {
+        main.style.overflow = prevMainOverflow
+        main.style.overscrollBehavior = prevMainOverscroll
+      }
       window.scrollTo(0, prevScrollY)
     }
   }, [lockPage])
@@ -332,8 +378,9 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
           Simbol lain bisa diketik langsung di kotak simbol chart.
         </p>
         <p>
-          Nggak bisa narik garis karena halaman ikut bergeser? Nyalakan <span className="text-emerald-300 font-semibold">Kunci Geser</span>{' '}
-          atau <span className="text-purple-300 font-semibold">Mode Fokus</span> — halaman dibekukan, drag fokus ke chart. Berfungsi juga di iPhone.
+          Di HP halaman otomatis <span className="text-emerald-300 font-semibold">terkunci</span> saat tab chart aktif —
+          narik garis aman, halaman tidak ikut bergeser. Matikan lewat tombol <span className="text-emerald-300 font-semibold">Kunci Geser</span> kalau mau scroll,
+          atau pakai <span className="text-purple-300 font-semibold">Mode Fokus</span> untuk chart penuh satu layar. Berfungsi juga di iPhone.
         </p>
       </div>
     </div>

@@ -261,16 +261,66 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     ['type', 'side', 'direction', 'action', 'posisi', 'tipe', 'buy/sell', 'beli/jual', 'trade'],
   )
   const lotIdx = findCol(['volume', 'lots', 'lot size', 'lot_size', 'size', 'qty'], ['volume', 'lots', 'lot', 'size', 'qty'])
-  const openPriceIdx = findPriceCol(['open price', 'open_price', 'entry price', 'entry_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'], ['entry price', 'entry_price', 'open price', 'open_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'])
   const closePriceIdx = findPriceCol(['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'exit'], ['close price', 'close_price', 'exit price', 'exit_price', 'harga keluar', 'harga exit', 'harga tutup', 'exit'])
   /* FIX: 'hasil' = PnL dlm jurnal Indonesia ("Hasil", "Hasil Trade") — dulu
      tidak dikenali → SEMUA pnl tercatat 0 (data hilang diam-diam). */
   const profitIdx = findCol(['profit', 'p/l', 'pnl', 'pl', 'net profit', 'profit/loss', 'laba', 'hasil', 'profit loss', 'hasil trade'], ['profit', 'pnl', 'p/l', 'laba', 'hasil'])
-  const openTimeIdx = findCol(['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'time', 'date', 'tanggal', 'tanggal trade', 'waktu trade', 'jam trade'], ['open time', 'open_time', 'open date', 'waktu masuk', 'waktu buka', 'tanggal', 'waktu', 'jam'])
-  const closeTimeIdx = findCol(['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'], ['close time', 'close_time', 'close date', 'exit time', 'waktu keluar', 'waktu tutup'])
-  const genericTimeIdx = openTimeIdx >= 0 ? openTimeIdx : findIncludes('time', 'date', 'tanggal', 'waktu')
   const slIdx = findCol(['sl', 's/l', 'stop loss', 'stop_loss', 'stoploss', 'stop'], ['stop loss', 'stop_loss', 'stoploss', 's/l'])
   const tpIdx = findCol(['tp', 't/p', 'take profit', 'take_profit', 'takeprofit'], ['take profit', 'take_profit', 'takeprofit', 't/p'])
+
+  /* FIX CSV EXNESS/MT5 (laporan Bos 2026-11: "ngawur nentuin urutan trade,
+     ga ada entry"): export Exness memisah tanggal & jam jadi DUA kolom
+     (OpenDateUtc + OpenTimeUtc, CloseDateUtc + CloseTimeUtc) dan kolom
+     entry cuma bernama "Price". Dulu:
+       • kolom jam "15:24:16" gagal di-parse → open_time = SEKARANG untuk
+         SEMUA baris → urutan trade ngawur di UI.
+       • kolom "Price" tak dikenali → entry tampil 0 / kosong.
+     Sekarang: pasangan kolom tanggal+jam dicari per sisi (open/close)
+     lewat header ternormalisasi, digabung "YYYY-MM-DD HH:MM[:SS]" sebelum
+     di-parse. Kolom "Price" dipakai sbg entry kalau tidak ada open/entry. */
+
+  // Kolom tanggal & jam terpisah per sisi (open/close). Normalisasi buang
+  // spasi/underscore & lowercase: "OpenDateUtc"→"opendateutc".
+  const findSplitDateTime = (side: 'open' | 'close'): { dateIdx: number; timeIdx: number } => {
+    let dateIdx = -1
+    let timeIdx = -1
+    for (let i = 0; i < normHeaders.length; i++) {
+      const h = normHeaders[i]
+      if (!h.includes(side)) continue
+      const isDate = h.includes('date') || h.includes('tgl')
+      const isTime = !isDate && (h.includes('time') || h.includes('jam'))
+      if (isDate && dateIdx < 0) dateIdx = i
+      else if (isTime && timeIdx < 0) timeIdx = i
+    }
+    return { dateIdx, timeIdx }
+  }
+  const openSplit = findSplitDateTime('open')
+  const closeSplit = findSplitDateTime('close')
+
+  // Gabung nilai kolom tanggal + jam → ISO. Tanggal wajib ada (jam doang
+  // tak cukup). Contoh: "2026-11-12" + "15:24:16" → "2026-11-12T15:24:16Z".
+  const joinDateTime = (dateVal: string | undefined, timeVal: string | undefined): string | null => {
+    const d = (dateVal ?? '').trim()
+    const t = (timeVal ?? '').trim()
+    if (!d) return null
+    return parseFlexibleDate(t ? `${d} ${t}` : d)
+  }
+
+  // Fallback waktu lama (kolom datetime tunggal) — dipakai kalau tidak ada
+  // pasangan terpisah: header generik time/date/tanggal.
+  const singleTimeIdx = findIncludes('time', 'date', 'tanggal', 'waktu', 'jam')
+
+  /* Entry price: kolom open/entry price biasa. FIX CSV EXNESS: kalau
+     tidak ada, pakai kolom "price" polos — asal bukan kolom close yang
+     sama. Dulu entry selalu 0 karena kolom Exness cuma bernama "Price". */
+  let entryPriceIdx = findPriceCol(
+    ['open price', 'open_price', 'entry price', 'entry_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'],
+    ['entry price', 'entry_price', 'open price', 'open_price', 'harga entry', 'harga masuk', 'harga buka', 'entry'],
+  )
+  if (entryPriceIdx < 0) {
+    const plainPrice = findNorm('price')
+    if (plainPrice >= 0 && plainPrice !== closePriceIdx) entryPriceIdx = plainPrice
+  }
   const notesIdx = findCol(['notes', 'note', 'reason', 'alesan entry', 'alesan', 'alasan', 'comment', 'comments', 'keterangan', 'strategy', 'setup', 'catatan'], ['alesan', 'alasan', 'reason', 'comment', 'keterangan', 'notes', 'catatan'])
   const ticketIdx = findCol(['ticket', 'ticket_number', 'order', 'position id', 'deal', 'no. order'], ['ticket', 'order', 'position'])
   /* Kolom status utk posisi terbuka: 'Open' / 'Running' / 'Aktif' / 'Live'.
@@ -287,7 +337,7 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     return OPEN_VALUE_RE.test(v) || /^(open|running)$/i.test(v)
   }
 
-  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Open: ${openPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}, OpenTime: ${genericTimeIdx}, CloseTime: ${closeTimeIdx}, SL: ${slIdx}, TP: ${tpIdx}, Notes: ${notesIdx}, Ticket: ${ticketIdx}`)
+  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Entry: ${entryPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}, OpenDate: ${openSplit.dateIdx}, OpenTime: ${openSplit.timeIdx}, CloseDate: ${closeSplit.dateIdx}, CloseTime: ${closeSplit.timeIdx}, SingleTime: ${singleTimeIdx}, SL: ${slIdx}, TP: ${tpIdx}, Notes: ${notesIdx}, Ticket: ${ticketIdx}`)
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(delimiter).map(cleanToken)
@@ -319,7 +369,7 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     const type: 'BUY' | 'SELL' = typeStr?.includes('sell') || typeStr?.includes('short') || typeStr?.includes('jual') ? 'SELL' : 'BUY'
 
     const lotSize = lotIdx >= 0 ? (parseNum(values[lotIdx]) ?? 0.01) : 0.01
-    const openPrice = openPriceIdx >= 0 ? (parseNum(values[openPriceIdx]) ?? 0) : 0
+    const openPrice = entryPriceIdx >= 0 ? (parseNum(values[entryPriceIdx]) ?? 0) : 0
     const closePrice = closePriceIdx >= 0 ? (parseNum(values[closePriceIdx]) ?? openPrice) : openPrice
     /* FIX OPEN TRADE: PnL kosong ('' / '-') ATAU kolom status berisi
        nilai open → posisi masih jalan. PnL 0 & close = open.
@@ -336,18 +386,39 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     const takeProfit = tpIdx >= 0 ? parseNum(values[tpIdx]) : null
     const ticketNumber = ticketIdx >= 0 && values[ticketIdx] ? String(values[ticketIdx]).replace(/[^0-9a-zA-Z#]/g, '') : null
 
-    let openTime = new Date().toISOString()
-    if (genericTimeIdx >= 0 && values[genericTimeIdx]) {
-      const parsed = parseFlexibleDate(values[genericTimeIdx])
+    /* Waktu open: utamakan pasangan kolom tanggal+jam terpisah (Exness)
+       → gabung baru parse. Kalau tidak ada, pakai kolom datetime tunggal.
+       FIX ngawur: kalau semua gagal di-parse, JANGAN pakai 'sekarang' —
+       itu yang bikin urutan trade acak. Biarkan kosong '' supaya UI tetap
+       bisa mengurutkan berdasarkan urutan baris (diisi mundur). */
+    let openTime = ''
+    if (openSplit.dateIdx >= 0) {
+      const parsed = joinDateTime(values[openSplit.dateIdx], values[openSplit.timeIdx])
+      if (parsed) openTime = parsed
+    }
+    if (!openTime && singleTimeIdx >= 0 && values[singleTimeIdx]) {
+      const parsed = parseFlexibleDate(values[singleTimeIdx])
       if (parsed) openTime = parsed
     }
     let closeTime = openTime
-    if (closeTimeIdx >= 0 && values[closeTimeIdx]) {
-      const parsed = parseFlexibleDate(values[closeTimeIdx])
-      if (parsed) closeTime = parsed
+    if (!isOpen) {
+      if (closeSplit.dateIdx >= 0) {
+        const parsed = joinDateTime(values[closeSplit.dateIdx], values[closeSplit.timeIdx])
+        if (parsed) closeTime = parsed
+      }
+      if (closeTime === openTime && closeSplit.dateIdx < 0 && closeSplit.timeIdx >= 0) {
+        /* Kolom jam close terpisah tanpa kolom tanggal close (jarang):
+           gabungkan dgn tanggal open. */
+        const parsed = joinDateTime(values[openSplit.dateIdx], values[closeSplit.timeIdx])
+        if (parsed && Date.parse(parsed) >= Date.parse(openTime || 0)) closeTime = parsed
+      }
     }
     // Posisi terbuka tidak punya waktu close → samakan dgn open
     if (isOpen) closeTime = openTime
+    /* Kalau openTime tetap kosong (CSV rusak total), terakhir pakai now
+       supaya record tetap valid — tapi HANYA setelah semua upaya di atas. */
+    if (!openTime) openTime = new Date().toISOString()
+    if (!closeTime) closeTime = openTime
 
     const notesRaw = notesIdx >= 0 ? values[notesIdx]?.trim() : ''
     /* Posisi terbuka: notes = sentinel '#OPEN#' (+ catatan user bila ada)

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback } from 'react'
-import { TrendingUp, TrendingDown, Download } from 'lucide-react'
+import { TrendingUp, TrendingDown } from 'lucide-react'
 
 /* Font stack sistem — dipaksa inline pada root card supaya hasil PNG
    (html-to-image) TIDAK jatuh ke font serif ketika embed font web gagal
@@ -9,6 +9,45 @@ import { TrendingUp, TrendingDown, Download } from 'lucide-react'
    sistem selalu tersedia saat SVG foreignObject dirasterisasi. */
 export const SHARE_CARD_FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+
+/* FIX LOGO KOSONG (laporan Bos 14-11: "sharecard trade juga sama masih
+   kosong logo nya"): dulu pakai <img src="/logo.png"> — html-to-image
+   sering gagal inline gambar EKSTERNAL saat merasterisasi (fetch/URL
+   blob gagal diam-diam) → kotak logo kosong di hasil PNG. Sekarang logo
+   digambar sebagai SVG INLINE di dalam DOM card — pasti ikut terklon &
+   terekspor, tanpa request network, identik antara preview & PNG. */
+function LuxLogoMark({ size = 36 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: 'block', flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="lux-logo-gold" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fbbf24" />
+          <stop offset="0.55" stopColor="#f59e0b" />
+          <stop offset="1" stopColor="#b45309" />
+        </linearGradient>
+      </defs>
+      {/* badge emas membulat */}
+      <rect x="1" y="1" width="46" height="46" rx="12" fill="url(#lux-logo-gold)" />
+      <rect x="1" y="1" width="46" height="46" rx="12" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+      {/* candlestick naik — motif trading */}
+      <rect x="10" y="26" width="5" height="12" rx="1.5" fill="rgba(255,255,255,0.92)" />
+      <rect x="12" y="22" width="1.6" height="4" fill="rgba(255,255,255,0.7)" />
+      <rect x="19" y="19" width="5" height="12" rx="1.5" fill="rgba(255,255,255,0.92)" />
+      <rect x="21" y="14" width="1.6" height="5" fill="rgba(255,255,255,0.7)" />
+      {/* panah naik */}
+      <path d="M16 21 L24 13 L29 17.5 L36 10" stroke="#0a0c12" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M31.5 9.5 H36.5 V14.5" stroke="#0a0c12" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
 
 interface PNLShareCardProps {
   symbol: string
@@ -76,14 +115,7 @@ const PNLShareCard = memo(function PNLShareCard({
       {/* Header — branding + session */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5 bg-white/[0.02]">
         <div className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            alt="LuxTradee"
-            width={36}
-            height={36}
-            className="rounded-lg object-contain"
-          />
+          <LuxLogoMark size={38} />
           <div className="leading-tight">
             <span className="text-[15px] font-bold text-white tracking-wide">LuxTradee</span>
             <div className="text-[9px] text-gray-500 uppercase tracking-[0.18em]">Jurnal Trading</div>

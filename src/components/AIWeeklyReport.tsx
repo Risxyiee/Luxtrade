@@ -197,17 +197,17 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
   // ── Key Metrics ────────────────────────────────────────────────────────
   const metrics: WeeklyReport['metrics'] = [
     {
-      label: 'Win Rate',
+      label: 'Rasio Menang',
       value: `${weekWinRate.toFixed(1)}%`,
       trend: weekWinRate >= 55 ? 'up' : weekWinRate < 45 ? 'down' : 'neutral',
     },
     {
-      label: 'Profit Factor',
+      label: 'Faktor Profit',
       value: weekProfitFactor === Infinity ? '∞' : weekProfitFactor.toFixed(2),
       trend: weekProfitFactor >= 1.5 ? 'up' : weekProfitFactor < 1 ? 'down' : 'neutral',
     },
     {
-      label: 'Total P/L',
+      label: 'Total Laba/Rugi',
       value: `${weekTotalPL >= 0 ? '+' : ''}${formatCurrency(weekTotalPL)}`,
       trend: weekTotalPL > 0 ? 'up' : weekTotalPL < 0 ? 'down' : 'neutral',
     },
@@ -222,17 +222,17 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
       trend: weekAvgLoss > weekAvgProfit ? 'down' : 'neutral',
     },
     {
-      label: 'Sharpe Ratio',
+      label: 'Rasio Sharpe',
       value: (analytics?.sharpeRatio ?? 0).toFixed(2),
       trend: (analytics?.sharpeRatio ?? 0) >= 1 ? 'up' : (analytics?.sharpeRatio ?? 0) < 0.5 ? 'down' : 'neutral',
     },
     {
-      label: 'Max Drawdown',
+      label: 'Drawdown Maksimal',
       value: `${formatCurrency(analytics?.maxDrawdown ?? 0)}`,
       trend: (analytics?.maxDrawdown ?? 0) > 500 ? 'down' : 'neutral',
     },
     {
-      label: 'Total Trade',
+      label: 'Jumlah Trade',
       value: `${weekTotal}`,
       trend: 'neutral',
     },
@@ -495,15 +495,17 @@ function reportToHtml(report: WeeklyReport): string {
   .card {
     max-width: 720px; margin: 0 auto;
     background: linear-gradient(180deg, #0d1119 0%, #0b0e17 100%);
-    border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08); border-top: 3px solid #f59e0b;
+    border-radius: 20px;
     padding: 28px 24px;
   }
-  .brand { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: .02em; }
+  .brand-row { display: flex; align-items: center; gap: 10px; }
+  .brand { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: .02em; }
   .brand span { display: block; font-size: 10px; font-weight: 600; color: #64748b; letter-spacing: .22em; text-transform: uppercase; }
-  h1 { font-size: 22px; color: #fff; margin-top: 14px; }
+  h1 { font-size: 22px; color: #fff; margin-top: 16px; }
   .period { font-size: 12px; color: #94a3b8; margin-top: 4px; }
   section { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); }
-  h2 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: #22d3ee; margin-bottom: 12px; }
+  h2 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: #fbbf24; margin-bottom: 12px; }
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   @media (max-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
   .metric { border-radius: 12px; padding: 10px 8px; text-align: center; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
@@ -527,26 +529,39 @@ function reportToHtml(report: WeeklyReport): string {
   .trade-sub { font-size: 11px; color: #64748b; margin-top: 4px; }
   .list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
   .list li { display: flex; gap: 10px; font-size: 13px; color: #cbd5e1; align-items: flex-start; }
-  .num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; background: rgba(16,185,129,0.15); color: #34d399; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
-  .box { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(56,189,248,0.5); background: rgba(56,189,248,0.08); margin-top: 2px; }
+  .num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; background: rgba(245,158,11,0.15); color: #fbbf24; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .box { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(245,158,11,0.5); background: rgba(245,158,11,0.08); margin-top: 2px; }
   footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: #64748b; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
+  .print-hint { margin-top: 8px; font-size: 10px; color: #475569; text-align: center; letter-spacing: .04em; }
   @media print {
     body { background: #fff; color: #0f172a; padding: 0; }
-    .card { background: #fff; border: none; border-radius: 0; }
+    .card { background: #fff; border: none; border-top: 3px solid #d97706; border-radius: 0; }
     h1, .brand, .trade-row b { color: #0f172a; }
     .m-value, .metric.up .m-value { color: #059669; }
     .metric.down .m-value { color: #dc2626; }
     .metric, .trade, .num, .box { background: #f8fafc; }
     .m-label, .period, .trade-sub, footer { color: #475569; }
     section { border-color: #e2e8f0; }
-    h2 { color: #0e7490; }
+    h2 { color: #b45309; }
+    .num { color: #b45309; }
+    .print-hint { display: none; }
   }
 </style>
 </head>
 <body>
   <main class="card">
     <header>
-      <div class="brand">LuxTradee <span>Jurnal Trading</span></div>
+      <div class="brand-row">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fbbf24"/><stop offset="0.55" stop-color="#f59e0b"/><stop offset="1" stop-color="#b45309"/></linearGradient></defs>
+          <rect x="1" y="1" width="46" height="46" rx="12" fill="url(#lg)"/>
+          <rect x="10" y="26" width="5" height="12" rx="1.5" fill="rgba(255,255,255,0.92)"/>
+          <rect x="19" y="19" width="5" height="12" rx="1.5" fill="rgba(255,255,255,0.92)"/>
+          <path d="M16 21 L24 13 L29 17.5 L36 10" stroke="#0a0c12" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M31.5 9.5 H36.5 V14.5" stroke="#0a0c12" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <div class="brand">LuxTradee <span>Jurnal Trading</span></div>
+      </div>
       <h1>Laporan Mingguan AI</h1>
       <p class="period">${esc(report.period)} · Dibuat ${formatTanggal(report.generatedAt)}</p>
     </header>
@@ -557,6 +572,7 @@ function reportToHtml(report: WeeklyReport): string {
     <section><h2>Rekomendasi AI</h2><ol class="list">${recs}</ol></section>
     <section><h2>Target Minggu Depan</h2><ul class="list">${goals}</ul></section>
     <footer>LuxTradee AI · luxtradee.web.id</footer>
+    <p class="print-hint">Mau simpan jadi PDF? Buka file ini di browser lalu tekan Ctrl/Cmd + P → Save as PDF.</p>
   </main>
 </body>
 </html>`

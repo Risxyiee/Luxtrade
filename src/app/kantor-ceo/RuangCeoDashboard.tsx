@@ -322,6 +322,22 @@ const OPTIONAL_ENV: Record<string, boolean> = {
 const INPUT = 'bg-white/10 border border-white/15 rounded-lg text-white placeholder-white/35 text-[11.5px] px-2 py-1.5 outline-none focus:border-white/35 transition-colors'
 const PANEL = 'bg-white/5 border border-white/10 rounded-2xl'
 
+/* ============================================================
+   TAB OVERVIEW (keluhan Bos 14-11: "daftar kerjaan dan tugas karyawan ai
+   tolong dibenerin ya layar penuh bgt terus kek berantakan susah liatnya")
+   — dulu SEMUA panel (fase + KPI + keputusan + ACC + artefak) DITUMPUK
+   dalam satu scroll panjang di sheet 50vh → layar sesak & sulit dibaca.
+   Kini: chip tab di atas, SATU panel tampil per kali.
+   ============================================================ */
+type OverviewTab = 'progres' | 'kpi' | 'keputusan' | 'acc' | 'artefak'
+const OVERVIEW_TABS: { id: OverviewTab; label: string }[] = [
+  { id: 'progres', label: 'Progres' },
+  { id: 'kpi', label: 'KPI Tim' },
+  { id: 'keputusan', label: 'Keputusan' },
+  { id: 'acc', label: 'ACC Bos' },
+  { id: 'artefak', label: 'Artefak' },
+]
+
 /* titik status kecil bercahaya */
 function Dot({ tone }: { tone: 'ok' | 'busy' | 'idle' }) {
   return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${tone === 'ok' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.8)]' : tone === 'busy' ? 'bg-amber-300 animate-pulse shadow-[0_0_8px_rgba(252,211,77,.8)]' : 'bg-white/25'}`} />
@@ -537,6 +553,8 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const [speaking, setSpeaking] = useState(false)
   /* Akordeon Tim AI: satu karyawan terbuka pada satu waktu (null = semua tertutup) */
   const [openStaff, setOpenStaff] = useState<string | null>(null)
+  /* Tab overview aktif (default: Progres — yang paling sering dicek Bos) */
+  const [overviewTab, setOverviewTab] = useState<OverviewTab>('progres')
   const dockRef = useRef<HTMLDivElement>(null)
   /* PATCH C — data fase bisnis + artefak karyawan (reload tiap sheet dibuka) */
   const { data: phaseData, loading: phaseLoading, reload: phaseReload } = usePhaseData(isSheetOpen)
@@ -715,28 +733,36 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         {/* ===== konten tengah: ringkasan (overview) atau panel ruangan ===== */}
         <div className="flex-1 min-h-0 overflow-y-auto kscroll pr-0.5">
           {room === 'overview' ? (
-            <div className={`${PANEL} p-4 flex flex-col gap-2`}>
-              <b className="text-teal-200 text-[13px]">Kantor CEO — 9 karyawan AI siap</b>
-              <div className="text-white/65 text-[11.5px] leading-relaxed">
-                Pilih karyawan di dock bawah untuk masuk ruangannya · klik karakter di kantor 3D juga bisa — kamera langsung terbang ke meja dia.
+            /* ===== OVERVIEW RAPI — tab, bukan tumpukan (keluhan Bos 14-11) ===== */
+            <div className="flex flex-col gap-2">
+              <div className="text-white/60 text-[11px] leading-snug">
+                Pilih karyawan di dock bawah — atau ketuk karakter di kantor 3D, kamera terbang ke mejanya.
+                Semua karyawan tetap kerja 24/7 lewat cron otomatis (briefing 08:00 WIB · laporan Senin 10:00 · hasil masuk Discord).
               </div>
-              <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
-                <b>Karyawan AI tetap kerja 24/7 walau kantor ini tidak dibuka</b> — cron otomatis: briefing 08:00 WIB, watchdog tiap 15 mnt, laporan Senin 10:00. Semua hasil masuk Discord.
+              <div className="flex gap-1.5 overflow-x-auto kdock shrink-0 -mx-0.5 px-0.5 pb-0.5">
+                {OVERVIEW_TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setOverviewTab(t.id)}
+                    aria-pressed={overviewTab === t.id}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold border transition-colors cursor-pointer min-h-[32px] ${
+                      overviewTab === t.id
+                        ? 'bg-teal-400/20 border-teal-300/40 text-teal-100'
+                        : 'bg-white/5 border-white/10 text-white/55 hover:bg-white/10 hover:text-white/85'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
-              <div className="text-white/40 text-[10.5px]">Bagas (COO) · Raka (CTO) · Maya (CSO) · Sinta (CMO) · Putri (CFO) · Dewi (DA) · Farhan (GH) · Kevin (Growth Hunter) · Alexander (CEO)</div>
-              {/* Task 34 — Human-in-the-Loop: agen mengusulkan, CEO memutuskan */}
-              {/* PATCH C — kartu fase bisnis: progres 10 user pertama, langkah checklist, tombol kerja manual */}
-              <PhasePanel data={phaseData} loading={phaseLoading} reload={phaseReload} />
-              {/* ROADMAP #4 — LAPORAN KPI KARYAWAN: angka nyata tiap karyawan
-                  (artikel terbit, video TikTok + views, draf → ACC, MRR,
-                  akademi hari ini) dari database — tanpa LLM, tanpa karangan */}
-              <KpiPanel />
-              {/* LOOP BELAJAR (lib/ceo-loop.ts) — keputusan rapat mingguan ACC/tolak,
-                  pelajaran, sumber trafik, backlog produk, kill switch otonomi */}
-              <LoopBelajarPanel />
-              <PendingActionsQueue />
-              {/* Spec perbaikan kantor AI — barang jadi karyawan AI (artefak mingguan) terlihat & bisa disalin Bos */}
-              <ArtifactsQueue />
+              <div className="min-h-0">
+                {overviewTab === 'progres' && <PhasePanel data={phaseData} loading={phaseLoading} reload={phaseReload} />}
+                {overviewTab === 'kpi' && <KpiPanel />}
+                {overviewTab === 'keputusan' && <LoopBelajarPanel />}
+                {overviewTab === 'acc' && <PendingActionsQueue />}
+                {overviewTab === 'artefak' && <ArtifactsQueue />}
+              </div>
             </div>
           ) : room === 'rapat' ? (
             /* ============ RUANG RAPAT — CEO Suite ============ */
