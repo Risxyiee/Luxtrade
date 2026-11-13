@@ -98,7 +98,7 @@ alertcondition(longCond, title='LONG', message='BUY: EMA cepat cross ke atas')
 alertcondition(shortCond, title='SHORT', message='SELL: EMA cepat cross ke bawah')`
 
 export default function PineLabPage() {
-  const [phase, setPhase] = useState<'loading' | 'ok' | 'forbidden' | 'anon'>('loading')
+  const [phase, setPhase] = useState<'loading' | 'ok' | 'forbidden' | 'anon' | 'server'>('loading')
   const [email, setEmail] = useState('')
   const [quotas, setQuotas] = useState<{ maxActiveScripts: number; maxManualRunsPerHour: number; maxSourceKb: number } | null>(null)
   const [symbols, setSymbols] = useState<string[]>(['XAUUSD'])
@@ -122,7 +122,12 @@ export default function PineLabPage() {
       .then(async (r) => {
         if (r.status === 401) return setPhase('anon')
         if (r.status === 403) return setPhase('forbidden')
+        // 500/502 = server bermasalah (mis. environment lokal tanpa secret
+        // service-role) — jangan tampilkan lab setengah rusak, tunjukkan
+        // gerbang khusus dengan petunjuk buka versi production.
+        if (!r.ok) return setPhase('server')
         const j = await r.json()
+        if (j?.allowed !== true) return setPhase('server')
         setQuotas(j.quotas ?? null)
         setSymbols(j.symbols ?? ['XAUUSD'])
         setEmail(j.email ?? '')
@@ -298,6 +303,20 @@ export default function PineLabPage() {
           Pine Lab sedang dalam tahap uji privat dan belum dibuka untuk akun ini. Hubungi admin jika kamu merasa ini keliru.
         </p>
         <Link href="/dashboard" className="mt-2 inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/5">Ke Dashboard</Link>
+      </GateShell>
+    )
+  }
+
+  if (phase === 'server') {
+    return (
+      <GateShell icon={<ShieldAlert className="w-8 h-8 text-amber-400" />} title="Server Pine Lab belum siap di environment ini">
+        <p className="text-white/60 text-sm">
+          API Pine Lab membutuhkan secret server yang hanya terpasang di versi production. Buka lewat domain utama Luxtradee untuk memakai Pine Lab secara penuh (editor, run test, chart, histori sinyal).
+        </p>
+        <div className="flex gap-3 justify-center mt-2 flex-wrap">
+          <a href="https://luxtradee.web.id/pine-lab" className="rounded-xl bg-cyan-600 hover:bg-cyan-500 px-5 py-2.5 text-sm font-bold text-white transition-colors">Buka Pine Lab Production</a>
+          <Link href="/" className="rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/5">Beranda</Link>
+        </div>
       </GateShell>
     )
   }
