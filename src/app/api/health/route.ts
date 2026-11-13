@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getLLMChainStatus, getLastLLMDiag, getMorteraWallet } from '@/lib/ai-llm'
+import { getLLMChainStatus, getLastLLMDiag, getLLMRecent, getMorteraWallet } from '@/lib/ai-llm'
 
 /**
  * GET /api/health — health check PUBLIK (dipakai uptime monitor + probe
@@ -24,6 +24,13 @@ import { getLLMChainStatus, getLastLLMDiag, getMorteraWallet } from '@/lib/ai-ll
  * (Rupiah), tokenCredits (paket), billingModes yang diizinkan key.
  * Jawab keluhan Bos "udah isi saldo kok gabisa?" — saldo kosong /
  * salah jenis wallet / key salah akun LANGSUNG kelihatan di sini.
+ *
+ * 13 Nov 2026 (v4): tambah `llmRecent` — 15 panggilan LLM TERAKHIR
+ * lintas-isolate (provider, model, ok/gagal + alasan, durasi) dari KV —
+ * bukti nyata provider mana yang melayani karyawan (keluhan Bos:
+ * "karyawan ai masih pakai apikey gratis"). Tambah `morteraLow`:
+ * true bila saldo payg < Rp 5.000 — saat itu rantai gratis memang akan
+ * sering mengambil alih sampai top-up (bukan bug, ini ekonomi saldo).
  */
 export async function GET() {
   let llm: { provider: string; ok: boolean; reason?: string }[] | null = null
@@ -44,6 +51,14 @@ export async function GET() {
   let mortera: Awaited<ReturnType<typeof getMorteraWallet>> = null
   try { mortera = await getMorteraWallet() } catch { /* diagnostik opsional */ }
 
+  // 13 Nov 2026 (v4): riwayat 15 panggilan LLM terakhir (lintas-isolate).
+  let llmRecent: Awaited<ReturnType<typeof getLLMRecent>> = null
+  try { llmRecent = await getLLMRecent() } catch { /* diagnostik opsional */ }
+
+  const morteraLow = typeof mortera?.paygIdr === 'number' && mortera.reachable
+    ? mortera.paygIdr < 5000
+    : undefined
+
   return NextResponse.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -51,6 +66,8 @@ export async function GET() {
     message: 'Server is running',
     llm,
     lastDiag: lastDiag.length ? lastDiag : ['(belum ada panggilan LLM di isolate ini)'],
+    llmRecent,
     mortera,
+    morteraLow,
   })
 }

@@ -4,7 +4,16 @@
  * ============================================================
  * Lexer subset Lux Script. Baris signifikan (statement dipisah
  * newline) — sama seperti Pine. Komentar `//` sampai akhir baris.
- * Indentasi: dipakai untuk blok if/for (4 spasi = 1 level; tab = 4).
+ * Indentasi: dipakai untuk blok if/for/while/switch (4 spasi = 1
+ * level; tab = 4).
+ *
+ * LINE CONTINUATION (fix umum script TradingView): selama ada
+ * kurung `( [ ` yang belum ditutup, baris dianggap kelanjutan
+ * statement yang sama — newline & indentasi TIDAK di-emit. Ini
+ * menangani call multi-baris ala formatter TradingView:
+ *   plot(
+ *       emaFast,
+ *       title='X')
  * ============================================================
  */
 
@@ -45,6 +54,9 @@ export function tokenize(src: string): Token[] {
   const indents: number[] = [0]
   let seq = 0
 
+  /** Kedalaman kurung antar-baris (line continuation Pine/TradingView). */
+  let parenDepth = 0
+
   for (let li = 0; li < lines.length; li++) {
     const raw = lines[li]
     const line = raw.replace(/\t/g, '    ')
@@ -52,28 +64,30 @@ export function tokenize(src: string): Token[] {
     // Baris kosong / komentar murni → lewati (tidak memengaruhi indentasi)
     if (!line.trim() || line.trim().startsWith('//')) continue
 
-    // Hitung indentasi
+    // Hitung indentasi — DI-SKIP saat sedang lanjutan call multi-baris
     let col = 0
     while (col < line.length && line[col] === ' ') col++
     const content = line.slice(col)
-    if (content.startsWith('//')) continue
+    if (content.startsWith('//') && parenDepth === 0) continue
+    if (content.startsWith('//')) continue // komentar dalam continuation juga diabaikan
 
-    if (col > indents[indents.length - 1]) {
-      indents.push(col)
-      tokens.push({ kind: 'indent', value: '', line: li + 1, seq: seq++ })
-    } else {
-      while (col < indents[indents.length - 1]) {
-        indents.pop()
-        tokens.push({ kind: 'dedent', value: '', line: li + 1, seq: seq++ })
-      }
-      if (col !== indents[indents.length - 1]) {
-        throw new Error(`Baris ${li + 1}: indentasi tidak konsisten`)
+    if (parenDepth === 0) {
+      if (col > indents[indents.length - 1]) {
+        indents.push(col)
+        tokens.push({ kind: 'indent', value: '', line: li + 1, seq: seq++ })
+      } else {
+        while (col < indents[indents.length - 1]) {
+          indents.pop()
+          tokens.push({ kind: 'dedent', value: '', line: li + 1, seq: seq++ })
+        }
+        if (col !== indents[indents.length - 1]) {
+          throw new Error(`Baris ${li + 1}: indentasi tidak konsisten`)
+        }
       }
     }
 
     // Tokenize isi baris
     let i = 0
-    let prevMeaningful = -1
     while (i < content.length) {
       const ch = content[i]
 
@@ -90,7 +104,6 @@ export function tokenize(src: string): Token[] {
           j++
         }
         tokens.push({ kind: 'num', value: content.slice(i, j), line: li + 1, seq: seq++ })
-        prevMeaningful = tokens.length - 1
         i = j
         continue
       }
@@ -109,7 +122,6 @@ export function tokenize(src: string): Token[] {
         }
         if (j >= content.length) throw new Error(`Baris ${li + 1}: string tidak ditutup`)
         tokens.push({ kind: 'str', value: out, line: li + 1, seq: seq++ })
-        prevMeaningful = tokens.length - 1
         i = j + 1
         continue
       }
@@ -118,15 +130,16 @@ export function tokenize(src: string): Token[] {
         let j = i
         while (j < content.length && IDENT_PART.test(content[j])) j++
         tokens.push({ kind: 'ident', value: content.slice(i, j), line: li + 1, seq: seq++ })
-        prevMeaningful = tokens.length - 1
         i = j
         continue
       }
 
       const op = OPERATORS.find((o) => content.startsWith(o, i))
       if (op) {
+        // Lacak kedalaman kurung untuk line continuation
+        if (op === '(' || op === '[') parenDepth++
+        if (op === ')' || op === ']') parenDepth = Math.max(0, parenDepth - 1)
         tokens.push({ kind: 'op', value: op, line: li + 1, seq: seq++ })
-        prevMeaningful = tokens.length - 1
         i += op.length
         continue
       }
@@ -134,10 +147,8 @@ export function tokenize(src: string): Token[] {
       throw new Error(`Baris ${li + 1}: karakter tak dikenal "${ch}"`)
     }
 
-    // Lanjutan baris dengan `\` di akhir → jangan kirim newline
-    const lastTok = tokens[tokens.length - 1]
-    void lastTok
-    void prevMeaningful
+    // Lanjutan baris: kurung masih terbuka → JANGAN kirim newline
+    if (parenDepth > 0) continue
     tokens.push({ kind: 'newline', value: '', line: li + 1, seq: seq++ })
   }
 

@@ -8,8 +8,8 @@
  *   - TIDAK BOLEH meng-import kode Luxtradee di luar folder ini.
  *   - NOL dependensi eksternal (TypeScript murni, stdlib saja).
  *   - CLEAN-ROOM: ditulis dari nol untuk subset bahasa Pine Script
- *     ("Lux Script"). TIDAK memuat kode PineTS / AGPL / LuxAlgo
- *     apa pun — struktur data & algoritma ditulis sendiri.
+ *     ("Lux Script"). Struktur data & algoritma ditulis sendiri,
+ *     tidak memuat kode pihak ketiga mana pun.
  *   - Portable: jalan di CF Workers, Node, Bun (tanpa API Node).
  * ============================================================
  */

@@ -217,99 +217,41 @@ bun run lint             # Cek code quality
 
 ---
 
-## Pine Signals (PRO) — runtime Pine Script di server
+## Pine Lab (fitur privat, flag `pine_lab`)
 
-User menempel Pine Script (v5/v6) miliknya, server menjalankannya pada candle
-H1 yang **sudah close**, menampilkan sinyal di chart (Lightweight Charts v5),
-dan mengirim alert (web push / Telegram / webhook). Event memakai format standar
-yang sama dengan `src/lib/signals/champion-signal.js` (engine Champion v6 — file
-referensi, tidak diubah).
+User ber-flag menjalankan strategi miliknya dengan **Lux Script** — subset Pine
+Script v5 yang ditulis dari nol (clean-room, nol dependensi pihak ketiga) di
+`src/engine/lux`. Runtime:
 
-### Komponen
-
-| File | Peran |
-| --- | --- |
-| `src/lib/signals/champion-signal.js` | Engine Champion v6 (referensi parity, tidak diubah) |
-| `src/lib/pine/champion-v6.pine` | Port Pine v5 setia dari engine di atas |
-| `src/lib/pine/pine-runner.ts` | Sandbox worker thread + timeout + rate limit + validasi |
-| `src/lib/pine/pine-worker.mjs` | Realm eksekusi PineTS (tanpa jaringan, loop guard) |
-| `src/lib/pine/normalize.ts` | Konversi alert → event standar (idempoten) |
-| `src/lib/pine/live.ts` | Mode live per candle close + backtest |
-| `supabase/migrations/20261112_pine_signals.sql` | DDL (dieksekusi manual di Supabase SQL Editor) |
-| `scripts/pine-test-a.ts` | Uji A parity; `scripts/pine-test-bcd.ts` = Uji B/C/D |
-
-### Hasil uji penerimaan
-
-- **Uji A** — `bun scripts/pine-test-a.ts`: 13 skenario × 3000 candle H1, event
-  Pine (via pine-runner) **identik** dengan champion-signal.js: jumlah, isi
-  (entry/sl/tp/side/candleTime), urutan, termasuk `CANCEL_PENDING`
-  (EXPIRED + OUT_OF_SESSION), `REPLACE_LIMIT`, dan meta ADX/DI (0 selisih).
-- **Uji B** — infinite loop dihentikan loop-guard PineTS (±0,2 dtk); loop berat
-  dihentikan timeout hard worker (5 dtk); server tetap responsif.
-- **Uji C** — id event deterministik `${scriptId}:${candleTime}:${side}:${event}`;
-  penyisipan DB pre-select-diff → restart/retry tidak pernah alert ganda.
-- **Uji D** — candle duplikat/out-of-order dibuang di runner DAN engine.
-
-### Lisensi PineTS — WAJIB DIBACA SEBELUM RILIS BERBAYAR
-
-Paket `pinets` (PineTS, LuxAlgo) berlisensi **AGPL-3.0-only** dengan opsi
-**lisensi komersial**. Menyalurkan fitur ini sebagai bagian dari layanan web
-berbayar (SaaS) memicu kewajiban copyleft AGPL **kecuali** membeli lisensi
-komersial ke LuxAlgo (`business@luxalgo.com`). Sebelum monetisasi, selesaikan
-dulu aspek lisensi ini (bukan nasihat hukum).
-
-### Asumsi & batasan (jujur)
-
-1. **Tidak dijamin 100% sama dengan TradingView.** Kecocokan terverifikasi
-   terhadap engine JS Champion v6 (Uji A), bukan terhadap broker-emu TradingView
-   untuk script arbitrer (fitur lanjutan seperti bar magnifier, request.security
-   lintas-timeframe, calc_on_order_fills tidak didukung/diabaikan).
-2. **Model fill broker server** (hasil probe PineTS 0.13.1): order limit aktif
-   mulai bar setelah pemasangan; BUY limit terisi saat `low <= level` (harga
-   `min(open, level)`, gap-through termasuk); stop diprioritaskan di atas TP
-   bila keduanya kena di bar yang sama; re-call `strategy.entry` id sama saat
-   pending membuat order hilang di PineTS → template Champion selalu
-   `strategy.cancel` dulu sebelum entry baru.
-3. **Pine asli Bos sudah diverifikasi** (`src/lib/pine/champion-v6-original.pine`,
-   file utuh tanpa diubah): lolos validasi website; pada 3000 candle — sesi
-   `time(tf, session, "Asia/Jakarta")` vs formula engine = **0 beda**; fill
-   broker PineTS vs simulator = **0 beda**; setiap bar order engine terdeteksi
-   sinyal di Pine asli. Satu-satunya beda: aturan tie fractal — `ta.pivothigh`
-   (kiri boleh sama, kanan strict) vs engine JS (kiri strict, kanan boleh sama)
-   → nilai `lastPH/lastPL` beda di 36/15.000 bar, **0 bar sinyal berubah**.
-   Script asli hanya mengirim alert teks "sinyal" (tanpa event cancel/replace)
-   dan alertnya fire di SEMUA bar sinyal (termasuk saat posisi open/pending) —
-   by design; edisi website (`champion-v6.pine`) menambahkan alert JSON agar
-   event PLACE/REPLACE/CANCEL/CLOSE lengkap, logika keputusan identik.
-4. **Warm-up
-5. **Warm-up**: ADX Pine baru valid ±bar ke-23; engine JS mem-seed RMA dengan
-   nol sejak bar ke-14; keduanya konvergen & identik setelahnya. Produksi selalu
-   memakai window ≥ 500 bar (live: 1200) sehingga tidak relevan.
-6. **Re-run penuh per candle close** (bukan incremental), event baru ditentukan
-   lewat kunci idempotensi di tabel `pine_events`. Candle berjalan tidak pernah
-   memicu event.
-7. **Runtime**: eksekusi Pine di server butuh worker_threads (Node.js/Bun).
-   Di Cloudflare Workers edge (deploy utama) worker_threads tidak tersedia:
-   - **Backtest & chart** otomatis pindah eksekusi ke BROWSER (Web Worker
-     `browser-worker.mjs` + build browser PineTS) — plots, trade broker, dan
-     sinyal tetap tampil penuh di chart. Toast memberi tahu mode browser.
-   - **Validasi** tetap jalan di edge (statis; dry-run dilewati dengan warning).
-   - **Mode live (cron alert)** masih butuh runtime Node/Bun yang berbagi DB
-     Supabase yang sama — trigger dari luar:
-     `curl -X POST -H "Authorization: Bearer $PINE_CRON_SECRET" <host>/api/pine/cron-live`.
-8. **Batas**: source ≤ 50.000 byte, ≤ 20.000 bar, rate limit 12 run/menit &
-   60 run/jam per user, timeout 5 dtk, loop guard 500k iterasi.
-9. **Sinyal bukan nasihat keuangan** — disclaimer tampil di UI.
+- **Editor + run test manual** di `/pine-lab` — rate-limit 20 run/jam, source
+  maksimal 50 KB, maks 3 script aktif per akun.
+- **Scheduler jam-an** (`/api/cron/pine-lab`): candle H1 XAUUSD → semua script
+  aktif semua user → hanya event BARU dikirim (dedup `pine_events_sent`) →
+  web push ke subscription milik pemilik script; durasi run dicatat.
+- **Sandbox di dalam engine**: deadline wall-clock 2 detik + step budget + cap
+  bar/event/plot; satu script gagal tidak mengganggu script lain.
+- **Kompatibilitas subset**: deklarasi bertipe (`float x = …`), `var`/`varip`,
+  call multi-baris ala formatter TradingView, `switch`/`while`/`break`/
+  `continue`, `if` sebagai nilai, tuple `ta.macd`/`ta.bb`/`ta.dmi`/
+  `ta.supertrend`, `ta.*` (sma, ema, rma, wma, vwma, hma, rsi, atr, tr,
+  stdev, highest/lowest, crossover/cross, change, cum, mom, roc, stoch, wpr,
+  cci, mfi, obv, barssince, valuewhen, highestbars/lowestbars, linreg, median,
+  range, vwap, sar, rising/falling, pivothigh/pivotlow), `math.*`, `str.*`,
+  konstanta member (`strategy.long`, `color.*`, `timeframe.*`, `syminfo.*`,
+  `barstate.*`, `dayofweek.*`), fungsi waktu (year/month/hour/… — zona
+  Asia/Jakarta), dan pesan error menyertakan nomor baris.
+  `request.security` dan array/matrix/map belum didukung — pesan errornya jelas.
+- Skema DB: `supabase/migrations/20261112_pine_lab.sql` +
+  `20261113_pine_lab_fix.sql` (dieksekusi manual di Supabase SQL Editor).
 
 ---
 
 ## License
 
-Luxtradee dirilis di bawah **GNU Affero General Public License v3.0**
-(lihat `LICENSE`). Alasannya: proyek ini memakai [PineTS](https://github.com/LuxAlgo/PineTS)
-(LuxAlgo) yang berlisensi AGPL-3.0 / komersial — memakai versi AGPL berarti
-keseluruhan karya gabungan wajib ikut AGPL-3.0. Dependensi pihak ketiga lainnya
-mempertahankan lisensinya masing-masing. Rincian kewajiban lisensi PineTS: lihat bagian "Lisensi PineTS" di atas.
+© Luxtradee. All rights reserved. Kode, Lux Engine, dan seluruh aset proyek
+ini adalah milik Luxtradee — dilarang menyalin, mendistribusikan, atau
+memanfaatkannya secara komersial tanpa izin tertulis dari pemilik. Dependensi
+pihak ketiga mempertahankan lisensinya masing-masing.
 
 ---
 

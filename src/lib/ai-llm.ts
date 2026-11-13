@@ -276,6 +276,52 @@ export async function getLLMChainStatus(): Promise<{ provider: string; ok: boole
 let lastCallDiag: string[] = []
 export function getLastLLMDiag(): string[] { return lastCallDiag }
 
+/* ── RIWAYAT 15 PANGGILAN TERAKHIR (13 Nov: keluhan Bos "karyawan ai masih
+   menggunakan apikey gratis bukan yang berbayar") ────────────────────
+   Diag lama (lastCallDiag) hanya hidup di SATU isolate — isolate lain
+   tidak pernah melihatnya, jadi tidak ada bukti siapa yang melayani.
+   Sekarang TIAP panggilan callLLM/callMorteraDirect dicatat ke KV
+   lintas-isolate (provider, model, ok/gagal + alasan, durasi) dan tampil
+   di /api/health (field llmRecent) → Bos lihat SENDIRI rantai mana yang
+   mengerjakan karyawan. Tanpa nilai key / data user — aman publik. */
+export interface RecentLLMCall {
+  at: number
+  provider: string
+  model: string
+  ok: boolean
+  ms: number
+  reason?: string
+}
+const RECENT_KV_KEY = 'llm-recent-calls'
+const RECENT_KV_TTL_SEC = 6 * 60 * 60
+const RECENT_MAX = 15
+let recentCache: RecentLLMCall[] | null = null
+
+function lastNote(notes: string[]): string {
+  return notes.length ? notes[notes.length - 1].slice(0, 160) : 'gagal tanpa catatan'
+}
+
+async function recordRecent(entry: RecentLLMCall): Promise<void> {
+  try {
+    const list = recentCache ?? (await kvGet<RecentLLMCall[]>(RECENT_KV_KEY)) ?? []
+    list.unshift(entry)
+    if (list.length > RECENT_MAX) list.length = RECENT_MAX
+    recentCache = list
+    await kvSet(RECENT_KV_KEY, list, { ttl: RECENT_KV_TTL_SEC })
+  } catch { /* best-effort — diagnostik tidak boleh menggagalkan panggilan */ }
+}
+
+/** 15 panggilan LLM terakhir (lintas-isolate via KV) — untuk /api/health. */
+export async function getLLMRecent(): Promise<RecentLLMCall[] | null> {
+  if (recentCache) return recentCache
+  try {
+    recentCache = (await kvGet<RecentLLMCall[]>(RECENT_KV_KEY)) ?? null
+  } catch {
+    recentCache = null
+  }
+  return recentCache
+}
+
 /* ── CEK SALDO MORTERA (tampilkannya di /api/health) ───────────────
    Keluhan Bos 8 Nov: "udah saya isi saldo kok masih error?" — pesan
    429 Mortera = "wallet cannot cover this request's maximum cost".
@@ -383,8 +429,13 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
   /* PRIORITAS 1 — Mortera Cloud (deposit Rupiah, model kelas Claude/GPT). */
   const morteraKey = await getMorteraKey()
   if (morteraKey && !isCool('mortera')) {
+    const t0 = Date.now()
     const res = await callMortera(morteraKey, systemPrompt, userPrompt, maxTokens, notes, opts?.morteraModel, opts?.timeoutMs)
-    if (res) return { ...res, notes: notes.length ? notes : undefined }
+    if (res) {
+      void recordRecent({ at: Date.now(), provider: 'mortera', model: res.model, ok: true, ms: Date.now() - t0 })
+      return { ...res, notes: notes.length ? notes : undefined }
+    }
+    void recordRecent({ at: Date.now(), provider: 'mortera', model: opts?.morteraModel?.trim() || MORTERA_MODEL, ok: false, ms: Date.now() - t0, reason: lastNote(notes) })
     if (!isCool('mortera')) await cool('mortera', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('mortera'))
   } else if (morteraKey && isCool('mortera')) {
@@ -393,8 +444,13 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
 
   const groqKey = await getGroqKey()
   if (groqKey && !isCool('groq')) {
+    const t0 = Date.now()
     const res = await callGroq(groqKey, systemPrompt, userPrompt, maxTokens, notes, opts?.timeoutMs)
-    if (res) return { ...res, notes: notes.length ? notes : undefined }
+    if (res) {
+      void recordRecent({ at: Date.now(), provider: 'groq', model: res.model, ok: true, ms: Date.now() - t0 })
+      return { ...res, notes: notes.length ? notes : undefined }
+    }
+    void recordRecent({ at: Date.now(), provider: 'groq', model: GROQ_MODEL, ok: false, ms: Date.now() - t0, reason: lastNote(notes) })
     if (!isCool('groq')) await cool('groq', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('groq'))
   } else if (groqKey && isCool('groq')) {
@@ -403,8 +459,13 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
 
   const geminiKey = await getGeminiKey()
   if (geminiKey && !isCool('gemini')) {
+    const t0 = Date.now()
     const res = await callGemini(geminiKey, systemPrompt, userPrompt, maxTokens, notes, opts?.timeoutMs)
-    if (res) return { ...res, notes: notes.length ? notes : undefined }
+    if (res) {
+      void recordRecent({ at: Date.now(), provider: 'gemini', model: res.model, ok: true, ms: Date.now() - t0 })
+      return { ...res, notes: notes.length ? notes : undefined }
+    }
+    void recordRecent({ at: Date.now(), provider: 'gemini', model: GEMINI_MODEL, ok: false, ms: Date.now() - t0, reason: lastNote(notes) })
     if (!isCool('gemini')) await cool('gemini', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('gemini'))
   } else if (geminiKey && isCool('gemini')) {
@@ -413,8 +474,13 @@ export async function callLLM(systemPrompt: string, userPrompt: LLMUserInput, ma
 
   const orKey = await getOpenRouterKey()
   if (orKey && !isCool('openrouter')) {
+    const t0 = Date.now()
     const res = await callOpenRouter(orKey, systemPrompt, userPrompt, maxTokens, notes, opts?.timeoutMs)
-    if (res) return { ...res, notes: notes.length ? notes : undefined }
+    if (res) {
+      void recordRecent({ at: Date.now(), provider: 'openrouter', model: res.model, ok: true, ms: Date.now() - t0 })
+      return { ...res, notes: notes.length ? notes : undefined }
+    }
+    void recordRecent({ at: Date.now(), provider: 'openrouter', model: OPENROUTER_MODEL, ok: false, ms: Date.now() - t0, reason: lastNote(notes) })
     if (!isCool('openrouter')) await cool('openrouter', COOLDOWN_MS_LIMIT)
     notes.push(coolReason('openrouter'))
   } else if (orKey && isCool('openrouter')) {
@@ -663,7 +729,17 @@ export async function callMorteraDirect(
   const key = await getMorteraKey()
   if (!key) { notes.push('mortera: MORTERA_API_KEY belum diset — lompat ke rantai cadangan'); return null }
   if (isCool('mortera')) { notes.push(`mortera dilompati — ${coolReason('mortera')}`); return null }
-  return callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
+  const t0 = Date.now()
+  const res = await callOpenAICompatible('mortera', 'https://mortera.cloud/v1', key, [MORTERA_MODEL, ...MORTERA_FALLBACKS], morteraScore, systemPrompt, userPrompt, maxTokens, notes, temperature, timeoutMs)
+  void recordRecent({
+    at: Date.now(),
+    provider: 'mortera',
+    model: res?.model || MORTERA_MODEL,
+    ok: !!res,
+    ms: Date.now() - t0,
+    reason: res ? undefined : lastNote(notes),
+  })
+  return res
 }
 
 async function callOpenRouter(apiKey: string, systemPrompt: string, userPrompt: LLMUserInput, maxTokens: number, notes: string[], timeoutMs?: number): Promise<LLMResult | null> {

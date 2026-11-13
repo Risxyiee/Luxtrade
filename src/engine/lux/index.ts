@@ -4,7 +4,7 @@
  * ============================================================
  * Modul Mandiri Luxtradee — SATU-SATUNYA file yang perlu diimport
  * kode luar. Lihat types.ts untuk aturan modul (nol dependensi,
- * clean-room, tanpa AGPL/PineTS).
+ * clean-room, ditulis 100% sendiri).
  *
  * PAKAI:
  *   import { runLuxScript } from '@/engine/lux'
