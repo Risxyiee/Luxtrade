@@ -269,6 +269,7 @@ const DashboardModals = memo(function DashboardModals({
         pixelRatio: 3,
         backgroundColor: '#0a0c12',
         cacheBust: true,
+        skipFonts: true, // sama dengan PNLShareCard — anti font serif di hasil PNG
       })
       const link = document.createElement('a')
       const safeSymbol = (selectedTrade?.symbol || 'trade').replace(/[^A-Za-z0-9]/g, '')
@@ -433,7 +434,7 @@ const DashboardModals = memo(function DashboardModals({
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
               <Share2 className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-              Share Trade Card
+              Bagikan Kartu Trade
             </DialogTitle>
           </DialogHeader>
           {selectedTrade && (
@@ -446,8 +447,8 @@ const DashboardModals = memo(function DashboardModals({
                   exitPrice={selectedTrade.close_price}
                   lotSize={selectedTrade.lot_size}
                   profitLoss={selectedTrade.profit_loss}
-                  session={selectedTrade.session || 'Unknown'}
-                  date={new Date(selectedTrade.close_time).toLocaleDateString('en-US', {
+                  session={selectedTrade.session || '-'}
+                  date={new Date(selectedTrade.close_time).toLocaleDateString('id-ID', {
                     weekday: 'short',
                     day: 'numeric',
                     month: 'short',
@@ -469,12 +470,12 @@ const DashboardModals = memo(function DashboardModals({
                   ) : (
                     <>
                       <Download className="w-4 h-4 mr-2" />
-                      Download PNG
+                      Unduh PNG
                     </>
                   )}
                 </Button>
                 <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center">
-                  Save the card &amp; share your win on social media
+                  Simpan kartu &amp; bagikan jurnal trading-mu di media sosial
                 </p>
               </div>
             </div>

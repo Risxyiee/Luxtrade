@@ -85,8 +85,19 @@ function getWeekPeriod(): string {
   sunday.setDate(monday.getDate() + 6)
 
   const fmt = (d: Date) =>
-    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  return `${fmt(monday)} – ${fmt(sunday)}, ${now.getFullYear()}`
+    d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+  return `${fmt(monday)} – ${fmt(sunday)} ${now.getFullYear()}`
+}
+
+/** Tanggal-jam format Indonesia untuk header laporan. */
+function formatTanggal(iso: string): string {
+  return new Date(iso).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function getWeekTrades(trades: Trade[]): Trade[] {
@@ -144,44 +155,44 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
         }
       : null
 
-  // ── Executive Summary ──────────────────────────────────────────────────
+  // ── Ringkasan ──────────────────────────────────────────────────────
   const performanceLabel =
     weekWinRate >= 70
-      ? 'outstanding'
+      ? 'sangat bagus'
       : weekWinRate >= 55
         ? 'solid'
         : weekWinRate >= 45
-          ? 'mixed'
-          : 'challenging'
+          ? 'campuran'
+          : 'menantang'
 
   const plAdjective =
     weekTotalPL > 0
-      ? `a net profit of ${formatCurrency(weekTotalPL)}`
+      ? `laba bersih ${formatCurrency(weekTotalPL)}`
       : weekTotalPL < 0
-        ? `a net loss of ${formatCurrency(Math.abs(weekTotalPL))}`
-        : 'break-even results'
+        ? `rugi bersih ${formatCurrency(Math.abs(weekTotalPL))}`
+        : 'hasil impas (break-even)'
 
   const winRateComment =
     weekWinRate >= 70
-      ? 'Your win rate is excellent — keep doing what works and protect your edge.'
+      ? 'Win rate kamu bagus sekali — pertahankan yang sudah jalan dan jaga keunggulannya.'
       : weekWinRate >= 55
-        ? 'Your win rate is healthy. Small improvements in execution could push it higher.'
+        ? 'Win rate kamu sehat. Perbaikan kecil di eksekusi bisa menaikkannya lagi.'
         : weekWinRate >= 45
-          ? 'Your win rate is near break-even. Focus on higher-conviction setups next week.'
-          : 'Your win rate needs attention. Consider reducing trade frequency and raising entry criteria.'
+          ? 'Win rate kamu hampir impas. Minggu depan fokus ke setup dengan keyakinan tinggi.'
+          : 'Win rate kamu perlu perhatian. Kurangi frekuensi trade dan naikkan standar entry.'
 
   const profitFactorComment =
     weekProfitFactor >= 2
-      ? ' Your profit factor is exceptional, indicating a strong positive expectancy.'
+      ? ' Profit factor kamu luar biasa — ekspektansi positifmu kuat.'
       : weekProfitFactor >= 1.5
-        ? ' Your profit factor is healthy and sustainable.'
+        ? ' Profit factor kamu sehat dan berkelanjutan.'
         : weekProfitFactor >= 1
-          ? ' Your profit factor is slightly above breakeven — look to widen your winners.'
+          ? ' Profit factor kamu sedikit di atas impas — perbesar porsi profilmu.'
           : weekProfitFactor > 0
-            ? ' Your profit factor is below 1, meaning losses outweigh gains. Prioritize risk management.'
+            ? ' Profit factor kamu di bawah 1, artinya loss lebih besar dari profit. Prioritaskan manajemen risiko.'
             : ''
 
-  const summary = `Over the past trading period, you executed ${weekTotal} trades with ${performanceLabel} results, achieving ${plAdjective} and a ${weekWinRate.toFixed(1)}% win rate. ${winRateComment}${profitFactorComment}`
+  const summary = `Selama periode ini kamu mengeksekusi ${weekTotal} trade dengan hasil ${performanceLabel}, mencatatkan ${plAdjective} dan win rate ${weekWinRate.toFixed(1)}%. ${winRateComment}${profitFactorComment}`
 
   // ── Key Metrics ────────────────────────────────────────────────────────
   const metrics: WeeklyReport['metrics'] = [
@@ -201,12 +212,12 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
       trend: weekTotalPL > 0 ? 'up' : weekTotalPL < 0 ? 'down' : 'neutral',
     },
     {
-      label: 'Avg Profit',
+      label: 'Rata-rata Profit',
       value: `+${formatCurrency(weekAvgProfit)}`,
       trend: weekAvgProfit > 0 ? 'up' : 'neutral',
     },
     {
-      label: 'Avg Loss',
+      label: 'Rata-rata Loss',
       value: `-${formatCurrency(weekAvgLoss)}`,
       trend: weekAvgLoss > weekAvgProfit ? 'down' : 'neutral',
     },
@@ -221,7 +232,7 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
       trend: (analytics?.maxDrawdown ?? 0) > 500 ? 'down' : 'neutral',
     },
     {
-      label: 'Total Trades',
+      label: 'Total Trade',
       value: `${weekTotal}`,
       trend: 'neutral',
     },
@@ -232,7 +243,7 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
   let sessionAnalysis: string
 
   if (sessionPerf.length === 0) {
-    sessionAnalysis = 'No session performance data available. Track your trading sessions to get session-level insights next week.'
+    sessionAnalysis = 'Catat sesi pada tiap trade-mu — minggu depan analisis per sesi bisa muncul otomatis.'
   } else {
     const sortedSessions = [...sessionPerf].sort((a, b) => b.pl - a.pl)
     const bestSession = sortedSessions[0]
@@ -240,12 +251,12 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
 
     const parts: string[] = []
     parts.push(
-      `Your best performing session was ${bestSession.session} with ${formatCurrency(bestSession.pl)} across ${bestSession.trades} trades (${bestSession.winRate.toFixed(1)}% win rate).`
+      `Sesi terbaik kamu ${bestSession.session}: ${formatCurrency(bestSession.pl)} dari ${bestSession.trades} trade (win rate ${bestSession.winRate.toFixed(1)}%).`
     )
 
     if (sortedSessions.length > 1 && worstSession.pl !== bestSession.pl) {
       parts.push(
-        `${worstSession.session} was your weakest session at ${formatCurrency(worstSession.pl)} over ${worstSession.trades} trades.`
+        `${worstSession.session} jadi sesi terlemah: ${formatCurrency(worstSession.pl)} dari ${worstSession.trades} trade.`
       )
     }
 
@@ -253,7 +264,7 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
     const topSessionPct = bestSession.trades / weekTotal
     if (topSessionPct > 0.6 && weekTotal > 5) {
       parts.push(
-        `You're heavily concentrated in ${bestSession.session} (${(topSessionPct * 100).toFixed(0)}% of trades). Consider exploring other sessions for diversification.`
+        `${(topSessionPct * 100).toFixed(0)}% trade-mu terpusat di sesi ${bestSession.session} — coba sesi lain supaya tidak bergantung pada satu sesi.`
       )
     }
 
@@ -265,43 +276,43 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
 
   if (weekWinRate < 50) {
     recommendations.push(
-      'Raise your entry criteria — wait for A+ setups instead of forcing trades. Quality over quantity.'
+      'Naikkan standar entry-mu — tunggu setup terbaik, jangan paksa trade. Kualitas lebih penting daripada jumlah.'
     )
   } else if (weekWinRate >= 70) {
     recommendations.push(
-      "Your win rate is excellent. Focus on scaling into winners and letting profits run to maximize your edge."
+      'Win rate kamu bagus sekali. Fokus membesarkan posisi yang sudah profit dan biarkan profit jalan.'
     )
   }
 
   if (weekProfitFactor < 1.3 && weekProfitFactor > 0) {
     recommendations.push(
-      'Your profit factor suggests losses are too large relative to wins. Tighten stop-losses and aim for at least a 1:2 risk-to-reward ratio.'
+      'Profit factor menunjukkan loss kamu terlalu besar dibanding profit. Perketat stop-loss dan targetkan minimal rasio 1:2.'
     )
   } else if (weekProfitFactor >= 2) {
     recommendations.push(
-      'Outstanding profit factor! Document your current strategy rules so you can replicate these results consistently.'
+      'Profit factor luar biasa! Catat aturan strategi yang kamu pakai sekarang supaya hasilnya bisa diulang konsisten.'
     )
   }
 
   if (weekAvgLoss > weekAvgProfit * 1.5 && weekAvgLoss > 0) {
     recommendations.push(
-      `Your average loss (${formatCurrency(weekAvgLoss)}) significantly exceeds your average win (${formatCurrency(weekAvgProfit)}). Focus on cutting losers faster.`
+      `Rata-rata loss kamu (${formatCurrency(weekAvgLoss)}) jauh melebihi rata-rata profit (${formatCurrency(weekAvgProfit)}). Biasakan potong loss lebih cepat.`
     )
   }
 
   if ((analytics?.maxDrawdown ?? 0) > 300) {
     recommendations.push(
-      'Your maximum drawdown is elevated. Consider reducing position sizes by 25-50% until you rebuild consistency.'
+      'Max drawdown kamu tinggi. Kurangi ukuran posisi 25–50% sampai konsistensimu pulih.'
     )
   }
 
   if (weekTotal > 40) {
     recommendations.push(
-      `With ${weekTotal} trades this period, you may be overtrading. Focus on fewer, higher-conviction setups next week.`
+      `Dengan ${weekTotal} trade di periode ini kamu berpotensi overtrading. Minggu depan kurangi jumlah dan pilih setup paling yakin.`
     )
   } else if (weekTotal < 5 && weekTotal > 0) {
     recommendations.push(
-      'Low trade count this period. While selectivity is good, ensure you are not missing valid setups due to hesitation.'
+      'Jumlah trade minggu ini sedikit. Selektif itu bagus, tapi pastikan kamu tidak melewatkan setup valid karena ragu.'
     )
   }
 
@@ -310,26 +321,26 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
     const sorted = [...sessionPerf].sort((a, b) => b.pl - a.pl)
     if (sorted[sorted.length - 1].pl < 0 && sorted[0].pl > 0) {
       recommendations.push(
-        `Consider reducing activity in ${sorted[sorted.length - 1].session} sessions and increasing focus on ${sorted[0].session} where you perform best.`
+        `Pertimbangkan mengurangi aktivitas di sesi ${sorted[sorted.length - 1].session} dan perbesar fokus di sesi ${sorted[0].session} tempat kamu tampil paling baik.`
       )
     }
   }
 
   if (weekTotalPL < 0) {
     recommendations.push(
-      'After a losing period, take a step back to review your journal notes. Avoid revenge trading and stick to your plan.'
+      'Setelah periode rugi, berhenti sejenak dan baca ulang catatan jurnalmu. Hindari revenge trading dan pegang rencana.'
     )
   }
 
   // Ensure we have at least 3 recommendations
   if (recommendations.length < 3) {
     recommendations.push(
-      'Review your trading journal notes weekly — patterns in behavior often reveal more than the numbers alone.'
+      'Baca ulang catatan jurnalmu tiap minggu — pola perilaku sering bicara lebih jujur daripada angka.'
     )
   }
   if (recommendations.length < 3) {
     recommendations.push(
-      'Set a daily loss limit and stick to it. Protecting your capital is the foundation of longevity in trading.'
+      'Tetapkan batas loss harian dan patuhi. Melindungi modal adalah fondasi umur panjang di trading.'
     )
   }
 
@@ -337,29 +348,29 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
   const nextWeekGoals: string[] = []
 
   if (weekWinRate < 55) {
-    nextWeekGoals.push(`Improve win rate to at least 55% by being more selective with entries.`)
+    nextWeekGoals.push('Naikkan win rate ke minimal 55% dengan lebih selektif memilih entry.')
   } else {
-    nextWeekGoals.push(`Maintain or improve your current ${weekWinRate.toFixed(1)}% win rate.`)
+    nextWeekGoals.push(`Pertahankan atau tingkatkan win rate ${weekWinRate.toFixed(1)}% kamu.`)
   }
 
   if (weekProfitFactor < 1.5) {
-    nextWeekGoals.push(`Push profit factor above 1.5 by letting winners run and cutting losers early.`)
+    nextWeekGoals.push('Dorong profit factor di atas 1,5 dengan membiarkan profit jalan dan memotong loss lebih awal.')
   } else {
-    nextWeekGoals.push(`Keep profit factor above 1.5 — your current edge is strong.`)
+    nextWeekGoals.push('Jaga profit factor tetap di atas 1,5 — keunggulanmu sedang kuat.')
   }
 
   if (weekTotalPL < 0) {
-    nextWeekGoals.push(`Return to profitability — target a positive week of at least ${formatCurrency(Math.abs(weekTotalPL) * 0.5)}.`)
+    nextWeekGoals.push(`Kembali profit — targetkan minggu positif minimal ${formatCurrency(Math.abs(weekTotalPL) * 0.5)}.`)
   } else {
-    nextWeekGoals.push(`Target at least ${formatCurrency(weekTotalPL * 0.8)} in profit for consistency.`)
+    nextWeekGoals.push(`Targetkan profit minimal ${formatCurrency(weekTotalPL * 0.8)} untuk konsistensi.`)
   }
 
   if ((analytics?.maxDrawdown ?? 0) > 200) {
-    nextWeekGoals.push(`Keep maximum drawdown below ${formatCurrency(200)} by using stricter position sizing.`)
+    nextWeekGoals.push(`Jaga max drawdown di bawah ${formatCurrency(200)} dengan ukuran posisi lebih ketat.`)
   }
 
-  nextWeekGoals.push('Log every trade with detailed notes for next week\'s analysis.')
-  nextWeekGoals.push('Review and refine your trading plan before the week begins.')
+  nextWeekGoals.push('Catat semua trade beserta catatan detail untuk analisis minggu depan.')
+  nextWeekGoals.push('Tinjau dan rapikan trading plan-mu sebelum minggu dimulai.')
 
   return {
     generatedAt: new Date().toISOString(),
@@ -374,82 +385,181 @@ function generateReport(analytics: Analytics | null, trades: Trade[]): WeeklyRep
   }
 }
 
-// ─── Report to Plain Text ───────────────────────────────────────────────────
+// ─── Report to Plain Text (untuk salin ke clipboard) ────────────────────────
 
 function reportToText(report: WeeklyReport): string {
   const lines: string[] = []
 
-  lines.push('╔══════════════════════════════════════════════════════╗')
-  lines.push('║            LUXTRADEE AI WEEKLY REPORT                ║')
-  lines.push('╚══════════════════════════════════════════════════════╝')
+  lines.push('LAPORAN MINGGUAN AI — LUXTRADEE')
+  lines.push(`Periode: ${report.period} · Dibuat: ${formatTanggal(report.generatedAt)}`)
   lines.push('')
-  lines.push(`📅 Period:     ${report.period}`)
-  lines.push(`🕐 Generated:  ${new Date(report.generatedAt).toLocaleString()}`)
-  lines.push('')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  EXECUTIVE SUMMARY')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('')
+  lines.push('RINGKASAN')
   lines.push(report.summary)
   lines.push('')
-
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  KEY METRICS')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('')
+  lines.push('METRIK KUNCI')
   report.metrics.forEach((m) => {
     const icon = m.trend === 'up' ? '▲' : m.trend === 'down' ? '▼' : '◆'
-    lines.push(`  ${icon}  ${m.label.padEnd(16)} ${m.value}`)
+    lines.push(`  ${icon} ${m.label}: ${m.value}`)
   })
   lines.push('')
 
   if (report.bestTrade || report.worstTrade) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    lines.push('  BEST & WORST TRADES')
-    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    lines.push('')
+    lines.push('TRADE TERBAIK & TERBURUK')
     if (report.bestTrade) {
       lines.push(
-        `  ✅ Best:  ${report.bestTrade.symbol} (${report.bestTrade.type}) → +${formatCurrency(report.bestTrade.pl)}`
+        `  ✅ Terbaik: ${report.bestTrade.symbol} (${report.bestTrade.type}) → +${formatCurrency(report.bestTrade.pl)}`
       )
     }
     if (report.worstTrade) {
       lines.push(
-        `  ❌ Worst: ${report.worstTrade.symbol} (${report.worstTrade.type}) → ${formatCurrency(report.worstTrade.pl)}`
+        `  ❌ Terburuk: ${report.worstTrade.symbol} (${report.worstTrade.type}) → ${formatCurrency(report.worstTrade.pl)}`
       )
     }
     lines.push('')
   }
 
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  SESSION ANALYSIS')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('')
+  lines.push('ANALISIS SESI')
   lines.push(report.sessionAnalysis)
   lines.push('')
-
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  AI RECOMMENDATIONS')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('')
+  lines.push('REKOMENDASI AI')
   report.recommendations.forEach((r, i) => {
     lines.push(`  ${i + 1}. ${r}`)
   })
   lines.push('')
-
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  NEXT WEEK GOALS')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('')
-  report.nextWeekGoals.forEach((g, i) => {
+  lines.push('TARGET MINGGU DEPAN')
+  report.nextWeekGoals.forEach((g) => {
     lines.push(`  ☐ ${g}`)
   })
   lines.push('')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  Powered by LuxTradee AI  •  luxtrade.app')
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  lines.push('LuxTradee AI · luxtradee.web.id')
 
   return lines.join('\n')
+}
+
+// ─── Report to Styled HTML (unduhan yang rapi, bisa dicetak jadi PDF) ───────
+
+function reportToHtml(report: WeeklyReport): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  const metricsHtml = report.metrics
+    .map(
+      (m) => `<div class="metric ${m.trend}">
+        <span class="m-label">${esc(m.label)}</span>
+        <span class="m-value">${esc(m.value)}</span>
+      </div>`
+    )
+    .join('')
+
+  const bestBlock = report.bestTrade
+    ? `<div class="trade best">
+         <div class="trade-label">Trade Terbaik</div>
+         <div class="trade-row"><b>${esc(report.bestTrade.symbol)}</b><span>+${formatCurrency(report.bestTrade.pl)}</span></div>
+         <div class="trade-sub">Posisi ${esc(report.bestTrade.type)}</div>
+       </div>`
+    : ''
+  const worstBlock = report.worstTrade
+    ? `<div class="trade worst">
+         <div class="trade-label">Trade Terburuk</div>
+         <div class="trade-row"><b>${esc(report.worstTrade.symbol)}</b><span>${formatCurrency(report.worstTrade.pl)}</span></div>
+         <div class="trade-sub">Posisi ${esc(report.worstTrade.type)}</div>
+       </div>`
+    : ''
+
+  const recs = report.recommendations
+    .map((r, i) => `<li><span class="num">${i + 1}</span>${esc(r)}</li>`)
+    .join('')
+  const goals = report.nextWeekGoals
+    .map((g) => `<li><span class="box"></span>${esc(g)}</li>`)
+    .join('')
+
+  const tradesSection =
+    bestBlock || worstBlock
+      ? `<section><h2>Trade Terbaik &amp; Terburuk</h2><div class="trades">${bestBlock}${worstBlock}</div></section>`
+      : ''
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Laporan Mingguan LuxTradee — ${esc(report.period)}</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #080b12; color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    padding: 24px 12px; line-height: 1.55;
+  }
+  .card {
+    max-width: 720px; margin: 0 auto;
+    background: linear-gradient(180deg, #0d1119 0%, #0b0e17 100%);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
+    padding: 28px 24px;
+  }
+  .brand { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: .02em; }
+  .brand span { display: block; font-size: 10px; font-weight: 600; color: #64748b; letter-spacing: .22em; text-transform: uppercase; }
+  h1 { font-size: 22px; color: #fff; margin-top: 14px; }
+  .period { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  section { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  h2 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: #22d3ee; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .metric { border-radius: 12px; padding: 10px 8px; text-align: center; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
+  .metric.up { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+  .metric.down { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+  .m-label { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; }
+  .m-value { display: block; font-size: 17px; font-weight: 800; color: #cbd5e1; margin-top: 2px; }
+  .metric.up .m-value { color: #34d399; }
+  .metric.down .m-value { color: #f87171; }
+  .trades { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .trades { grid-template-columns: 1fr; } }
+  .trade { border-radius: 12px; padding: 12px 14px; border: 1px solid; }
+  .trade.best { border-color: rgba(16,185,129,0.25); background: rgba(16,185,129,0.06); }
+  .trade.worst { border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.06); }
+  .trade-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; margin-bottom: 6px; }
+  .trade.best .trade-label { color: #10b981; }
+  .trade.worst .trade-label { color: #ef4444; }
+  .trade-row { display: flex; justify-content: space-between; align-items: baseline; color: #fff; font-size: 15px; }
+  .trade.best .trade-row span { color: #34d399; font-weight: 700; }
+  .trade.worst .trade-row span { color: #f87171; font-weight: 700; }
+  .trade-sub { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .list li { display: flex; gap: 10px; font-size: 13px; color: #cbd5e1; align-items: flex-start; }
+  .num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; background: rgba(16,185,129,0.15); color: #34d399; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .box { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(56,189,248,0.5); background: rgba(56,189,248,0.08); margin-top: 2px; }
+  footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: #64748b; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
+  @media print {
+    body { background: #fff; color: #0f172a; padding: 0; }
+    .card { background: #fff; border: none; border-radius: 0; }
+    h1, .brand, .trade-row b { color: #0f172a; }
+    .m-value, .metric.up .m-value { color: #059669; }
+    .metric.down .m-value { color: #dc2626; }
+    .metric, .trade, .num, .box { background: #f8fafc; }
+    .m-label, .period, .trade-sub, footer { color: #475569; }
+    section { border-color: #e2e8f0; }
+    h2 { color: #0e7490; }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <header>
+      <div class="brand">LuxTradee <span>Jurnal Trading</span></div>
+      <h1>Laporan Mingguan AI</h1>
+      <p class="period">${esc(report.period)} · Dibuat ${formatTanggal(report.generatedAt)}</p>
+    </header>
+    <section><h2>Ringkasan</h2><p>${esc(report.summary)}</p></section>
+    <section><h2>Metrik Kunci</h2><div class="grid">${metricsHtml}</div></section>
+    ${tradesSection}
+    <section><h2>Analisis Sesi</h2><p>${esc(report.sessionAnalysis)}</p></section>
+    <section><h2>Rekomendasi AI</h2><ol class="list">${recs}</ol></section>
+    <section><h2>Target Minggu Depan</h2><ul class="list">${goals}</ul></section>
+    <footer>LuxTradee AI · luxtradee.web.id</footer>
+  </main>
+</body>
+</html>`
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -561,12 +671,15 @@ export default function AIWeeklyReport({
   const handleDownload = () => {
     if (!report) return
 
-    const text = reportToText(report)
-    const blob = new Blob([text], { type: 'text/plain' })
+    /* Laporan diunduh sebagai HTML rapi (laporan Bos 13-11: file .txt
+       kotak-kotak jelek). Bisa langsung dibuka di browser, dibagikan,
+       atau dicetak jadi PDF via menu Bagikan/Screenshot. */
+    const html = reportToHtml(report)
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `luxtradee-weekly-report-${new Date().toISOString().slice(0, 10)}.txt`
+    a.download = `luxtradee-laporan-mingguan-${new Date().toISOString().slice(0, 10)}.html`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -589,11 +702,11 @@ export default function AIWeeklyReport({
             </div>
             <div>
               <CardTitle className="text-base font-bold text-white">
-                AI Weekly Report
+                Laporan Mingguan AI
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
                 <Calendar className="mr-1 inline h-3 w-3" />
-                {getWeekPeriod()} · {weekTrades.length} trade{weekTrades.length !== 1 ? 's' : ''}
+                {getWeekPeriod()} · {weekTrades.length} trade
               </CardDescription>
             </div>
           </div>
@@ -643,17 +756,17 @@ export default function AIWeeklyReport({
               {isGenerating ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Analyzing…
+                  Menganalisis…
                 </>
               ) : isExpanded ? (
                 <>
                   <ChevronUp className="h-3.5 w-3.5" />
-                  Collapse
+                  Tutup
                 </>
               ) : (
                 <>
                   <Sparkles className="h-3.5 w-3.5" />
-                  {report ? 'View Report' : 'Generate Report'}
+                  {report ? 'Lihat Laporan' : 'Buat Laporan'}
                 </>
               )}
             </Button>
@@ -665,8 +778,8 @@ export default function AIWeeklyReport({
       {!isExpanded && (
         <CardContent className="relative z-10">
           <p className="text-xs leading-relaxed text-slate-500">
-            Get an AI-powered analysis of your weekly trading performance including key metrics,
-            session breakdowns, personalized recommendations, and next-week goals.
+            Analisis performa trading mingguanmu oleh AI: metrik kunci, performa per sesi,
+            rekomendasi personal, dan target minggu depan.
           </p>
         </CardContent>
       )}
@@ -693,9 +806,9 @@ export default function AIWeeklyReport({
                     <Sparkles className="h-7 w-7 text-cyan-400" />
                   </div>
                   <div className="text-center">
-                    <h3 className="text-lg font-bold text-white">Pro Feature</h3>
+                    <h3 className="text-lg font-bold text-white">Fitur Pro</h3>
                     <p className="mt-1 max-w-xs text-sm text-slate-400">
-                      Unlock AI-powered weekly reports with personalized insights and recommendations.
+                      Buka laporan mingguan bertenaga AI berisi insight dan rekomendasi personal.
                     </p>
                   </div>
                   <Button
@@ -703,7 +816,7 @@ export default function AIWeeklyReport({
                     className="mt-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 hover:to-cyan-400"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Upgrade to Pro
+                    Upgrade ke Pro
                   </Button>
                 </motion.div>
               )}
@@ -712,9 +825,9 @@ export default function AIWeeklyReport({
               {hasNoTrades && (
                 <div className="flex flex-col items-center gap-3 py-8 text-center">
                   <FileText className="h-10 w-10 text-slate-600" />
-                  <p className="text-sm text-slate-500">No trades this week to analyze.</p>
+                  <p className="text-sm text-slate-500">Belum ada trade minggu ini untuk dianalisis.</p>
                   <p className="text-xs text-slate-600">
-                    Start logging your trades to receive AI-generated weekly insights.
+                    Mulai catat trade-mu supaya insight mingguan dari AI bisa muncul.
                   </p>
                 </div>
               )}
@@ -723,7 +836,7 @@ export default function AIWeeklyReport({
               {!hasNoTrades && (
                 <>
                   <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
-                    <SectionHeader icon={FileText} title="Executive Summary" delay={0.1} />
+                    <SectionHeader icon={FileText} title="Ringkasan" delay={0.1} />
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -736,7 +849,7 @@ export default function AIWeeklyReport({
 
                   {/* ── Key Metrics Grid ──────────────────────────────── */}
                   <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
-                    <SectionHeader icon={TrendingUp} title="Key Metrics" delay={0.15} />
+                    <SectionHeader icon={TrendingUp} title="Metrik Kunci" delay={0.15} />
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {report.metrics.map((metric, i) => (
                         <MetricCard key={metric.label} metric={metric} index={i} />
@@ -747,7 +860,7 @@ export default function AIWeeklyReport({
                   {/* ── Best & Worst Trades ──────────────────────────── */}
                   {(report.bestTrade || report.worstTrade) && (
                     <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
-                      <SectionHeader icon={FileText} title="Best & Worst Trades" delay={0.2} />
+                      <SectionHeader icon={FileText} title="Trade Terbaik & Terburuk" delay={0.2} />
                       <div className="grid gap-3 sm:grid-cols-2">
                         {report.bestTrade && (
                           <motion.div
@@ -757,7 +870,7 @@ export default function AIWeeklyReport({
                             className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 p-3"
                           >
                             <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-500/70">
-                              Best Trade
+                              Trade Terbaik
                             </div>
                             <div className="flex items-baseline justify-between">
                               <span className="font-bold text-white">{report.bestTrade.symbol}</span>
@@ -766,7 +879,7 @@ export default function AIWeeklyReport({
                               </span>
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
-                              {report.bestTrade.type} position
+                              Posisi {report.bestTrade.type}
                             </div>
                           </motion.div>
                         )}
@@ -778,7 +891,7 @@ export default function AIWeeklyReport({
                             className="rounded-lg border border-red-500/15 bg-red-500/5 p-3"
                           >
                             <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-red-500/70">
-                              Worst Trade
+                              Trade Terburuk
                             </div>
                             <div className="flex items-baseline justify-between">
                               <span className="font-bold text-white">{report.worstTrade.symbol}</span>
@@ -787,7 +900,7 @@ export default function AIWeeklyReport({
                               </span>
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
-                              {report.worstTrade.type} position
+                              Posisi {report.worstTrade.type}
                             </div>
                           </motion.div>
                         )}
@@ -797,7 +910,7 @@ export default function AIWeeklyReport({
 
                   {/* ── Session Analysis ──────────────────────────────── */}
                   <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
-                    <SectionHeader icon={Calendar} title="Session Analysis" delay={0.25} />
+                    <SectionHeader icon={Calendar} title="Analisis Sesi" delay={0.25} />
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -810,7 +923,7 @@ export default function AIWeeklyReport({
 
                   {/* ── AI Recommendations ────────────────────────────── */}
                   <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
-                    <SectionHeader icon={Brain} title="AI Recommendations" delay={0.3} />
+                    <SectionHeader icon={Brain} title="Rekomendasi AI" delay={0.3} />
                     <ul className="space-y-2.5">
                       {report.recommendations.map((rec, i) => (
                         <motion.li
@@ -831,7 +944,7 @@ export default function AIWeeklyReport({
 
                   {/* ── Next Week Goals ───────────────────────────────── */}
                   <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
-                    <SectionHeader icon={Sparkles} title="Next Week Goals" delay={0.35} />
+                    <SectionHeader icon={Sparkles} title="Target Minggu Depan" delay={0.35} />
                     <ul className="space-y-2.5">
                       {report.nextWeekGoals.map((goal, i) => (
                         <motion.li
@@ -858,7 +971,7 @@ export default function AIWeeklyReport({
                     className="flex items-center justify-between border-t border-white/[0.04] pt-4"
                   >
                     <p className="text-[10px] uppercase tracking-widest text-slate-600">
-                      Powered by LuxTradee AI
+                      Didukung oleh LuxTradee AI
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
@@ -870,12 +983,12 @@ export default function AIWeeklyReport({
                         {copied ? (
                           <>
                             <Check className="h-3 w-3 text-emerald-400" />
-                            Copied!
+                            Tersalin!
                           </>
                         ) : (
                           <>
                             <Copy className="h-3 w-3" />
-                            Copy Report
+                            Salin Laporan
                           </>
                         )}
                       </Button>
@@ -886,7 +999,7 @@ export default function AIWeeklyReport({
                         className="h-7 gap-1.5 text-xs text-slate-500 hover:text-white hover:bg-white/5"
                       >
                         <Download className="h-3 w-3" />
-                        Download
+                        Unduh
                       </Button>
                     </div>
                   </motion.div>

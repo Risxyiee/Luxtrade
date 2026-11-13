@@ -28,7 +28,7 @@
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { TrendingUp, Maximize2, Minimize2 } from 'lucide-react'
+import { TrendingUp, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react'
 import { TV_WIDGET_SYMBOLS } from '@/components/tradingview/TradingViewChart'
 
 const TradingViewChartClient = dynamic(() => import('@/components/tradingview/TradingViewChart'), {
@@ -77,13 +77,21 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
   const [symbol, setSymbol] = useState('XAUUSD')
   const [tf, setTf] = useState('15m')
   const [hydrated, setHydrated] = useState(false)
-  /* MODE FOKUS (laporan Bos: "mau gambar garis di chart gabisa, kursor
-     ga fokus ke chartnya") — fullscreen chart via requestFullscreen:
-     satu klik → chart (termasuk bar simbol/TF) mengisi seluruh layar,
-     tidak ada elemen halaman lain yang bisa menangkap kursor → drawing
-     tools TradingView 100% fokus. ESC / tombol yang sama untuk keluar. */
+  /* MODE FOKUS — dua jalur (laporan Bos 13-11: "mau bikin garis make tool
+     tradingview website gerak-gerak jadi gabisa narik garis"):
+     1. Native fullscreen (desktop/Android) via requestFullscreen.
+     2. FALLBACK CSS — Safari iPhone TIDAK PUNYA Fullscreen API, tombol lama
+        diam-diam gagal (catch menelan error). Sekarang: wrapper dipaku
+        position:fixed inset:0 → chart mengisi satu layar penuh di iPhone. */
   const shellRef = useRef<HTMLDivElement | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [cssFullscreen, setCssFullscreen] = useState(false)
+  /* KUNCI GESER — saat aktif halaman DIBEKUKAN (overflow hidden + position
+     fixed, resep scroll-lock iOS) dan wrapper chart dapat touch-action:none →
+     drag di chart TIDAK lagi menyeret halaman, garis bisa ditarik dengan
+     fokus. Otomatis aktif selama mode fokus. */
+  const [gestureLock, setGestureLock] = useState(false)
+  const lockPage = gestureLock || cssFullscreen || isFullscreen
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
@@ -91,17 +99,68 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
 
+  /* ESC untuk keluar dari fallback fullscreen CSS (desktop) */
+  useEffect(() => {
+    if (!cssFullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCssFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cssFullscreen])
+
+  /* Scroll-lock iOS: html/body overflow hidden + body position fixed dengan
+     top = -scrollY → halaman BENAR-BENAR tidak bisa bergeser (overflow:hidden
+     saja sering diabaikan Safari iPhone), posisi scroll dipulihkan saat
+     dilepas. Jalan selama mode fokus maupun kunci geser manual. */
+  useEffect(() => {
+    if (!lockPage || typeof document === 'undefined') return
+    const html = document.documentElement
+    const body = document.body
+    const prevScrollY = window.scrollY
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.left = '0'
+    body.style.right = '0'
+    body.style.width = '100%'
+    body.style.top = `-${prevScrollY}px`
+    return () => {
+      html.style.overflow = ''
+      body.style.overflow = ''
+      body.style.position = ''
+      body.style.left = ''
+      body.style.right = ''
+      body.style.width = ''
+      body.style.top = ''
+      window.scrollTo(0, prevScrollY)
+    }
+  }, [lockPage])
+
   const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {})
+      return
+    }
+    if (cssFullscreen) {
+      setCssFullscreen(false)
+      return
+    }
+    const el = shellRef.current
+    if (!el) return
+    const anyEl = el as HTMLDivElement & { webkitRequestFullscreen?: () => void }
     try {
-      if (document.fullscreenElement) {
-        void document.exitFullscreen()
-      } else if (shellRef.current) {
-        void shellRef.current.requestFullscreen()
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => setCssFullscreen(true))
+      } else if (typeof anyEl.webkitRequestFullscreen === 'function') {
+        anyEl.webkitRequestFullscreen() // iPad; iPhone Safari tidak punya
+      } else {
+        setCssFullscreen(true) // iPhone → fallback CSS fullscreen
       }
     } catch {
-      /* browser menolak fullscreen (iframe sandbox dsb.) — abaikan */
+      setCssFullscreen(true)
     }
-  }, [])
+  }, [cssFullscreen])
 
   /* Pulihkan pilihan terakhir user (tanpa hydration mismatch: state
      default server = XAUUSD/15m, pembacaan localStorage di mount) */
@@ -143,25 +202,60 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
           </p>
         </div>
 
-        {/* Mode Fokus — fullscreen chart agar gambar garis bebas gangguan
-            kursor elemen halaman lain (laporan Bos 11-11) */}
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-purple-500/20 border border-purple-400/30 px-4 py-2.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/30 hover:text-purple-100 transition-colors min-h-[44px]"
-          title={isFullscreen ? 'Keluar dari mode fokus (ESC)' : 'Mode fokus — chart penuh 1 layar, bebas gangguan untuk menggambar'}
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          {isFullscreen ? 'Keluar Fokus' : 'Mode Fokus'}
-        </button>
+        {/* Kontrol fokus & kunci geser */}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setGestureLock((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-colors min-h-[44px] ${
+              gestureLock
+                ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30'
+                : 'bg-white/[0.04] border-white/15 text-white/60 hover:bg-white/10 hover:text-white/90'
+            }`}
+            title={gestureLock
+              ? 'Halaman terkunci — matikan ini kalau mau scroll halaman lagi'
+              : 'Kunci halaman supaya tidak ikut bergeser saat menggambar garis di chart (penting di iPhone/Android)'}
+          >
+            {gestureLock ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+            {gestureLock ? 'Halaman Terkunci' : 'Kunci Geser'}
+          </button>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-purple-500/20 border border-purple-400/30 px-4 py-2.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/30 hover:text-purple-100 transition-colors min-h-[44px]"
+            title={isFullscreen || cssFullscreen ? 'Keluar dari mode fokus (ESC)' : 'Mode fokus — chart penuh 1 layar, bebas gangguan untuk menggambar'}
+          >
+            {isFullscreen || cssFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen || cssFullscreen ? 'Keluar Fokus' : 'Mode Fokus'}
+          </button>
+        </div>
       </div>
 
       {/* ---------- Shell: bar simbol/TF + chart (satuan fullscreen) ---------- */}
       <div
         ref={shellRef}
-        className="rounded-2xl border border-white/10 bg-[#07070c] p-3 space-y-3"
+        className={
+          cssFullscreen
+            ? 'fixed inset-0 z-[9999] bg-[#07070c] p-3 flex flex-col gap-3 overflow-hidden'
+            : 'rounded-2xl border border-white/10 bg-[#07070c] p-3 space-y-3'
+        }
         style={isFullscreen ? { height: '100vh', borderRadius: 0, overflow: 'hidden' } : undefined}
       >
+        {cssFullscreen && (
+          <div className="flex items-center justify-between shrink-0">
+            <span className="text-xs font-semibold text-white/70">
+              Mode Fokus — chart penuh satu layar
+            </span>
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="inline-flex items-center gap-2 rounded-lg bg-purple-500/20 border border-purple-400/30 px-3 py-2 text-xs font-semibold text-purple-200 hover:bg-purple-500/30 min-h-[40px]"
+            >
+              <Minimize2 className="w-4 h-4" />
+              Keluar Fokus
+            </button>
+          </div>
+        )}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
           <div className="flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold w-12 shrink-0">Simbol</span>
@@ -209,10 +303,23 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
             isolate + z-0: stacking context sendiri — tidak ada elemen halaman
             (banner/overlay) yang bisa menyela di atas iframe chart.
             select-none: drag di sekitar chart tidak ikut menyeleksi teks.
-            Mode fokus: tinggi menyesuaikan sisa layar (bar simbol/TF tetap
-            terjangkau) supaya seluruh chart terlihat tanpa scroll. */}
-        <div className="relative isolate z-0 rounded-2xl border border-white/10 bg-[#0b0b12] overflow-hidden select-none">
-          <div className={isFullscreen ? 'h-[calc(100vh-150px)]' : 'h-[85vh] min-h-[560px]'}>
+            touch-action none saat halaman terkunci → gesture sentuh di chart
+            tidak menyeret halaman (laporan Bos 13-11).
+            Mode fokus: tinggi menyesuaikan sisa layar supaya seluruh chart
+            terlihat tanpa scroll. */}
+        <div
+          className={`relative isolate z-0 rounded-2xl border border-white/10 bg-[#0b0b12] overflow-hidden select-none ${cssFullscreen ? 'h-full' : ''}`}
+          style={{ touchAction: lockPage ? 'none' : undefined }}
+        >
+          <div
+            className={
+              cssFullscreen
+                ? 'h-full'
+                : isFullscreen
+                  ? 'h-[calc(100vh-150px)]'
+                  : 'h-[85vh] min-h-[560px]'
+            }
+          >
             <TradingViewChartClient symbol={symbol} interval={tf} />
           </div>
         </div>
@@ -225,8 +332,8 @@ export default function ChartTab({ isPro: _isPro }: { isPro?: boolean } = {}) {
           Simbol lain bisa diketik langsung di kotak simbol chart.
         </p>
         <p>
-          Butuh alert harga? Pasang <span className="text-purple-300 font-semibold">target harga di Watchlist</span> —
-          server cek tiap 15 menit &amp; push ke HP saat level kena.
+          Nggak bisa narik garis karena halaman ikut bergeser? Nyalakan <span className="text-emerald-300 font-semibold">Kunci Geser</span>{' '}
+          atau <span className="text-purple-300 font-semibold">Mode Fokus</span> — halaman dibekukan, drag fokus ke chart. Berfungsi juga di iPhone.
         </p>
       </div>
     </div>

@@ -3,6 +3,13 @@
 import { memo, useCallback } from 'react'
 import { TrendingUp, TrendingDown, Download } from 'lucide-react'
 
+/* Font stack sistem — dipaksa inline pada root card supaya hasil PNG
+   (html-to-image) TIDAK jatuh ke font serif ketika embed font web gagal
+   (laporan Bos 13-11: hasil share card jadi Times New Roman). Font
+   sistem selalu tersedia saat SVG foreignObject dirasterisasi. */
+export const SHARE_CARD_FONT =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+
 interface PNLShareCardProps {
   symbol: string
   type: string
@@ -32,10 +39,11 @@ const PNLShareCard = memo(function PNLShareCard({
   })
 
   const fmtPrice = (v: number) => {
-    if (v == null || Number.isNaN(v)) return '-'
+    // 0 / null / NaN berarti data kosong (laporan Bos: ENTRY tampil "0") → tampilkan "-"
+    if (!v || Number.isNaN(v)) return '-'
     // Show enough precision for forex pairs, trim trailing zeros
     const str = v.toFixed(Math.abs(v) < 10 ? 5 : 2)
-    return str.replace(/\.?0+$/, '') || '0'
+    return str.replace(/\.?0+$/, '') || '-'
   }
 
   const handleDownload = useCallback(async () => {
@@ -47,6 +55,7 @@ const PNLShareCard = memo(function PNLShareCard({
         pixelRatio: 3,
         backgroundColor: '#0a0c12',
         cacheBust: true,
+        skipFonts: true, // jangan embed @font-face web — paksa font sistem inline, anti serif
       })
       const link = document.createElement('a')
       const safeSymbol = (symbol || 'trade').replace(/[^A-Za-z0-9]/g, '')
@@ -61,6 +70,7 @@ const PNLShareCard = memo(function PNLShareCard({
   return (
     <div
       id="pnl-share-card"
+      style={{ fontFamily: SHARE_CARD_FONT }}
       className="w-[340px] rounded-2xl overflow-hidden bg-gradient-to-br from-[#0a0c12] via-[#0d1018] to-[#0f1219] border border-white/10 shadow-2xl select-none"
     >
       {/* Header — branding + session */}
@@ -76,7 +86,7 @@ const PNLShareCard = memo(function PNLShareCard({
           />
           <div className="leading-tight">
             <span className="text-[15px] font-bold text-white tracking-wide">LuxTradee</span>
-            <div className="text-[9px] text-gray-500 uppercase tracking-[0.18em]">Trading Journal</div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-[0.18em]">Jurnal Trading</div>
           </div>
         </div>
         {session && (
@@ -126,7 +136,7 @@ const PNLShareCard = memo(function PNLShareCard({
           </span>
         </div>
         <div className="mt-2.5 text-[10px] text-gray-500 uppercase tracking-[0.25em]">
-          Profit & Loss
+          Laba &amp; Rugi
         </div>
       </div>
 
@@ -143,7 +153,7 @@ const PNLShareCard = memo(function PNLShareCard({
           </div>
           <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2.5 py-3 text-center">
             <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Lot</div>
-            <div className="text-[13px] font-semibold text-white font-mono">{lotSize ?? '-'}</div>
+            <div className="text-[13px] font-semibold text-white font-mono">{lotSize ? String(lotSize) : '-'}</div>
           </div>
         </div>
       </div>
