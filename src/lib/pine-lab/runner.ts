@@ -56,6 +56,10 @@ export interface RunOneResult {
   run: LuxRunResult
   durationMs: number
   candleCount: number
+  /** Epoch detik candle PERTAMA dalam rentang data (info rentang history). */
+  dataFrom?: number
+  /** Epoch detik candle TERAKHIR (harusnya ≈ sekarang — bukti data live). */
+  dataTo?: number
 }
 
 /**
@@ -89,7 +93,13 @@ export async function runOneScript(
     maxBars: candleLimit,
     maxEvents: PINE_LAB_CONFIG.MAX_EVENTS_PER_RUN,
   })
-  return { run, durationMs: run.durationMs, candleCount: candles.length }
+  return {
+    run,
+    durationMs: run.durationMs,
+    candleCount: candles.length,
+    dataFrom: candles[0]?.time,
+    dataTo: candles[candles.length - 1]?.time,
+  }
 }
 
 /** event_id stabil untuk dedupe lintas-cron (user + script + bar + title). */

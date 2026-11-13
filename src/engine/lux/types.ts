@@ -34,6 +34,9 @@ export interface LuxEvent {
   title: string
   /** Pesan alert dari script (sudah dipotong biar aman ditampilkan). */
   message: string
+  /** Harga close candle saat sinyal terjadi ( histori entry ala
+   *  Strategy Tester — muncul di tabel histori sinyal Pine Lab). */
+  price?: number
 }
 
 /** Satu garis plot (untuk digambar UI, opsional). */

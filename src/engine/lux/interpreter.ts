@@ -1732,11 +1732,13 @@ class Interp {
     if (this.events.length >= this.opts.maxEvents) return
     // Sanitasi output: potong panjang, buang kontrol char
     const clean = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 280)
+    const px = this.close[bar]
     this.events.push({
       time: this.timeArr[bar] ?? 0,
       bar,
       title: clean(String(title ?? '')).slice(0, 80) || 'Alert',
       message: clean(String(message ?? '')) || 'Lux signal',
+      price: Number.isFinite(px) ? px : undefined,
     })
   }
 }

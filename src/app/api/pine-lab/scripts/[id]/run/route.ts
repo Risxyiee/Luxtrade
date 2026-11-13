@@ -60,7 +60,10 @@ export async function POST(
     }
 
     // ── Jalankan (sandbox engine: deadline + caps) ──
-    const { run, candleCount } = await runOneScript(script, PINE_LAB_CONFIG.MANUAL_CANDLE_LIMIT)
+    const { run, candleCount, dataFrom, dataTo } = await runOneScript(
+      script,
+      PINE_LAB_CONFIG.MANUAL_CANDLE_LIMIT,
+    )
 
     // ── Catat durasi (spek item 6) ──
     await admin.from('pine_runs').insert({
@@ -95,6 +98,8 @@ export async function POST(
       durationMs: Math.round(run.durationMs),
       candleCount,
       symbol: script.symbol,
+      dataFrom: dataFrom ?? null,
+      dataTo: dataTo ?? null,
       events: run.events.slice(0, PINE_LAB_CONFIG.MAX_EVENTS_PER_RUN),
       plots: run.plots.slice(0, 12),
     })

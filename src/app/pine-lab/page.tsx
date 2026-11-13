@@ -41,6 +41,7 @@ interface RunEvent {
   bar: number
   title: string
   message: string
+  price?: number
 }
 
 interface RunResp {
@@ -50,8 +51,29 @@ interface RunResp {
   bars?: number
   durationMs?: number
   candleCount?: number
+  /** Epoch detik candle pertama & terakhir rentang data run (info history). */
+  dataFrom?: number | null
+  dataTo?: number | null
   events?: RunEvent[]
 }
+
+/* Format tanggal-jam WIB singkat utk histori sinyal. */
+const fmtWib = (sec: number) =>
+  new Date(sec * 1000).toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit',
+    month: 'short',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+const fmtTanggal = (sec: number) =>
+  new Date(sec * 1000).toLocaleDateString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 
 const TEMPLATE = `//@version=5
 indicator('Strategi Pertamaku', overlay=true)
@@ -444,33 +466,60 @@ export default function PineLabPage() {
           {/* Hasil run */}
           {runResult && (
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-bold">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
                 {runResult.ok
                   ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   : <XCircle className="w-4 h-4 text-red-400" />}
                 {runResult.ok ? 'Run selesai' : 'Run gagal'}
                 <span className="text-[10px] font-normal text-white/40">
-                  {runResult.bars ?? 0} bar H1 · {runResult.durationMs ?? 0} ms · {runResult.candleCount ?? 0} candle
+                  {runResult.bars ?? 0} bar H1 · {runResult.durationMs ?? 0} ms
+                  {runResult.dataFrom && runResult.dataTo
+                    ? ` · data ${fmtTanggal(runResult.dataFrom)} – ${fmtTanggal(runResult.dataTo)}`
+                    : ''}
                 </span>
               </div>
               {!runResult.ok && (
                 <p className="text-xs text-red-300/90 font-mono bg-red-500/5 rounded-lg p-3">{runResult.error}</p>
               )}
               {runResult.ok && (runResult.events?.length ?? 0) === 0 && (
-                <p className="text-xs text-white/40">Tidak ada sinyal pada data terakhir — normal bila kondisi belum terpenuhi.</p>
+                <p className="text-xs text-white/40">Tidak ada sinyal pada rentang data ini — normal bila kondisi strategi belum terpenuhi.</p>
               )}
               {runResult.ok && (runResult.events?.length ?? 0) > 0 && (
-                <ul className="space-y-1.5 max-h-64 overflow-y-auto lux-scroll">
-                  {runResult.events!.map((ev, i) => (
-                    <li key={`${ev.bar}-${i}`} className="rounded-lg border border-white/5 bg-black/30 px-3 py-2 text-xs flex items-start gap-2">
-                      <span className="rounded bg-cyan-500/15 text-cyan-300 px-1.5 py-px font-bold text-[10px] shrink-0">{ev.title}</span>
-                      <span className="text-white/70 flex-1">{ev.message}</span>
-                      <span className="text-white/30 font-mono text-[10px] shrink-0">
-                        {new Date(ev.time * 1000).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'short', timeStyle: 'short' })}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 py-2 bg-white/[0.03] border-b border-white/5">
+                    <span className="text-[11px] font-bold text-white/70">Histori Sinyal ({runResult.events!.length})</span>
+                    <span className="text-[10px] text-white/35">Waktu WIB · harga close candle sinyal</span>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto overflow-x-auto lux-scroll">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-[#0a0a12]">
+                        <tr className="text-[10px] uppercase tracking-wide text-white/35">
+                          <th className="px-3 py-1.5 font-semibold whitespace-nowrap">Waktu (WIB)</th>
+                          <th className="px-3 py-1.5 font-semibold">Sinyal</th>
+                          <th className="px-3 py-1.5 font-semibold text-right whitespace-nowrap">Harga</th>
+                          <th className="px-3 py-1.5 font-semibold">Pesan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {runResult.events!.map((ev, i) => (
+                          <tr key={`${ev.bar}-${i}`} className="border-t border-white/5 align-top">
+                            <td className="px-3 py-2 text-[11px] font-mono text-white/50 whitespace-nowrap">{fmtWib(ev.time)}</td>
+                            <td className="px-3 py-2">
+                              <span className="rounded bg-cyan-500/15 text-cyan-300 px-1.5 py-px font-bold text-[10px] whitespace-nowrap">{ev.title}</span>
+                            </td>
+                            <td className="px-3 py-2 text-[11px] font-mono text-emerald-300/80 text-right whitespace-nowrap">
+                              {typeof ev.price === 'number' ? ev.price.toLocaleString('en-US', { maximumFractionDigits: 5 }) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-[11px] text-white/70 min-w-[140px]">{ev.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="px-3 py-2 text-[10px] text-white/30 border-t border-white/5">
+                    Ini histori sinyal pada 1.500 bar H1 terakhir (± 3 bulan). Push notification hanya dikirim untuk sinyal BARU saat script AKTIF — bukan push ulang sinyal lama.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -482,7 +531,7 @@ export default function PineLabPage() {
               <p><strong className="text-amber-300">Disclaimer:</strong> sinyal dari Pine Lab bukan nasihat keuangan — keputusan dan risiko trading sepenuhnya milik kamu. Sintaks Lux Script kompatibel sebagian dengan Pine Script v5 (fungsi &amp; fitur tertentu belum didukung).</p>
               <p className="flex items-center gap-1.5 text-white/40">
                 <Database className="w-3 h-3" />
-                Sumber data: candle H1 internal Luxtradee (TradingView → Twelve Data), zona waktu Asia/Jakarta.
+                Sumber data: candle H1 internal Luxtradee — TradingView (utama, spot-grade OANDA) → Twelve Data (cadangan), zona waktu Asia/Jakarta.
               </p>
               <p className="flex items-center gap-1.5 text-white/40">
                 <FileText className="w-3 h-3" />
