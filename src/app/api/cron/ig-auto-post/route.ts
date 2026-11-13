@@ -132,13 +132,20 @@ async function handle(request: NextRequest) {
       return NextResponse.json({ ok: true, skipped: `cap harian tercapai (${IG_DAILY_CAP} post/24 jam)`, posted: 0 })
     }
 
-    /* ── 3) Reclaim 'publishing' menggantung (> 30 menit, Reels lama) ── */
+    /* ── 3) Reclaim 'publishing' menggantung (> 30 menit, Reels lama) ──
+     * FIX 400/42703: tabel instagram_posts TIDAK punya kolom updated_at
+     * (dulu filter .lt('updated_at') → PostgREST 400 di SEMUA tick cron).
+     * Pakai created_at — aman: proses publishing aktif maks ±6 menit
+     * (poll Reels), jadi baris 'publishing' berumur >30 menit pasti stuck. */
     const staleBefore = new Date(Date.now() - STALE_PUBLISHING_MS).toISOString()
-    await admin
+    const reclaim = await admin
       .from('instagram_posts')
       .update({ status: 'pending', error: 'reclaimed: publishing menggantung >30 menit' })
       .eq('status', 'publishing')
-      .lt('updated_at', staleBefore)
+      .lt('created_at', staleBefore)
+    if (reclaim.error) {
+      console.error('[ig-auto-post] reclaim publishing gagal:', reclaim.error.message)
+    }
 
     /* ── dry mode: lihat antrean saja ── */
     if (dry) {
