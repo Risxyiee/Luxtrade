@@ -19,6 +19,9 @@ export const PINE_LAB_CONFIG = {
   CRON_CANDLE_LIMIT: 1500,
   /** Jumlah candle untuk run manual (test). */
   MANUAL_CANDLE_LIMIT: 1500,
+  /** Batas event yang DISIMPAN untuk run manual (histori penuh —
+   *  Bos: "jangan stuck di 50, tampilkan terus sampai data terakhir"). */
+  MANUAL_MAX_EVENTS: 2000,
   /** Deadline mesin Lux per run (ms) — sandbox dalam engine. */
   ENGINE_DEADLINE_MS: 2000,
   /** Batas event per run yang disimpan/dipush. */

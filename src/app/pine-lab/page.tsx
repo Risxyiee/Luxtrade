@@ -17,12 +17,13 @@
  * ============================================================
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   FlaskConical, Play, Save, Trash2, Loader2, ShieldAlert,
   Database, FileText, Plus, Power, CheckCircle2, XCircle, ArrowLeft,
 } from 'lucide-react'
+import SignalChart, { type ChartMarker } from '@/components/pine-lab/SignalChart'
 
 interface ScriptRow {
   id: string
@@ -55,6 +56,8 @@ interface RunResp {
   dataFrom?: number | null
   dataTo?: number | null
   events?: RunEvent[]
+  /** Candle PENUH [time, open, high, low, close][] untuk chart Strategy Tester. */
+  candles?: number[][]
 }
 
 /* Format tanggal-jam WIB singkat utk histori sinyal. */
@@ -302,6 +305,22 @@ export default function PineLabPage() {
   /* ─────────── MAIN LAB UI ─────────── */
   const activeCount = scripts.filter((s) => s.active).length
 
+  /* Marker chart dari histori sinyal ( LONG/SHORT dari pesan engine ). */
+  const chartMarkers: ChartMarker[] = useMemo(() => {
+    const evs = runResult?.events ?? []
+    return evs.map((ev) => {
+      const isLong = /^LONG\b/.test(ev.message) || /LONG\b/.test(ev.message.toUpperCase().slice(0, 12))
+      const isShort = /^SHORT\b/.test(ev.message) || /SHORT\b/.test(ev.message.toUpperCase().slice(0, 14))
+      return {
+        bar: ev.bar,
+        dir: isLong ? 'long' as const : isShort ? 'short' as const : 'info' as const,
+        title: ev.title,
+        price: ev.price,
+        message: ev.message,
+      }
+    })
+  }, [runResult])
+
   return (
     <div className="min-h-screen bg-[#050507] text-white flex flex-col">
       {/* Header */}
@@ -481,6 +500,9 @@ export default function PineLabPage() {
               {!runResult.ok && (
                 <p className="text-xs text-red-300/90 font-mono bg-red-500/5 rounded-lg p-3">{runResult.error}</p>
               )}
+              {runResult.ok && (runResult.candles?.length ?? 0) > 0 && (
+                <SignalChart candles={runResult.candles!} markers={chartMarkers} />
+              )}
               {runResult.ok && (runResult.events?.length ?? 0) === 0 && (
                 <p className="text-xs text-white/40">Tidak ada sinyal pada rentang data ini — normal bila kondisi strategi belum terpenuhi.</p>
               )}
@@ -488,9 +510,9 @@ export default function PineLabPage() {
                 <div className="rounded-xl border border-white/10 overflow-hidden">
                   <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 py-2 bg-white/[0.03] border-b border-white/5">
                     <span className="text-[11px] font-bold text-white/70">Histori Sinyal ({runResult.events!.length})</span>
-                    <span className="text-[10px] text-white/35">Waktu WIB · harga close candle sinyal</span>
+                    <span className="text-[10px] text-white/35">Waktu WIB · harga close candle sinyal · histori penuh, tidak terpotong</span>
                   </div>
-                  <div className="max-h-80 overflow-y-auto overflow-x-auto lux-scroll">
+                  <div className="max-h-96 overflow-y-auto overflow-x-auto lux-scroll">
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 bg-[#0a0a12]">
                         <tr className="text-[10px] uppercase tracking-wide text-white/35">
@@ -517,7 +539,7 @@ export default function PineLabPage() {
                     </table>
                   </div>
                   <p className="px-3 py-2 text-[10px] text-white/30 border-t border-white/5">
-                    Ini histori sinyal pada 1.500 bar H1 terakhir (± 3 bulan). Push notification hanya dikirim untuk sinyal BARU saat script AKTIF — bukan push ulang sinyal lama.
+                    Histori lengkap semua sinyal pada 1.500 bar H1 terakhir (± 3 bulan) — selalu menampilkan yang terbaru. Push notification hanya dikirim untuk sinyal BARU saat script AKTIF — bukan push ulang sinyal lama.
                   </p>
                   <p className="px-3 py-2 text-[10px] text-white/30 border-t border-white/5">
                     <strong className="text-white/50">Beda dengan Strategy Tester TradingView:</strong> TradingView menyimulasikan eksekusi order — order limit menggantung sampai harga menyentuhnya, lalu tercatat sebagai &ldquo;trade&rdquo; di tanggal TERISI (bisa berminggu setelah sinyal). Pine Lab bekerja mode SINYAL: entry/exit dipancarkan sebagai alert pada bar saat kondisi terpicu — tanggal di tabel ini = tanggal sinyal terpasang, bukan tanggal order terisi.

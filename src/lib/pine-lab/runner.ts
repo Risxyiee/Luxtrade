@@ -60,6 +60,8 @@ export interface RunOneResult {
   dataFrom?: number
   /** Epoch detik candle TERAKHIR (harusnya ≈ sekarang — bukti data live). */
   dataTo?: number
+  /** Candle PENUH yang dipakai run (untuk chart Strategy Tester di UI). */
+  candles?: LuxCandle[]
 }
 
 /**
@@ -70,7 +72,8 @@ export interface RunOneResult {
  */
 export async function runOneScript(
   script: { id: string; symbol: string; source: string },
-  candleLimit: number = PINE_LAB_CONFIG.MANUAL_CANDLE_LIMIT
+  candleLimit: number = PINE_LAB_CONFIG.MANUAL_CANDLE_LIMIT,
+  maxEvents: number = PINE_LAB_CONFIG.MAX_EVENTS_PER_RUN,
 ): Promise<RunOneResult> {
   const candles = await fetchCandles(script.symbol || PINE_LAB_CONFIG.DEFAULT_SYMBOL, candleLimit)
   if (!candles.length) {
@@ -86,12 +89,13 @@ export async function runOneScript(
       },
       durationMs: 0,
       candleCount: 0,
+      candles: [],
     }
   }
   const run = runLuxScript(script.source, candles, {
     deadlineMs: PINE_LAB_CONFIG.ENGINE_DEADLINE_MS,
     maxBars: candleLimit,
-    maxEvents: PINE_LAB_CONFIG.MAX_EVENTS_PER_RUN,
+    maxEvents,
   })
   return {
     run,
@@ -99,6 +103,7 @@ export async function runOneScript(
     candleCount: candles.length,
     dataFrom: candles[0]?.time,
     dataTo: candles[candles.length - 1]?.time,
+    candles,
   }
 }
 

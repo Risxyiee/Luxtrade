@@ -1273,10 +1273,19 @@ class Interp {
         if (st.buf.length < need) return NA
         const cIdx = st.buf.length - 1 - right
         const pivot = st.buf[cIdx]
+        // SEMANTIK TradingView (highestbars/lowestbars): bila ada nilai KEMBAR,
+        // bar yang LEBIH BARU menang → pivot TIDAK sah bila kembar berada di
+        // sisi LEBIH BARU (index > cIdx), tetapi SAH bila kembar hanya di
+        // sisi lebih lama (index < cIdx). Index buf: kecil = lama, besar = baru.
         for (let i = cIdx - left; i <= cIdx + right; i++) {
           if (i === cIdx) continue
           const other = st.buf[i]
-          if (name.includes('high') ? other >= pivot : other <= pivot) return NA
+          const isNewer = i > cIdx
+          if (name.includes('high')) {
+            if (isNewer ? other >= pivot : other > pivot) return NA
+          } else {
+            if (isNewer ? other <= pivot : other < pivot) return NA
+          }
         }
         return pivot
       }

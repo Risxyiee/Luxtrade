@@ -60,9 +60,12 @@ export async function POST(
     }
 
     // ── Jalankan (sandbox engine: deadline + caps) ──
-    const { run, candleCount, dataFrom, dataTo } = await runOneScript(
+    // Histori run manual TIDAK dipotong 50 (Bos: "jangan stuck di 50") —
+    // semua sinyal dalam rentang data ikut dikembalikan (maks 2000).
+    const { run, candleCount, dataFrom, dataTo, candles } = await runOneScript(
       script,
       PINE_LAB_CONFIG.MANUAL_CANDLE_LIMIT,
+      PINE_LAB_CONFIG.MANUAL_MAX_EVENTS,
     )
 
     // ── Catat durasi (spek item 6) ──
@@ -100,7 +103,10 @@ export async function POST(
       symbol: script.symbol,
       dataFrom: dataFrom ?? null,
       dataTo: dataTo ?? null,
-      events: run.events.slice(0, PINE_LAB_CONFIG.MAX_EVENTS_PER_RUN),
+      events: run.events,
+      /* Candle penuh untuk chart Strategy Tester di UI (dikompresi ringan:
+         array-of-arrays [time,o,h,l,c] menghemat ±60% payload JSON). */
+      candles: (candles ?? []).map((c) => [c.time, c.open, c.high, c.low, c.close]),
       plots: run.plots.slice(0, 12),
     })
   } catch (e) {
