@@ -1729,10 +1729,13 @@ class Interp {
   }
 
   private pushEvent(bar: number, title: string, message: string): void {
-    if (this.events.length >= this.opts.maxEvents) return
     // Sanitasi output: potong panjang, buang kontrol char
     const clean = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 280)
     const px = this.close[bar]
+    // FIX: bila kuota penuh, buang event TERLAMA (depan) — bukan membuang
+    // event BARU. Dulu `if (events.length >= max) return` memotong dari
+    // sisi baru → histori menampilkan sinyal paling tua dan sinyal
+    // terkini (Oktober–November) justru hilang dari hasil run.
     this.events.push({
       time: this.timeArr[bar] ?? 0,
       bar,
@@ -1740,6 +1743,7 @@ class Interp {
       message: clean(String(message ?? '')) || 'Lux signal',
       price: Number.isFinite(px) ? px : undefined,
     })
+    if (this.events.length > this.opts.maxEvents) this.events.shift()
   }
 }
 
