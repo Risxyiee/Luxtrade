@@ -82,6 +82,18 @@ const menuItems = [
 
 // ==================== MAIN COMPONENT ====================
 
+// FIX URUTAN (laporan Bos: "ngawur nentuin urutan trade, ga ada entry"):
+// seluruh tab mengambil urutan dari array `trades` ini. Normalisasi DI SINI
+// (open_time terbaru dulu, fallback created) supaya tampilan selalu konsisten
+// walau API/cursor mengurutkan pakai close_time.
+function sortTradesByOpenDesc(list: Trade[]): Trade[] {
+  const ts = (t: Trade) => {
+    const v = Date.parse(t.open_time || '')
+    return Number.isNaN(v) ? Date.parse(t.close_time || '') || 0 : v
+  }
+  return [...list].sort((a, b) => ts(b) - ts(a))
+}
+
 export default function LuxTradeDashboard() {
   return <LuxTradeDashboardContent />
 }
@@ -134,8 +146,7 @@ function LuxTradeDashboardContent() {
   const [addWatchlistOpen, setAddWatchlistOpen] = useState(false)
 
   // Data states
-  const [trades, setTrades] = useState<Trade[]>([])
-  // PERF (F2): pagination state — API /api/trades keyset-paginated (100/hal)
+  const [trades, setTrades] = useState<Trade[]>([])  // PERF (F2): pagination state — API /api/trades keyset-paginated (100/hal)
   // tapi dulu nextCursor diabaikan → trade #101+ hilang diam-diam.
   const [tradesPagination, setTradesPagination] = useState<{ hasNextPage: boolean; nextCursor: string | null }>({ hasNextPage: false, nextCursor: null })
   const [loadingMoreTrades, setLoadingMoreTrades] = useState(false)
@@ -197,7 +208,7 @@ function LuxTradeDashboardContent() {
       ]).then(([analyticsData, tradesData]) => {
         if (analyticsData) setAnalytics(analyticsData)
         if (tradesData) {
-          setTrades(tradesData.trades || [])
+          setTrades(sortTradesByOpenDesc(tradesData.trades || []))
           setTradesPagination(
             tradesData.pagination
               ? { hasNextPage: !!tradesData.pagination.hasNextPage, nextCursor: tradesData.pagination.nextCursor ?? null }
@@ -223,7 +234,7 @@ function LuxTradeDashboardContent() {
         const data = await res.json()
         const newTrades: Trade[] = data.trades || []
         if (newTrades.length > 0) {
-          setTrades(prev => [...prev, ...newTrades])
+          setTrades(prev => sortTradesByOpenDesc([...prev, ...newTrades]))
         }
         setTradesPagination(
           data.pagination
@@ -575,7 +586,7 @@ function LuxTradeDashboardContent() {
       if (tradesRes?.ok) {
         try {
           const data = await tradesRes.json()
-          setTrades(data.trades || [])
+          setTrades(sortTradesByOpenDesc(data.trades || []))
           setTradesPagination(
             data.pagination
               ? { hasNextPage: !!data.pagination.hasNextPage, nextCursor: data.pagination.nextCursor ?? null }
