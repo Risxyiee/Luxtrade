@@ -207,7 +207,10 @@ class Interp {
       maxBars,
     }
     this.deadline = Date.now() + this.opts.deadlineMs
-    this.stepBudget = 200_000 + this.n * 50
+    // Budget langkah: script produksi realistis (panel table.cell tiap bar,
+    // multi-plot, logika sinyal) ≈ 300+ eval/bar. Guard utama tetap
+    // wall-clock deadline — budget ini hanya pagar kedua anti-loop.
+    this.stepBudget = 400_000 + this.n * 150
   }
 
   /* ---------- guardrail ---------- */
@@ -546,6 +549,10 @@ class Interp {
       }
       case 'namedarg':
         // Tidak boleh dievaluasi langsung — dinormalisasi di evalCall.
+        return NA
+      case 'array':
+        // Array literal (options=[…] dsb.) — subset: nilai abstrak, tidak
+        // bisa diakses elemennya (array.get dsb. tetap ditolak).
         return NA
       case 'call':
         return this.evalCall(e.name, e.args, e.seq, bar, e.line)
@@ -1505,6 +1512,34 @@ class Interp {
       case 'minute': return this.jakartaParts(this.timeOf(args, bar)).minute
       case 'second': return this.jakartaParts(this.timeOf(args, bar)).second
       case 'timenow': return Date.now()
+      case 'time': {
+        // time([timeframe, session, timezone]) → epoch ms bila bar DI DALAM
+        // sesi, na di luar (dipakai: not na(time(timeframe.period, sessStr,
+        // "Asia/Jakarta"))). Sesi subset "HHMM-HHMM[:dgt]"; multi-sesi dipisah
+        // koma; zona waktu engine = Asia/Jakarta.
+        const tSec = this.timeArr[bar] ?? 0
+        const epochMs = Number.isNaN(tSec) ? NA : tSec * 1000
+        const sess = this.argStr(args, 1, bar, '')
+        if (!sess) return epochMs // time(timeframe) tanpa sesi → waktu bar
+        const parts = this.jakartaParts(tSec)
+        const mins = parts.hour * 60 + parts.minute
+        const dow = parts.dow // Pine: Sunday=1 … Saturday=7
+        for (const seg of sess.split(',')) {
+          const m = seg.trim().match(/^(\d{2})(\d{2})-(\d{2})(\d{2})(?::([0-9]+))?$/)
+          if (!m) continue
+          const start = Number(m[1]) * 60 + Number(m[2])
+          const end = Number(m[3]) * 60 + Number(m[4])
+          if (m[5] && m[5].length > 0) {
+            const dset = new Set(m[5].split('').map(Number))
+            if (!dset.has(dow)) continue
+          }
+          const inSess = start <= end
+            ? mins >= start && mins < end
+            : mins >= start || mins < end // sesi lintas tengah malam
+          if (inSess) return epochMs
+        }
+        return NA
+      }
       case 'timestamp': {
         // timestamp(y, m, d [, hour, minute, second]) → epoch ms (UTC sederhana)
         const y = Math.round(this.argNum(args, 0, bar, 2026))
@@ -1561,6 +1596,10 @@ class Interp {
         }
         return NA
       }
+      case 'strategy.cancel':
+      case 'strategy.cancel_all':
+      case 'strategy.close_all':
+        return NA // pesan pending/close dibatalkan — no-op di mode sinyal
       case 'strategy.entry':
       case 'strategy.exit':
       case 'strategy.close': {

@@ -30,6 +30,7 @@ export type Expr =
   | { t: 'ternary'; c: Expr; a: Expr; b: Expr; line?: number }
   | { t: 'call'; name: string; args: Expr[]; seq: number; line?: number }
   | { t: 'namedarg'; name: string; e: Expr }
+  | { t: 'array'; items: Expr[]; line?: number }
 
 export interface IfBranch { cond: Expr | null; body: Stmt[] }
 export interface SwitchBranch { when: Expr | null; body: Stmt[] }
@@ -593,13 +594,23 @@ class Parser {
       this.expectOp(')')
       return e
     }
+    if (t.kind === 'op' && t.value === '[') {
+      // Array literal Pine: [a, b, c] — dipakai di named arg (input.string
+      // options=[…], dsb.). Dievaluasi jadi nilai abstrak (interpreter → na).
+      const items: Expr[] = []
+      while (!this.isOp(']')) {
+        if (this.peek().kind === 'eof') {
+          throw new Error(`Baris ${t.line}: array literal tidak ditutup "]"`)
+        }
+        items.push(this.parseExpr())
+        if (!this.eatOp(',')) break
+      }
+      this.expectOp(']')
+      return { t: 'array', items, line: t.line }
+    }
     if (t.kind === 'ident') {
-      // literal
-      if (t.value === 'true') return { t: 'bool', v: true }
-      if (t.value === 'false') return { t: 'bool', v: false }
-      if (t.value === 'na') return { t: 'na' }
-
-      // call?
+      // call? — HARUS dicek sebelum literal: `na(x)` adalah FUNGSI is-na,
+      // bukan literal na diikuti kurung (bug lama: sisa token bocor).
       if (this.isOp('(')) {
         this.pos++
         const args: Expr[] = []
@@ -610,6 +621,11 @@ class Parser {
         this.expectOp(')')
         return { t: 'call', name: t.value, args, seq: this.seq++, line: t.line }
       }
+
+      // literal
+      if (t.value === 'true') return { t: 'bool', v: true }
+      if (t.value === 'false') return { t: 'bool', v: false }
+      if (t.value === 'na') return { t: 'na' }
 
       // member path (ta.sma / math.abs / close)
       if (this.isOp('.')) {

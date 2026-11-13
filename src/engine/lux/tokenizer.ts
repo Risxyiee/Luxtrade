@@ -38,8 +38,8 @@ export interface Token {
 
 const OPERATORS = [
   // 2-char dulu (urutan penting: '=>' HARUS sebelum '=', ':=' sebelum '=', dst.)
-  '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', ':=', '=>',
-  '+', '-', '*', '/', '%', '<', '>', '=', '?', ':',
+  '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', ':=', '=>', '||', '&&',
+  '+', '-', '*', '/', '%', '<', '>', '=', '?', ':', '|', '&',
   '(', ')', '[', ']', ',',
 ]
 
@@ -139,12 +139,16 @@ export function tokenize(src: string): Token[] {
         // Lacak kedalaman kurung untuk line continuation
         if (op === '(' || op === '[') parenDepth++
         if (op === ')' || op === ']') parenDepth = Math.max(0, parenDepth - 1)
-        tokens.push({ kind: 'op', value: op, line: li + 1, seq: seq++ })
+        // Toleransi gaya trader dari bahasa lain: `||` → or, `&&` → and.
+        // Pine memakai kata `or`/`and` — dinormalisasi DI SINI supaya parser
+        // sederhana dan error tidak jadi "token tak terduga '|'".
+        const norm = op === '||' || op === '|' ? 'or' : op === '&&' || op === '&' ? 'and' : op
+        tokens.push({ kind: 'op', value: norm, line: li + 1, seq: seq++ })
         i += op.length
         continue
       }
 
-      throw new Error(`Baris ${li + 1}: karakter tak dikenal "${ch}"`)
+      throw new Error(`Baris ${li + 1}: karakter tak dikenal "${ch}" — kalau ini di dalam komentar, pastikan baris diawali //`)
     }
 
     // Lanjutan baris: kurung masih terbuka → JANGAN kirim newline
