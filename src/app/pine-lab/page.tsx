@@ -519,6 +519,9 @@ export default function PineLabPage() {
                   <p className="px-3 py-2 text-[10px] text-white/30 border-t border-white/5">
                     Ini histori sinyal pada 1.500 bar H1 terakhir (± 3 bulan). Push notification hanya dikirim untuk sinyal BARU saat script AKTIF — bukan push ulang sinyal lama.
                   </p>
+                  <p className="px-3 py-2 text-[10px] text-white/30 border-t border-white/5">
+                    <strong className="text-white/50">Beda dengan Strategy Tester TradingView:</strong> TradingView menyimulasikan eksekusi order — order limit menggantung sampai harga menyentuhnya, lalu tercatat sebagai &ldquo;trade&rdquo; di tanggal TERISI (bisa berminggu setelah sinyal). Pine Lab bekerja mode SINYAL: entry/exit dipancarkan sebagai alert pada bar saat kondisi terpicu — tanggal di tabel ini = tanggal sinyal terpasang, bukan tanggal order terisi.
+                  </p>
                 </div>
               )}
             </div>
