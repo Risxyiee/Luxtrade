@@ -149,6 +149,27 @@ export default function PineLabPage() {
     }
   }, [])
 
+  /* Marker chart dari histori sinyal (LONG/SHORT dari pesan engine).
+   * PENTING: hook ini WAJIB dipanggil SEBELUM semua return-early gate —
+   * dulu ada di bawah (setelah gate) → jumlah hook berubah antar render
+   * (loading→ok) → React error #310 "Rendered more hooks than during the
+   * previous render" → seluruh halaman crash KHUSUS user yang sudah login
+   * (anon tidak kena karena selalu berhenti di gate). */
+  const chartMarkers: ChartMarker[] = useMemo(() => {
+    const evs = runResult?.events ?? []
+    return evs.map((ev) => {
+      const isLong = /^LONG\b/.test(ev.message) || /LONG\b/.test(ev.message.toUpperCase().slice(0, 12))
+      const isShort = /^SHORT\b/.test(ev.message) || /SHORT\b/.test(ev.message.toUpperCase().slice(0, 14))
+      return {
+        bar: ev.bar,
+        dir: isLong ? 'long' as const : isShort ? 'short' as const : 'info' as const,
+        title: ev.title,
+        price: ev.price,
+        message: ev.message,
+      }
+    })
+  }, [runResult])
+
   useEffect(() => {
     if (phase === 'ok') void loadScripts()
   }, [phase, loadScripts])
@@ -323,22 +344,6 @@ export default function PineLabPage() {
 
   /* ─────────── MAIN LAB UI ─────────── */
   const activeCount = scripts.filter((s) => s.active).length
-
-  /* Marker chart dari histori sinyal ( LONG/SHORT dari pesan engine ). */
-  const chartMarkers: ChartMarker[] = useMemo(() => {
-    const evs = runResult?.events ?? []
-    return evs.map((ev) => {
-      const isLong = /^LONG\b/.test(ev.message) || /LONG\b/.test(ev.message.toUpperCase().slice(0, 12))
-      const isShort = /^SHORT\b/.test(ev.message) || /SHORT\b/.test(ev.message.toUpperCase().slice(0, 14))
-      return {
-        bar: ev.bar,
-        dir: isLong ? 'long' as const : isShort ? 'short' as const : 'info' as const,
-        title: ev.title,
-        price: ev.price,
-        message: ev.message,
-      }
-    })
-  }, [runResult])
 
   return (
     <div className="min-h-screen bg-[#050507] text-white flex flex-col">
