@@ -202,6 +202,10 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
   }, [])
 
   useEffect(() => {
+    /* FIX (audit #31): guard race — referensi tradingAccounts baru tiap
+       refresh parent memicu fetch ganda; respons akun LAMA yang datang
+       belakangan bisa menimpa akun BARU. `cancelled` membuang respons basi. */
+    let cancelled = false
     setLoading(true)
     const bustTs = `_t=${Date.now()}`
     const url = selectedAccountId
@@ -209,8 +213,9 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
       : `/api/equity-curve?${bustTs}`
     fetch(url, { credentials: 'include', cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
+      .catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [selectedAccountId, tradingAccounts, refreshKey])
 
   // Fetch prop firm challenges for drawdown limit overlay

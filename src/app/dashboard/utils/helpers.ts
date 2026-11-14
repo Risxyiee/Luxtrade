@@ -97,35 +97,41 @@ export function calculateConsecutiveStreaks(trades: { profit_loss: number }[]) {
 }
 
 // Helper: Calculate active streak (current ongoing streak)
-export function calculateActiveStreak(trades: { profit_loss: number }[]) {
+/* FIX (audit #24): dulu menganggap trades[] ascending — padahal seluruh
+   dashboard memakai array DESC (terbaru dulu, sortTradesByOpenDesc) sehingga
+   yang dihitung streak di trade TERLAMA. Sekarang fungsi sort sendiri
+   desc-by-close_time (self-contained, benar utk urutan input apa pun). */
+export function calculateActiveStreak(trades: { profit_loss: number; close_time?: string | null }[]) {
   if (!trades.length) return { type: 'none' as const, count: 0 }
-  const last = trades[trades.length - 1]
-  if (last.profit_loss > 0) {
-    let count = 0
-    for (let i = trades.length - 1; i >= 0; i--) {
-      if (trades[i].profit_loss > 0) count++
-      else break
-    }
-    return { type: 'win' as const, count }
+  const sorted = [...trades].sort(
+    (a, b) => new Date(b.close_time ?? 0).getTime() - new Date(a.close_time ?? 0).getTime()
+  )
+  const first = sorted[0]
+  if (first.profit_loss === 0) return { type: 'none' as const, count: 0 }
+  const isWinStreak = first.profit_loss > 0
+  let count = 0
+  for (const t of sorted) {
+    const match = isWinStreak ? t.profit_loss > 0 : t.profit_loss < 0
+    if (!match) break
+    count++
   }
-  if (last.profit_loss < 0) {
-    let count = 0
-    for (let i = trades.length - 1; i >= 0; i--) {
-      if (trades[i].profit_loss < 0) count++
-      else break
-    }
-    return { type: 'loss' as const, count }
-  }
-  return { type: 'none' as const, count: 0 }
+  return { type: (isWinStreak ? 'win' : 'loss') as 'win' | 'loss', count }
 }
 
 // Helper: Get today's performance metrics
+/* FIX (audit #24): dulu batas hari pakai toISOString (UTC) — user WIB
+   melihat "Hari Ini" yang bergeser 7 jam (trade jam 00:00–06:59 WIB
+   dihitung ke kemarin). Sekarang pakai batas hari WIB eksplisit via
+   Intl Asia/Jakarta agar konsisten dgn zona waktu user utama. */
+function wibDayKey(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+}
+
 export function getTodayPerformance(trades: { profit_loss: number; close_time: string }[]) {
-  const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
+  const todayStr = wibDayKey(new Date())
   const todayTrades = trades.filter(t => {
-    const d = new Date(t.close_time).toISOString().slice(0, 10)
-    return d === todayStr
+    if (!t.close_time) return false
+    return wibDayKey(new Date(t.close_time)) === todayStr
   })
   const totalPL = todayTrades.reduce((sum, t) => sum + t.profit_loss, 0)
   const wins = todayTrades.filter(t => t.profit_loss > 0).length

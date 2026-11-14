@@ -104,7 +104,15 @@ function HeatmapTab({ trades, language = 'id' }: HeatmapTabProps) {
                           const key = `${dayIndex}-${session}`
                           const data = heatmapData[key]
                           const pl = data?.totalPL || 0
-                          const intensity = range > 0 ? Math.abs(pl - minPL) / range : 0
+                          /* FIX (audit #27): dulu intensity = (pl - minPL)/range —
+                             untuk sel LOSS terbalik: loss TERBERAT (pl = minPL)
+                             justru paling pudar. Profit pakai jarak dari minPL,
+                             loss pakai magnitude relatif thd loss terberat. */
+                          const intensity = pl > 0
+                            ? (range > 0 ? (pl - minPL) / range : 0)
+                            : pl < 0
+                              ? (minPL < 0 ? Math.abs(pl) / Math.abs(minPL) : 0)
+                              : 0
 
                           return (
                             <td key={key} className="p-1">

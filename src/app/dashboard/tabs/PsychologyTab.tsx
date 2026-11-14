@@ -69,11 +69,19 @@ function PsychologyTab({ trades, language = 'id' }: PsychologyTabProps) {
   // Best performing session
   const bestSession = Object.entries(sessionStats).sort((a, b) => b[1].totalPL - a[1].totalPL)[0]
 
+  /* FIX (audit #26): analisis psikologi butuh urutan KRONOLOGIS (lama→baru),
+     padahal array `trades` dari dashboard DESC (terbaru dulu). Dulu streak
+     & revenge-trade dihitung mundur → revenge selalu "dalam 1 jam" palsu
+     (timeDiff negatif) dan streak terbalik. Sort asc dulu di sini. */
+  const chronoTrades = [...trades].sort(
+    (a, b) => new Date(a.open_time).getTime() - new Date(b.open_time).getTime()
+  )
+
   // Streak analysis
   let currentStreak = 0
   let longestWinStreak = 0
   let longestLoseStreak = 0
-  trades.forEach(trade => {
+  chronoTrades.forEach(trade => {
     if (trade.profit_loss >= 0) {
       currentStreak = currentStreak >= 0 ? currentStreak + 1 : 1
       longestWinStreak = Math.max(longestWinStreak, currentStreak)
@@ -84,11 +92,11 @@ function PsychologyTab({ trades, language = 'id' }: PsychologyTabProps) {
   })
 
   // Revenge trading detection (trades after a loss)
-  const revengeTrades = trades.filter((trade, index) => {
+  const revengeTrades = chronoTrades.filter((trade, index) => {
     if (index === 0) return false
-    const prevTrade = trades[index - 1]
+    const prevTrade = chronoTrades[index - 1]
     const timeDiff = new Date(trade.open_time).getTime() - new Date(prevTrade.close_time).getTime()
-    return prevTrade.profit_loss < 0 && timeDiff < 3600000 && trade.profit_loss < 0 // Within 1 hour after loss
+    return prevTrade.profit_loss < 0 && timeDiff >= 0 && timeDiff < 3600000 && trade.profit_loss < 0 // Within 1 hour after loss
   })
 
   return (

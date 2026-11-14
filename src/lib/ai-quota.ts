@@ -88,13 +88,24 @@ export async function incrementAIQuota(userId: string): Promise<boolean> {
     const admin = getSupabaseAdmin()
     if (!admin) return true
 
-    const { error } = await admin
+    /* FIX race (audit #21): update kondisional atomik — baris hanya ter-update
+       bila kuota masih di bawah limit (atau belum pernah diisi/NULL). Bila 0
+       baris ter-update → kuota sudah habis / diambil request paralel → false.
+       Dulu: read-then-write absolut → request paralel saling menimpa dan
+       kuota bisa dilampaui. Nilai absolut (used+1) tetap aman karena guard. */
+    const { data, error } = await admin
       .from('profiles')
       .update({ ai_free_quota_used: used + 1 })
       .eq('id', userId)
+      .or(`ai_free_quota_used.is.null,ai_free_quota_used.lt.${FREE_AI_QUOTA}`)
+      .select('id')
 
     if (error) {
       console.error('[incrementAIQuota] Gagal update:', error.message)
+      return false
+    }
+    if (!data || data.length === 0) {
+      console.warn('[incrementAIQuota] Kuota sudah penuh (guard atomik menolak)')
       return false
     }
 

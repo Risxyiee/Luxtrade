@@ -147,7 +147,8 @@ export async function verifyCallbackSignature(
   if (!SAKURA_API_KEY || !callbackSignature) return false
 
   const expectedSignature = await edgeCrypto.hmacSha256(SAKURA_API_KEY, body)
-  return expectedSignature === callbackSignature
+  // Audit #20: timing-safe (konsisten dgn midtrans.ts) — hindari timing attack.
+  return edgeCrypto.timingSafeEqual(expectedSignature, callbackSignature)
 }
 
 // ============================================

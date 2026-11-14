@@ -94,8 +94,9 @@ export default function PWAInstallPrompt({
 
     if (standalone) return // Already installed as PWA
 
-    // Check localStorage dismissal
-    const wasDismissed = localStorage.getItem(DISMISSED_KEY)
+    // Check localStorage dismissal — FIX (audit #29): storage bisa diblokir
+    let wasDismissed: string | null = null
+    try { wasDismissed = localStorage.getItem(DISMISSED_KEY) } catch { /* storage off */ }
     setDismissed(wasDismissed === 'true')
 
     if (ios) {
@@ -116,7 +117,8 @@ export default function PWAInstallPrompt({
   const handleDismiss = useCallback(() => {
     setShowPrompt(false)
     setDismissed(true)
-    localStorage.setItem(DISMISSED_KEY, 'true')
+    // FIX (audit #29): guard storage diblokir
+    try { localStorage.setItem(DISMISSED_KEY, 'true') } catch { /* storage off */ }
     onDismiss?.()
   }, [onDismiss])
 

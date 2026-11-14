@@ -310,7 +310,8 @@ function LuxTradeDashboardContent() {
 
       // Optimistic update lokal dulu (UI tidak nunggu network)
       setTrialStartedAt(now.toISOString())
-      localStorage.setItem('luxtrade_pro_trial_started_at', now.toISOString())
+      // FIX (audit #29): localStorage bisa diblokir (WebView privat) — jangan biarkan throw
+      try { localStorage.setItem('luxtrade_pro_trial_started_at', now.toISOString()) } catch { }
 
       // Catat ke server (sumber kebenaran). Gagal network → cache lokal tetap dipakai.
       let serverStart: string | null = null
@@ -321,7 +322,7 @@ function LuxTradeDashboardContent() {
           if (data.trialStartedAt) {
             serverStart = data.trialStartedAt as string
             setTrialStartedAt(serverStart)
-            localStorage.setItem('luxtrade_pro_trial_started_at', serverStart)
+            try { localStorage.setItem('luxtrade_pro_trial_started_at', serverStart) } catch { }
           }
         }
       } catch { /* offline → lokal */ }
@@ -337,9 +338,15 @@ function LuxTradeDashboardContent() {
   // Load trial start date: localStorage sebagai cache instan, lalu SERVER
   // sebagai sumber kebenaran (P1 fix — dulu murni localStorage, gampang dibypass)
   useEffect(() => {
-    // Migrate from old trial system (trialUntil) to new system (trialStartedAt)
-    const oldTrialUntil = localStorage.getItem('luxtrade_pro_trial_until')
-    const savedTrialStartedAt = localStorage.getItem('luxtrade_pro_trial_started_at')
+    // FIX (audit #29): bungkus akses localStorage dgn try/catch — di WebView
+    // privat akses langsung melempar dan kena error boundary seluruh halaman.
+    let oldTrialUntil: string | null = null
+    let savedTrialStartedAt: string | null = null
+    try {
+      // Migrate from old trial system (trialUntil) to new system (trialStartedAt)
+      oldTrialUntil = localStorage.getItem('luxtrade_pro_trial_until')
+      savedTrialStartedAt = localStorage.getItem('luxtrade_pro_trial_started_at')
+    } catch { /* storage diblokir — lanjut tanpa cache lokal */ }
 
     if (oldTrialUntil && !savedTrialStartedAt) {
       // Migrate: calculate trial start date from trial end date

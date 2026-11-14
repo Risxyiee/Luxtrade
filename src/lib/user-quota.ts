@@ -129,11 +129,19 @@ export async function checkAlertQuota(userId: string): Promise<QuotaRow & { isPr
 export async function commitAlertQuota(userId: string): Promise<void> {
   const supabase = admin()
   const row = await getQuotaRow(userId)
-  const { error } = await supabase
+  /* FIX race (audit #21): guard kondisional — counter hanya naik bila masih
+     di bawah limit free. Bila guard tidak match (0 baris), jangan gagalkan
+     respons (alert sudah terkirim), cukup tidak menaikkan counter. */
+  const { error, data } = await supabase
     .from('user_quotas')
     .update({ alerts_today_count: row.alerts_today_count + 1, alerts_reset_date: wibDay(), updated_at: new Date().toISOString() })
     .eq('user_id', userId)
+    .or(`alerts_today_count.is.null,alerts_today_count.lt.${FREE_ALERT_LIMIT_PER_DAY}`)
+    .select('user_id')
   if (error) throw new Error(`user_quotas update gagal: ${error.message}`)
+  if (!data || data.length === 0) {
+    console.warn('[commitAlertQuota] Counter alert tidak dinaikkan (sudah di/atas limit — guard atomik)')
+  }
 }
 
 export function alertQuotaExceededMessage(): string {

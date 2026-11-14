@@ -95,7 +95,9 @@ function TradesTab({
         t.linked_journal_id || ''
       ]
     })
-    return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+    /* FIX (audit #25): escape tanda kutip utk SEMUA sel — dulu kutip di
+       catatan menggeser kolom CSV (file korup di Excel/Sheets). */
+    return [headers, ...rows].map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
   }
 
   // Export filtered CSV
@@ -174,10 +176,12 @@ function TradesTab({
       const tableData = filteredTrades.map(t => [
         t.symbol,
         t.type,
-        t.open_price.toFixed(5),
-        t.close_price.toFixed(5),
-        t.lot_size.toFixed(2),
-        t.profit_loss.toFixed(2),
+        // FIX (audit #23): guard null — 1 trade dengan exit kosong dulu
+        // membuat SELURUH export PDF gagal (ditangkap try/catch generik).
+        Number(t.open_price ?? 0).toFixed(5),
+        Number(t.close_price ?? 0).toFixed(5),
+        Number(t.lot_size ?? 0).toFixed(2),
+        Number(t.profit_loss ?? 0).toFixed(2),
         t.trade_duration ? `${Math.floor(t.trade_duration / 60)}h ${t.trade_duration % 60}m` : '-',
         t.risk_reward_ratio ? `1:${t.risk_reward_ratio}` : '-',
         t.session || '-',

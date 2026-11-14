@@ -298,8 +298,11 @@ class Interp {
   private jakartaParts(epochSec: number): { year: number; month: number; day: number; dow: number; hour: number; minute: number; second: number } {
     const d = new Date(epochSec * 1000)
     const get = (key: string, opts: Intl.DateTimeFormatOptions): number => {
-      const p = this.dtf(key, opts).formatToParts(d).find((x) => x.type === key.slice(0, 1).toUpperCase() + key.slice(1))
-      // formatToParts type names: 'year','month','day','weekday','hour','minute','second'
+      // FIX (audit #22): formatToParts mengembalikan type LOWERCASE ('year',
+      // bukan 'Year') — predikat lama yang mengkapitalisasi key tidak pernah
+      // match → builtin `year` selalu 0. Pola inline month/day/hour (bawah)
+      // sudah benar sejak awal.
+      const p = this.dtf(key, opts).formatToParts(d).find((x) => x.type === key)
       return p ? Number(p.value) : 0
     }
     const year = get('year', { year: 'numeric' })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -11,8 +11,14 @@ export default function AuthCallbackPage() {
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [errorMessage, setErrorMessage] = useState('')
+  /* FIX (audit #28): guard StrictMode/dev — kode OAuth one-time jangan
+     ditukar dua kali (eksekusi kedua selalu error → layar "Konfirmasi
+     Gagal" palsu walau login sukses). */
+  const startedRef = useRef(false)
 
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
     const handleCallback = async () => {
       try {
         // Get the auth code from URL

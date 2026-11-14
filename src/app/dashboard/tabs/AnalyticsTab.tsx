@@ -31,6 +31,12 @@ export default function AnalyticsTab({ language, initialAnalytics, selectedAccou
   const [analytics, setAnalytics] = useState<any>(initialAnalytics || null)
   const [loading, setLoading] = useState(!initialAnalytics)
   const [period, setPeriod] = useState('all')
+  /* FIX (audit #31): sinkronkan data awal saat PARENT refetch (ganti akun /
+     refresh) — dulu state tidak pernah ikut prop → tab Analytics menampilkan
+     angka akun LAMA selamanya bila period='all'. */
+  useEffect(() => {
+    setAnalytics(initialAnalytics || null)
+  }, [initialAnalytics])
 
   // Only fetch from API when period changes (not on mount if initialAnalytics exists)
   useEffect(() => {

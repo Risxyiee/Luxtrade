@@ -29,6 +29,12 @@ export async function POST(request: NextRequest) {
     }
 
     const hfModel = model || 'Qwen/Qwen2-VL-2B-Instruct';
+    // SECURITY (audit #20): whitelist format nama model — input user tidak
+    // boleh diinterpolasi mentah ke URL (bisa berisi ../ ? # utk redirect
+    // request+API key ke path/endpoint HF lain).
+    if (!/^[A-Za-z0-9][A-Za-z0-9._\/-]{0,120}$/.test(hfModel) || hfModel.includes('..')) {
+      return NextResponse.json({ error: 'Invalid model name' }, { status: 400 });
+    }
     const hfApiUrl = `https://api-inference.huggingface.co/models/${hfModel}`;
 
     console.log(`[Edge HF] Calling: ${hfApiUrl}`);

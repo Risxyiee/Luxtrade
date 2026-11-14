@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { DISCORD_INVITE_URL } from '@/lib/site-links'
 import {
   ArrowRight, ArrowLeft, AlertCircle, Loader2,
@@ -56,21 +56,29 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
   const [selectedPlan, setSelectedPlan] = useState<any>(null)
 
   // Promo
+  /* FIX (audit #30): debounce tanpa cancel + respons out-of-order → hasil
+     validasi kode LAMA bisa menimpa kode BARU (badge diskon salah). Sekarang:
+     timer di-cancel, dan setState hanya bila kode terakhir masih sama. */
+  const promoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const promoSeqRef = useRef(0)
   const validatePromo = async (code: string) => {
     if (!code.trim()) { setPromoValid(false); setPromoData(null); return }
+    const seq = ++promoSeqRef.current
     setIsValidating(true); setError('')
     try {
       const r = await fetch('/api/promo/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code.trim() }) })
       const d = await r.json()
+      if (seq !== promoSeqRef.current) return // respons basi — abaikan
       if (d.valid) { setPromoValid(true); setPromoData(d.promoCode) }
       else { setPromoValid(false); setPromoData(null); setError(d.message || 'Kode promo tidak valid') }
-    } catch { setPromoValid(false) }
-    finally { setIsValidating(false) }
+    } catch { if (seq === promoSeqRef.current) setPromoValid(false) }
+    finally { if (seq === promoSeqRef.current) setIsValidating(false) }
   }
   const onPromoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value.toUpperCase()
     setPromoCode(v); setError(''); setPromoValid(false); setPromoData(null)
-    if (v.length >= 4) setTimeout(() => validatePromo(v), 500)
+    if (promoTimerRef.current) clearTimeout(promoTimerRef.current)
+    if (v.length >= 4) promoTimerRef.current = setTimeout(() => validatePromo(v), 500)
   }
   const applyPromo = async () => {
     if (!user) return

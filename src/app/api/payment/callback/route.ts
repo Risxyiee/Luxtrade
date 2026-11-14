@@ -46,10 +46,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== SIGNATURE VERIFICATION =====
-    // SECURITY: In production (SAKURA_ENV=production), signature is REQUIRED.
-    // Without this, attackers could POST fake payment notifications and get
-    // free PRO subscriptions. Sandbox mode still allows skip for dev/testing.
-    const isSandbox = process.env.SAKURA_ENV !== 'production' // fail-safe: treat unknown as sandbox
+    // SECURITY (audit #20): FAIL-CLOSED. Dulu default `SAKURA_ENV !== 'production'`
+    // berarti env KOSONG = sandbox = signature di-skip → siapa pun bisa POST
+    // notifikasi pembayaran palsu. Sekarang kebalikannya: signature WAJIB,
+    // kecuali mode sandbox diaktifkan EKSPLISIT via SAKURA_ENV=sandbox.
+    const isSandbox = process.env.SAKURA_ENV === 'sandbox'
     const skipSignatureCheck = isSandbox
 
     if (skipSignatureCheck) {

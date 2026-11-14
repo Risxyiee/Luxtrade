@@ -57,6 +57,10 @@ export interface CommissionResult {
 
 type AdminClient = {
   from: (table: string) => any
+  /* FIX (audit #21): rpc dipakai utk increment saldo atomik
+     (migrasi 20261114_affiliate_atomic_increment.sql). supabase-js
+     mengembalikan PostgrestFilterBuilder (thenable) — pakai PromiseLike. */
+  rpc: (fn: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
 }
 
 /** Kunci dedupe per aktivasi: user + plan + tanggal aktivasi (dari subscription_until). */
@@ -157,34 +161,54 @@ export async function applyActivationCommission(
         console.warn('[affiliate-commission] ledger insert error (fail-open):', ledgerErr?.message)
       }
 
-      // ── 4. Saldo affiliates (sumber withdraw) ──
-      const newBalance = (affiliate.current_balance || 0) + amount
+      // ── 4+5. Saldo affiliates (sumber withdraw) + dashboard referrer ──
+      // FIX race (audit #21): dulu read-then-write absolut — dua aktivasi
+      // paralel membaca saldo sama dan menulis nilai sama → SATU KOMISI
+      // HILANG. RPC atomik (migrasi 20261114_affiliate_atomic_increment.sql)
+      // menambah saldo di sisi DB; fallback ke jalur lama bila migrasi
+      // belum dijalankan di Supabase.
+      let affOk = false
+      let profileOk = false
       const newTotalEarned = (affiliate.total_earned || 0) + amount
-      const { error: affErr } = await admin.from('affiliates')
-        .update({ current_balance: newBalance, total_earned: newTotalEarned })
-        .eq('id', affiliate.id)
-      if (affErr) {
-        console.error('[affiliate-commission] affiliates balance update FAILED:', affErr.message)
-        return { ...base, referrerFound: true, ledger: ledgerOk, detail: `gagal update saldo affiliates: ${affErr.message}` }
-      }
+      let newBalance = (affiliate.current_balance || 0) + amount
 
-      // ── 5. Saldo dashboard referrer (profiles) ──
-      let profileOk = true
-      if (affiliate.user_id) {
-        const { data: refProfile } = await admin.from('profiles')
-          .select('affiliate_balance, referral_count')
-          .eq('id', affiliate.user_id)
-          .single()
-        if (refProfile) {
-          const { error: profErr } = await admin.from('profiles')
-            .update({
-              affiliate_balance: (refProfile.affiliate_balance || 0) + amount,
-              referral_count: (refProfile.referral_count || 0) + 1,
-              updated_at: new Date().toISOString(),
-            })
+      const { data: rpcBal, error: rpcErr } = await admin.rpc('increment_affiliate_balance', {
+        p_affiliate: affiliate.id,
+        p_user: affiliate.user_id ?? null,
+        p_amount: amount,
+      })
+      if (!rpcErr) {
+        affOk = true
+        profileOk = true
+        if (typeof rpcBal === 'number' && Number.isFinite(rpcBal)) newBalance = rpcBal
+      } else {
+        console.warn('[affiliate-commission] RPC atomik tidak tersedia (migrasi 20261114 belum jalan?) — fallback jalur lama:', rpcErr.message)
+        const { error: affErr } = await admin.from('affiliates')
+          .update({ current_balance: newBalance, total_earned: newTotalEarned })
+          .eq('id', affiliate.id)
+        affOk = !affErr
+        if (affErr) {
+          console.error('[affiliate-commission] affiliates balance update FAILED:', affErr.message)
+          return { ...base, referrerFound: true, ledger: ledgerOk, detail: `gagal update saldo affiliates: ${affErr.message}` }
+        }
+
+        // Saldo dashboard referrer (profiles)
+        if (affiliate.user_id) {
+          const { data: refProfile } = await admin.from('profiles')
+            .select('affiliate_balance, referral_count')
             .eq('id', affiliate.user_id)
-          profileOk = !profErr
-          if (profErr) console.warn('[affiliate-commission] profiles balance update warn:', profErr.message)
+            .single()
+          if (refProfile) {
+            const { error: profErr } = await admin.from('profiles')
+              .update({
+                affiliate_balance: (refProfile.affiliate_balance || 0) + amount,
+                referral_count: (refProfile.referral_count || 0) + 1,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', affiliate.user_id)
+            profileOk = !profErr
+            if (profErr) console.warn('[affiliate-commission] profiles balance update warn:', profErr.message)
+          }
         }
       }
 

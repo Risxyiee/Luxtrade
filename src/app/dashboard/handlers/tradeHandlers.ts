@@ -314,7 +314,9 @@ export const createTradeHandlers = ({
       symbol: trade.symbol,
       type: trade.type,
       open_price: trade.open_price.toString(),
-      close_price: trade.close_price.toString(),
+      // FIX (audit #23): close_price nullable (posisi terbuka / impor tanpa exit)
+      // — dulu .toString() langsung melempar TypeError dan modal tak pernah terbuka.
+      close_price: (trade.close_price ?? 0).toString(),
       lot_size: trade.lot_size.toString(),
       profit_loss: trade.profit_loss.toString(),
       open_time: trade.open_time,
@@ -351,7 +353,8 @@ export const createTradeHandlers = ({
       symbol: trade.symbol,
       type: trade.type,
       open_price: trade.open_price.toString(),
-      close_price: trade.close_price.toString(),
+      // FIX (audit #23): guard close_price null juga di duplikat
+      close_price: (trade.close_price ?? 0).toString(),
       lot_size: trade.lot_size.toString(),
       profit_loss: trade.profit_loss.toString(),
       open_time: trade.open_time,
