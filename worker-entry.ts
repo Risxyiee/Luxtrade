@@ -19,13 +19,20 @@
 //   0 1 * * *  → briefing pagi 08:00 WIB (4 agen + AUTO-ACC email pasif)
 //                 + Dewi (Data Analyst) + Farhan (Growth Hacker) — LAPORAN HARIAN
 //                 (dulu cuma Senin — Bos harus klik manual kalau mau harian)
+//                 RIWAYAT TUGAS A 14-11: analyst (Dewi), growth (Farhan) &
+//                 ai-coo-agent (Bagas) DIMATIKAN dari cron — karyawan
+//                 dihapus; route & fungsi tetap hidup (pemicu manual OK).
 //   0 3 * * 1  → laporan mingguan Senin 10:00 WIB
 //               + LOOP BELAJAR (lib/ceo-loop.ts): rapat mingguan tim AI
 //                 (evaluasi taruhan minggu lalu + debat 5 peran + Alexander
 //                 pilih maks 2 taruhan baru) dan review produk Raka
 //                 (backlog perbaikan website berbukti data → ACC Bos →
 //                 issue GitHub). Numpang slot Senin — nol slot cron baru.
+//                 RIWAYAT TUGAS A 14-11: review produk Raka DIMATIKAN
+//                 dari cron (route tetap hidup — pemicu manual/tombol).
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
+//               (RIWAYAT TUGAS A 14-11: watchdog Raka + growth-sentinel &
+//               comment-hunter Kevin DIMATIKAN dari cron — karyawan dihapus)
 //               + SWEEP proposal agen otonom (Task 34: 7 agen deteksi trigger
 //                 → INSERT ai_pending_actions → CEO ACC di Antrean Eksekusi)
 //               + PRICE ALERTS (watchlist target_price → push layar HP;
@@ -63,16 +70,17 @@
 // berat (seo-factory, agen sweep, pengawas) saling berebut CPU → 3 rute
 // mati "CPU time exceeded" sekaligus. Kini slot */15 dipecah 2 jalur:
 //   • JALUR CEPAT (tiap slot, ringan/kritis): econ-calendar-notify,
-//     ceo watchdog, price-alerts, pine-lab (Pine Lab jam-an — hanya
+//     price-alerts, pine-lab (Pine Lab jam-an — hanya
 //     menit 0-4 yang benar-benar run; PRIVATE feature-flag pine_lab).
 //     (RIWAYAT: strategy-alerts — alert indikator ala Pine — DIHAPUS
 //     11-11 perintah Bos: "alert pine hapus aja dulu" — digantikan
-//     Pine Lab privat sesuai spek revisi Bos.)
+//     Pine Lab privat sesuai spek revisi Bos. RIWAYAT TUGAS A 14-11:
+//     watchdog Raka DIHAPUS dari jalur ini.)
 //   • JALUR BERAT (GILIRAN — 1 rute per slot): tick, sweep proposal,
-//     prop-firm-guard, growth-sentinel, seo-factory, comment-hunter →
-//     tiap rute berat jalan tiap 90 menit (6 slot), CPU per invocation
-//     turun ~60%, dan cooldown internal tiap karyawan tetap jauh lebih
-//     panjang dari itu (growth-sentinel per jam, comment-hunter 2 jam).
+//     prop-firm-guard, seo-factory, ig-auto-post → tiap rute berat jalan
+//     tiap 75 menit (5 slot), CPU per invocation turun ~60%.
+//     (RIWAYAT TUGAS A 14-11: growth-sentinel + comment-hunter Kevin
+//     DIMATIKAN dari cron — dulu 6 rute giliran/90 menit.)
 // RIWAYAT PENSUN: /api/cron/pine-alerts DIHAPUS (Velalab dihapus total,
 // commit e540a712) — panggilan hantunya di CRON_ROUTES lama ikut dibuang
 // (tiap 15 menit hanya buang 1 subrequest + 404 + alarm failures palsu).
@@ -85,18 +93,32 @@
    — GANTI isi slot 15-menit lama, TANPA nambah trigger (tetap 1 slot;
    CF Free maks 5 trigger/akun, kita cuma pakai 4). Slot kini nembak
    tiap 5 menit dan tiap rute ATUR CADENCENYA SENDIRI via EVERY_MIN:
-     • econ-calendar-notify, ceo watchdog, price-alerts → tetap 15 menit
+     • econ-calendar-notify, price-alerts → tetap 15 menit
        (%15 < 5 — hanya slot :00/:15/:30/:45 yang due)
-     • comment-hunter → tetap 120 menit
      (RIWAYAT: strategy-alerts TIAP 5 MENIT — DIHAPUS 11-11, Bos:
      "alert pine hapus aja dulu".)
    JALUR BERAT tetap giliran 1 rute/slot 15-menit (hanya jalan di
    menit ke-0/15/30/45 — slotNo bucket 900_000 dipertahankan). */
-const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/ceo-agent?action=watchdog', '/api/cron/price-alerts', '/api/cron/pine-lab']
+/* ══ TUGAS A — PENGHAPUSAN KARYAWAN AI (Bos, 14-11-2026) ═══════════════
+   FASE 1: cron karyawan yang dihapus DIMATIKAN dulu (commit ini):
+     • ai-coo-agent (Bagas COO) · analyst (Dewi DA) · growth (Farhan GH)
+     • watchdog (Raka CTO) · product-review (Raka, Senin)
+     • growth-sentinel + comment-hunter (Kevin)
+   Bertahan: briefing (Alexander) — di dalamnya kerja Sinta & Maya tetap
+   jalan (draf TikTok, caption IG, auto-post IG+FB, email pasif) = bahan
+   karyawan baru "Luxtradee Growth" hasil merger Sinta+Maya; plus weekly
+   + meeting (Senin) dan tick (mesin kerja harian).
+   VERIFIKASI GATE: besok pagi cek Discord — pesan Dewi/Farhan/Bagas/
+   Kevin + alarm Raka HARUS hilang; briefing + post Sinta + email Maya
+   MASIH muncul. FASE 2-3 menyusul setelah verifikasi: bersihkan
+   pemanggilan di ceo-agent/route.ts + panel dashboard.
+   Route & fungsi lama TETAP ADA — hanya diputus dari cron (pemicu
+   manual tetap bisa, mis. tombol di Ruang CTO). */
+const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/cron/price-alerts', '/api/cron/pine-lab']
 const CRON_ROUTES: Record<string, string[]> = {
-  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/cron/ai-coo-agent', '/api/ceo-agent?action=briefing', '/api/ceo-agent?action=analyst', '/api/ceo-agent?action=growth', '/api/cron/ig-metrics', '/api/discord-interactions'],
+  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/ceo-agent?action=briefing', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
-  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/ceo-agent?action=product-review'],
+  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting'],
   // Kunci '5-menit' dipakai wrangler baru; kunci '15-menit' disimpan sbg
   // alias transisi (deploy lama yang masih pakai trigger 15-menit tetap jalan).
   '*/5 * * * *': FAST_5MIN,
@@ -104,18 +126,15 @@ const CRON_ROUTES: Record<string, string[]> = {
 }
 
 /* JALUR BERAT slot 15-menit — GILIRAN: tiap eksekusi hanya 1 rute dari daftar
-   ini (index = nomor slot % panjang daftar). Tiap rute jalan tiap 90 menit
-   (6 slot × 15 menit) — masih jauh lebih rapat daripada cooldown internal
-   masing-masing (growth-sentinel aksi per 1–12 jam, comment-hunter 2 jam,
-   seo-factory maks 3/hari). CPU per invocation tetap kecil meski slot
-   lain (jalur cepat) jalan bersamaan. */
+   ini (index = nomor slot % panjang daftar). Tiap rute jalan tiap 75 menit
+   (5 slot × 15 menit) — masih jauh lebih rapat daripada cooldown internal
+   masing-masing (seo-factory maks 3/hari). CPU per invocation tetap kecil
+   meski slot lain (jalur cepat) jalan bersamaan. */
 const HEAVY_15_ROUND_ROBIN = [
   '/api/ceo-agent?action=tick',
   '/api/agent-proposals?run=sweep',
   '/api/cron/prop-firm-guard',
-  '/api/cron/growth-sentinel',
   '/api/cron/seo-factory',
-  '/api/cron/comment-hunter',
   /* Jaring pengaman IG (keluhan Bos "kok ga post ig karyawanku"):
      GH Actions instagram-cron (18:45/20:30 WIB) kadang telat/skipped
      (runner antre berjam-jam). Worker cron kini ikut memproses antrean
@@ -140,24 +159,18 @@ const PROP_GUARD_TIMEOUT_MS = 60_000
 /* ig-metrics: sampai 12 Reels × 2 panggilan Graph API (±2 dtk per call)
    + ringkasan → 90 dtk biar tidak kepotong pas jaringan lambat. */
 const IG_METRICS_TIMEOUT_MS = 90_000
-/* growth-sentinel: baca metrik (8 count) + MAKS 1 aksi — aksi cs-hook/
-   lead-welcome butuh 1 panggilan LLM (Mortera timeout 60 dtk) → 90 dtk. */
-const GROWTH_SENTINEL_TIMEOUT_MS = 90_000
 /* seo-factory: kumpul data riil (harga/sinyal/kalender) + 1 insert →
-   60 dtk cukup; comment-hunter: Graph API 5 media × 2 call + maks 5
-   balasan + 1 LLM opsional → 90 dtk. */
+   60 dtk cukup. (RIWAYAT TUGAS A 14-11: timeout growth-sentinel &
+   comment-hunter dibuang — rutenya tidak lagi di cron.) */
 const SEO_FACTORY_TIMEOUT_MS = 60_000
-const COMMENT_HUNTER_TIMEOUT_MS = 90_000
 /* PATCH B (tambalan fase bisnis): rute yang cukup dipanggil tiap N menit —
    WINDOW kini 5 menit (slot nembak tiap 5 menit): dueNow = menit % N < 5.
    (RIWAYAT: strategy-alerts TIDAK masuk peta → due tiap slot = tiap 5
    menit — rute DIHAPUS 11-11.) Rute lain jaga jadwal lama. */
 const EVERY_MIN: Record<string, number> = {
   '/api/cron/econ-calendar-notify': 15,
-  '/api/ceo-agent?action=watchdog': 15,
   '/api/cron/price-alerts': 15,
   '/api/cron/pine-lab': 60, // jendela 60 menit → siklus penuh hanya di menit 0-4
-  '/api/cron/comment-hunter': 120,
 }
 const dueNow = (route: string, t: number) => {
   const n = EVERY_MIN[route]
@@ -169,12 +182,8 @@ const timeoutFor = (route: string) =>
     ? CEO_TIMEOUT_MS
     : route.startsWith('/api/cron/price-alerts')
       ? PRICE_ALERTS_TIMEOUT_MS
-      : route.startsWith('/api/cron/growth-sentinel')
-        ? GROWTH_SENTINEL_TIMEOUT_MS
       : route.startsWith('/api/cron/seo-factory')
         ? SEO_FACTORY_TIMEOUT_MS
-      : route.startsWith('/api/cron/comment-hunter')
-        ? COMMENT_HUNTER_TIMEOUT_MS
       : route.startsWith('/api/cron/prop-firm-guard')
         ? PROP_GUARD_TIMEOUT_MS
         : route.startsWith('/api/cron/ig-metrics')
