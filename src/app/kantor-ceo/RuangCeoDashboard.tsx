@@ -537,6 +537,11 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
 
   const pick = (id: string) => {
     setRoom(id)
+    /* FIX keluhan Bos 17-11 ("saya klik karyawan ga tampil full layar cuma
+       sebagian jadi susah saya"): pindah ruangan lewat dock = panel LANGSUNG
+       mode BESAR — detail karyawan/tugas langsung terbaca penuh, tidak perlu
+       klik Perbesar dulu. */
+    setSheetTall(true)
     /* geser dock supaya kartu ruangan aktif selalu terlihat penuh di tengah */
     requestAnimationFrame(() => {
       dockRef.current?.querySelector(`[data-dock="${id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
