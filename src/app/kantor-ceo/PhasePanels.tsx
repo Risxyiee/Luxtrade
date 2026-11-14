@@ -40,9 +40,9 @@ const PHASE_NOTE: Record<string, string> = {
   growth: 'Data cukup. Semua analisis dan A/B berjalan penuh.',
 }
 
-/** id ruangan dashboard → kunci role artefak */
+/** id ruangan dashboard → kunci role artefak (tim ramping 15-11) */
 export const ROOM_ROLE: Record<string, string> = {
-  CTO: 'cto', CSO: 'cso', CMO: 'cmo', CFO: 'cfo', COO: 'coo', GH: 'gh', KEVIN: 'kevin',
+  CTO: 'cto', CSO: 'cso', CMO: 'cmo',
 }
 
 /** Tugas yang AKTIF saat pre-launch — ditampilkan di kartu karyawan */
@@ -68,28 +68,6 @@ export const PRE_LAUNCH_TUGAS: Record<string, string[]> = {
     'Minggu: kalender konten 7 hari (repurpose satu ide ke TikTok, IG, thread).',
     'Rabu: 1 artikel SEO. Judul 10 draf terakhir dimasukkan ke prompt supaya tidak mengulang.',
     'Caption IG berbasis data komunitas dimatikan sampai data cukup.',
-  ],
-  CFO: [
-    'Senin: titik impas dan runway (biaya tetap / harga PRO), tetap 100% matematika.',
-    'Butuh env FIXED_COST_IDR dan CASH_IDR supaya angkanya terhitung.',
-    'Gerbang kuota dan alarm 80% tetap.',
-  ],
-  DA: [
-    'Di bawah 50 trade: tidak memanggil LLM, status "data belum cukup".',
-    'Data sama dengan analisis sebelumnya: dilewati (hemat kuota, tidak ada laporan kembar).',
-    'Analisis penuh menyala otomatis begitu sampel cukup.',
-  ],
-  GH: [
-    'A/B CTA ditunda sampai ada traffic.',
-    'Selasa: 1 eksperimen akuisisi per minggu; output sebelumnya jadi buku catatan agar tidak mengulang.',
-  ],
-  KEVIN: [
-    'Sentinel tetap diam saat sepi.',
-    'Jumat: 3 draf jawaban community seeding (edukasi, bukan promosi) untuk diposting manual oleh Bos.',
-  ],
-  COO: [
-    'Selasa: paket outbound (jenis target + kata kunci pencarian, 2 draf pesan kolaborasi, 1 draf postingan komunitas).',
-    'Semua dikirim manual oleh Bos. Penawaran PRO ke free user baru jalan setelah ada free user aktif.',
   ],
 }
 

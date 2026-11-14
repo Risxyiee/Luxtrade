@@ -33,7 +33,10 @@ export interface LoopDeps extends PhaseDeps {
 export const ROLE_NAMES: Record<string, string> = {
   ceo: 'Alexander', cmo: 'Sinta', cso: 'Maya', gh: 'Farhan', coo: 'Bagas', cto: 'Raka', kevin: 'Kevin',
 }
-const PROPOSER_ROLES = ['cmo', 'cso', 'gh', 'coo', 'cto'] as const
+/* REVISI BOS 15-11: karyawan DA/GH/COO dipensiunkan — peserta rapat tinggal
+   divisi Growth (Sinta & Maya) + Raka (produk/keamanan). ROLE_NAMES tetap
+   memuat nama lama supaya taruhan/keputusan BERMERAHI lama tetap terbaca. */
+const PROPOSER_ROLES = ['cmo', 'cso', 'cto'] as const
 
 /** Jenis aksi → tingkat otonomi. Jenis tak dikenal otomatis 'acc'. */
 export const AUTO_TYPES = ['content', 'seo-article', 'reply-comment', 'draft'] as const
@@ -194,14 +197,14 @@ export async function runWeeklyMeeting(d: LoopDeps, info: PhaseInfo, opts: { for
   const PRODUCT = 'Luxtradee (luxtradee.web.id): web app jurnal trading XAUUSD Indonesia (upload screenshot → evaluasi AI). Tujuan tunggal: menambah jumlah pengguna.'
   const mem = await d.memBlock().catch(() => '')
 
-  /* --- B. Debat 5 peran (1 panggilan) --- */
+  /* --- B. Debat 3 peran (1 panggilan) — peserta tim ramping hasil TUGAS A --- */
   let dialog: { who: string; text: string }[] = []
   let proposals: { role: string; title: string; why: string; action: string; type: string; metric: string; target: number }[] = []
   let lessonsNew: { id: string; lesson: string }[] = []
   try {
     const r1 = await d.brain('cmo',
       `Kamu penulis notulen rapat mingguan tim AI. ${PRODUCT}\n` +
-      'Peserta: Sinta (cmo, konten), Maya (cso, onboarding), Farhan (gh, akuisisi), Bagas (coo, outbound/kemitraan), Raka (cto, produk/website). ' +
+      'Peserta: Sinta (cmo, konten & akuisisi), Maya (cso, onboarding & retensi), Raka (cto, produk/website). ' +
       'ATURAN: tiap peserta mengusulkan 1 taruhan mingguan untuk menambah pengguna; mereka WAJIB berbeda pendapat sedikitnya sekali dan mengacu pada fakta/pelajaran; ' +
       'DILARANG mengulang taruhan yang sudah gagal; DILARANG mengarang angka di luar FAKTA. Kalau sampel angka sangat kecil, tulis pelajaran sebagai HIPOTESIS, bukan kesimpulan. ' +
       `type salah satu dari: ${ALL_TYPES.join(', ')}. metric salah satu dari: signups:all, signups:<sumber>, visits:<sumber>, manual (sumber contoh: tiktok, ig, yt, tg, fb, google). target = angka kecil yang realistis. ` +

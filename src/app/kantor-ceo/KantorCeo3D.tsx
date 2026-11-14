@@ -56,12 +56,7 @@ export default function KantorCeo3D() {
   const [ttLikes, setTtLikes] = useState('')
   const [ttMsg, setTtMsg] = useState('')
   const [ttBusy, setTtBusy] = useState(false)
-  /* Antrean ACC jualan COO (pindahan dari /admin/ai-staff) */
-  const [cooTasks, setCooTasks] = useState<any[]>([])
-  const [cooLoading, setCooLoading] = useState(false)
-  const [cooDrafts, setCooDrafts] = useState<Record<string, { subject: string; body: string }>>({})
-  const [cooActing, setCooActing] = useState<string | null>(null)
-  const cooInitRef = useRef<Set<string>>(new Set())
+  /* Antrean ACC jualan COO DIPENSIUNKAN (TUGAS A 15-11: karyawan COO dihapus) */
   /* Tombol salin skrip hasil diskusi CSO × CMO */
   const [talkCopied, setTalkCopied] = useState(false)
   /* ---- JEMBATAN data real → scene 3D ----
@@ -105,17 +100,13 @@ export default function KantorCeo3D() {
   /* ---------- pemanggil API (hasil di-merge supaya tiap ruangan punya datanya) ---------- */
   /* Map action → karakter mana yang "beneran kerja" di scene 3D */
   const jobsOfAction = (action: string): string[] => {
-    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO', cfo: 'CFO', coo: 'COO', da: 'DA', gh: 'GH' }
+    const M: Record<string, string> = { cto: 'CTO', cso: 'CSO', cmo: 'CMO' }
     if (action.startsWith('agents&only=')) return (action.split('only=')[1] || '').split(',').map(s => M[s.trim()]).filter(Boolean)
-    if (action === 'agents') return ['CTO', 'CSO', 'CFO', 'COO']
-    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CFO', 'COO', 'DA', 'GH', 'CEO']
-    if (action === 'quota') return ['CFO']
+    if (action === 'agents') return ['CTO', 'CSO']
+    if (action === 'briefing') return ['CTO', 'CSO', 'CMO', 'CEO']
     if (action === 'acc-email' || action === 'auto-acc') return ['CSO']
     if (action.startsWith('tiktok-')) return ['CMO']
     if (action === 'talk') return ['CSO', 'CMO']
-    if (action.startsWith('coo-')) return ['COO']
-    if (action.startsWith('analyst')) return ['DA']
-    if (action.startsWith('growth')) return ['GH']
     if (action === 'diag' || action === 'watchdog' || action === 'qa' || action === 'e2e' || action === 'e2e-last') return ['CTO']
     if (action === 'weekly') return ['CEO']
     if (action === 'discord-test' || action === 'briefing-last' || action === 'email-test' || action === 'discord-setup' || action.startsWith('nba-verdict')) return ['CEO']
@@ -148,23 +139,12 @@ export default function KantorCeo3D() {
       setData((d: any) => ({ ...(d || {}), ...r })) // langsung tampil di panel — tanpa perlu pindah ruangan
       return r
     }
-    if (action === 'analyst' || action === 'growth') { // Dewi/Farhan — hasilnya tampil di ruangannya
-      /* Error umum (mis. ENV belum diset) dipetakan ke daError/ghError supaya panel ruangan menampilkan alasannya */
-      const rr = (r?.error && !r?.da && !r?.gh)
-        ? (action === 'analyst' ? { daError: String(r.error).slice(0, 160) } : { ghError: String(r.error).slice(0, 160) })
-        : r
-      const o = action === 'analyst' ? rr?.da : rr?.gh
-      window.__kceo?.toast?.(o?.dupToday ? (action === 'analyst' ? 'Sudah dianalisis hari ini — hasil terakhir ditampilkan' : 'Sudah dirancang hari ini — hasil terakhir ditampilkan') : o && !rr?.daError && !rr?.ghError ? (action === 'analyst' ? 'Dewi beres — insight baru siap!' : 'Farhan beres — eksperimen baru dirancang!') : 'Gagal — cek panel ruangannya')
-      setData((d: any) => ({ ...(d || {}), ...rr }))
-      return rr
-    }
     if (action === 'e2e') { // Raka E2E — login beneran + tes fitur satu-satu, hasilnya tampil di Ruang CTO
       window.__kceo?.toast?.(r?.e2eSkip ? 'E2E dilewati — ' + String(r.e2eSkip).slice(0, 60)
         : r?.e2eFailed ? `E2E: ${r.e2ePassed}/${r.e2eTotal} lolos — ${r.e2eFailed} masalah`
         : r?.e2eTotal ? `E2E lolos semua — login + ${r.e2eTotal} langkah fitur jalan mulus`
         : 'E2E gagal — cek panel Ruang CTO')
     }
-    if (action === 'quota') r = { cfo: r }          // respons flat → bungkus jadi data CFO
     if (action === 'briefing' && r?.text)
       window.__kceo?.toast?.(r.notifySent ? 'Briefing terkirim ke Discord!' : 'Briefing jalan — Discord gagal kirim')
     setData((d: any) => ({ ...(d || {}), ...r }))
@@ -174,7 +154,7 @@ export default function KantorCeo3D() {
   useEffect(() => { runBriefingRef.current = () => call('briefing', 'POST') }, [call])
   useEffect(() => { pickRef.current = (r: string) => { setRoom(r); try { (window as any).__kceo?.openSheet?.() } catch { } } }, [])
   // Kantor dibuka: muat CTO/CSO/CFO/COO + status AUTO-ACC — draf TikTok CMO hanya saat diminta (hemat kuota Gemini)
-  useEffect(() => { if (gate === 'ok') { call('agents&only=cto,cso,cfo,coo'); call('auto-acc') } // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (gate === 'ok') { call('agents&only=cto,cso'); call('auto-acc') } // eslint-disable-line react-hooks/exhaustive-deps
   }, [gate])
   useEffect(() => { focusRef.current && focusRef.current(room) }, [room])
 
@@ -216,65 +196,11 @@ export default function KantorCeo3D() {
     } catch { /* ignore */ } finally { setTtBusy(false) }
   }
 
-  /* ---------- Antrean ACC jualan COO (pindahan dari /admin/ai-staff) ---------- */
-  const cooLoad = useCallback(async (silent = false) => {
-    if (!token) return
-    if (!silent) setCooLoading(true)
-    try {
-      const res = await fetch('/api/admin/ai-staff', { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
-      const r = await res.json()
-      if (res.ok && r?.success) {
-        const fresh = (r.tasks || []) as any[]
-        setCooTasks(fresh)
-        setCooDrafts(prev => {
-          const next = { ...prev }
-          for (const t of fresh) {
-            if (!cooInitRef.current.has(t.id)) {
-              cooInitRef.current.add(t.id)
-              next[t.id] = { subject: t.generated_content?.subject || '', body: t.generated_content?.body || '' }
-            }
-          }
-          return next
-        })
-      } else if (!silent) {
-        window.__kceo?.toast?.(String(r?.error || 'Gagal memuat antrean COO').slice(0, 90))
-      }
-    } catch { if (!silent) window.__kceo?.toast?.('Jaringan gagal — antrean COO tidak termuat') }
-    finally { if (!silent) setCooLoading(false) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
-
-  const cooAct = async (t: any, action: 'approve' | 'reject') => {
-    if (cooActing) return
-    setCooActing(t.id)
-    try {
-      const draft = cooDrafts[t.id]
-      const res = await fetch('/api/admin/ai-staff', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ taskId: t.id, action, ...(action === 'approve' ? { edited: { subject: draft?.subject, body: draft?.body } } : {}) }),
-      })
-      const r = await res.json()
-      if (res.ok && r?.success) {
-        window.__kceo?.toast?.(action === 'approve' ? `Email penawaran terkirim ke ${t.context_data?.email || 'lead'}!` : 'Draf ditolak — keluar antrean')
-        doneRef.current['COO'] = Date.now()
-        await cooLoad(true)
-        call('agents&only=coo')
-      } else {
-        window.__kceo?.toast?.(String(r?.error || 'Gagal memproses task').slice(0, 110))
-      }
-    } catch { window.__kceo?.toast?.('Jaringan gagal — coba lagi') }
-    finally { setCooActing(null) }
-  }
-
-  // Ruangan dibuka → muat datanya (CMO: bahan TikTok · COO: antrean ACC · CSO: hasil diskusi · DA/GH: insight terakhir)
+  // Ruangan dibuka → muat datanya (CMO: bahan TikTok · CSO: hasil diskusi terakhir)
   useEffect(() => {
     if (room === 'CMO') ttLoad()
-    if (room === 'COO') cooLoad()
     if (room === 'CSO') call('talk-last')
     if (room === 'rapat') call('mem-last')
-    if (room === 'DA') call('analyst-last')
-    if (room === 'GH') call('growth-last')
   /* eslint-disable react-hooks/exhaustive-deps */
   }, [room])
 
@@ -315,23 +241,19 @@ export default function KantorCeo3D() {
       /* ---------- jam kerja sim (menit WIB): bangun 07:00 · kerja 08:00 · TIDUR 22:00 ---------- */
       const WAKE=420,WORKSTART=480,SLEEPT=1320
       const isNight=m=>m>=SLEEPT||m<WAKE
-      /* ---------- tim = 5 agen + CEO ---------- */
+      /* ---------- tim ramping = 3 agen + CEO (TUGAS A 15-11) ---------- */
       const CAST=[
         {name:'Raka',job:'CTO',title:'CTO Agent · IT & QA',lazy:.25,shirt:'#0e7490',skin:'#c68642',hair:'#111',desk:[-11,-6.5],room:'back',accent:'#14b8a6',bed:[-14.4,-8.2]},
         {name:'Sinta',job:'CMO',title:'CMO Agent · Copywriter',lazy:.6,shirt:'#7c3aed',skin:'#e0ac69',hair:'#2b1b12',desk:[-2.75,-6.5],room:'back',accent:'#8b5cf6',bed:[.2,-8.2]},
         {name:'Maya',job:'CSO',title:'CSO Agent · Customer Success',lazy:.5,shirt:'#be185d',skin:'#f1c27d',hair:'#1a1a1a',desk:[-11,3],room:'front',accent:'#ec4899',bed:[-14.4,1.2]},
-        {name:'Putri',job:'CFO',title:'CFO Agent · Quota Manager',lazy:.35,shirt:'#b45309',skin:'#f1c27d',hair:'#3b2314',desk:[-2.75,3],room:'front',accent:'#f59e0b',bed:[.2,1.2]},
-        {name:'Bagas',job:'COO',title:'COO Agent · Jualan',lazy:.7,shirt:'#059669',skin:'#e0ac69',hair:'#241c12',desk:[9.5,-6.5],room:'back',accent:'#10b981',bed:[13,-7.4]},
-        {name:'Dewi',job:'DA',title:'Data Analyst · Pola Trading',lazy:.45,shirt:'#0891b2',skin:'#f1c27d',hair:'#241c12',desk:[3,3],room:'front',accent:'#06b6d4',bed:[-13.4,10.7],dorm:1},
-        {name:'Farhan',job:'GH',title:'Growth Hacker · Eksperimen',lazy:.65,shirt:'#ea580c',skin:'#c68642',hair:'#111',desk:[6.5,3],room:'front',accent:'#f97316',bed:[-11.5,10.7],dorm:1},
         {name:'Alexander',job:'CEO',title:'CEO & Founder',lazy:.1,ceo:true,shirt:'#0b0b12',skin:'#c68642',hair:'#1a1a1a',desk:[6,-6.5],room:'ceo',accent:'#334155',bed:[2.6,-8.4]}]
-      const PHASES=['Cek Sistem & Bug','Hitung User','Analisis Data','Draf TikTok','Cek Kuota','Eksperimen Growth','Follow-up Jualan','Kirim Briefing']
-      const PHASE_JOB=['CTO','CSO','DA','CMO','CFO','GH','COO','CEO']
-      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','DA':'Olah trades 30 hari: win rate, pair & sesi teraktif','CMO':'Generate draf TikTok via OpenRouter','CFO':'Pantau kuota Gemini anti-429','GH':'Ukur funnel & rancang eksperimen minggu ini','COO':'Follow-up hot lead & susun draf penawaran PRO','CEO':'Susun Morning Briefing via Llama 3.1 8B'}
-      const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Insight data baru siap','Draf TikTok baru siap','Kuota aman — 0 event 429','Eksperimen growth dirancang','Lead difollow-up, draf siap ACC','Briefing terkirim ke Discord']
+      const PHASES=['Cek Sistem & Bug','Hitung User','Draf TikTok','Kirim Briefing']
+      const PHASE_JOB=['CTO','CSO','CMO','CEO']
+      const PHASE_TASK={'CTO':'Ping luxtradee.web.id & hitung bug 24 jam','CSO':'Hitung pendaftar, aktif & pasif','CMO':'Generate draf TikTok via OpenRouter','CEO':'Susun Morning Briefing'}
+      const CHLOG=['Ping 200 OK & bug dihitung','Segmentasi user selesai','Draf TikTok baru siap','Briefing terkirim ke Discord']
       const SITE={ver:1.0,vis:41,day:1247}
       const PROJ={ph:0,prog:35,sprint:1,done:0}
-      const projTot=()=>(PROJ.ph+PROJ.prog/100)/7*100
+      const projTot=()=>(PROJ.ph+PROJ.prog/100)/4*100
       const INC={active:false,next:60+rnd(0,60),endT:0,boostT:0}
 
       const SPOTS=[{p:[9.2,2.6],y:0,sit:1},{p:[10.8,2.6],y:0,sit:1},{p:[9.2,5.4],y:PI,sit:1},{p:[10.8,5.4],y:PI,sit:1},{p:[12,2.7],y:PI/2,sit:0},{p:[12.5,4.8],y:PI/2,sit:0},{p:[15.4,2.9],y:PI/2,sit:0},{p:[15.4,4.7],y:PI/2,sit:0}]
@@ -353,8 +275,8 @@ export default function KantorCeo3D() {
          jalan di tempat selamanya. Kini SEMUA rute lewat celah pintu beneran.
          Geometri: semua ruangan berada di sisi UTARA dinding pintunya
          (belakang: dinding z=-2.5, dalam ruangan z=-3.45 · depan: dinding z=6.5, dalam z=5.55). */
-      const DOORS={CTO:[-11,-2.5],CMO:[-2.75,-2.5],COO:[10.9,-2.5],CSO:[-11,6.5],CFO:[-2.75,6.5]}
-      const ROOM_DOOR={CTO:'CTO',CMO:'CMO',CSO:'CSO',CFO:'CFO',COO:'COO'}
+      const DOORS={CTO:[-11,-2.5],CMO:[-2.75,-2.5],CSO:[-11,6.5]}
+      const ROOM_DOOR={CTO:'CTO',CMO:'CMO',CSO:'CSO'}
       /* keluar ruangan → titik terbuka (tx,tz). cc: waypoint [x,z,noCollide?] —
          noCollide=1 untuk kaki terakhir menaiki kasur (biar tidak didorong OBST kasur). */
       const navOut=(c,tx,tz)=>{const door=DOORS[ROOM_DOOR[c.job]]
@@ -388,14 +310,10 @@ export default function KantorCeo3D() {
         CTO:{deep:['Ping luxtradee.web.id — harap 200 OK','Hitung bug 24 jam dari bug_reports','Cek latency situs & uptime'],phone:['Baca changelog dependency'],chat:['Review bug_reports sama QA']},
         CSO:{deep:['Hitung total pendaftar dari Supabase','Segmentasi user aktif vs pasif','Susun daftar user pasif buat email'],phone:['Scroll daftar user baru'],chat:['Diskusi email sapaan bareng CEO']},
         CMO:{deep:['Generate draf TikTok via GLM-4.7-Flash','Analisis gaya naskah CEO yang fyp','Jawab alasan churn dari rapat Maya'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
-        CFO:{deep:['Pantau kuota Gemini Vision harian','Cek frekuensi upload — hindari 429','Hitung sisa request hari ini'],phone:['Lihat grafik pemakaian API'],chat:['Set quota-track ke backend']},
-        COO:{deep:['Susun draf penawaran PRO buat hot lead','Cek trades 7 hari — siapa paling rajin','Follow-up lead minggu lalu, ada yang balik?'],phone:['Scroll profil user aktif cari calon PRO'],chat:['Lapor konversi jualan ke CEO']},
-        DA:{deep:['Hitung win rate 30 hari dari trades','Klaster pair & sesi paling produktif','Susun insight mingguan buat Bos'],phone:['Cek spreadsheet angka mingguan'],chat:['Bahas pola data sama Sinta']},
-        GH:{deep:['Rancang eksperimen growth minggu ini','Ukur funnel pendaftar → aktif → PRO','Cari angle promo referral/affiliate'],phone:['Pantau metrik aktivasi'],chat:['Pilih eksperimen prioritas bareng CEO']},
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu'}
       /* SKILL TINGKAT DEWA — keahlian andalan tiap karyawan (tampil di balon pikiran) */
-      const GOD={CTO:'Self-Healing Infra',CSO:'Mind-Reader Retensi',CMO:'Viral Script Engine',CFO:'Anti-429 Oracle',COO:'Lead Magnet Radar',DA:'Data Clairvoyance',GH:'Growth Infinity',CEO:'Neural Command'}
+      const GOD={CTO:'Self-Healing Infra',CSO:'Mind-Reader Retensi',CMO:'Viral Script Engine',CEO:'Neural Command'}
       /* Kalimat shift malam (sekarang: lembur SORE sampai jam tidur 22:00) + kalimat tidur */
       const NIGHT2=['Sore ini gas terus sampai jam tidur','Jam 22:00 nanti tidur — sekarang fokus dulu','Malam ini tidur di kantor, kasur personal tiap ruangan','Shift sore: data besok sudah kusiapkan','Halo emas di kepala = tanda tingkat dewa','Kopi sore dulu, jam 22:00 rehat total']
       const SLEEP2=['Zzz…','Zzz… mimpi XAU tembus 2400','Zzz… besok gas komnen lagi','Zzz… recharge baterai AI','Zzz… jangan berisik, Bos masih di ruangan','Zzz… alarm pasang 07:00']
@@ -414,14 +332,6 @@ export default function KantorCeo3D() {
             return `LIVE: ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`
           if(job==='CMO'&&live.cmo)
             return live.cmo.draft?'LIVE: draf TikTok hari ini sudah siap':null
-          if(job==='CFO'&&live.cfo&&!live.cfo.error)
-            return `LIVE: kuota ${live.cfo.usedToday}/${live.cfo.limit} hari ini · ${String(live.cfo.status||'').trim()}`
-          if(job==='COO'&&live.coo&&!live.coo.error)
-            return live.coo.pending>0?`LIVE: ${live.coo.pending} draf penawaran nunggu ACC Bos`:'LIVE: antrean jualan bersih'
-          if(job==='DA'&&live.da)
-            return `LIVE: ${live.da.stats?.uploads30??'—'} upload 30 hr · win rate ${live.da.stats?.winRate??'—'}% · ${live.da.stats?.traders30??'—'} trader`
-          if(job==='GH'&&live.gh)
-            return `LIVE: aktivasi baru ${live.gh.funnel?.baru7?Math.round((live.gh.funnel.activated7/live.gh.funnel.baru7)*100):'—'}% · ${live.gh.experiments?.length??0} eksperimen siap`
           if(job==='CEO'&&live.text)
             return live.notifySent?'LIVE: briefing terakhir sudah terkirim':'LIVE: briefing siap — tinggal kirim'
         }catch{ }
@@ -432,10 +342,6 @@ export default function KantorCeo3D() {
           const W={CTO:'Lagi ping situs & hitung bug — kerja beneran, bukan main-main!',
             CSO:'Lagi hitung user dari database Supabase — kerja beneran!',
             CMO:'Lagi nulis draf TikTok via rantai AI baru (Mortera dulu) — kerja beneran!',
-            CFO:'Lagi audit kuota API — kerja beneran!',
-            COO:'Lagi buru hot lead & susun draf penawaran — kerja beneran!',
-            DA:'Lagi olah data trades di Supabase — kerja beneran!',
-            GH:'Lagi ngukur funnel & rancang eksperimen — kerja beneran!',
             CEO:'Lagi susun briefing & kirim ke Discord…'}
           return W[c.job]||'Lagi kerja beneran…'}
         /* PRIORITAS 2 — baru selesai (≤9 dtk): rayakan dgn HASIL ASLI */
@@ -446,10 +352,6 @@ export default function KantorCeo3D() {
             CTO:()=>live&&live.cto&&!live.cto.error&&!live.cto.err?`Beres! Web ${live.cto.siteOk?live.cto.status+' OK · '+live.cto.latencyMs+' ms':'DOWN'} · bug ${live.cto.bugs24h>=0?live.cto.bugs24h:'?'}`:'Tugas selesai!',
             CSO:()=>live&&live.cso&&!live.cso.error?`Beres! ${live.cso.total} pendaftar · ${live.cso.active} aktif · ${live.cso.passive} pasif`:'Tugas selesai!',
             CMO:()=>live&&live.cmo?(live.cmo.draft?'Draf TikTok baru siap — cek panel kanan!':'Gagal bikin draf — cek panel'):'Tugas selesai!',
-            CFO:()=>live&&live.cfo&&!live.cfo.error?`Kuota ${live.cfo.usedToday}/${live.cfo.limit} · ${String(live.cfo.status||'').trim()}`:'Tugas selesai!',
-            COO:()=>live&&live.coo&&!live.coo.error?(live.coo.pending>0?`Beres! ${live.coo.pending} draf nunggu ACC Bos di Ruang COO`:'Beres! Antrean jualan bersih — lead besok lagi'):'Tugas selesai!',
-            DA:()=>live&&live.da?`Insight baru: ${String(live.da.insight||'').slice(0,80)}…`:'Tugas selesai!',
-            GH:()=>live&&live.gh?`${live.gh.experiments?.length||3} eksperimen siap di Ruang Growth`:'Tugas selesai!',
             CEO:()=>live&&live.text?(live.notifySent?'Briefing terkirim ke Discord!':'Briefing jalan — Discord gagal'):'Tugas selesai!'}
           return (R[c.job]||(()=>'Tugas selesai!'))()}
         if(INC.active){if(c.job==='CEO')return 'Mendengar laporan insiden dari CTO…'
@@ -631,19 +533,10 @@ export default function KantorCeo3D() {
       const roomAcc=(x,z,col,rugC)=>{const r=new THREE.Mesh(new THREE.PlaneGeometry(4.8,4.6),M(rugC,{roughness:.9}));r.rotation.x=-PI/2;r.position.set(x,.008,z);r.receiveShadow=true;scene.add(r)
         const l=new THREE.PointLight(col,.65,9);l.position.set(x,2.3,z);scene.add(l)}
       roomAcc(-11,-6.2,'#14b8a6','#d8f2ea');roomAcc(-2.75,-6.2,'#8b5cf6','#ebe3fa')
-      roomAcc(-11,3,'#ec4899','#fae1ee');roomAcc(-2.75,3,'#f59e0b','#fbf0d9')
-      roomAcc(10.75,-6.2,'#10b981','#e0f5ea')
-      /* workstation open-space Dewi (DA) & Farhan (GH) — tanpa dinding kaca, di tengah kantor */
-      roomAcc(3,3,'#06b6d4','#dff3fa');roomAcc(6.5,3,'#f97316','#feeee3')
+      roomAcc(-11,3,'#ec4899','#fae1ee')
       neon('RUANG CTO',3.3,.8,46,-11,1.95,-9.86,0,'#0d9488')
       neon('RUANG CMO',3.3,.8,46,-2.75,1.95,-9.86,0,'#7c3aed')
       neon('RUANG CSO',3.3,.8,46,-11,1.95,-.42,0,'#db2777')
-      neon('RUANG CFO',3.3,.8,46,-2.75,1.95,-.42,0,'#d97706')
-      /* papan nama Ruang COO menempel di partisi kaca (dinding belakang dipakai layar LIVE raksasa) */
-      neon('RUANG COO',2.6,.62,44,8.42,1.95,-6.25,-PI/2,'#059669')
-      /* papan nama menggantung di atas workstation DA & GH (open space) */
-      neon('DATA LAB',2.3,.56,44,3,2.5,2.15,0,'#0891b2')
-      neon('GROWTH LAB',2.3,.56,44,6.5,2.5,2.15,0,'#ea580c')
       neon('CEO SUITE',2.5,.6,40,6,1.5,-9.9,0,'#7c3aed')
 
       /* ---------- RUANG RAPAT — meja panjang 6 kursi + layar agenda (tengah depan) ---------- */
@@ -660,13 +553,13 @@ export default function KantorCeo3D() {
       ag.fillStyle='#0b1220';ag.fillRect(0,0,512,288);ag.fillStyle='#134e4a';ag.fillRect(0,0,512,44)
       ag.fillStyle='#5eead4';ag.font='bold 22px monospace';ag.textAlign='left';ag.fillText('AGENDA RAPAT 08:00',16,30)
       ag.font='17px monospace'
-      ;['1. QA & uptime situs — Raka','2. User & risiko churn — Maya','3. Draf TikTok hari ini — Sinta','4. Kuota & MRR — Putri','5. Hot lead & follow-up — Bagas','6. Insight & eksperimen — Dewi, Farhan'].forEach((s,i)=>{ag.fillStyle='#c7f5e5';ag.fillText(s,20,76+i*30)})
+      ;['1. QA & uptime situs — Raka','2. User & risiko churn — Maya','3. Draf TikTok hari ini — Sinta','4. Briefing & prioritas — Alexander'].forEach((s,i)=>{ag.fillStyle='#c7f5e5';ag.fillText(s,20,76+i*30)})
       const agT=new THREE.CanvasTexture(agC);agT.colorSpace=THREE.SRGBColorSpace
       const agM=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.46),new THREE.MeshStandardMaterial({color:0,map:agT,emissiveMap:agT,emissive:0xffffff,emissiveIntensity:1.1}))
       agM.position.set(4.3,2.4,11.97);agM.rotation.y=PI;scene.add(agM)
 
       /* ---------- RUANG TIDUR AI — pojok kiri depan (permintaan Bos).
-         Dorm DA & Farhan (meja mereka open-space) + 1 kasur nap cadangan.
+         Kasur nap cadangan (15-11: dorm DA/GH pensiun bersama karyawannya).
          Malam 8 Nov: jam tidur resmi 22:00 — kasur DIPAKAI, bukan hiasan. ---------- */
       roomAcc(-11.5,9.5,'#ec4899','#fbe3ef')
       const bedM=M('#8b5e3c',{roughness:.7}),matM=M('#e7d7c4',{roughness:.9}),pilM=M('#fdfdfd',{roughness:.9}),blnM=M('#7c3aed',{roughness:.85})
@@ -676,7 +569,7 @@ export default function KantorCeo3D() {
         OBST.push({x:bx,z:10.7,hw:.6,hd:1.2})
         cyl(.05,.35,M('#3f3f46'),bx+.78,.18,11.45,scene);sph(.07,glow('#ffd9a0',1.4),bx+.78,.42,11.45,scene)}
       /* MES TIDUR AI — mesin kapsul tidur (permintaan Bos). Kini DIPAKAI tiap malam:
-         Dewi & Farhan tidur di sini jam 22:00, lampu kapsul nyala lembut. */
+         karyawan yang lembur bisa rebahan di sini, lampu kapsul nyala lembut. */
       const mesT=M('#2a1420',{roughness:.35,metalness:.4}),mesGlass=M('#ec4899',{roughness:.15,emissive:'#ec4899',emissiveIntensity:.75})
       box(.95,1.35,1.5,mesT,-8,.68,10.9);box(.7,1.05,1.3,mesGlass,-8,1.15,10.9) /* kapsul + jendela menyala */
       box(.95,.12,1.5,M('#111'),-8,1.42,10.9) /* tutup mesin */
@@ -686,7 +579,7 @@ export default function KantorCeo3D() {
       msg.fillStyle='#140a12';msg.fillRect(0,0,512,160);msg.strokeStyle='#ec4899';msg.lineWidth=8;msg.strokeRect(4,4,504,152)
       msg.fillStyle='#f9a8d4';msg.font='bold 44px system-ui';msg.textAlign='center';msg.fillText('MES TIDUR AI',256,58)
       msg.fillStyle='#6ee7b7';msg.font='bold 30px monospace';msg.fillText('DIPAKAI TIAP MALAM — jam 22:00',256,104)
-      msg.fillStyle='#9ca3af';msg.font='22px monospace';msg.fillText('Dewi & Farhan tidur di kapsul 🛏️',256,138)
+      msg.fillStyle='#9ca3af';msg.font='22px monospace';msg.fillText('Kasur nap — siap dipakai kapan pun',256,138)
       const msT=new THREE.CanvasTexture(msc);msT.colorSpace=THREE.SRGBColorSpace
       const msM=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.53),new THREE.MeshBasicMaterial({map:msT}))
       msM.position.set(-8,2.05,10.55);msM.rotation.y=PI;scene.add(msM) /* marquee melayang di atas mesin, menghadap ruangan */
@@ -702,8 +595,8 @@ export default function KantorCeo3D() {
 
       /* ---------- KASUR PERSONAL tiap ruangan (malam 8 Nov, permintaan Bos:
          "kamar disetiap ruangan kantor, jam 10 malem selesai biar AI bisa tidur
-         atau santai") — Raka/Sinta/Maya/Putri/Bagas/Alexander tidur di kamar
-         sendiri; Dewi & Farhan (open-space) di dorm RUANG TIDUR AI. ---------- */
+         atau santai") — Raka/Sinta/Maya/Alexander tidur di kamar sendiri.
+         (15-11: kasur Putri & Bagas dibersihkan bersama kursinya.) ---------- */
       const bedLamps=[]
       const bedBuild=(x,z,acc)=>{
         box(1.15,.22,2.3,M('#8b5e3c',{roughness:.7}),x,.11,z)
@@ -718,8 +611,6 @@ export default function KantorCeo3D() {
       bedBuild(-14.4,-8.2,'#0d9488')   /* Raka — RUANG CTO */
       bedBuild(.2,-8.2,'#8b5cf6')      /* Sinta — RUANG CMO */
       bedBuild(-14.4,1.2,'#db2777')    /* Maya — RUANG CSO */
-      bedBuild(.2,1.2,'#d97706')       /* Putri — RUANG CFO */
-      bedBuild(13,-7.4,'#059669')      /* Bagas — RUANG COO */
       bedBuild(2.6,-8.4,'#7c3aed')     /* Alexander — CEO SUITE */
 
       /* ---------- infrastruktur ---------- */
@@ -745,7 +636,7 @@ export default function KantorCeo3D() {
       const pc=document.createElement('canvas');pc.width=512;pc.height=340;const pg=pc.getContext('2d'),pt2=new THREE.CanvasTexture(pc);pt2.colorSpace=THREE.SRGBColorSpace
       box(3.7,2.5,.06,M('#0a0a0f'),10.8,2.2,-9.92,scene,false)
       const projScr=new THREE.Mesh(new THREE.PlaneGeometry(3.5,2.34),new THREE.MeshBasicMaterial({map:pt2}));projScr.position.set(10.8,2.2,-9.88);scene.add(projScr)
-      const drawSite=()=>{const g=pg,tot=(PROJ.ph+PROJ.prog/100)/7
+      const drawSite=()=>{const g=pg,tot=(PROJ.ph+PROJ.prog/100)/4
         g.fillStyle='#0b0f16';g.fillRect(0,0,512,340)
         g.fillStyle='#161d29';g.fillRect(0,0,512,32)
         ;['#ef4444','#f59e0b','#22c55e'].forEach((c,i)=>{g.fillStyle=c;g.beginPath();g.arc(16+i*20,16,5,0,7);g.fill()})
@@ -857,7 +748,7 @@ export default function KantorCeo3D() {
         /* HALO TINGKAT DEWA — cincin emas melayang di atas kepala semua karyawan */
         const halo=new THREE.Mesh(new THREE.TorusGeometry(.088,.011,8,22),glow('#fbbf24',2.4))
         halo.rotation.x=PI/2;halo.position.y=.30;R.head.add(halo)
-        if(['Sinta','Maya','Putri','Dewi'].includes(cfg.name))box(.27,.36,.1,M(cfg.hair,{roughness:.9}),0,.1,-.12,R.head)
+        if(['Sinta','Maya'].includes(cfg.name))box(.27,.36,.1,M(cfg.hair,{roughness:.9}),0,.1,-.12,R.head)
         if(i%3===0)[-.045,.045].forEach(x=>{const gl=new THREE.Mesh(new THREE.TorusGeometry(.03,.004,6,14),M('#111'));gl.position.set(x,.18,.126);R.head.add(gl)})
         R.phone=at(R.rE,G(),0,-.27,.03);R.phone.rotation.x=-1.25
         box(.08,.15,.012,M('#0a0a12',{metalness:.6,roughness:.3}),0,0,0,R.phone,false)
@@ -1216,8 +1107,6 @@ export default function KantorCeo3D() {
         tt={tt} ttUrl={ttUrl} setTtUrl={setTtUrl} ttViews={ttViews} setTtViews={setTtViews}
         ttLikes={ttLikes} setTtLikes={setTtLikes} ttMsg={ttMsg} ttBusy={ttBusy}
         ttAdd={ttAdd} ttDel={ttDel}
-        cooTasks={cooTasks} cooLoading={cooLoading} cooDrafts={cooDrafts} setCooDrafts={setCooDrafts}
-        cooActing={cooActing} cooAct={cooAct} cooLoad={cooLoad}
       />
     </main>
   )

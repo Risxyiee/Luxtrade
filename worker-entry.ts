@@ -16,12 +16,12 @@
 //
 // Ruang CEO (Super AI Agent) ikut menumpang jadwal yang sudah ada —
 // NOL slot cron baru dipakai:
-//   0 1 * * *  → briefing pagi 08:00 WIB (4 agen + AUTO-ACC email pasif)
-//                 + Dewi (Data Analyst) + Farhan (Growth Hacker) — LAPORAN HARIAN
-//                 (dulu cuma Senin — Bos harus klik manual kalau mau harian)
+//   0 1 * * *  → briefing pagi 08:00 WIB (briefing + AUTO-ACC email pasif)
 //                 RIWAYAT TUGAS A 14-11: analyst (Dewi), growth (Farhan) &
 //                 ai-coo-agent (Bagas) DIMATIKAN dari cron — karyawan
 //                 dihapus; route & fungsi tetap hidup (pemicu manual OK).
+//                 RIWAYAT KEPUTUSAN BOS 15-11: Raka (CTO) DIPERTAHANKAN
+//                 khusus keamanan — watchdog + QA tetap hidup.
 //   0 3 * * 1  → laporan mingguan Senin 10:00 WIB
 //               + LOOP BELAJAR (lib/ceo-loop.ts): rapat mingguan tim AI
 //                 (evaluasi taruhan minggu lalu + debat 5 peran + Alexander
@@ -31,8 +31,9 @@
 //                 RIWAYAT TUGAS A 14-11: review produk Raka DIMATIKAN
 //                 dari cron (route tetap hidup — pemicu manual/tombol).
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
-//               (RIWAYAT TUGAS A 14-11: watchdog Raka + growth-sentinel &
-//               comment-hunter Kevin DIMATIKAN dari cron — karyawan dihapus)
+//               (RIWAYAT TUGAS A 14-11: watchdog sempat dimatikan; BOS 15-11:
+//               Raka DIPERTAHANKAN utk keamanan → watchdog KEMBALI ke cron.
+//               growth-sentinel & comment-hunter Kevin tetap dimatikan)
 //               + SWEEP proposal agen otonom (Task 34: 7 agen deteksi trigger
 //                 → INSERT ai_pending_actions → CEO ACC di Antrean Eksekusi)
 //               + PRICE ALERTS (watchlist target_price → push layar HP;
@@ -74,8 +75,8 @@
 //     menit 0-4 yang benar-benar run; PRIVATE feature-flag pine_lab).
 //     (RIWAYAT: strategy-alerts — alert indikator ala Pine — DIHAPUS
 //     11-11 perintah Bos: "alert pine hapus aja dulu" — digantikan
-//     Pine Lab privat sesuai spek revisi Bos. RIWAYAT TUGAS A 14-11:
-//     watchdog Raka DIHAPUS dari jalur ini.)
+//     Pine Lab privat sesuai spek revisi Bos. RIWAYAT BOS 15-11:
+//     watchdog Raka KEMBALI ke jalur ini — karyawan CTO dipertahankan.)
 //   • JALUR BERAT (GILIRAN — 1 rute per slot): tick, sweep proposal,
 //     prop-firm-guard, seo-factory, ig-auto-post → tiap rute berat jalan
 //     tiap 75 menit (5 slot), CPU per invocation turun ~60%.
@@ -100,21 +101,20 @@
    JALUR BERAT tetap giliran 1 rute/slot 15-menit (hanya jalan di
    menit ke-0/15/30/45 — slotNo bucket 900_000 dipertahankan). */
 /* ══ TUGAS A — PENGHAPUSAN KARYAWAN AI (Bos, 14-11-2026) ═══════════════
-   FASE 1: cron karyawan yang dihapus DIMATIKAN dulu (commit ini):
+   FASE 1: cron karyawan yang dihapus DIMATIKAN (commit 14-11):
      • ai-coo-agent (Bagas COO) · analyst (Dewi DA) · growth (Farhan GH)
-     • watchdog (Raka CTO) · product-review (Raka, Senin)
-     • growth-sentinel + comment-hunter (Kevin)
+     • growth-sentinel + comment-hunter (Kevin) · product-review (Senin)
+   REVISI BOS 15-11: Raka (CTO) JANGAN dihapus — dia penjaga keamanan.
+     → watchdog KEMBALI ke slot 5-menit (cadensi 15 mnt via EVERY_MIN).
    Bertahan: briefing (Alexander) — di dalamnya kerja Sinta & Maya tetap
-   jalan (draf TikTok, caption IG, auto-post IG+FB, email pasif) = bahan
-   karyawan baru "Luxtradee Growth" hasil merger Sinta+Maya; plus weekly
-   + meeting (Senin) dan tick (mesin kerja harian).
-   VERIFIKASI GATE: besok pagi cek Discord — pesan Dewi/Farhan/Bagas/
-   Kevin + alarm Raka HARUS hilang; briefing + post Sinta + email Maya
-   MASIH muncul. FASE 2-3 menyusul setelah verifikasi: bersihkan
-   pemanggilan di ceo-agent/route.ts + panel dashboard.
-   Route & fungsi lama TETAP ADA — hanya diputus dari cron (pemicu
-   manual tetap bisa, mis. tombol di Ruang CTO). */
-const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/cron/price-alerts', '/api/cron/pine-lab']
+   jalan (draf TikTok, caption IG, auto-post IG+FB, email pasif) = divisi
+   "Luxtradee Growth" hasil merger Sinta+Maya; plus weekly + meeting
+   (Senin) dan tick (mesin kerja harian).
+   FASE 2-3 (15-11): panel dashboard Kantor CEO + kantor 3D dibersihkan
+   (kursi Bagas/Putri/Dewi/Farhan/Kevin dilepas), rapat mingguan kini
+   hanya Sinta+Maya+Raka. Route & fungsi lama TETAP ADA — hanya diputus
+   dari cron (pemicu manual tetap bisa). */
+const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/cron/price-alerts', '/api/cron/pine-lab', '/api/ceo-agent?action=watchdog']
 const CRON_ROUTES: Record<string, string[]> = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/ceo-agent?action=briefing', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
@@ -171,6 +171,7 @@ const EVERY_MIN: Record<string, number> = {
   '/api/cron/econ-calendar-notify': 15,
   '/api/cron/price-alerts': 15,
   '/api/cron/pine-lab': 60, // jendela 60 menit → siklus penuh hanya di menit 0-4
+  '/api/ceo-agent?action=watchdog': 15, // Raka jaga situs tiap 15 menit (Bos 15-11: CTO dipertahankan)
 }
 const dueNow = (route: string, t: number) => {
   const n = EVERY_MIN[route]

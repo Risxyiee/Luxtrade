@@ -35,31 +35,11 @@ import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 /* ============================================================
    STRUKTUR & JABATAN TIM AI — data lengkap untuk Ruang Struktur.
-   Sumber kebenaran: kode /api/ceo-agent, /api/cron/ai-coo-agent,
-   /api/admin/ai-staff & worker-entry.ts (jadwal cron Cloudflare).
+   Sumber kebenaran: kode /api/ceo-agent & worker-entry.ts (jadwal cron Cloudflare).
+   Tim ramping 15-11: Alexander (CEO), Raka (CTO), Maya & Sinta (divisi Luxtradee Growth).
    Batas kemampuan ditulis JUJUR supaya Bos bisa menilai gap tim.
    ============================================================ */
 const TEAM_DETAIL = [
-  {
-    id: 'COO', name: 'Bagas', jabatan: 'COO · Chief Operating Officer', divisi: 'Divisi Jualan & Monetisasi', color: '#059669',
-    model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 26B (OpenRouter) → templat',
-    shift: 'Cron harian 08:00 WIB (slot 0 1 * * * UTC) · ACC Bos kapan pun di Ruang COO',
-    baca: 'profiles (free user + email) · trades 7 hari per user · ai_pending_tasks (riwayat kontak)',
-    tugas: [
-      'Pilih maks 3 free user paling aktif 7 hari = hot lead (sudah ketagihan produk, paling siap upgrade)',
-      'Racik email penawaran PRO personal via model resminya (Gemma 4 26B via OpenRouter) → templat cadangan',
-      'Simpan draf sebagai task PENDING → tunggu ACC Bos di Ruang COO (human-in-the-loop)',
-      'Setelah ACC: email terkirim via Resend, status dicatat untuk pengukuran konversi',
-      'FOLLOW-UP OPEN-RATE: lead yang BUKA email tapi belum PRO (deteksi via webhook Resend /api/webhooks/resend) otomatis dapat draf follow-up berisi kupon diskon terkontrol (env COUPON_PERCENT, default 20%) — anti-spam 1x/7 hari, bounce tidak di-email lagi',
-    ],
-    lapor: 'Ringkasan 24 jam di briefing 08:00 · % konversi penawaran→PRO & open-rate email di laporan mingguan Senin 10:00',
-    batas: [
-      'Maks 3 lead/hari & 1 lead cuma dikontak 1x per 7 hari (anti-spam)',
-      'Tidak bisa membalas reply dari lead — itu tetap tangan Bos',
-      'Open-rate cuma terlihat setelah webhook dipasang: resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend',
-    ],
-    ide: 'A/B subject email otomatis (butuh volume pengiriman lebih besar) · skor lead dari jumlah klik · diskon bertingkat per tingkat ketertarikan',
-  },
   {
     id: 'CTO', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488',
     model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
@@ -80,7 +60,7 @@ const TEAM_DETAIL = [
     ide: 'QA route butuh-login pakai token uji beneran · rollback otomatis kalau QA gagal parah (butuh pipeline deploy baru)',
   },
   {
-    id: 'CSO', name: 'Maya', jabatan: 'CSO · Chief Customer Success Officer', divisi: 'Customer Success & Retensi', color: '#be185d',
+    id: 'CSO', name: 'Maya', jabatan: 'CSO · Luxtradee Growth (Retensi & Customer Success)', divisi: 'Divisi Luxtradee Growth — merger CSO+CMO', color: '#be185d',
     model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 26B (OpenRouter) → templat',
     shift: 'Hitung user di briefing 08:00 · email pasif otomatis 1x/hari (kalau AUTO-ACC on) · rapat dengan CMO 1x/hari',
     baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
@@ -100,12 +80,12 @@ const TEAM_DETAIL = [
     ide: 'Prediksi churn per user pakai model ML (butuh histori lebih panjang) · A/B subject email otomatis (butuh open-rate dari Resend) · segmen email per tingkat risiko',
   },
   {
-    id: 'CMO', name: 'Sinta', jabatan: 'CMO · Chief Marketing Officer', divisi: 'Marketing & Konten', color: '#7c3aed',
+    id: 'CMO', name: 'Sinta', jabatan: 'CMO · Luxtradee Growth (Konten & Akuisisi)', divisi: 'Divisi Luxtradee Growth — merger CSO+CMO', color: '#7c3aed',
     model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 31B (OpenRouter) → templat',
     shift: 'Shift pagi: LAPORAN RISET TikTok + draf skrip di briefing 08:00 · Shift sore: produksi & posting video 20:00 WIB (prime time FYP)',
     baca: 'tiktok_posts (top 5 konten Bos urut views) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
     tugas: [
-      'LAPORAN RISET TIKTOK/hari (analisis pasar, bukan cuma bahan konten): pola hook yang works, topik berpeluang FYP, jadwal posting terbaik, risiko — dibagikan ke SELURUH kantor (briefing Alexander, bahan artikel Farhan, angle email Bagas, panel Memori Kantor)',
+      'LAPORAN RISET TIKTOK/hari (analisis pasar, bukan cuma bahan konten): pola hook yang works, topik berpeluang FYP, jadwal posting terbaik, risiko — dibagikan ke SELURUH kantor (briefing Alexander, panel Memori Kantor)',
       'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
       '3 DRAF PILIHAN/hari via 1 panggilan model resminya (Gemma 4 31B via OpenRouter) — 3 pendekatan berbeda, WAJIB selaras hasil risetnya sendiri; Bos tinggal pilih yang paling pas di Ruang CMO',
       'INSTAGRAM ANALISIS (Tahap T): bikin 1 caption IG educational berbasis data REAL komunitas 24 jam (win rate agregat, pair favorit, total trade) — terpisah dari draf TikTok. Caption otomatis diposting ke Instagram via Meta Graph API (token INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID di Cloudflare Secrets). Tanpa token → status jujur "belum diset", tidak ada simulasi sukses.',
@@ -123,100 +103,19 @@ const TEAM_DETAIL = [
     ide: 'Refresh views otomatis via oEmbed mingguan · bank hook yang terbukti FYP · pakai draf pilihan Bos sebagai skrip video besok',
   },
   {
-    id: 'CFO', name: 'Putri', jabatan: 'CFO · Chief Financial Officer', divisi: 'Anggaran API & Biaya', color: '#b45309',
-    model: 'Tanpa LLM — 100% matematika hardcoded (SOP Bos)',
-    shift: 'Cek kuota di briefing 08:00 + watchdog 15 menit (alarm di 80%)',
-    baca: 'agent_kv quota: (Gemini Vision) · email: (Resend) · quota429: (event rate-limit) · profiles is_pro (pendapatan)',
-    tugas: [
-      'Satu-satunya karyawan TANPA LLM — 100% matematika hardcoded (SOP Bos): tidak bisa halusinasi angka',
-      'Pantau kuota Gemini Vision harian (limit ±1.400) & kuota email Resend (100/hari)',
-      'Gerbang quota-track: setiap evaluasi upload user dicek dulu — kuota habis → ditunda (anti-429)',
-      'Alarm Discord 1x/hari kalau pemakaian >=80%',
-      'LAPORAN PENDAPATAN: hitung user PRO (is_pro) x harga paket bulanan (env PRO_PRICE_IDR, default 49.000) → estimasi MRR bulanan + progres target (env MRR_TARGET_IDR) — tampil di briefing & Ruang CFO',
-      'Laporan pemakaian 7 hari di laporan mingguan',
-    ],
-    lapor: 'Baris kuota + pendapatan MRR di briefing & panel Ruang CFO · alarm instan di 80% · rekap 7 hari mingguan',
-    batas: [
-      'Pendapatan = estimasi (PRO x harga paket bulanan) — belum hitung paket 6 bulanan/lifetime & biaya server',
-      'Limit & harga diambil dari env, bukan dibaca langsung dari billing Gemini/Resend/Supabase',
-    ],
-    ide: 'Baca billing asli Gemini/Resend/Supabase (butuh API billing masing-masing) · banding biaya API vs revenue per bulan · laporan pajak dasar',
-  },
-  {
-    id: 'DA', name: 'Dewi', jabatan: 'Data Analyst · Analis Pola Trading', divisi: 'Data & Insight', color: '#0891b2',
-    model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 31B (OpenRouter) → templat',
-    shift: 'Analisis harian 08:00 WIB (cron) · analisis mendalam tiap Senin 10:00 · kapan pun lewat tombol di Ruang Data Analyst',
-    baca: 'trades 30 hari terakhir (maks 1.000 terbaru): symbol, profit_loss, session, user_id, created_at, emotion (self-report user)',
-    tugas: [
-      'Hitung statistik NYATA: total upload, trader unik, win rate agregat, pair favorit, sesi & jam tersibuk',
-      'KORELASI EMOSI vs PROFIT: win rate per emosi (self-report saat upload, min 5 sampel/emosi) — emosi paling untung & paling rugi → bahan edukasi psikologi trading',
-      'Ubah angka mentah jadi insight 2 kalimat + 3 pola yang tidak terlihat kasat mata',
-      'Beri 3 rekomendasi konkret yang bisa dieksekusi Bos minggu ini (produk/konten/retensi)',
-      'Evaluasi rekomendasi minggu lalu dengan data terbaru — learning loop, bukan analisis amnesia',
-    ],
-    lapor: 'Pesan Discord terpisah tiap Senin 10:00 WIB + panel Ruang Data Analyst (insight + emosi dipakai CMO & Growth Hacker)',
-    batas: [
-      'Data cuma 30 hari terakhir, maks 1.000 trade terbaru — bukan seluruh sejarah',
-      'Tidak menyentuh data pribadi sensitif — hanya pola agregat',
-      'Rekomendasi tetap usulan — eksekusi di tangan Bos & karyawan lain',
-    ],
-    ide: 'Prediksi trader yang mau churn (butuh histori lebih panjang) · skor kualitas setup (butuh label setup yang konsisten)',
-  },
-  {
-    id: 'GH', name: 'Farhan', jabatan: 'Growth Hacker · Eksperimen Pertumbuhan', divisi: 'Growth & Eksperimen', color: '#ea580c',
-    model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
-    shift: 'Rancang eksperimen harian 08:00 WIB (cron) · mendalam tiap Senin 10:00 · kapan pun lewat tombol di Ruang Growth',
-    baca: 'Funnel profiles: pendaftar, PRO, pendaftar 7 hari, user dari referral (referred_by_code), onboarding selesai, aktivasi (upload trade) + insight Dewi (DA)',
-    tugas: [
-      'Ukur funnel nyata: pendaftar → aktivasi (upload trade pertama) → PRO → referral',
-      'A/B TEST CTA LANDING OTOMATIS: pengunjung dibagi 50/50 ke 2 varian teks tombol CTA (localStorage bucket), view & klik terukur via /api/ab-track → pemenang mingguan dilaporkan CEO & tampil di panel ini',
-      'Temukan titik bocor terbesar (mis. aktivasi rendah, referral sepi)',
-      'Usulkan 3 eksperimen minggu ini: nama, langkah konkret, metrik keberhasilan, estimasi effort',
-      'Selipkan angle promosi program affiliate/referral ke eksperimennya',
-    ],
-    lapor: 'Pesan Discord terpisah tiap Senin 10:00 WIB + panel Ruang Growth (funnel + hasil A/B live)',
-    batas: [
-      'A/B cuma 2 varian teks CTA di landing — varian baru = edit kode (keputusan tetap lewat ACC Bos)',
-      'Metrik terbatas data yang ada (open-rate email di sisi Bagas; belum ada analitik landing mendetail)',
-      'Tidak mengubah landing/harga sendiri — semua lewat ACC Bos',
-    ],
-    ide: 'Integrasi analitik landing lengkap (butuh analytics engine) · A/B di halaman lain (pricing, blog) · program reward referral 2 arah · notifikasi win-back',
-  },
-  {
-    id: 'KEVIN', name: 'Kevin', jabatan: 'Growth Hunter · Pemburu Lead & Komentar', divisi: 'Growth & Eksperimen', color: '#d97706',
-    model: 'Claude Haiku 5.5 (Mortera) → Llama 3.3 70B (Groq) → templat deterministik',
-    shift: 'Sentinel tiap 15 menit (kerja 24 jam, throttle internal — run sehat tanpa LLM) · hunt komentar IG maks tiap 2 jam',
-    baca: 'profiles (signup 6j/24j/7h) · growth_leads (lead CS bot) · trades 24 jam · komentar IG postingan sendiri via Graph API resmi',
-    tugas: [
-      'Pantau kekeringan pertumbuhan dari angka RIIL — signup, lead baru, trade (anti alarm palsu)',
-      'PEMBURU KOMENTAR IG: pantau komentar postingan sendiri (Graph API resmi, patuh ToS) → klasifikasi 7 niat → balas aman otomatis (maks 5/run & 15/hari WIB) → propek minat-harga lapor Bos via Discord',
-      'Social proof jujur buat CS bot & landing — member & trade terjurnal (tanpa angka karangan)',
-      'Hook sapaan proaktif CS bot tiap hari — nada sesuai kondisi traffic & data hari ini',
-      'Email welcome personal utk lead baru → draf masuk Antrean ACC Bos (tidak pernah kirim sendiri)',
-      'Alarm kekeringan ke Discord + saran konkret (maks tiap 12 jam)',
-    ],
-    lapor: 'Laporan hunt & sentinel → Discord Bos + Memori Kantor + memori pribadinya (panel ini)',
-    batas: [
-      'Tidak pernah DM/komentar ke akun orang lain — hanya postingan milik sendiri (patuh ToS IG)',
-      'Email cuma DRAF — terkirim hanya setelah Bos ACC di Antrean Eksekusi',
-      'Tanpa janji profit — angka hanya dari data riil; run sepi = diam (hemat kuota)',
-    ],
-    ide: 'Balas semua intent pakai LLM (kuota lebih longgar) · hunt komentar TikTok (butuh API resmi) · follow-up email bertahap otomatis',
-  },
-  {
     id: 'CEO', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
     model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
     shift: 'Briefing 08:00 WIB harian · laporan mingguan Senin 10:00 WIB',
-    baca: 'Semua laporan agen (CTO/CSO/CMO/CFO/COO + Dewi DA & Farhan GH) + status AUTO-ACC + Memori Kantor',
+    baca: 'Semua laporan agen (CTO Raka + divisi Luxtradee Growth: Maya & Sinta) + status AUTO-ACC + Memori Kantor',
     tugas: [
-      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Nemotron 3.5 Lightning via OpenRouter, anti-429 — tidak berebut kuota dengan Sinta & Dewi) → kirim ke Discord 08:00',
+      'Kumpulkan laporan semua karyawan jadi Morning Briefing satu pesan → dirapikan model resminya (Nemotron 3.5 Lightning via OpenRouter, anti-429 — tidak berebut kuota dengan divisi Growth) → kirim ke Discord 08:00',
       'Pilih 1 NEXT BEST ACTION tiap pagi pakai modelnya sendiri — prioritas tunggal yang HANYA Bos bisa kerjakan hari ini (Discord pesan terpisah)',
       'Ingatkan PRIORITAS KEMARIN di briefing — akuntabilitas: dilakukan, atau ganti dengan alasan jelas',
       'NBA OKE/NOT OKE: Bos jawab prioritas hari ini via tombol Ruang Rapat ATAU slash command Discord /nba-oke · /nba-not → dicatat ke memori & briefing besok menghormati jawaban itu',
       'CHAT 2 ARAH Discord: Bos ketik /bos <pesan> → Alexander jawab langsung (route /api/discord-interactions, mode Interactions — bukan Gateway, kompatibel Workers) dengan konteks briefing terakhir',
       'RINGKASAN SUARA: tombol Bacakan Briefing di Ruang Rapat — laporan pagi dibacakan suara browser (TTS lokal, tanpa API key)',
       'Catat keputusan & kesimpulan penting ke Memori Kantor — semua karyawan membaca catatan ini (tim belajar bersama)',
-      'Jalankan AUTO-ACC email CSO otomatis tiap pagi (default ON — toggle AUTO-ACC untuk mematikan) · Dewi & Farhan lapor HARIAN jam 08:00 (dulu cuma Senin)',
+      'Jalankan AUTO-ACC email pasif (Maya) otomatis tiap pagi (default ON — toggle AUTO-ACC untuk mematikan)',
     ],
     lapor: 'Semua laporan mendarat di channel Discord (webhook) — satu tempat, tinggal baca · memori bisa dibaca di Ruang Rapat · chat balik via /bos di Discord',
     batas: [
@@ -235,14 +134,10 @@ const TEAM_DETAIL = [
    + baris di kartu akordeon. Otaknya kini rantai baru: Mortera (Claude
    Haiku 5.5) dulu → OpenRouter → templat — karyawan tidak pernah manggung. */
 const GOD_SKILL: Record<string, string> = {
-  CEO: 'Neural Command — orkestrasi 7 agen, NBA harian, akuntabilitas & memori kantor',
+  CEO: 'Neural Command — orkestrasi tim ramping, NBA harian, akuntabilitas & memori kantor',
   CTO: 'Self-Healing Infra — watchdog 15 menit, QA 15 route + E2E login beneran, alarm sendiri ke Discord',
   CSO: 'Mind-Reader Retensi — skor churn harian, email personal 2 grup dari data trading asli, rapat data × CMO',
   CMO: 'Viral Script Engine — riset TikTok harian buat seluruh kantor + 3 draf pilihan + video Remotion prime time 20:00',
-  CFO: 'Anti-429 Oracle — gerbang kuota sebelum evaluasi, alarm 80%, estimasi MRR tanpa halusinasi (100% matematika)',
-  COO: 'Lead Magnet Radar — pilih 3 hot lead paling ketagihan, follow-up open-rate + kupon terkontrol',
-  DA: 'Data Clairvoyance — korelasi emosi vs profit, 3 pola tersembunyi, learning loop mingguan',
-  GH: 'Growth Infinity — funnel nyata + A/B CTA landing otomatis 50/50 + 3 eksperimen siap eksekusi',
 }
 function GodChip({ id }: { id: string }) {
   return (
@@ -537,13 +432,6 @@ export interface RuangCeoDashboardProps {
   ttBusy: boolean
   ttAdd: () => void
   ttDel: (id: string) => void
-  cooTasks: any[]
-  cooLoading: boolean
-  cooDrafts: Record<string, { subject: string; body: string }>
-  setCooDrafts: (fn: (p: Record<string, { subject: string; body: string }>) => Record<string, { subject: string; body: string }>) => void
-  cooActing: string | null
-  cooAct: (t: any, kind: 'approve' | 'reject') => void
-  cooLoad: (silent?: boolean) => void
 }
 
 export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
@@ -582,11 +470,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
     return () => { if (w.__kceo) delete w.__kceo.openSheet }
   }, [])
 
-  const cto = data?.cto, cso = data?.cso, cmo = data?.cmo, cfo = data?.cfo
-  const coo = data?.coo, talk = data?.talk, da = data?.da, gh = data?.gh
-  const daError = data?.daError, ghError = data?.ghError
+  const cto = data?.cto, cso = data?.cso, cmo = data?.cmo
+  const talk = data?.talk
   const autoacc = data?.autoacc
-  const fmtIdr = (n: number) => Number(n || 0).toLocaleString('id-ID')
   /* Draf CMO aktif — dukung 3 draf pilihan (baru) & 1 draf (cache lama) */
   const cmoDrafts: string[] = Array.isArray(cmo?.drafts) && cmo.drafts.length ? cmo.drafts : cmo?.draft ? [cmo.draft] : []
   const cmoCur = cmoDrafts[Math.min(cmoVar, cmoDrafts.length - 1)] || ''
@@ -598,12 +484,6 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
      karyawan" berisi logika kerja beneran, bukan cuma deskripsi statis. */
   const liveBase = (id: string): { tone: 'ok' | 'warn' | 'idle'; text: string } => {
     switch (id) {
-      case 'COO':
-        return coo
-          ? (coo.pending > 0
-            ? { tone: 'warn', text: `${coo.pending} draf penawaran menunggu ACC Bos (ACC di Ruang COO)` }
-            : { tone: 'ok', text: `Antrean jualan bersih · ${coo.approved24h ?? 0} email ter-ACC dalam 24 jam` })
-          : { tone: 'idle', text: 'Belum ada data — cron 08:00 WIB' }
       case 'CTO':
         return cto
           ? { tone: cto.siteOk ? 'ok' : 'warn', text: `Web ${cto.siteOk ? 'OK' : 'DOWN'}${cto.latencyMs ? ` (${cto.latencyMs} ms)` : ''} · bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` }
@@ -616,26 +496,10 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         return cmo
           ? { tone: 'ok', text: cmoDrafts.length > 1 ? `${cmoDrafts.length} draf TikTok hari ini siap — Bos tinggal pilih` : cmoDrafts.length === 1 ? 'Draf TikTok hari ini siap' : 'Belum ada draf hari ini' }
           : { tone: 'idle', text: 'Draf TikTok tiap pagi · video 20:00 WIB' }
-      case 'CFO':
-        return cfo
-          ? { tone: String(cfo.status || '').indexOf('KRITIS') === 0 ? 'warn' : 'ok', text: `Kuota ${cfo.usedToday ?? '-'}/${cfo.limit} hari ini · email ${cfo.emailToday ?? '-'}/${cfo.emailLimit ?? 100} · est. MRR Rp${fmtIdr(cfo.estMRR || 0)}` }
-          : { tone: 'idle', text: 'Gerbang anti-429 + laporan MRR' }
-      case 'DA':
-        return da?.insight
-          ? { tone: 'ok', text: trunc(noEmoji(da.insight), 92) }
-          : { tone: 'idle', text: 'Analisis trades harian 08:00 WIB' }
-      case 'GH':
-        return gh
-          ? (gh.experiments?.length
-            ? { tone: 'ok', text: `${gh.experiments.length} eksperimen siap dieksekusi Bos` }
-            : (gh.insight ? { tone: 'ok', text: trunc(noEmoji(gh.insight), 92) } : { tone: 'idle', text: 'Rancang eksperimen harian 08:00 WIB' }))
-          : { tone: 'idle', text: 'Rancang eksperimen harian 08:00 WIB' }
       case 'CEO':
         return data?.nba?.text
           ? { tone: 'ok', text: `Prioritas hari ini: ${trunc(noEmoji(data.nba.text), 84)}` }
           : { tone: 'idle', text: 'Briefing 08:00 WIB otomatis' }
-      case 'KEVIN':
-        return { tone: 'ok', text: 'Sentinel tiap 15 menit · hunt komentar IG maks tiap 2 jam — lapor Discord & memori' }
       default:
         return { tone: 'idle', text: '' }
     }
@@ -654,14 +518,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const DOCK = [
     { id: 'rapat', name: 'Alexander', role: 'CEO · Ruang Rapat', live: data?.nba?.text ? 'Prioritas hari ini siap' : data?.mem?.length ? `${data.mem.length} catatan memori kantor` : 'Briefing 08:00 WIB otomatis', has: !!(data?.nba || data?.mem) },
     { id: 'CTO', name: 'Raka', role: 'CTO · IT & QA', live: cto ? `Web ${cto.siteOk ? 'OK' : 'DOWN'} · Bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` : 'Watchdog tiap 15 menit', has: !!cto },
-    { id: 'CSO', name: 'Maya', role: 'CSO · Customer Success', live: cso ? `Total ${cso.total ?? '-'} · Aktif ${cso.active ?? '-'} · churn ${cso.churnRisk ?? 0}` : 'Email pasif + riset churn', has: !!cso },
-    { id: 'CMO', name: 'Sinta', role: 'CMO · Marketing & Video TikTok', live: cmoDrafts.length > 1 ? '3 draf hari ini siap — Bos tinggal pilih' : cmoDrafts.length === 1 ? 'Draf hari ini siap' : 'Belum ada draf hari ini', has: !!cmo },
-    { id: 'CFO', name: 'Putri', role: 'CFO · Kuota & Pendapatan', live: cfo ? `${cfo.usedToday ?? '-'}/${cfo.limit} hari ini · est. MRR Rp${fmtIdr(cfo.estMRR || 0)}` : 'Gerbang anti-429 + laporan MRR', has: !!cfo },
-    { id: 'COO', name: 'Bagas', role: 'COO · Jualan', live: coo ? (coo.pending > 0 ? `${coo.pending} draf nunggu ACC` : 'Antrean jualan bersih') : 'Hot lead → email PRO', has: !!coo },
-    { id: 'DA', name: 'Dewi', role: 'Data Analyst', live: da?.insight ? trunc(noEmoji(da.insight), 64) : 'Insight harian 08:00 WIB', has: !!da },
-    { id: 'GH', name: 'Farhan', role: 'Growth Hacker', live: gh?.experiments?.length ? `${gh.experiments.length} eksperimen siap dieksekusi` : 'Eksperimen harian 08:00 WIB', has: !!gh },
-    { id: 'KEVIN', name: 'Kevin', role: 'Growth Hunter · Pemburu Komentar', live: 'Sentinel 15 mnt · Hunt IG 2 jam', has: true },
-    { id: 'struktur', name: 'Tim AI', role: 'Struktur & Jabatan', live: '9 karyawan · tugas, jadwal, memori & batas kemampuan', has: true },
+    { id: 'CSO', name: 'Maya', role: 'Luxtradee Growth · Retensi & Email', live: cso ? `Total ${cso.total ?? '-'} · Aktif ${cso.active ?? '-'} · churn ${cso.churnRisk ?? 0}` : 'Email pasif + riset churn', has: !!cso },
+    { id: 'CMO', name: 'Sinta', role: 'Luxtradee Growth · Konten & Video', live: cmoDrafts.length > 1 ? '3 draf hari ini siap — Bos tinggal pilih' : cmoDrafts.length === 1 ? 'Draf hari ini siap' : 'Belum ada draf hari ini', has: !!cmo },
+    { id: 'struktur', name: 'Tim AI', role: 'Struktur & Jabatan', live: '4 karyawan · tugas, jadwal, memori & batas kemampuan', has: true },
   ] as const
 
   const pick = (id: string) => {
@@ -828,8 +687,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className={SEP}>
                 <b>Jadwal Kerja Karyawan — OTOMATIS</b>
                 <div className="text-white/60 text-[10.5px] mt-1 leading-relaxed">
-                  <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — QA + CSO + CMO + CFO + COO + AUTO-ACC + diskusi CSO×CMO + NBA + akuntabilitas prioritas kemarin<br />
-                  <b>Dewi &amp; Farhan lapor HARIAN</b> 08:00 WIB — analisis trades + eksperimen growth, pesan Discord terpisah<br />
+                  <b>Laporan kerja pagi</b> 08:00 WIB tiap hari — QA Raka + divisi Growth (draf TikTok Sinta + email pasif Maya) + AUTO-ACC + diskusi CSO×CMO + NBA + akuntabilitas prioritas kemarin<br />
                   <b>Shift sore Sinta (CMO)</b> 20:00 WIB tiap hari — produksi &amp; posting video TikTok otomatis (prime time FYP)<br />
                   <b>Watchdog CTO</b> tiap 15 menit 24/7 — situs DOWN / bug baru / kuota 80% → alarm Discord instan<br />
                   <b>Laporan mingguan Senin 10:00 WIB</b> — rekap 7 hari versi CEO — pesan Discord terpisah<br />
@@ -1104,264 +962,6 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                 Bahan TikTok lo = acuan utama — isi terus biar draf makin mirip konten yang FYP
               </div>
             </div>
-          ) : room === 'CFO' ? (
-            /* ============ RUANG CFO — API Quota Manager ============ */
-            <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-amber-300 mb-0.5">RUANG CFO</div>
-              <div className="text-white/50 text-[11px] mb-3">API Quota Manager · Anti-429 Gemini Vision</div>
-              <GodChip id="CFO" />
-              {cfo ? (
-                <div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-center">
-                      <div className="text-[10px] text-white/50">Hari Ini</div>
-                      <div className="text-[20px] font-bold text-amber-200">{cfo.usedToday ?? '—'}</div>
-                      <div className="text-[10px] text-white/40">dari {cfo.limit}</div>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-center">
-                      <div className="text-[10px] text-white/50">Kemarin</div>
-                      <div className="text-[20px] font-bold text-white/80">{cfo.usedYesterday ?? '—'}</div>
-                      <div className="text-[10px] text-white/40">dari {cfo.limit}</div>
-                    </div>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className={`h-full rounded-full transition-[width] duration-500 ${cfo.status && String(cfo.status).indexOf('KRITIS') === 0 ? 'bg-red-400' : cfo.status && String(cfo.status).indexOf('WASPADA') === 0 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${Math.min(100, Math.round(((cfo.usedToday || 0) / (cfo.limit || 1)) * 100))}%` }} />
-                  </div>
-                  <div className="mt-2 text-[11.5px] text-white/75">
-                    Event 429 kemarin: <b className="text-white">{cfo.quota429 ?? '—'}</b><br />
-                    Email hari ini: <b className="text-white">{cfo.emailToday ?? '—'}/{cfo.emailLimit ?? 100}</b> (Resend)<br />
-                    Status: <b className={cfo.status && String(cfo.status).indexOf('KRITIS') === 0 ? 'text-red-300' : cfo.status && String(cfo.status).indexOf('WASPADA') === 0 ? 'text-amber-300' : 'text-emerald-300'}>{cfo.status ?? ''}</b>
-                  </div>
-                  {cfo.error ? <div className={ERR}>{noEmoji(cfo.error).slice(0, 120)}</div> : null}
-                </div>
-              ) : <div className="text-white/50 mt-1">Belum ada data — klik tombol di bawah</div>}
-              {cfo?.proCount >= 0 && (
-                <div className="mt-2 rounded-xl bg-emerald-400/10 border border-emerald-300/20 p-2.5">
-                  <div className="text-[10px] text-white/50">Estimasi pendapatan (Putri — hitung is_pro × harga, tanpa LLM)</div>
-                  <div className="text-[20px] font-bold text-emerald-200 leading-tight">Rp{fmtIdr(cfo.estMRR || 0)}<span className="text-[10px] font-normal text-white/45"> /bulan MRR</span></div>
-                  <div className="text-[10.5px] text-white/60">{cfo.proCount} user PRO × Rp{fmtIdr(cfo.proPrice)} (paket bulanan)</div>
-                  {cfo.mrrTarget > 0 ? (
-                    <div className="mt-1.5">
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-500" style={{ width: `${Math.min(100, Math.round(((cfo.estMRR || 0) / cfo.mrrTarget) * 100))}%` }} />
-                      </div>
-                      <div className="text-[9.5px] text-white/45 mt-0.5">{Math.round(((cfo.estMRR || 0) / cfo.mrrTarget) * 100)}% dari target MRR Rp{fmtIdr(cfo.mrrTarget)} · target diubah via env MRR_TARGET_IDR</div>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} onClick={() => call('quota')}>Refresh Kuota</button>
-                <button className={BTNO} onClick={() => call('agents&only=cfo')}>Cek Ulang</button>
-              </div>
-            </div>
-          ) : room === 'COO' ? (
-            /* ============ RUANG COO — Jualan & Monetisasi ============ */
-            <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-emerald-300 mb-0.5">RUANG COO</div>
-              <div className="text-white/50 text-[11px] mb-2.5">Jualan &amp; Monetisasi · Hot lead → email tawaran PRO (ACC dulu, baru kirim)</div>
-              <GodChip id="COO" />
-              <div className="rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-emerald-100/90">
-                <b>Target:</b> free user paling aktif 7 hari (udah ketagihan, tinggal ditawarin upgrade)<br />
-                <b>Cron</b> harian 08:00 WIB · <b>Anti-spam:</b> 1 lead maks 1x per 7 hari<br />
-                <b>Email</b> terkirim via Resend SETELAH Bos ACC — human-in-the-loop<br />
-                <b>FOLLOW-UP:</b> lead yang BUKA email (webhook Resend) tapi belum PRO → otomatis dapat draf follow-up + kupon diskon terkontrol
-              </div>
-              {P.cooLoading && P.cooTasks.length === 0 ? (
-                <div className="text-white/55 mt-2.5 text-[11.5px]">Memuat antrean jualan...</div>
-              ) : P.cooTasks.length === 0 ? (
-                <div className="mt-2.5 text-white/65 text-[11.5px] leading-relaxed">
-                  Tidak ada draf yang menunggu ACC.<br />
-                  Bagas buru lead baru lagi besok pagi 08:00 — nggak ada yang perlu kamu proses sekarang.
-                </div>
-              ) : (
-                <div className="mt-2.5 flex flex-col gap-2.5 max-h-60 overflow-y-auto kscroll pr-0.5">
-                  {P.cooTasks.map((t: any) => {
-                    const draft = P.cooDrafts[t.id] || { subject: t.generated_content?.subject || '', body: t.generated_content?.body || '' }
-                    const acting = P.cooActing === t.id
-                    return (
-                      <div key={t.id} className="rounded-xl border border-emerald-300/25 bg-emerald-400/5 p-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-emerald-400/15 border border-emerald-300/40 grid place-items-center text-[12px] font-bold text-emerald-200 shrink-0">
-                            {(t.context_data?.fullName || t.context_data?.email || '?').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[12px] font-semibold text-white whitespace-nowrap overflow-hidden text-ellipsis">{t.context_data?.fullName || 'Tanpa nama'}</div>
-                            <div className="text-[10px] text-white/50 whitespace-nowrap overflow-hidden text-ellipsis">{t.context_data?.email}</div>
-                          </div>
-                          <span className="text-[9.5px] bg-emerald-400/15 text-emerald-200 rounded-full px-1.5 py-0.5 whitespace-nowrap shrink-0">
-                            {t.context_data?.followup
-                              ? `FOLLOW-UP · buka email${t.context_data?.coupon ? ` · ${t.context_data.coupon}` : ''}`
-                              : `${t.context_data?.totalTrades ?? '?'} trades/7 hr`}
-                          </span>
-                        </div>
-                        <input value={draft.subject} onChange={e => P.setCooDrafts(p => ({ ...p, [t.id]: { ...draft, subject: e.target.value } }))}
-                          placeholder="Subjek email penawaran…"
-                          className={`${INPUT} w-full box-border mt-1.5`} />
-                        <textarea value={draft.body} onChange={e => P.setCooDrafts(p => ({ ...p, [t.id]: { ...draft, body: e.target.value } }))}
-                          rows={6} placeholder="Isi email penawaran dari Bagas…"
-                          className={`${INPUT} w-full box-border mt-1.5 leading-relaxed resize-y font-[inherit]`} />
-                        <div className="text-white/35 text-[9.5px] text-right mt-0.5">{draft.body.length} karakter · bisa diedit sebelum ACC</div>
-                        <div className="flex gap-1.5 mt-1.5">
-                          <button className={`${BTN} flex-1 bg-emerald-400/20 font-semibold`} disabled={acting} onClick={() => P.cooAct(t, 'approve')}>
-                            {acting ? 'Mengirim...' : 'ACC & Kirim Email'}
-                          </button>
-                          <button className={BTNR} disabled={acting} onClick={() => P.cooAct(t, 'reject')}>Tolak</button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
-                <button className={BTN} onClick={() => P.cooLoad()}>Muat Ulang Antrean</button>
-                {P.cooLoading ? <span className="text-[10px] text-white/50">memuat...</span> : null}
-              </div>
-              <div className="text-white/40 text-[10px] mt-2.5 leading-relaxed">
-                Draf dibuat otomatis oleh Bagas (cron 08:00 WIB) — Bos bisa revisi dulu sebelum ACC.<br />
-                Persentase konversi penawaran → PRO dilaporkan CEO tiap Senin 10:00.
-              </div>
-            </div>
-          ) : room === 'DA' ? (
-            /* ============ RUANG DATA ANALYST — Dewi ============ */
-            <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-cyan-300 mb-0.5">RUANG DATA ANALYST</div>
-              <div className="text-white/50 text-[11px] mb-3">Dewi · Pola trading user → insight &amp; rekomendasi</div>
-              <GodChip id="DA" />
-              {da ? (
-                <div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-center">
-                      <div className="text-[10px] text-white/50">Upload 30 hari</div>
-                      <div className="text-[18px] font-bold text-cyan-200">{da.stats?.uploads30 ?? '—'}</div>
-                      <div className="text-[9.5px] text-white/40">{da.stats?.uploads7 ?? '—'} dalam 7 hari terakhir</div>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-center">
-                      <div className="text-[10px] text-white/50">Win rate agregat</div>
-                      <div className="text-[18px] font-bold text-cyan-200">{da.stats?.winRate ?? '—'}%</div>
-                      <div className="text-[9.5px] text-white/40">{da.stats?.traders30 ?? '—'} trader unik</div>
-                    </div>
-                  </div>
-                  <div className="text-white/65 text-[10.5px] mt-1.5 leading-relaxed">
-                    Pair favorit: <b className="text-white">{da.stats?.topSymbol || '—'}</b> · Sesi: <b className="text-white">{da.stats?.topSession || '—'}</b> · Puncak jam: <b className="text-white">{da.stats?.bestHour || '—'}</b>
-                  </div>
-                  {da.stats?.emotion ? (
-                    <div className="text-white/65 text-[10.5px] mt-1 leading-relaxed">
-                      Emosi (self-report user): <b className="text-emerald-300">"{da.stats.emotion.best}" WR {da.stats.emotion.bestWr}%</b> paling profit · <b className="text-red-300">"{da.stats.emotion.worst}" WR {da.stats.emotion.worstWr}%</b> paling rugi
-                    </div>
-                  ) : null}
-                  <div className="mt-2 rounded-xl bg-cyan-400/10 border border-cyan-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
-                    {noEmoji(da.insight)}
-                  </div>
-                  {Array.isArray(da.patterns) && da.patterns.length > 0 && (
-                    <div className="mt-1.5 text-[10.5px] leading-relaxed text-white/75">
-                      <b>Pola yang Dewi temukan:</b>
-                      <ul className="m-0 mt-0.5 pl-4 list-disc">{da.patterns.map((p: string, i: number) => <li key={i}>{noEmoji(p)}</li>)}</ul>
-                    </div>)}
-                  {Array.isArray(da.recommendations) && da.recommendations.length > 0 && (
-                    <div className="mt-1.5 border border-dashed border-cyan-300/40 rounded-lg px-2 py-1.5 text-[10.8px] leading-relaxed">
-                      <b className="text-cyan-200">Rekomendasi minggu ini:</b>
-                      <ol className="m-0 mt-0.5 pl-4 list-decimal">{da.recommendations.map((r: string, i: number) => <li key={i} className="mb-0.5">{noEmoji(r)}</li>)}</ol>
-                    </div>)}
-                  {da.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">sudah dianalisis hari ini — ini hasil terakhir (jalan otomatis 08:00)</div> : null}
-                  {da.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">via OpenRouter (model resmi Dewi)</div> : da.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">rangkuman dari angka nyata (LLM gagal)</div> : da.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">via Gemini (cadangan)</div> : null}
-                </div>
-              ) : <div className="text-white/50 mt-1 text-[11px]">Belum ada analisis — klik tombol di bawah. Jalan otomatis tiap hari 08:00 WIB.</div>}
-              {daError ? <div className={ERR}>{noEmoji(daError).slice(0, 140)}</div> : null}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} disabled={busy} onClick={() => call('analyst', 'POST')}>Analisis Data Sekarang</button>
-              </div>
-              <div className="text-white/40 text-[10px] mt-2.5 leading-relaxed">
-                Sumber: tabel trades 30 hari terakhir (maks 1.000 trade terbaru) — win rate, pair, sesi, jam ramai.<br />
-                Insight ini dipakai CMO (konten relevan) &amp; Growth Hacker (eksperimen) — data jadi makanan seluruh tim.
-              </div>
-            </div>
-          ) : room === 'GH' ? (
-            /* ============ RUANG GROWTH — Farhan ============ */
-            <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-orange-300 mb-0.5">RUANG GROWTH</div>
-              <div className="text-white/50 text-[11px] mb-3">Farhan · Funnel nyata → 3 eksperimen pertumbuhan</div>
-              <GodChip id="GH" />
-              {gh ? (
-                <div>
-                  {gh.funnel && (
-                    <div className="grid grid-cols-3 gap-1.5 text-center">
-                      <div className="bg-white/5 border border-white/10 rounded-xl py-1.5">
-                        <div className="text-[16px] font-bold text-orange-200">{gh.funnel.total ?? '—'}</div>
-                        <div className="text-[9.5px] text-white/50">Pendaftar</div>
-                      </div>
-                      <div className="bg-white/5 border border-white/10 rounded-xl py-1.5">
-                        <div className="text-[16px] font-bold text-orange-200">{gh.funnel.pro ?? '—'}</div>
-                        <div className="text-[9.5px] text-white/50">PRO</div>
-                      </div>
-                      <div className="bg-white/5 border border-white/10 rounded-xl py-1.5">
-                        <div className="text-[16px] font-bold text-orange-200">{gh.funnel.baru7 ? Math.round((gh.funnel.activated7 / gh.funnel.baru7) * 100) + '%' : '—'}</div>
-                        <div className="text-[9.5px] text-white/50">Aktivasi baru</div>
-                      </div>
-                    </div>)}
-                  {gh.funnel && (
-                    <div className="text-white/60 text-[10px] mt-1.5 leading-relaxed">
-                      {gh.funnel.activated7 ?? 0}/{gh.funnel.baru7 ?? 0} pendaftar baru aktif upload · {gh.funnel.referred ?? 0} user dari referral · {gh.funnel.onboarded ?? 0} selesai onboarding
-                    </div>)}
-                  {gh.ab && (
-                    <div className="mt-2 rounded-xl bg-orange-400/10 border border-orange-300/20 px-2.5 py-2 text-[10.5px] leading-relaxed">
-                      <b className="text-orange-200">A/B CTA Landing — eksperimen otomatis (7 hari):</b><br />
-                      A: {gh.ab.A?.views ?? 0} lihat · {gh.ab.A?.clicks ?? 0} klik ({gh.ab.A?.cr ?? 0}%) · B: {gh.ab.B?.views ?? 0} lihat · {gh.ab.B?.clicks ?? 0} klik ({gh.ab.B?.cr ?? 0}%)<br />
-                      Pemenang sementara: <b>{gh.ab.winner}</b>
-                    </div>)}
-                  <div className="mt-2 rounded-xl bg-orange-400/10 border border-orange-300/20 px-2.5 py-2 text-[11px] leading-relaxed">
-                    {noEmoji(gh.insight)}
-                  </div>
-                  {Array.isArray(gh.experiments) && gh.experiments.length > 0 && (
-                    <div className="mt-1.5 flex flex-col gap-1.5">
-                      {gh.experiments.map((x: any, i: number) => (
-                        <div key={i} className="border border-dashed border-orange-300/35 rounded-lg px-2 py-1.5 text-[10.8px] leading-relaxed">
-                          <b className="text-orange-200">{i + 1}. {noEmoji(x.name)}</b>
-                          <span className="text-[9px] bg-orange-400/15 text-orange-200 rounded-full px-1.5 py-0.5 ml-1.5 whitespace-nowrap">effort {x.effort || 'sedang'}</span><br />
-                          {noEmoji(x.how)}<br />
-                          <span className="text-white/50">Ukur: {noEmoji(x.metric)}</span>
-                        </div>))}
-                    </div>)}
-                  {gh.dupToday ? <div className="text-white/40 text-[9.5px] mt-0.5">sudah dirancang hari ini — ini hasil terakhir (jalan otomatis 08:00)</div> : null}
-                  {gh.provider === 'openrouter' ? <div className="text-white/40 text-[9.5px] mt-0.5">via OpenRouter (model resmi Farhan)</div> : gh.provider === 'fallback' ? <div className="text-white/40 text-[9.5px] mt-0.5">templat dari funnel nyata (LLM gagal)</div> : gh.provider === 'gemini' ? <div className="text-white/40 text-[9.5px] mt-0.5">via Gemini (cadangan)</div> : null}
-                </div>
-              ) : <div className="text-white/50 mt-1 text-[11px]">Belum ada eksperimen — klik tombol di bawah. Jalan otomatis tiap hari 08:00 WIB.</div>}
-              {ghError ? <div className={ERR}>{noEmoji(ghError).slice(0, 140)}</div> : null}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className={BTN} disabled={busy} onClick={() => call('growth', 'POST')}>Rancang Eksperimen Sekarang</button>
-              </div>
-              <div className="text-white/40 text-[10px] mt-2.5 leading-relaxed">
-                Sumber: funnel profiles (pendaftar, PRO, referral, onboarding, aktivasi) + insight Dewi.<br />
-                Eksperimen = usulan — Bos yang pilih mana yang dieksekusi minggu ini.
-              </div>
-            </div>
-          ) : room === 'KEVIN' ? (
-            /* ============ RUANG GROWTH HUNTER — Kevin ============
-               Karyawan "kerja saat zero-traffic": growth sentinel (tiap 15
-               mnt) + pemburu komentar IG (maks tiap 2 jam). Tanpa panel
-               data terpisah — semua laporan masuk Discord Bos; memori
-               kerjanya terbaca lewat kartu di bawah (mem:agent:kevin). */
-            <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
-              <div className="text-[15px] font-bold text-white mb-0.5">RUANG GROWTH HUNTER — Kevin</div>
-              <div className="text-white/50 text-[11px] mb-3 leading-relaxed">
-                Tugas: memantau kekeringan pertumbuhan dari angka riil, mengisi hook &amp; social proof CS bot, menulis draf email welcome lead baru, dan <b className="text-amber-300">memburu komentar IG postingan sendiri</b> (Graph API resmi, patuh ToS — klasifikasi niat, balas aman otomatis maks 5/run &amp; 15/hari, propek minat-harga dilaporkan).
-              </div>
-              <div className="rounded-xl bg-amber-400/10 border border-amber-300/25 px-3 py-2 text-[11px] text-amber-100/90 mb-3">
-                Jadwal: sentinel tiap 15 menit + hunt IG maks tiap 2 jam (throttle internal — run sepi tanpa LLM, hemat kuota). Laporan lengkap selalu masuk channel Discord Bos.
-              </div>
-              {(() => {
-                const kevin = TEAM_DETAIL.find(mm => mm.id === 'KEVIN')
-                return kevin ? (
-                  <EmployeeCard
-                    m={kevin}
-                    open={openStaff === 'KEVIN'}
-                    onToggle={() => setOpenStaff(openStaff === 'KEVIN' ? null : 'KEVIN')}
-                    live={liveOf('KEVIN')}
-                    preLaunch={preLaunch}
-                  />
-                ) : null
-              })()}
-            </div>
           ) : room === 'struktur' ? (
             /* ============ RUANG STRUKTUR — Jabatan & Pekerjaan Tiap Karyawan ============ */
             <div className={`${PANEL} p-4 text-[12px] text-white/85 leading-relaxed`}>
@@ -1384,9 +984,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   <b className="text-amber-300">Sisa kursi kosong (opini jujur):</b>
                   <ul className="m-0 mt-1 p-0 list-none flex flex-col gap-1">
                     <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Support Closer</b> — CS bot chat (/api/chat) sudah jawab pertanyaan user, tapi belum ada yang follow-up penyelesaian bug ke user pelapor sampai tuntas</span></li>
-                    <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Eksekusi A/B test otomatis</b> — Farhan sudah merancang eksperimen tiap hari, tapi pelaksanaannya masih tangan Bos (belum ada mesin A/B otomatis)</span></li>
+                    <li className="flex gap-1.5"><span className="text-amber-300/70 shrink-0" aria-hidden="true">–</span><span className="text-white/75"><b>Eksekusi A/B test otomatis</b> — eksperimen landing masih perlu eksekusi tangan Bos (belum ada mesin A/B otomatis)</span></li>
                   </ul>
-                  <div className="mt-1.5 text-white/70">Kursi <b>Data Analyst</b> (Dewi) &amp; <b>Growth Hacker</b> (Farhan) yang dulu kosong — kini SUDAH DIISI. Promosi affiliate masuk ke eksperimen mingguan Farhan.</div>
+                  <div className="mt-1.5 text-white/70">Ramping 15-11: kursi DA/GH/CFO/COO/Growth Hunter dipensiunkan — tugas inti menempel ke divisi <b>Luxtradee Growth</b> (Maya+Sinta) &amp; Raka. Kursi bisa dibuka lagi kalau data menunjukkan perlu.</div>
                 </div>
                 <div className="text-white/40 text-[10px] leading-relaxed">
                   Semua jadwal jalan otomatis via Cloudflare Cron bawaan — tanpa cron-job.org.<br />
