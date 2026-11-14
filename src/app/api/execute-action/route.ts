@@ -27,7 +27,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
-import { metaAutoPost } from '@/lib/meta-post'
+import { metaAutoPostAll } from '@/lib/meta-post'
 import { ensureFreshToken, postToInstagram, checkMediaUrlAlive } from '@/lib/instagram'
 import { getCronAdmin } from '@/lib/cron-supabase'
 import { sendAdminNotification } from '@/lib/admin-notify'
@@ -327,9 +327,11 @@ async function executePayload(actionType: string, payload: Record<string, any>, 
         }
       }
 
-      const r = await metaAutoPost(caption, mediaUrl)
-      if (!r.posted) return { ok: false, detail: `Posting ${platform} gagal: ${r.reason || 'unknown'}` }
-      return { ok: true, detail: `Terposting ke ${r.platform}${r.id ? ` (id ${r.id})` : ''}${r.permalink ? ` — ${r.permalink}` : ''}` }
+      /* DUAL-POST (Bos 14 Nov): konten yang di-ACC Bos tayang di IG + FB
+         SEKALIGUS — bukan gantian. Hasil per-platform dilapor jujur. */
+      const r = await metaAutoPostAll(caption, mediaUrl)
+      if (!r.postedAny) return { ok: false, detail: `Posting gagal di semua platform — ${r.summary.slice(0, 300)}` }
+      return { ok: true, detail: `Terposting ke ${r.platforms.join(' + ')}${r.platforms.length < 2 ? ` — 1 platform gagal: ${String((r.platforms[0] === 'Instagram' ? r.fb.reason : r.ig.reason) || '').slice(0, 160)}` : ' (dual-post sekaligus)'}` }
     }
 
     /* ── A/B test (Farhan) → sistem record agent_kv ── */

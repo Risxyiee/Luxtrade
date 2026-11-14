@@ -22,7 +22,7 @@
 // Seluruh app sudah berjalan di Cloudflare Workers (edge) via OpenNext,
 // route ini pun otomatis jalan di Worker yang sama. Semua API yang dipakai
 // (fetch, AbortController, Intl) Workers-compatible.
-import { metaAutoPost, metaDiag, type MetaPostResult } from '@/lib/meta-post'
+import { metaAutoPostAll, metaDiag, type MetaMultiResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 import { callMorteraDirect } from '@/lib/ai-llm'
 import { harnessWrap } from '@/lib/harness-prompt'
@@ -315,6 +315,27 @@ async function supaCount(e: Env, table: string, filters = ''): Promise<number> {
    dari DATA NYATA yang disuntikkan ke prompt; angka di luar blok data
    dilarang keras. Prompt agen kini selalu diawali query data → LLM. */
 const REAL_DATA_RULE = 'ATURAN ANTI-HALUSINASI WAJIB: semua angka/fakta HANYA boleh diambil dari blok "DATA NYATA" di prompt ini — DILARANG mengarang/menebak angka, nama, atau status. Kalau data tidak tersedia, katakan datanya tidak tersedia.'
+
+/* REFERENSI GAYA KONTEN DARI BOS (14 Nov 2026) — contoh reel Facebook yang
+   Bos tunjuk sebagai patokan selera: reel "RETEST" akun Sans Traders.
+   https://www.facebook.com/share/r/1Dg6ykHFCp/?mibextid=wwXIfr
+   Yang Bos suka = STRUKTURNYA (bukan brand-nya — brand tetap Luxtradee):
+   1. Hook pertanyaan empati 1 baris yang menyapa pain ("Ketinggalan
+      breakout? Tenang, harga sering balik dulu. Namanya RETEST.")
+   2. SATU konsep teknikal sederhana per konten (jangan campur banyak)
+   3. 3–4 baris emoji-bullet yang menjelaskan alurnya step-by-step
+      (🔁 atap jebol jadi lantai · ✅ lantai nahan → entry · 🛑 SL di
+      bawah zona · ❌ tembus balik → breakout palsu)
+   4. CTA simpan + follow dengan janji SERI berkelanjutan ("Simpan post
+      ini, terus follow buat lanjutan Seri Pemula") — bikin penonton balik
+   5. Closing brand 1 baris + disclaimer edukasi ("Konten edukasi, bukan
+      ajakan transaksi. Trading berisiko tinggi.")
+   6. 5 hashtag relevan. */
+const KONTEN_REF_BOS =
+  'REFERENSI GAYA KONTEN DARI BOS (patokan selera — TIRU STRUKTURNYA, brand tetap Luxtradee):\n' +
+  'Contoh nyata yang Bos suka (reel FB): hook empati "Ketinggalan breakout? Tenang, harga sering balik dulu. Namanya RETEST." → 4 baris emoji-bullet alur konsep (🔁 atap jebol jadi lantai / ✅ lantai nahan → kesempatan entry / 🛑 SL di bawah zona / ❌ tembus balik → breakout palsu) → CTA "Simpan post ini, terus follow buat lanjutan Seri Pemula" → closing brand + disclaimer "Konten edukasi, bukan ajakan transaksi. Trading berisiko tinggi." → 5 hashtag.\n' +
+  'WAJIB ikuti pola itu: (1) hook pertanyaan empati 1 baris, (2) SATU konsep teknikal sederhana per konten, (3) 3-4 baris emoji-bullet step-by-step, (4) CTA simpan+follow dgn janji seri berkelanjutan (mis. "Seri Trader Pemula Luxtradee — bagian X"), (5) closing 1 baris gaya Luxtradee + disclaimer edukasi, (6) 5 hashtag.\n' +
+  'Referensi asli: https://www.facebook.com/share/r/1Dg6ykHFCp/?mibextid=wwXIfr'
 
 /* ============================================================
    PUTRI (CFO) — PnL NYATA dari tabel trades (Task 32 SOP Bos):
@@ -1308,6 +1329,7 @@ async function cmoAgent(e: Env) {
     `\nTugasmu hari ini: Buat 3 draf naskah video TikTok baru yang meniru pola/gaya tersebut 100% — SAME angle, TIGA pendekatan berbeda (beda hook, beda struktur, beda gaya buka) supaya Bos bisa PILIH yang paling pas. ` +
     `DILARANG mengulang naskah yang sama dari hari-hari sebelumnya. ` +
     `PILAR KONTEN HARI INI (WAJIB menentukan ARAH ketiga draf — rotasi harian anti-repetisi): "${pillar.name}" — ${pillar.task}. Pain point boleh jadi bumbu, tapi pilar inilah inti naskahnya.` +
+    `\n\n` + KONTEN_REF_BOS +
     `\n\n` + REAL_DATA_RULE
 
   const userPrompt =
@@ -1425,6 +1447,7 @@ async function cmoInstagramCaption(e: Env) {
     'STRUKTUR: hook 1 baris menarik → insight data 2-3 baris → 1 pelajaran konkret → CTA ke luxtradee.web.id. ' +
     'WAJIB sertakan 5-8 hashtag relevan di akhir (pisah spasi). ' +
     'Maksimal 1800 karakter (Instagram batas 2200, sisakan margin). ' +
+    KONTEN_REF_BOS + '\n\n' +
     REAL_DATA_RULE
 
   const userPrompt =
@@ -2015,24 +2038,31 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
   } catch { /* talk opsional */ }
 
   /* AUTO-POSTING NYATA SINTA (Task 32 SOP Bos) — draf utama hari ini
-     diposting ke Instagram/Facebook via Meta Graph API (token kredensial),
-     1×/hari (dedup KV), toggle cmo:autopost. Sengaja di FASE 2 ini (bukan
-     di cmoAgent) supaya Fase 1 laporan tetap <60 dtk — pelajaran Task 29.
+     diposting ke Instagram DAN Facebook SEKALIGUS via Meta Graph API
+     (metaAutoPostAll — dual-post paralel). FIX keluhan Bos 14 Nov:
+     dulu IG dulu → kalau IG gagal baru FB → konten GANTIAN (hari ini
+     FB, besok IG). Kini 1 draf = tayang di 2 platform bersamaan,
+     hasil per-platform JUJUR. 1×/hari (dedup KV), toggle cmo:autopost.
      Tanpa token → status JUJUR "belum diset", tidak ada simulasi sukses. */
   try {
     if (runStep('talk') && !(await kvGet(e, `cmo:posted:${day}`)) && (await kvGet(e, 'cmo:autopost')) !== 'off') {
       let draftText = ''
       try { draftText = String(JSON.parse((await kvGet(e, `cmo:${day}`)) || 'null')?.draft || '') } catch { /* ignore */ }
       if (draftText) {
-        const post: MetaPostResult = await metaAutoPost(draftText)
+        const post: MetaMultiResult = await metaAutoPostAll(draftText)
         summary.cmoPost = post
-        if (post.posted) {
+        if (post.postedAny) {
           await kvSet(e, `cmo:posted:${day}`, JSON.stringify(post)).catch(() => {})
-          await memAdd(e, 'CMO Sinta', `Draf hari ini NYATA diposting ke ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API id ${String(post.id).slice(0, 18)})`).catch(() => {})
+          await memAdd(e, 'CMO Sinta', `Draf hari ini NYATA diposting ke ${post.platforms.join(' + ')} (dual-post IG+FB sekaligus)`).catch(() => {})
         }
-        const line = post.posted
-          ? `🚀 AUTO-POST SINTA: draf hari ini NYATA tayang di ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API) ✅`
-          : `🚀 AUTO-POST SINTA belum jalan: ${String(post.reason || '').slice(0, 140)}`
+        const gagalPlatform = post.platforms.length === 1
+          ? (post.platforms[0] === 'Instagram' ? post.fb.reason : post.ig.reason)
+          : (post.platforms.length === 0 ? post.summary : '')
+        const line = post.platforms.length === 2
+          ? `🚀 AUTO-POST SINTA: draf hari ini tayang BERSAMAAN di Instagram + Facebook (dual-post) ✅`
+          : post.postedAny
+            ? `🚀 AUTO-POST SINTA: tayang di ${post.platforms.join(' + ')} ✅ — 1 platform gagal: ${String(gagalPlatform || '').slice(0, 120)}`
+            : `🚀 AUTO-POST SINTA belum jalan: ${String(post.summary || '').slice(0, 140)}`
         try { await sendDiscord(e, line) } catch { /* ignore */ }
       }
     }
@@ -2041,22 +2071,25 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
   /* AUTO-POSTING INSTAGRAM ANALISIS (Tahap T) — Caption IG terpisah
      dari draf TikTok. Sinta bikin caption educational berbasis data
      REAL komunitas 24 jam (win rate, pair favorit) → diposting ke IG
-     via Meta Graph API. Dedup `cmo:ig-posted:${day}` terpisah dari
+     DAN FB SEKALIGUS (metaAutoPostAll — dual-post paralel, senada
+     blok di atas). Dedup `cmo:ig-posted:${day}` terpisah dari
      `cmo:posted:${day}` (TikTok) supaya keduanya bisa jalan hari yang
      sama. Sengaja di FASE 2 supaya Fase 1 briefing tetap cepat. */
   try {
     if (runStep('talk') && !(await kvGet(e, `cmo:ig-posted:${day}`)) && (await kvGet(e, 'cmo:autopost')) !== 'off') {
       const ig = await cmoInstagramCaption(e)
       if (ig?.caption) {
-        const post: MetaPostResult = await metaAutoPost(ig.caption)
+        const post: MetaMultiResult = await metaAutoPostAll(ig.caption)
         summary.igPost = { ...ig, post }
-        if (post.posted) {
+        if (post.postedAny) {
           await kvSet(e, `cmo:ig-posted:${day}`, JSON.stringify(post)).catch(() => {})
-          await memAdd(e, 'CMO Sinta', `Caption IG analisis NYATA diposting ke ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (id ${String(post.id).slice(0, 18)})`).catch(() => {})
+          await memAdd(e, 'CMO Sinta', `Caption IG analisis NYATA diposting ke ${post.platforms.join(' + ')} (dual-post IG+FB sekaligus)`).catch(() => {})
         }
-        const line = post.posted
-          ? `AUTO-POST IG ANALISIS: caption IG analisis trading NYATA tayang di ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} (Graph API)`
-          : `AUTO-POST IG ANALISIS belum jalan: ${String(post.reason || '').slice(0, 140)}`
+        const line = post.platforms.length === 2
+          ? `AUTO-POST IG ANALISIS: caption analisis trading tayang BERSAMAAN di Instagram + Facebook (dual-post) ✅`
+          : post.postedAny
+            ? `AUTO-POST IG ANALISIS: tayang di ${post.platforms.join(' + ')} ✅ — 1 platform gagal: ${String(post.platforms[0] === 'Instagram' ? post.fb.reason : post.ig.reason || '').slice(0, 120)}`
+            : `AUTO-POST IG ANALISIS belum jalan: ${String(post.summary || '').slice(0, 140)}`
         try { await sendDiscord(e, line) } catch { /* ignore */ }
       }
     }
@@ -3925,9 +3958,10 @@ async function handle(req: Request): Promise<Response> {
       // Hapus post bahan analisis: ?id=<uuid>
       try { return j(await tikTokDel(e, url.searchParams.get('id') || '')) } catch (x: any) { return j({ error: String(x?.message || x) }, 400) }
     case 'cmo-post': {
-      // Task 32 — Post NYATA draf utama hari ini ke Instagram/Facebook via
-      // Meta Graph API (Sinta). ?force=1 lewati dedup harian (repost manual).
-      // Status SELALU jujur: posted:true hanya kalau Graph API konfirmasi.
+      // Task 32 — Post NYATA draf utama hari ini ke Instagram + Facebook
+      // SEKALIGUS (dual-post metaAutoPostAll — senada auto-post harian).
+      // ?force=1 lewati dedup harian (repost manual).
+      // Status SELALU jujur: postedAny:true hanya kalau Graph API konfirmasi.
       try {
         let draftText = ''
         try { draftText = String(JSON.parse((await kvGet(e, `cmo:${wibDay()}`)) || 'null')?.draft || '') } catch { /* ignore */ }
@@ -3937,8 +3971,8 @@ async function handle(req: Request): Promise<Response> {
           const prev = await kvGet(e, `cmo:posted:${wibDay()}`)
           if (prev) { try { return j({ alreadyPosted: true, result: JSON.parse(prev) }) } catch { /* repost */ } }
         }
-        const result: MetaPostResult = await metaAutoPost(draftText)
-        if (result.posted) await kvSet(e, `cmo:posted:${wibDay()}`, JSON.stringify(result)).catch(() => {})
+        const result: MetaMultiResult = await metaAutoPostAll(draftText)
+        if (result.postedAny) await kvSet(e, `cmo:posted:${wibDay()}`, JSON.stringify(result)).catch(() => {})
         return j({ result, diag: metaDiag() })
       } catch (x: any) { return j({ error: String(x?.message || x).slice(0, 160) }, 500) }
     }
