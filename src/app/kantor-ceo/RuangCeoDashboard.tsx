@@ -44,63 +44,67 @@ const TEAM_DETAIL = [
     id: 'CTO', name: 'Raka', jabatan: 'CTO · Chief Technology Officer', divisi: 'IT, QA & Keamanan', color: '#0d9488',
     model: 'Claude Haiku 5.5 (Mortera) → Nemotron 3.5 Lightning (OpenRouter) → templat',
     shift: 'Watchdog tiap 15 menit 24/7 · QA sweep + laporan di briefing 08:00 WIB',
-    baca: 'Ping https://luxtradee.web.id · bug_reports · riwayat uptime (agent_kv) · env diagnostik',
+    baca: 'Ping https://luxtradee.web.id · riwayat latensi 7 hari (agent_kv cto:lat) · bug_reports · env diagnostik',
     tugas: [
       'Ping situs tiap 15 menit — DOWN → alarm Discord instan (dedup 30 mnt), pulih → kabari sekali',
+      'PERINGATAN DINI LATENSI: catat rata-rata ping tiap hari selama 7 hari — kalau hari ini melambat >50% dari baseline mingguan, Raka memperingatkan di briefing SEBELUM situs benar-benar down',
       'Bug baru masuk → triage pakai model resminya: 3 bug terakhir diringkas jadi diagnosa + prioritas P1/P2/P3',
       'QA otomatis 15 route utama tiap briefing pagi — 12 halaman + 3 ENDPOINT KRITIS API (jurnal trades, evaluasi AI screenshot, CS chat): 401/405 = hidup & terjaga, 5xx/timeout dilaporkan',
       'Diagnostik env & tes query Supabase (tombol Diagnostik di Ruang CTO)',
     ],
-    lapor: 'Alarm instan ke Discord · baris QA & bug di Morning Briefing 08:00 · uptime % di laporan mingguan',
+    lapor: 'Alarm instan ke Discord · baris QA & bug + peringatan latensi di Morning Briefing 08:00 · uptime % di laporan mingguan',
     batas: [
       'QA = HTTP GET — tidak bisa login lalu klik-klik dashboard seperti manusia (tidak ada browser di Workers)',
       'Tidak bisa memperbaiki bug sendiri — cuma laporkan & tebak penyebabnya',
       'Bug di fitur berbayar tak terlihat kalau user tidak lapor lewat form bug',
     ],
-    ide: 'QA route butuh-login pakai token uji beneran · rollback otomatis kalau QA gagal parah (butuh pipeline deploy baru)',
+    ide: 'QA route butuh-login pakai token uji beneran · rollback otomatis kalau QA gagal parah (butuh pipeline deploy baru) · snapshot DB mingguan (butuh pg_dump)',
   },
   {
     id: 'CSO', name: 'Maya', jabatan: 'CSO · Luxtradee Growth (Retensi & Customer Success)', divisi: 'Divisi Luxtradee Growth — merger CSO+CMO', color: '#be185d',
     model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 26B (OpenRouter) → templat',
     shift: 'Hitung user di briefing 08:00 · email pasif otomatis 1x/hari (kalau AUTO-ACC on) · rapat dengan CMO 1x/hari',
-    baca: 'profiles (total pendaftar) · trades 24 jam (siapa aktif) · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
+    baca: 'profiles (total + baru hari ini) · trades 24 jam & 7 hari · agent_kv csmailed: (siapa sudah di-email) · bug_reports 7 hari (keluhan)',
     tugas: [
       'Hitung pendaftar / aktif 24 jam / pasif tiap pagi — tampil di briefing & panel Ruang CSO',
-      'SKOR RISIKO CHURN: hitung user yang pernah aktif 30 hari tapi 3 hari terakhir diam → kandidat win-back dilaporkan tiap pagi (briefing + panel Ruang CSO)',
+      'Pendaftar BARU hari ini + retensi 7 hari — pertumbuhan tidak cuma "total", tapi gerak (naik/turun terlihat di briefing)',
+      'SKOR RISIKO CHURN BERGRADING: HIGH = dulu aktif tapi ≥7 hari diam (paling hampir pergi — prioritas win-back) · MED = diam 3–7 hari. Dilaporkan terpisah tiap pagi (briefing + panel Ruang CSO)',
       'Kirim EMAIL PERSONAL ke maks 50 user pasif — 2 GRUP, masing-masing draf beda: (A) user vakum yang pernah upload → nada kangen & nilai jurnalnya, (B) user yang belum pernah upload 1 trade pun → nada ajakan pertama. Nada email diracik model resminya (Gemma via OpenRouter, rotasi 3 variasi), pembuka per user dari data trading asli (nama, jumlah trade, pair favorit, win rate catatan, berapa hari lalu upload)',
       'Ukur feedback: besoknya hitung berapa dari yang di-email yang balik upload (dilaporkan di briefing)',
       'Bawa data nyata ke meja rapat sama Sinta (CMO): kenapa user daftar tapi males upload jurnal → jadi skrip konten',
     ],
-    lapor: 'Angka user + risiko churn di briefing 08:00 · hasil rapat CSO×CMO dikirim Discord (pesan terpisah) · ACC EMAIL & AUTO-ACC di panel Ruang CSO',
+    lapor: 'Angka user + churn bergrading (HIGH/MED) di briefing 08:00 · hasil rapat CSO×CMO dikirim Discord (pesan terpisah) · ACC EMAIL & AUTO-ACC di panel Ruang CSO',
     batas: [
       '"Aktif" = upload trades dalam 24 jam — user yang cuma login dihitung pasif',
       'Email cuma ke 50 pendaftar terbaru yang pasif per hari (sisa nunggu besok)',
       'Tidak bisa survey user langsung / membalas chat user (itu tugas CS bot /api/chat)',
     ],
-    ide: 'Prediksi churn per user pakai model ML (butuh histori lebih panjang) · A/B subject email otomatis (butuh open-rate dari Resend) · segmen email per tingkat risiko',
+    ide: 'Prediksi churn per user pakai model ML (butuh histori lebih panjang) · A/B subject email otomatis (butuh open-rate dari Resend) · segmen email per tingkat risiko (HIGH dapet draf beda dari MED)',
   },
   {
     id: 'CMO', name: 'Sinta', jabatan: 'CMO · Luxtradee Growth (Konten & Akuisisi)', divisi: 'Divisi Luxtradee Growth — merger CSO+CMO', color: '#7c3aed',
     model: 'Claude Haiku 5.5 (Mortera) → Gemma 4 31B (OpenRouter) → templat',
     shift: 'Shift pagi: LAPORAN RISET TikTok + draf skrip di briefing 08:00 · Shift sore: produksi & posting video 20:00 WIB (prime time FYP)',
-    baca: 'tiktok_posts (top 5 konten Bos urut views) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
+    baca: 'tiktok_posts (top 5 konten Bos urut views) · performa REAL postingan sendiri di IG/FB (Graph API: like/komentar/reach) · hasil rapat Maya×Sinta (alasan churn) · env TIKTOK_REFERENCE (cadangan) · histori 5 draf terakhir',
     tugas: [
       'LAPORAN RISET TIKTOK/hari (analisis pasar, bukan cuma bahan konten): pola hook yang works, topik berpeluang FYP, jadwal posting terbaik, risiko — dibagikan ke SELURUH kantor (briefing Alexander, panel Memori Kantor)',
+      'ANALISIS PERFORMA KONTEN (uji A/B otomatis): SETIAP konten yang dia posting ke IG/FB dibaca performa real-nya via Graph API (like, komentar, reach) → label RAME/BIASA/SEPI + kesimpulan "konten gini sepi, ganti gaya" → DIJADIKAN INSTRUKSI WAJIB di prompt draf & caption berikutnya (tampil di panel Ruang CMO)',
       'Analisis pola konten TikTok asli yang paling perform (hook, topik, gaya) → tiru polanya di draf baru',
-      '3 DRAF PILIHAN/hari via 1 panggilan model resminya (Gemma 4 31B via OpenRouter) — 3 pendekatan berbeda, WAJIB selaras hasil risetnya sendiri; Bos tinggal pilih yang paling pas di Ruang CMO',
+      '3 DRAF PILIHAN/hari via 1 panggilan model resminya (Gemma 4 31B via OpenRouter) — 3 pendekatan berbeda, WAJIB selaras hasil risetnya sendiri + hasil analisis performa; Bos tinggal pilih yang paling pas di Ruang CMO',
       'INSTAGRAM ANALISIS (Tahap T): bikin 1 caption IG educational berbasis data REAL komunitas 24 jam (win rate agregat, pair favorit, total trade) — terpisah dari draf TikTok. Caption otomatis diposting ke Instagram via Meta Graph API (token INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_USER_ID di Cloudflare Secrets). Tanpa token → status jujur "belum diset", tidak ada simulasi sukses.',
       'Draf wajib menjawab alasan churn dari rapat Maya (bukan sekadar ikut angle rotasi)',
       'Rantai model: Gemma 4 31B → Nemotron Lightning → Gemma 4 26B → Gemini → templat statis (draf tidak pernah kosong)',
       'Ikut rapat harian sama Maya: ubah akar masalah churn jadi skrip konten anti-churn',
       'SHIFT SORE (20:00 WIB): produksi video TikTok utuh — skrip dari studio-nya → render Remotion 9:16 + voiceover Indonesia → posting otomatis via API resmi TikTok (job "sinta-video")',
     ],
-    lapor: 'LAPORAN RISET di briefing 08:00 + panel Memori Kantor · 3 draf di panel Ruang CMO (pilih → salin) · video harian masuk TikTok 20:00 WIB (atau diambil Bos dari artifact kalau app belum approved) · skrip rapat di Ruang CSO',
+    lapor: 'LAPORAN RISET di briefing 08:00 + panel Memori Kantor · tabel PERFORMA KONTEN (rame vs sepi) di Ruang CMO · 3 draf di panel Ruang CMO (pilih → salin) · video harian masuk TikTok 20:00 WIB (atau diambil Bos dari artifact kalau app belum approved) · skrip rapat di Ruang CSO',
     batas: [
-      'Tidak tahu performa SETELAH posting — views/likes berubah hanya kalau Bos update manual di Ruang CMO',
+      'Performa IG/FB dibaca OTOMATIS via Graph API (like/komentar/reach) — tapi performa TikTok masih manual: Bos update views/likes di Ruang CMO',
+      'Analisis A/B butuh minimal 2 konten yang sudah tayang >20 jam — kalau baru mulai posting, label rame/sepi belum adil',
       'App TikTok belum di-approve & secret TIKTOK_* belum diset → video belum bisa auto-posting: hasil produksi diambil Bos dari artifact GitHub Actions (video-tiktok-sinta) & diposting manual — begitu approved, auto-posting nyala sendiri',
       'Setelah approved pun: mode sandbox → postingan masih SELF_ONLY (privat) sampai lolos audit produksi TikTok',
     ],
-    ide: 'Refresh views otomatis via oEmbed mingguan · bank hook yang terbukti FYP · pakai draf pilihan Bos sebagai skrip video besok',
+    ide: 'Refresh views TikTok otomatis via oEmbed mingguan · bank hook yang terbukti FYP dari data sendiri · A/B jam posting (pagi vs 20:00) pakai reach Graph API',
   },
   {
     id: 'CEO', name: 'Alexander', jabatan: 'CEO · Kepala Semua Agen', divisi: 'Eksekutif', color: '#94a3b8',
@@ -135,9 +139,9 @@ const TEAM_DETAIL = [
    Haiku 5.5) dulu → OpenRouter → templat — karyawan tidak pernah manggung. */
 const GOD_SKILL: Record<string, string> = {
   CEO: 'Neural Command — orkestrasi tim ramping, NBA harian, akuntabilitas & memori kantor',
-  CTO: 'Self-Healing Infra — watchdog 15 menit, QA 15 route + E2E login beneran, alarm sendiri ke Discord',
-  CSO: 'Mind-Reader Retensi — skor churn harian, email personal 2 grup dari data trading asli, rapat data × CMO',
-  CMO: 'Viral Script Engine — riset TikTok harian buat seluruh kantor + 3 draf pilihan + video Remotion prime time 20:00',
+  CTO: 'Self-Healing Infra — watchdog 15 menit, QA + E2E login beneran, peringatan dini latensi 7 hari, alarm sendiri ke Discord',
+  CSO: 'Mind-Reader Retensi — churn bergrading HIGH/MED, retensi 7 hari, email personal 2 grup dari data trading asli, ukur siapa yang balik',
+  CMO: 'Viral Script Engine — riset TikTok harian + A/B performa postingan sendiri (rame vs sepi via Graph API) yang WAJIB mengubah draf berikutnya + video prime time 20:00',
 }
 function GodChip({ id }: { id: string }) {
   return (
@@ -497,10 +501,13 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         return cso
           ? { tone: (cso.churnRisk ?? 0) > 0 ? 'warn' : 'ok', text: `Total ${cso.total ?? '-'} pendaftar · aktif ${cso.active ?? '-'} · pasif ${cso.passive ?? '-'} · risiko churn ${cso.churnRisk ?? 0}` }
           : { tone: 'idle', text: 'Hitung user + email pasif tiap briefing 08:00' }
-      case 'CMO':
+      case 'CMO': {
+        if (data?.cmoInsight?.verdict)
+          return { tone: 'ok', text: `A/B konten: ${trunc(noEmoji(data.cmoInsight.verdict), 84)}` }
         return cmo
           ? { tone: 'ok', text: cmoDrafts.length > 1 ? `${cmoDrafts.length} draf TikTok hari ini siap — Bos tinggal pilih` : cmoDrafts.length === 1 ? 'Draf TikTok hari ini siap' : 'Belum ada draf hari ini' }
-          : { tone: 'idle', text: 'Draf TikTok tiap pagi · video 20:00 WIB' }
+          : { tone: 'idle', text: 'Draf TikTok tiap pagi · video 20:00 WIB · performa konten dianalisis otomatis' }
+      }
       case 'CEO':
         return data?.nba?.text
           ? { tone: 'ok', text: `Prioritas hari ini: ${trunc(noEmoji(data.nba.text), 84)}` }
@@ -522,9 +529,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   /* ---------- Horizontal Agent Dock — status langsung dari data agen ---------- */
   const DOCK = [
     { id: 'rapat', name: 'Alexander', role: 'CEO · Ruang Rapat', live: data?.nba?.text ? 'Prioritas hari ini siap' : data?.mem?.length ? `${data.mem.length} catatan memori kantor` : 'Briefing 08:00 WIB otomatis', has: !!(data?.nba || data?.mem) },
-    { id: 'CTO', name: 'Raka', role: 'CTO · IT & QA', live: cto ? `Web ${cto.siteOk ? 'OK' : 'DOWN'} · Bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}` : 'Watchdog tiap 15 menit', has: !!cto },
-    { id: 'CSO', name: 'Maya', role: 'Luxtradee Growth · Retensi & Email', live: cso ? `Total ${cso.total ?? '-'} · Aktif ${cso.active ?? '-'} · churn ${cso.churnRisk ?? 0}` : 'Email pasif + riset churn', has: !!cso },
-    { id: 'CMO', name: 'Sinta', role: 'Luxtradee Growth · Konten & Video', live: cmoDrafts.length > 1 ? '3 draf hari ini siap — Bos tinggal pilih' : cmoDrafts.length === 1 ? 'Draf hari ini siap' : 'Belum ada draf hari ini', has: !!cmo },
+    { id: 'CTO', name: 'Raka', role: 'CTO · IT & QA', live: cto ? `Web ${cto.siteOk ? 'OK' : 'DOWN'} · Bug 24 jam ${cto.bugs24h >= 0 ? cto.bugs24h : '?'}${cto.latTrend ? ' · latensi ⚠' : ''}` : 'Watchdog tiap 15 menit', has: !!cto },
+    { id: 'CSO', name: 'Maya', role: 'Luxtradee Growth · Retensi & Email', live: cso ? `Total ${cso.total ?? '-'} · Baru ${cso.newToday ?? '-'} · churn HIGH ${cso.churnHigh ?? 0}/MED ${cso.churnMed ?? 0}` : 'Email pasif + churn bergrading', has: !!cso },
+    { id: 'CMO', name: 'Sinta', role: 'Luxtradee Growth · Konten, Video & A/B', live: data?.cmoInsight?.verdict ? 'Performa konten dianalisis — draf berikutnya ikut hasilnya' : cmoDrafts.length > 1 ? '3 draf hari ini siap — Bos tinggal pilih' : cmoDrafts.length === 1 ? 'Draf hari ini siap' : 'Belum ada draf hari ini', has: !!cmo },
     { id: 'struktur', name: 'Tim AI', role: 'Struktur & Jabatan', live: '4 karyawan · tugas, jadwal, memori & batas kemampuan', has: true },
   ] as const
 
@@ -739,6 +746,11 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   {cto.upToday !== undefined && (cto.upToday + cto.downToday) > 0 ? (
                     <div className="text-white/65 text-[11px] mt-1">Watchdog hari ini: <b className="text-emerald-300">{cto.upToday}x OK</b> · <b className={cto.downToday > 0 ? 'text-red-300' : 'text-white/35'}>{cto.downToday}x gagal</b></div>
                   ) : cto.upToday === 0 && cto.downToday === 0 ? <div className="text-white/45 text-[11px] mt-1">Watchdog belum jalan hari ini — cron 15 mnt (cek Ruang Rapat)</div> : null}
+                  {cto.latTrend ? (
+                    <div className="mt-1.5 rounded-xl bg-amber-400/10 border border-amber-300/25 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90">
+                      <b className="text-amber-300">Peringatan dini latensi:</b> {noEmoji(cto.latTrend)}
+                    </div>
+                  ) : null}
                   {cto.err ? <div className="text-white/45 text-[11px] mt-1">{noEmoji(cto.err).slice(0, 130)}</div> : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada data — klik tombol di bawah</div>}
@@ -834,7 +846,19 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                   </div>
                   {cso.churnRisk > 0 ? (
                     <div className="mt-1.5 rounded-xl bg-amber-400/10 border border-amber-300/20 px-2 py-1.5 text-[10.5px] leading-relaxed text-amber-100/90">
-                      <b>{cso.churnRisk} user berisiko churn</b> — pernah upload dalam 30 hari tapi 3 hari terakhir diam. Kandidat email win-back Maya (ACC EMAIL / AUTO-ACC).
+                      <b>{cso.churnRisk} user berisiko churn</b> — <b className="text-amber-300">HIGH {cso.churnHigh ?? '?'}</b> dulu aktif tapi ≥7 hari diam (paling hampir pergi — prioritas email win-back Maya) · <b>MED {cso.churnMed ?? '?'}</b> diam 3–7 hari. ACC EMAIL / AUTO-ACC di bawah.
+                    </div>
+                  ) : null}
+                  {((cso.newToday ?? -1) >= 0 || (cso.active7 ?? -1) >= 0) ? (
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
+                      <div className="bg-white/5 border border-white/10 rounded-xl py-1.5">
+                        <div className="text-[15px] font-bold text-emerald-300">{cso.newToday >= 0 ? cso.newToday : '—'}</div>
+                        <div className="text-[9.5px] text-white/50">Baru hari ini</div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-xl py-1.5">
+                        <div className="text-[15px] font-bold text-pink-200">{cso.active7 >= 0 ? cso.active7 : '—'}</div>
+                        <div className="text-[9.5px] text-white/50">Aktif 7 hari</div>
+                      </div>
                     </div>
                   ) : null}
                   {cso.error ? <div className={ERR}>{noEmoji(cso.error).slice(0, 130)}</div> : null}
@@ -941,6 +965,34 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
                     : <div className="text-amber-300/80 text-[10.5px] mt-0.5 leading-relaxed max-w-full break-words" title={String(cmo.posted.reason || '')}>Auto-post belum jalan: {String(cmo.posted.reason || '').slice(0, 260)}</div>) : null}
                 </div>
               ) : <div className="text-white/50 mt-1">Belum ada draf — klik tombol Buat Draf di bawah</div>}
+              {/* ⭐ ANALISIS PERFORMA KONTEN (A/B) — fitur Bos 17-11:
+                  setiap konten yang Sinta posting dibaca performa real-nya
+                  (Graph API) → label RAME/SEPI + instruksi ganti gaya. */}
+              <div className="mt-3 pt-3 border-t border-pink-300/15">
+                <b className="text-pink-200 text-[12px]">Analisis Performa Konten (A/B)</b>
+                <div className="text-white/50 text-[10.5px] mt-0.5 leading-relaxed">Setiap konten yang tayang di IG/FB dibaca performa real-nya (like, komentar, reach via Graph API) — otomatis tiap hari setelah auto-post. Konten sepi = instruksi GANTI gaya buat draf berikutnya.</div>
+                {data?.cmoInsight?.verdict ? (
+                  <div className="mt-1.5 rounded-xl bg-emerald-400/10 border border-emerald-300/20 px-2 py-1.5 text-[11px] leading-relaxed text-white/85">
+                    <b className="text-emerald-300">Kesimpulan Sinta:</b> {noEmoji(data.cmoInsight.verdict)}
+                  </div>
+                ) : null}
+                {Array.isArray(data?.cmoInsight?.stats) && data.cmoInsight.stats.length ? (
+                  <div className="mt-1.5 max-h-44 overflow-y-auto kscroll flex flex-col gap-1">
+                    {data.cmoInsight.stats.map((s: any, i: number) => (
+                      <div key={i} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1">
+                        <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${s.tone === 'rame' ? 'bg-emerald-400/20 text-emerald-300' : s.tone === 'sepi' ? 'bg-red-400/15 text-red-300' : 'bg-white/10 text-white/55'}`}>{String(s.tone || 'biasa').toUpperCase()}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10.5px] text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">{noEmoji(s.excerpt) || (s.kind === 'draf-tiktok' ? 'Draf TikTok' : 'Caption IG')}</div>
+                          <div className="text-[9.5px] text-white/45">{String(s.day || '').slice(5)} · {s.kind === 'draf-tiktok' ? 'Draf TikTok' : 'Caption IG'} · {s.platform} · {Number(s.likes || 0).toLocaleString('id-ID')} like · {Number(s.comments || 0).toLocaleString('id-ID')} komentar{s.reach ? ` · ${Number(s.reach).toLocaleString('id-ID')} reach` : ''}</div>
+                        </div>
+                        <span className="text-[9.5px] text-white/50 shrink-0 tabular-nums">skor {Math.round(s.score || 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[10.5px] text-white/40 mt-1">Belum ada data — analisis jalan otomatis setelah auto-post (butuh ≥1 konten tayang lebih dari 20 jam + token Meta terpasang). Angka tidak pernah dikarang.</div>
+                )}
+              </div>
               <div className="mt-3 flex flex-wrap gap-1.5 items-center">
                 <button className={BTNP} onClick={() => call('agents&only=cmo')}>Buat 3 Draf Baru</button>
                 <button className={BTN} disabled={!cmoCur} onClick={async () => { try { await navigator.clipboard.writeText(cmoCur); P.setCopied(true); setTimeout(() => P.setCopied(false), 1800) } catch { } }}>Salin Draf Ini</button>

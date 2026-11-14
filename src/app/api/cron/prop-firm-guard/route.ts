@@ -214,6 +214,21 @@ function getAlertInfo(
   return null
 }
 
+/* FIX SPAM NOTIF (keluhan Bos 17-11: "notif profit target diprofit guard kek
+ * spam padahal udah sekali aja cukup") — dedupe PERSISTEN via DB.
+ * Rate limit in-memory (Map di bawah) GAMPANG RESET di Cloudflare Workers
+ * (tiap isolate baru = hitungan kembali 0) → warning/urgent bisa dikirim
+ * ulang tiap cron jalan. Kini warning/urgent WAJIB menjauh minimal 4 jam
+ * dari alert terakhir (last_alert_at tersimpan di DB). Breach selalu kirim
+ * (sekali seumur challenge — setelah breach challenge tidak diproses lagi). */
+const DD_COOLDOWN_MS = 4 * 60 * 60 * 1000
+
+function ddCooldownActive(challenge: ChallengeWithUser): boolean {
+  const last = toIsoOrNull(challenge.lastAlertAt)
+  if (!last) return false
+  return Date.now() - Date.parse(last) < DD_COOLDOWN_MS
+}
+
 async function sendAlert(
   admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>,
   challenge: ChallengeWithUser,
@@ -224,7 +239,11 @@ async function sendAlert(
   roomLeftPercent: number,
   roomLeftDollar: number
 ): Promise<boolean> {
-  // Rate limit
+  // Cooldown persisten warning/urgent (anti-spam — lihat catatan di atas)
+  if ((severity === 'warning' || severity === 'urgent') && ddCooldownActive(challenge)) {
+    return false
+  }
+  // Rate limit (lapisan kedua, in-memory)
   if (severity !== 'breach' && isAlertRateLimited(challenge.id)) {
     return false
   }
@@ -484,24 +503,34 @@ async function handleRequest(request: NextRequest) {
           }
         }
 
-        // Check profit target
+        // Check profit target — ANTI-SPAM: dikirim TEPAT SEKALI.
+        // Dulu alert dikirim ULANG setiap cron jalan selama totalPL >= target
+        // (challenge tetap aktif setelah target tercapai) — Bos dapat
+        // "Profit Target Reached!" berulang-ulang tiap hari.
+        // Kini dedupe PERSISTEN: current_progress >= 100 artinya sudah pernah
+        // dilaporkan di run sebelumnya (nilai ini selalu ditulis tiap run)
+        // → alert hanya saat transisi <100 → tercapai. Kalau Bos mengubah
+        // target (progress turun < 100) lalu mencapai lagi → alert baru.
         if (!breached && totalPL >= profitTargetDollar) {
-          profitTargetReached = true
+          const alreadyNotified = (Number(challenge.currentProgress) || 0) >= 100
+          if (!alreadyNotified) {
+            profitTargetReached = true
 
-          // Send profit target alert
-          const alertSent = await sendAlert(
-            admin,
-            challenge,
-            'profit_target',
-            'success',
-            progressPercent,
-            100, // target is 100%
-            0,
-            0
-          )
+            // Send profit target alert
+            const alertSent = await sendAlert(
+              admin,
+              challenge,
+              'profit_target',
+              'success',
+              progressPercent,
+              100, // target is 100%
+              0,
+              0
+            )
 
-          if (alertSent) {
-            alertsSent.push('profit_target')
+            if (alertSent) {
+              alertsSent.push('profit_target')
+            }
           }
         }
 

@@ -307,13 +307,13 @@ export default function KantorCeo3D() {
         stretch:{tp:-.2,hp:-.25,ra:[-2.9,.3,-.2],la:[-2.9,.3,-.2]},scratch:{tp:0,hp:-.05,ra:[-.7,.05,-1.5],la:[-2.3,.45,-1.9]},
         chat:{tp:0,hp:0,ra:[-.3,.1,-.7],la:[-.2,.1,-.4]},drink:{tp:-.05,hp:-.1,ra:[-1.8,.1,-1.9],la:[-.2,.1,-.4]},think:{tp:.05,hp:.08,ra:[-.7,.05,-1.5],la:[-1.1,.25,-2.2]},stand:{tp:0,hp:0,ra:[0,.08,-.08],la:[0,.08,-.08]}}
       const T2={
-        CTO:{deep:['Ping luxtradee.web.id — harap 200 OK','Hitung bug 24 jam dari bug_reports','Cek latency situs & uptime'],phone:['Baca changelog dependency'],chat:['Review bug_reports sama QA']},
-        CSO:{deep:['Hitung total pendaftar dari Supabase','Segmentasi user aktif vs pasif','Susun daftar user pasif buat email'],phone:['Scroll daftar user baru'],chat:['Diskusi email sapaan bareng CEO']},
-        CMO:{deep:['Generate draf TikTok via GLM-4.7-Flash','Analisis gaya naskah CEO yang fyp','Jawab alasan churn dari rapat Maya'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
+        CTO:{deep:['Ping luxtradee.web.id — harap 200 OK','Hitung bug 24 jam dari bug_reports','Cek tren latensi 7 hari — deteksi situs melambau','Cek latency situs & uptime'],phone:['Baca changelog dependency'],chat:['Review bug_reports sama QA']},
+        CSO:{deep:['Hitung total pendaftar dari Supabase','Segmentasi user aktif vs pasif','Grading churn HIGH/MED buat win-back','Susun daftar user pasif buat email'],phone:['Scroll daftar user baru'],chat:['Diskusi email sapaan bareng CEO']},
+        CMO:{deep:['Generate draf TikTok via rantai AI baru','Analisis performa konten IG/FB — rame vs sepi','Analisis gaya naskah CEO yang fyp','Jawab alasan churn dari rapat Maya'],phone:['Scroll TikTok cari referensi'],chat:['Nego deadline konten sama CSO']},
         CEO:{deep:['Baca Morning Briefing 08:00','Review draf TikTok dari CMO','Pantau performa 4 agen'],phone:['Cek harga saham. Lagi.'],chat:['Sinkron roadmap mingguan']}}
       const GEN2={stretch:'Regangan sebentar, pegal…',scratch:'Hmm, kenapa ya?',think:'Mikir solusi…',drink:'Seruput kopi dulu'}
       /* SKILL TINGKAT DEWA — keahlian andalan tiap karyawan (tampil di balon pikiran) */
-      const GOD={CTO:'Self-Healing Infra',CSO:'Mind-Reader Retensi',CMO:'Viral Script Engine',CEO:'Neural Command'}
+      const GOD={CTO:'Self-Healing Infra',CSO:'Mind-Reader Retensi',CMO:'Viral Script + A/B Engine',CEO:'Neural Command'}
       /* Kalimat shift malam (sekarang: lembur SORE sampai jam tidur 22:00) + kalimat tidur */
       const NIGHT2=['Sore ini gas terus sampai jam tidur','Jam 22:00 nanti tidur — sekarang fokus dulu','Malam ini tidur di kantor, kasur personal tiap ruangan','Shift sore: data besok sudah kusiapkan','Halo emas di kepala = tanda tingkat dewa','Kopi sore dulu, jam 22:00 rehat total']
       const SLEEP2=['Zzz…','Zzz… mimpi XAU tembus 2400','Zzz… besok gas komnen lagi','Zzz… recharge baterai AI','Zzz… jangan berisik, Bos masih di ruangan','Zzz… alarm pasang 07:00']
@@ -425,34 +425,51 @@ export default function KantorCeo3D() {
       const sp1=spot(PU,1.9,[-5,10,0],[-2,0,0]),sp2=spot(EM,1.6,[10,9,4],[10,0,4])
       const accL=new THREE.PointLight(EM,1.2,18);accL.position.set(1.5,3,-8.4);scene.add(accL)
       const pl2=new THREE.PointLight(PU,.9,18);pl2.position.set(6,2.5,-5);scene.add(pl2)
-      const ceilGlows=[];const lampMs=[];const roomLights=[];const pendants=[]
-      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#b9b3e4'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#383e66'),cBgSleep=new THREE.Color('#3a406b'),cT=new THREE.Color()
+      const ceilGlows=[];const lampMs=[];const roomLights=[];const pendants=[];const ledMs=[];const bloomSpr=[]
+
+      /* ---------- FAKE BLOOM — sprite cahaya aditif di sumber lampu ----------
+         Postprocessing bloom asli terlalu berat buat mobile/Workers. Trik
+         ringan: sprite tekstur radial-gradient (blending ADDITIVE) di tiap
+         lampu → cahaya terasa "menyebar lembut" — dan MAKIN KENTARA saat
+         malam (sleepF) supaya ruangan terang & hidup (permintaan Bos:
+         "kalau malem kasih lampu biar agak terang ruangannya"). 1 tekstur
+         dibagi semua sprite = murah. */
+      const bloomTex=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d')
+        const gr=g.createRadialGradient(64,64,4,64,64,62);gr.addColorStop(0,'rgba(255,246,220,.95)');gr.addColorStop(.35,'rgba(255,235,185,.45)');gr.addColorStop(1,'rgba(255,225,170,0)')
+        g.fillStyle=gr;g.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t})()
+      const bloomAt=(x,y,z,size=1.6)=>{const m=new THREE.SpriteMaterial({map:bloomTex,color:'#ffe9c0',transparent:true,opacity:.15,blending:THREE.AdditiveBlending,depthWrite:false})
+        const s=new THREE.Sprite(m);s.position.set(x,y,z);s.scale.setScalar(size);scene.add(s);bloomSpr.push(m);return s}
+      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#c7bfe8'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#cdc8ee'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#454e7d'),cBgSleep=new THREE.Color('#4d567f'),cT=new THREE.Color()
       const dayFactor=m=>m<300?0:m<420?(m-300)/120:m<870?1:m<1020?1-(m-870)/150:0
       let dayF=null,sleepF=0
       const lightTick=dt=>{
         const d=dayFactor(C.min);if(dayF===null)dayF=d;dayF=dm(dayF,d,.6,dt)
-        /* jam tidur (22:00–07:00): MALAM TETAP TERANG (permintaan Bos 16-11:
-           "kalau malem kasih lampu biar agak terang ruangannya") — dulu semua
-           lampu meredup 62–78% → ruangan nyaris gelap. Kini kantor malam
-           terasa hidup: lampu plafon & lampu tiap ruangan tetap menyala
-           jelas, lampu meja lembur nyala, langit cuma ikut senja lembut. */
+        /* MALAM TETAP TERANG & HANGAT (permintaan Bos 16-11 & 17-11: "rombak
+           kantor biar makin bagus, jangan biasa banget, masih gelap") —
+           semua redup malam dikurangi drastis + fake-bloom sprite menyala:
+           kantor malam kini terasa seperti kantor modern yang lampunya
+           menyala penuh, bukan ruangan gelap. */
         sleepF=dm(sleepF,isNight(C.min)?1:0,.45,dt)
-        sun.intensity=(.22+1.05*dayF)*(1-sleepF*.38);cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
-        amb.intensity=(.62+.42*dayF)*(1-sleepF*.10);cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
-        sp1.intensity=1.9*(.4+.6*dayF)*(1-sleepF*.22);sp2.intensity=1.6*(.4+.6*dayF)*(1-sleepF*.22)
-        accL.intensity=1.2*(1-sleepF*.10);pl2.intensity=.9*(1-sleepF*.12)
-        /* lampu plafon: nyala PENUH malam hari (dulu meredup .70 — nyaris mati) */
-        ceilGlows.forEach(m=>m.emissiveIntensity=.9+.4*(1-dayF)-.18*sleepF)
+        sun.intensity=(.24+1.05*dayF)*(1-sleepF*.28);cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
+        amb.intensity=(.78+.4*dayF)*(1-sleepF*.06);cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
+        sp1.intensity=1.9*(.45+.6*dayF)*(1-sleepF*.15);sp2.intensity=1.6*(.45+.6*dayF)*(1-sleepF*.15)
+        accL.intensity=1.2*(1-sleepF*.06);pl2.intensity=.9*(1-sleepF*.08)
+        /* lampu plafon: nyala PENUH malam hari */
+        ceilGlows.forEach(m=>m.emissiveIntensity=.95+.4*(1-dayF)-.12*sleepF)
         /* lampu meja: SHIFT MALAM LEMBUR — tetap nyala terang */
-        lampMs.forEach(m=>m.emissiveIntensity=(.25+2.6*(1-dayF))*(1-sleepF*.22))
-        /* lampu gantung linear (renovasi 16-11): makin hangat saat malam */
-        pendants.forEach(m=>m.emissiveIntensity=.45+2.1*sleepF)
+        lampMs.forEach(m=>m.emissiveIntensity=(.25+2.6*(1-dayF))*(1-sleepF*.15))
+        /* lampu gantung linear: makin hangat saat malam */
+        pendants.forEach(m=>m.emissiveIntensity=.5+2.2*sleepF)
         /* lampu tidur di sisi kasur — menghangat saat jam tidur */
         bedLamps.forEach(m=>m.emissiveIntensity=.25+1.9*sleepF)
-        /* lampu plafon tiap ruangan: LEBIH TERANG saat malam — tanpa light
-           baru, cukup naikkan intensitas lampu ruangan yang sudah ada */
-        roomLights.forEach(l=>{l.intensity=.65+1.1*sleepF})
-        cT.copy(cBgD).lerp(cBgN,1-dayF);if(sleepF>.01)cT.lerp(cBgSleep,sleepF*.55)
+        /* LED bawah meja (renovasi 17-11) — aksen warna tiap ruangan,
+           nyala jelas malam hari */
+        ledMs.forEach(m=>m.emissiveIntensity=.35+1.35*sleepF)
+        /* lampu plafon tiap ruangan: LEBIH TERANG saat malam */
+        roomLights.forEach(l=>{l.intensity=.85+1.4*sleepF})
+        /* fake-bloom: cahaya menyebar lembut — makin kentara malam hari */
+        bloomSpr.forEach(m=>m.opacity=.10+.05*(1-dayF)+.42*sleepF)
+        cT.copy(cBgD).lerp(cBgN,1-dayF);if(sleepF>.01)cT.lerp(cBgSleep,sleepF*.45)
         scene.background.copy(cT);scene.fog.color.copy(cT)}
 
       /* ---------- lantai, dinding, neon ---------- */
@@ -540,6 +557,23 @@ export default function KantorCeo3D() {
         const shade2=new THREE.Mesh(new THREE.ConeGeometry(.17,.24,14,1,true),new THREE.MeshStandardMaterial({color:'#1f2430',roughness:.4,metalness:.3,side:THREE.DoubleSide}));shade2.position.set(.85,1.62,0);shade2.rotation.z=-.65;g.add(shade2)
         sph(.065,glow('#ffd9a0',1.8),.85,1.45,0,g)
         const sl=new THREE.PointLight('#ffd9a0',.5,4.5);sl.position.set(.85,1.4,0);g.add(sl)}
+      /* RENOVASI 17-11 — RING LAMPU di atas meja rapat (gaya ruang meeting
+         modern) + fake-bloom di semua sumber cahaya utama supaya malam
+         terasa "lampunya menyala beneran" (bukan cuma emissive datar). */
+      {const ringM=new THREE.MeshStandardMaterial({color:'#20242e',emissive:'#ffe7c4',emissiveIntensity:.55});ceilGlows.push(ringM)
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(1.15,.055,10,40),ringM)
+        ring.rotation.x=PI/2;ring.position.set(4.3,3.5,9.4);scene.add(ring)
+        bloomAt(4.3,3.4,9.4,2.6)}
+      bloomAt(-2.6,3.55,-6.5,2.8)   /* gantung linear baris belakang */
+      bloomAt(-9,3.55,3,2.2)        /* gantung linear baris depan */
+      bloomAt(10.8,3.05,4,2.0)      /* gantung pantry */
+      bloomAt(1.5,4.55,0,3.0)       /* plafon tengah */
+      bloomAt(1.5,4.55,6,2.4)       /* plafon depan */
+      bloomAt(-11,2.2,-6.2,1.7)     /* ruang CTO */
+      bloomAt(-2.75,2.2,-6.2,1.7)   /* ruang CMO */
+      bloomAt(-11,2.2,3,1.7)        /* ruang CSO */
+      bloomAt(-11.5,2.2,9.5,1.5)    /* ruang tidur AI */
+      bloomAt(16.55,1.3,9.6,1.5)    /* arc lamp pantry */
 
       const wallM=M('#edeaf3',{roughness:.9}),glassW=new THREE.MeshStandardMaterial({color:'#8ab4ff',transparent:true,opacity:.2,roughness:.05,metalness:.3})
       const wallL=new THREE.Group(),wallR=new THREE.Group(),wallF=new THREE.Group(),ceil=new THREE.Group();scene.add(wallL,wallR,wallF,ceil)
@@ -747,6 +781,12 @@ export default function KantorCeo3D() {
         box(w,.05,.9,M('#b98a5e',{roughness:.55}),d[0],.76,d[1])
         for(const k of[-1,1])box(.05,.74,.8,M('#8a6f56'),d[0]+k*(w/2-.05),.38,d[1])
         box(w,.02,.02,glow(PU),d[0],.755,d[1]+.45,scene,false);box(.45,.02,.15,M('#0a0a0f'),d[0],.79,d[1]+.22)
+        /* RENOVASI 17-11 — LED strip warna-aksen di bawah tiap meja (gaya
+           studio gaming/kantor modern): nyala jelas malam hari, memberi
+           identitas warna ruangan tiap karyawan. */
+        {const ledM=new THREE.MeshStandardMaterial({color:'#141822',emissive:cfg.accent,emissiveIntensity:.4});ledMs.push(ledM)
+          box(w-.15,.02,.05,ledM,d[0],.12,d[1]+.42,scene,false)
+          box(.05,.02,w-.15,ledM,d[0]+(w/2-.1),.12,d[1],scene,false)}
         cyl(.04,.1,M(Math.random()<.5?'#e5e7eb':'#7c3aed'),d[0]+rnd(.55,.8)*(Math.random()<.5?1:-1),.84,d[1]+rnd(-.1,.2),scene)
         box(.2,.015,.28,M('#d1d5db'),d[0]+rnd(-.8,-.5),.79,d[1]+rnd(-.05,.2),scene)
         /* lampu meja — menyala saat senja/malam kerja, padam saat jam tidur */

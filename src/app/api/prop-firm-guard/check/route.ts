@@ -78,6 +78,25 @@ function getAlertInfo(
   return null
 }
 
+/* FIX SPAM NOTIF (keluhan Bos 17-11: "notif profit target diprofit guard kek
+ * spam padahal udah sekali aja cukup"):
+ * 1) PROFIT TARGET — dulu email+push dikirim SETIAP kali user buka dashboard
+ *    selama totalPL >= target (endpoint ini TANPA rate limit sama sekali).
+ *    Kini dedupe PERSISTEN: current_progress >= 100 artinya sudah pernah
+ *    dilaporkan sebelumnya (kolom ini selalu ditulis tiap run) → alert hanya
+ *    TEPAT SEKALI saat target baru tercapai.
+ * 2) DD WARNING/URGENT — cooldown persisten 4 jam via last_alert_at, supaya
+ *    membuka dashboard berkali-kali tidak mengirim warning berulang.
+ *    Breach tetap selalu dikirim (sekali seumur challenge). */
+const DD_COOLDOWN_MS = 4 * 60 * 60 * 1000
+
+function ddCooldownActive(lastAlertAt: unknown): boolean {
+  if (!lastAlertAt) return false
+  const d = new Date(String(lastAlertAt))
+  if (Number.isNaN(d.getTime())) return false
+  return Date.now() - d.getTime() < DD_COOLDOWN_MS
+}
+
 export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
@@ -165,9 +184,11 @@ export async function POST(request: NextRequest) {
         const totalProfit = Math.max(totalPL, 0)
         const progressPercent = (totalProfit / profitTargetDollar) * 100
 
-        // Check daily DD alerts
+        // Check daily DD alerts (cooldown persisten anti-spam — breach selalu lolos)
         const dailyDDAlert = getAlertInfo(currentDailyDDPercent, dailyDDLimitPercent, ch.alert_at_percent)
-        if (dailyDDAlert && dailyDDAlert.shouldAlert && userEmail) {
+        const dailyDDNotify = dailyDDAlert && dailyDDAlert.shouldAlert
+          && (dailyDDAlert.severity === 'breach' || !ddCooldownActive(ch.last_alert_at))
+        if (dailyDDNotify && userEmail) {
           const roomLeftPercent = dailyDDLimitPercent - currentDailyDDPercent
           const roomLeftDollar = maxDailyLossDollar - Math.abs(dailyLoss)
 
@@ -238,10 +259,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Check total DD alerts
+        // Check total DD alerts (cooldown persisten anti-spam — breach selalu lolos)
         if (!breached) {
           const totalDDAlert = getAlertInfo(currentTotalDDPercent, totalDDLimitPercent, ch.alert_at_percent)
-          if (totalDDAlert && totalDDAlert.shouldAlert && userEmail) {
+          const totalDDNotify = totalDDAlert && totalDDAlert.shouldAlert
+            && (totalDDAlert.severity === 'breach' || !ddCooldownActive(ch.last_alert_at))
+          if (totalDDNotify && userEmail) {
             const roomLeftPercent = totalDDLimitPercent - currentTotalDDPercent
             const roomLeftDollar = maxTotalDDDollar - Math.abs(totalLoss)
 
@@ -313,8 +336,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Check profit target
-        if (!breached && totalPL >= profitTargetDollar) {
+        // Check profit target — ANTI-SPAM: dikirim TEPAT SEKALI (dedupe
+        // persisten via current_progress — lihat catatan getAlertInfo).
+        if (!breached && totalPL >= profitTargetDollar && (Number(ch.current_progress) || 0) < 100) {
           profitTargetReached = true
           if (userEmail) {
             try {

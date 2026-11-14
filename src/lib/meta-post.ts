@@ -353,6 +353,70 @@ export async function metaAutoPostAll(caption: string, imageUrl?: string): Promi
 }
 
 /**
+ * ENGAGEMENT KONTEN (fitur "Sinta analisis konten yang dia posting" — Bos
+ * 17-11: "karyawan grow bisa analisis setiap konten yg dia posting ga biar
+ * ada pencerahan uji coba a dan b, misal oh konten kek gini sepi ganti
+ * kontennya") — baca performa REAL 1 postingan yang sudah tayang.
+ *
+ *   Instagram : GET /{media-id}?fields=like_count,comments_count,permalink
+ *               + insights reach (best-effort — butuh izin insights; kalau
+ *               ditolak, angka reach di-skip tanpa gagal)
+ *   Facebook  : GET /{post-id}?fields=likes.summary(true),comments.summary(true),permalink
+ *
+ * Return HONEST: ok:false + reason kalau token kosong / Graph menolak —
+ * TIDAK PERNAH mengarang angka. Dipakai cmoContentReview() di ceo-agent.
+ */
+export interface MetaEngagement {
+  ok: boolean
+  platform: 'instagram' | 'facebook'
+  likes: number
+  comments: number
+  reach?: number
+  permalink?: string
+  reason?: string
+}
+
+export async function metaEngagement(platform: 'instagram' | 'facebook', postId: string): Promise<MetaEngagement> {
+  const c = metaCreds()
+  const id = String(postId || '').trim()
+  if (!id) return { ok: false, platform, likes: 0, comments: 0, reason: 'post id kosong' }
+  if (platform === 'instagram') {
+    if (!c.igToken) return { ok: false, platform, likes: 0, comments: 0, reason: 'token IG belum diset' }
+    const base = await graphGet(id, c.igToken, { fields: 'like_count,comments_count,permalink' })
+    if (!base.ok) return { ok: false, platform, likes: 0, comments: 0, reason: base.err }
+    const j = base.json || {}
+    const out: MetaEngagement = {
+      ok: true,
+      platform,
+      likes: Number(j.like_count ?? 0) || 0,
+      comments: Number(j.comments_count ?? 0) || 0,
+      permalink: j.permalink ? String(j.permalink) : undefined,
+    }
+    /* reach best-effort — kalau izin insights tidak ada, skip tanpa gagal */
+    const ins = await graphGet(`${id}/insights`, c.igToken, { metric: 'reach' }, 12_000)
+    if (ins.ok) {
+      const rows = (ins.json?.data || []) as { name?: string; values?: { value?: number }[] }[]
+      const r = rows.find((x) => x.name === 'reach')
+      const v = Number(r?.values?.[0]?.value ?? 0)
+      if (v > 0) out.reach = v
+    }
+    return out
+  }
+  /* Facebook Page post — summary(true) = total likes/komentar */
+  if (!c.fbToken) return { ok: false, platform, likes: 0, comments: 0, reason: 'token FB belum diset' }
+  const base = await graphGet(id, c.fbToken, { fields: 'likes.summary(true),comments.summary(true),permalink' })
+  if (!base.ok) return { ok: false, platform, likes: 0, comments: 0, reason: base.err }
+  const j = base.json || {}
+  return {
+    ok: true,
+    platform,
+    likes: Number(j?.likes?.summary?.total_count ?? 0) || 0,
+    comments: Number(j?.comments?.summary?.total_count ?? 0) || 0,
+    permalink: j.permalink ? String(j.permalink) : undefined,
+  }
+}
+
+/**
  * Auto-posting nyata (LAMA — kompatibilitas): coba Instagram dulu
  * (kalau kredensial + gambar ada), lalu Facebook Page sebagai jalur
  * kedua. Return HONEST — tidak pernah bohong sukses. Platform 'none'

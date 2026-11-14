@@ -22,7 +22,7 @@
 // Seluruh app sudah berjalan di Cloudflare Workers (edge) via OpenNext,
 // route ini pun otomatis jalan di Worker yang sama. Semua API yang dipakai
 // (fetch, AbortController, Intl) Workers-compatible.
-import { metaAutoPostAll, metaDiag, type MetaMultiResult } from '@/lib/meta-post'
+import { metaAutoPostAll, metaDiag, metaEngagement, type MetaMultiResult } from '@/lib/meta-post'
 import { bagasCooldownSince, bagasCooldownOrFilter, emailsFromActionRows, contactsFromTaskRows, normEmail } from '@/lib/bagas-cooldown'
 import { callMorteraDirect } from '@/lib/ai-llm'
 import { harnessWrap } from '@/lib/harness-prompt'
@@ -264,6 +264,25 @@ async function kvDel(e: Env, key: string): Promise<number> {
     const rows = (await res.json().catch(() => [])) as unknown[]
     return Array.isArray(rows) ? rows.length : 0
   } catch { return 0 }
+}
+
+/* Scan kunci agent_kv berdasarkan PREFIX (PostgREST operator `like`) —
+   dipakai cmoContentReview utk mengumpulkan hasil posting Sinta
+   (`cmo:posted:*` & `cmo:ig-posted:*`) dan riwayat latensi Raka
+   (`cto:lat:*`). Return terbaru dulu (order key.desc). Gagal → []
+   (pemanggilnya opsional — tidak boleh merusak alur utama). */
+async function kvScan(e: Env, prefix: string, limit = 24): Promise<{ key: string; value: string }[]> {
+  try {
+    const res = await fetch(
+      `${sbUrl(e)}/rest/v1/agent_kv?select=key,value&key=like.${encodeURIComponent(prefix + '*')}&order=key.desc&limit=${limit}`,
+      { headers: sbHPriv(e), signal: timeoutSignal(10_000) },
+    )
+    if (!res.ok) return []
+    const rows = (await res.json()) as { key?: string; value?: string }[]
+    return rows
+      .filter((r) => r.key && r.value != null)
+      .map((r) => ({ key: String(r.key), value: String(r.value) }))
+  } catch { return [] }
 }
 
 /* ---------- Supabase headers ---------- */
@@ -758,7 +777,33 @@ async function ctoAgent(e: Env) {
     upToday = parseInt((await kvGet(e, `up:${wibDay()}`)) || '0', 10)
     downToday = parseInt((await kvGet(e, `down:${wibDay()}`)) || '0', 10)
   } catch { /* ignore */ }
-  return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, upToday, downToday, err }
+  /* ⭐ SKILL BARU Raka (17-11) — TREN LATENSI 7 hari: ping tiap 15 menit
+     dicatat ke agent_kv (cto:lat:<hari> = {n,sum}) → kalau rata-rata hari
+     ini naik >50% dari baseline 7 hari, Raka memberi PERINGATAN DINI
+     "situs melambau" SEBELUM benar-benar down. Semua query opsional —
+     gagal → latTrend kosong, tidak pernah crash. */
+  let latTrend = ''
+  try {
+    const k = `cto:lat:${wibDay()}`
+    const cur = JSON.parse((await kvGet(e, k)) || 'null') as { n?: number; sum?: number } | null
+    if (site.siteOk && site.latencyMs > 0) {
+      const n = (Number(cur?.n) || 0) + 1
+      const sum = (Number(cur?.sum) || 0) + site.latencyMs
+      await kvSet(e, k, JSON.stringify({ n, sum })).catch(() => {})
+      if (n >= 4) {
+        const avgToday = sum / n
+        const rows = await kvScan(e, 'cto:lat:', 20)
+        let sSum = 0, sN = 0
+        for (const r of rows) {
+          if (r.key === k) continue
+          try { const p = JSON.parse(r.value) as { n?: number; sum?: number }; if (p?.n && p?.sum) { sSum += Number(p.sum); sN += Number(p.n) } } catch { /* skip */ }
+        }
+        if (sN >= 8 && avgToday > (sSum / sN) * 1.5)
+          latTrend = `Latensi rata-rata hari ini ${Math.round(avgToday)} ms — ${Math.round((avgToday / (sSum / sN) - 1) * 100)}% lebih lambat dari baseline 7 hari (${Math.round(sSum / sN)} ms). Situs belum down tapi MELAMBAU — cek deploy terakhir / edge CF.`
+      }
+    }
+  } catch { /* opsional */ }
+  return { title: 'CTO — IT & QA', siteOk: site.siteOk, status: site.status, latencyMs: site.latencyMs, bugs24h, upToday, downToday, latTrend, err }
 }
 
 /* ============================================================
@@ -803,7 +848,32 @@ async function csoAgent(e: Env) {
     ])
     for (const id of everActive) if (!nowActive.has(id)) churnRisk++
   } catch { /* opsional */ }
-  return { title: 'CSO — Customer Success', total, active: activeSet.size, passive, churnRisk, emailedYesterday: emailed, returnedYesterday: returned }
+  /* ⭐ SKILL BARU Maya (17-11) — GRADING churn + retensi 7 hari + pendaftar
+     baru hari ini: Maya tidak cuma tahu "berapa" yang berisiko, tapi
+     PRIORITASNYA (HIGH = dulu aktif lalu ≥7 hari diam — paling hampir pergi;
+     MED = diam 3–7 hari) dan apakah pertumbuhan bergerak (newToday,
+     active7). Semua agregat anonim — bukan data pribadi. Gagal → -1/0. */
+  let churnHigh = 0, churnMed = 0, active7 = -1, newToday = -1
+  try {
+    const [ever30, act7, act3] = await Promise.all([
+      fetchActiveUserIds(e, isoAgo(24 * 30)),
+      fetchActiveUserIds(e, isoAgo(24 * 7)),
+      fetchActiveUserIds(e, isoAgo(24 * 3)),
+    ])
+    active7 = act7.size
+    for (const id of ever30) {
+      if (act3.has(id)) continue
+      if (act7.has(id)) churnMed++
+      else churnHigh++
+    }
+    churnRisk = churnHigh + churnMed
+  } catch { /* opsional */ }
+  try {
+    /* awal hari WIB = 00:00 UTC+7 — pendaftar BARU hari ini (bukan total) */
+    const startWibIso = new Date(`${wibDay()}T00:00:00+07:00`).toISOString()
+    newToday = await supaCount(e, 'profiles', 'created_at=gte.' + startWibIso)
+  } catch { /* opsional */ }
+  return { title: 'CSO — Customer Success', total, active: activeSet.size, passive, active7, newToday, churnRisk, churnHigh, churnMed, emailedYesterday: emailed, returnedYesterday: returned }
 }
 
 /* ============================================================
@@ -1321,6 +1391,20 @@ async function cmoAgent(e: Env) {
         `\nSkrip hari ini WAJIB menjawab akar masalah tersebut.`
   } catch { /* ignore */ }
 
+  /* ⭐ BELAJAR DARI PERFORMA (fitur Bos 17-11: "oh konten kek gini sepi ganti
+     kontennya") — hasil analisis A/B konten yang Sinta posting sendiri
+     (Graph API: like/komentar/reach) DISUNTikkan di sini. Draf hari ini
+     WAJIB menerapkan instruksinya — bukan cuma ikut angle rotasi. */
+  let insightLine = ''
+  try {
+    const ins = JSON.parse((await kvGet(e, 'cmo:insight:last')) || 'null')
+    if (ins?.verdict)
+      insightLine =
+        `\nPERFORMA KONTEN TERAKHIR (analisis A/B postingan sendiri — WAJIB diikuti):\n` +
+        `${String(ins.verdict).slice(0, 480)}\n` +
+        `Draf hari ini WAJIB menerapkan instruksinya: pertahankan gaya yang RAME, GANTI gaya yang SEPI.`
+  } catch { /* ignore */ }
+
   const systemPrompt =
     `Kamu adalah CMO Luxtrade. ` +
     (posts.length
@@ -1336,6 +1420,7 @@ async function cmoAgent(e: Env) {
     `Tanggal hari ini: ${wibNow()}.\n` +
     `ANGLE HARI INI (WAJIB dipakai): ${angle}\n` +
     realDataBlock +
+    insightLine +
     churnLine +
     (history.length
       ? `\nHOOK/judul ${history.length} naskah terakhir (DILARANG mengulang atau terlalu mirip):\n` +
@@ -1450,9 +1535,21 @@ async function cmoInstagramCaption(e: Env) {
     KONTEN_REF_BOS + '\n\n' +
     REAL_DATA_RULE
 
+  /* ⭐ BELAJAR DARI PERFORMA (fitur Bos 17-11) — verdict A/B konten
+     sebelumnya ikut menentukan arah caption IG hari ini. */
+  let insightIgL = ''
+  try {
+    const ins = JSON.parse((await kvGet(e, 'cmo:insight:last')) || 'null')
+    if (ins?.verdict)
+      insightIgL =
+        `PERFORMA KONTEN TERAKHIR (analisis A/B postingan sendiri — WAJIB diikuti): ${String(ins.verdict).slice(0, 480)}\n` +
+        `Caption hari ini WAJIB menerapkan instruksinya: pertahankan gaya yang RAME, GANTI gaya yang SEPI.\n\n`
+  } catch { /* ignore */ }
+
   const userPrompt =
     `Tanggal: ${wibNow()} WIB.\n` +
     `ANGLE HARI INI: ${angle}\n` +
+    insightIgL +
     `DATA NYATA Luxtradee 24 jam:\n` +
     `- Total trade: ${fmtN(totalTrades)}\n` +
     `- Win rate komunitas: ${winRate}%\n` +
@@ -1508,6 +1605,131 @@ async function cmoInstagramCaption(e: Env) {
   await memAdd(e, 'CMO Sinta', `Caption IG (${angle}, ${model || provider}): ${caption.replace(/\s+/g, ' ').slice(0, 130)}`)
   const out = { caption, angle, usedFallback, provider, model, totalTrades, winRate, topPair, ...(fallbackError ? { fallbackError } : {}) }
   await kvSet(e, dayKey, JSON.stringify(out)).catch(() => {})
+  return out
+}
+
+/* ============================================================
+   AGEN 3c — CMO CONTENT REVIEW (fitur Bos 17-11: "karyawan grow bisa
+   analisis setiap konten yg dia posting ga biar ada pencerahan uji
+   coba a dan b, misal oh konten kek gini sepi ganti kontennya").
+   Setiap konten yang Sinta posting (draf TikTok → IG+FB, caption IG
+   analisis → IG+FB) dibaca performa REAL-nya dari Meta Graph API:
+   like/komentar (+reach bila izin insights tersedia). Hasilnya:
+   1. Tabel per-konten (tanggal, platform, likes, komentar, skor,
+      label RAME/BIASA/SEPI) — tampil di Ruang CMO.
+   2. VERDICT A/B dari otak Sinta sendiri: gaya mana RAME, gaya mana
+      SEPI, instruksi konkret ganti konten → disimpan ke agent_kv
+      `cmo:insight:last` → DISUNTikkan ke prompt draf TikTok & caption
+      IG berikutnya (Sinta belajar dari postingannya sendiri).
+   HEMAT KUOTA: post yang sudah pernah dianalisis TIDAK di-fetch ulang
+   (angka dipakai ulang dari cache) — hanya konten baru yang menarik
+   Graph API. Jalan otomatis di briefing fase 2 (dedup harian).
+   ============================================================ */
+interface ContentStat {
+  day: string
+  kind: 'draf-tiktok' | 'caption-ig'
+  platform: string
+  likes: number
+  comments: number
+  reach?: number
+  score: number
+  tone: 'rame' | 'biasa' | 'sepi'
+  angle: string
+  excerpt: string
+}
+
+async function cmoContentReview(e: Env): Promise<{ ok: boolean; note?: string; at?: string; day?: string; stats?: ContentStat[]; verdict?: string; winner?: string; flop?: string; llm?: string }> {
+  const day = wibDay()
+  /* 1) kumpulkan record posting 10 hari terakhir (2 jenis konten) */
+  const [postedRows, igRows] = await Promise.all([
+    kvScan(e, 'cmo:posted:', 10),
+    kvScan(e, 'cmo:ig-posted:', 10),
+  ])
+  /* cache statistik sebelumnya — post yang sudah dianalisis tidak di-fetch ulang */
+  let prev: { stats?: ContentStat[]; verdict?: string } | null = null
+  try { prev = JSON.parse((await kvGet(e, 'cmo:insight:last')) || 'null') } catch { /* ignore */ }
+  const prevStats = Array.isArray(prev?.stats) ? prev!.stats as ContentStat[] : []
+  const cacheKey = (d: string, kind: string, plat: string) => `${d}|${kind}|${plat}`
+  const cached = new Map(prevStats.map((s) => [cacheKey(s.day, s.kind, s.platform), s]))
+
+  const stats: ContentStat[] = []
+  let fetched = 0
+  for (const kind of ['draf-tiktok', 'caption-ig'] as const) {
+    const rows = kind === 'draf-tiktok' ? postedRows : igRows
+    for (const row of rows) {
+      const d = row.key.split(':').pop() || ''
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d >= day) continue // konten hari ini terlalu muda (insight IG butuh ≥20 jam stabil)
+      let meta: MetaMultiResult | null = null
+      try { meta = JSON.parse(row.value) as MetaMultiResult } catch { continue }
+      for (const plat of ['Instagram', 'Facebook'] as const) {
+        const res = plat === 'Instagram' ? meta?.ig : meta?.fb
+        if (!res?.posted || !res.id) continue
+        const ck = cacheKey(d, kind, plat)
+        const hit = cached.get(ck)
+        if (hit) { stats.push(hit); continue }
+        /* konten BARU → tarik engagement beneran dari Graph API */
+        const eng = await metaEngagement(plat === 'Instagram' ? 'instagram' : 'facebook', String(res.id))
+        if (!eng.ok) continue // HONEST: Graph menolak → tidak ada angka karangan
+        fetched++
+        /* angle + cuplikan teks konten dari KV harian (`cmo:<hari>` / `cmo:ig:<hari>`) */
+        let angle = '', excerpt = ''
+        try {
+          const p = JSON.parse((await kvGet(e, kind === 'draf-tiktok' ? `cmo:${d}` : `cmo:ig:${d}`)) || 'null')
+          angle = String(p?.angle || '')
+          excerpt = String((kind === 'draf-tiktok' ? p?.draft : p?.caption) || '').replace(/\s+/g, ' ').slice(0, 90)
+        } catch { /* ignore */ }
+        stats.push({ day: d, kind, platform: plat, likes: eng.likes, comments: eng.comments, ...(eng.reach ? { reach: eng.reach } : {}), score: 0, tone: 'biasa', angle, excerpt })
+      }
+    }
+  }
+
+  if (!stats.length) return { ok: true, note: 'belum ada konten cukup tua / token Graph belum diset — tidak ada angka karangan', stats: [] }
+
+  /* 2) skor & label tone (skor = like + komentar×3 + reach×0.02 — komentar
+        bernilai lebih tinggi: tanda percakapan, bukan cuma lewat) */
+  const scored: ContentStat[] = stats.map((s) => ({ ...s, score: s.likes + s.comments * 3 + (s.reach || 0) * 0.02 }))
+  if (scored.length >= 2) {
+    const avg = scored.reduce((a, b) => a + b.score, 0) / scored.length
+    for (const s of scored) s.tone = s.score >= avg * 1.25 ? 'rame' : s.score >= Math.max(avg * 0.55, 1) ? 'biasa' : 'sepi'
+  }
+  scored.sort((a, b) => b.score - a.score)
+  const winner = scored[0]
+  const flop = scored.length >= 2 ? scored[scored.length - 1] : null
+
+  /* 3) verdict — LLM hanya dipanggil kalau ada konten BARU (hemat kuota);
+        kalau semua sudah pernah dianalisis, pakai verdict cache sebelumnya. */
+  let verdict = ''
+  let llm = ''
+  if (!fetched && prev?.verdict) {
+    verdict = String(prev.verdict)
+  } else {
+    const dataBlock =
+      'DATA NYATA (skor = like + komentar×3 + reach×0.02) — konten yang Sinta posting sendiri ke IG/FB:\n' +
+      scored.slice(0, 10).map((s, i) =>
+        `${i + 1}. [${s.day} · ${s.kind} · ${s.platform}] like ${s.likes} · komentar ${s.comments}${s.reach ? ` · reach ${fmtN(s.reach)}` : ''} · skor ${Math.round(s.score)} · label ${s.tone.toUpperCase()}${s.angle ? ` · angle "${s.angle}"` : ''}${s.excerpt ? ` · cuplikan: "${s.excerpt}"` : ''}`
+      ).join('\n')
+    const sys =
+      'Kamu Sinta, CMO Luxtradee. Kamu sedang MENGEVALUASI performa konten yang KAMU posting sendiri (uji A/B gaya konten). ' +
+      'ATURAN: semua angka HANYA dari blok DATA NYATA — dilarang mengarang. ' +
+      'Output MAKSIMAL 4 kalimat bahasa Indonesia santai-profesional, TANPA emoji, tanpa pembuka/sapaan: ' +
+      '(1) gaya/angle yang terbukti RAME sebut + angkanya, (2) gaya/angle yang SEPI sebut + angkanya, ' +
+      '(3) instruksi KONKRET untuk konten berikutnya (ganti hook/angle/topik apa).'
+    const usr = dataBlock + '\n\nBerikan evaluasi A/B sesuai format.'
+    try {
+      const brain = await agentBrain(e, 'cmo', sys, usr, 520, 0.5)
+      verdict = brain.text.replace(/\s+/g, ' ').trim().slice(0, 520)
+      llm = brain.model
+    } catch { /* fallback di bawah */ }
+    if (!verdict) {
+      verdict = scored.length >= 2 && flop && winner.tone !== flop.tone
+        ? `Konten paling rame: ${winner.kind} ${winner.platform} ${winner.day} (${winner.likes} like · ${winner.comments} komentar${winner.angle ? `, angle "${winner.angle}"` : ''}). Yang sepi: ${flop.kind} ${flop.platform} ${flop.day} (${flop.likes} like · ${flop.comments} komentar${flop.angle ? `, angle "${flop.angle}"` : ''}). Instruksi: pertahankan pola pemenang, GANTI pendekatan konten sepi di draf berikutnya.`
+        : 'Data performa masih terbatas — Sinta mencatat semua angka dan menunggu konten berikutnya untuk perbandingan A/B yang adil.'
+    }
+  }
+
+  const out = { ok: true, at: new Date().toISOString(), day, stats: scored.slice(0, 12), verdict, winner: winner?.angle || undefined, flop: flop?.angle || undefined, ...(llm ? { llm } : {}) }
+  await kvSet(e, 'cmo:insight:last', JSON.stringify(out)).catch(() => {})
+  await memAdd(e, 'CMO Sinta', `Analisis performa konten (${scored.length} post, ${fetched} baru): ${verdict.replace(/\s+/g, ' ').slice(0, 150)}`).catch(() => {})
   return out
 }
 
@@ -1602,6 +1824,7 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(cto?.bugs24h > 0 ? `• Bug 24 jam terakhir: ${cto.bugs24h} ⚠️ segera cek bug_reports`
     : cto?.bugs24h === 0 ? '• Bug 24 jam terakhir: 0 ✅'
     : `• Bug 24 jam: gagal diambil ⚠️ ${String(cto?.err || '').slice(0, 110)}`)
+  if (cto?.latTrend) L.push(`• ⏳ ${cto.latTrend}`)
   if (qa && qa.total > 0) {
     L.push(qa.fails?.length
       ? `• QA ${qa.total} fitur dashboard: ${qa.ok} OK, ${qa.fails.length} MASALAH ⚠️`
@@ -1622,10 +1845,12 @@ function buildBriefing(cto: any, cso: any, cmo: any, cfo: any, autoAcc = '', aut
   L.push(`• Total pendaftar: ${fmtN(cso?.total)}`)
   L.push(`• User aktif (upload 24 jam): ${fmtN(cso?.active)}`)
   L.push(`• User pasif (>24 jam tanpa aktivitas): ${fmtN(cso?.passive)}`)
+  if (cso?.newToday >= 0) L.push(`• Pendaftar BARU hari ini: ${fmtN(cso.newToday)}${cso.newToday === 0 ? ' — masih sepi, gas konten' : ' ✅'}`)
+  if (cso?.active7 >= 0) L.push(`• Aktif 7 hari terakhir: ${fmtN(cso.active7)}`)
   if (cso?.emailedYesterday > 0)
     L.push(`• Feedback email kemarin: ${fmtN(cso.returnedYesterday)}/${fmtN(cso.emailedYesterday)} user balik upload ${cso.returnedYesterday > 0 ? '✅' : '⏳'}`)
   if (cso?.churnRisk > 0)
-    L.push(`• ⚠️ Risiko churn: ${fmtN(cso.churnRisk)} user pernah aktif 30 hari tapi 3 hari terakhir diam — kandidat email win-back Maya`)
+    L.push(`• ⚠️ Risiko churn: ${fmtN(cso.churnRisk)} user (HIGH ${fmtN(cso.churnHigh ?? '?')} diam ≥7 hari — prioritas win-back hari ini · MED ${fmtN(cso.churnMed ?? '?')} diam 3–7 hari)`)
   if (cso?.err) L.push(`⚠️ CSO gagal: ${String(cso.err).slice(0, 130)}`)
   L.push('')
   L.push('📣 **CMO AGENT — DRAF TIKTOK HARI INI**')
@@ -2094,6 +2319,26 @@ async function briefingExtras(e: Env, ctx: { day: string; autoOn: boolean; brief
       }
     }
   } catch { /* IG auto-post opsional — jangan ganggu fase 2 lain */ }
+
+  /* ⭐ ANALISIS PERFORMA KONTEN (fitur Bos 17-11: "karyawan grow bisa
+     analisis setiap konten yg dia posting") — SETELAH posting selesai,
+     Sinta membaca performa REAL konten-konten sebelumnya dari Graph API
+     (like/komentar/reach) → verdict A/B "rame vs sepi" + instruksi ganti
+     konten → disimpan `cmo:insight:last` → besok DISUNTikkan ke prompt
+     draf TikTok & caption IG. Dedup harian `cmo:insight:${day}`. */
+  try {
+    if (runStep('talk') && !(await kvGet(e, `cmo:insight:${day}`))) {
+      const rev = await cmoContentReview(e)
+      if (rev?.stats?.length) {
+        summary.cmoInsight = rev
+        try { await sendDiscord(e, `📊 ANALISIS PERFORMA KONTEN (Sinta · A/B): ${String(rev.verdict).slice(0, 420)}`) } catch { /* ignore */ }
+      }
+      await kvSet(e, `cmo:insight:${day}`, new Date().toISOString()).catch(() => {})
+    } else if (runStep('talk')) {
+      const raw = await kvGet(e, 'cmo:insight:last')
+      if (raw) { try { summary.cmoInsight = JSON.parse(raw) } catch { /* ignore */ } }
+    }
+  } catch { /* review opsional — tidak boleh merusak briefing */ }
 
   /* ARTEFAK MINGGUAN (lib/ceo-phase.ts runDailyWork) — kalender konten
      (Minggu), onboarding + titik impas (Senin), outbound + eksperimen
@@ -3651,7 +3896,13 @@ async function handle(req: Request): Promise<Response> {
         want('cfo') ? cfoAgent(e).catch((x: any) => ({ error: String(x?.message || x) })) : Promise.resolve(undefined),
         want('coo') ? cooPending(e).catch(() => ({ pending: 0, approved24h: 0 })) : Promise.resolve(undefined),
       ])
-      return j({ cto, cso, cmo, cfo, coo })
+      /* ⭐ Analisis performa konten Sinta (A/B) — ikut respons supaya panel
+         Ruang CMO bisa menampilkan tabel RAME/SEPI + verdict tanpa fetch
+         tambahan (dibaca dari agent_kv — murah). */
+      const cmoInsight = want('cmo')
+        ? await kvGet(e, 'cmo:insight:last').then((v) => { try { return v ? JSON.parse(v) : undefined } catch { return undefined } }).catch(() => undefined)
+        : undefined
+      return j({ cto, cso, cmo, cfo, coo, cmoInsight })
     }
     case 'kpi': {
       // PANEL KPI KARYAWAN — angka nyata read-only per karyawan (tanpa LLM,
