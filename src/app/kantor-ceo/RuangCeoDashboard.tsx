@@ -6,7 +6,7 @@
 // Filosofi: kanvas 3D adalah panggung utama — UI hanya FLOATING GLASS:
 //   Wujud 1 (standby)  : SATU floating pill di tengah bawah (jam WIB ikut di dalam pill)
 //                        — bagian atas layar 100% bersih, kanvas 3D penuh tanpa panel.
-//   Wujud 2 (aktif)    : glass bottom sheet (maks 50% layar) berisi
+//   Wujud 2 (aktif)    : glass bottom sheet (50vh, bisa DIPERBESAR ~94vh) berisi
 //                        Horizontal Agent Dock (scroll menyamping, snap)
 //                        + panel ruangan yang dipilih (dark glass).
 //
@@ -24,7 +24,7 @@
 // tetap tinggal di KantorCeo3D.tsx — komponen ini presentational + toggle sheet.
 // ============================================================
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Sparkles, Trash2, X } from 'lucide-react'
+import { ChevronDown, Maximize2, Minimize2, Sparkles, Trash2, X } from 'lucide-react'
 import PendingActionsQueue from './PendingActionsQueue'
 /* PATCH C (tambalan fase bisnis): panel fase + artefak karyawan per ruangan */
 import { PhasePanel, RoleArtifacts, PRE_LAUNCH_TUGAS, ROOM_ROLE, usePhaseData, LoopBelajarPanel } from './PhasePanels'
@@ -437,6 +437,10 @@ export interface RuangCeoDashboardProps {
 export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   const { room, setRoom, busy, data, call } = P
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  /* PERBESAR PANEL (keluhan Bos 16-11: popup karyawan cuma sebagian layar,
+     susah dibaca) — sheet 50vh bisa dimekarkan ke ~94vh via tombol,
+     dan OTOMATIS memekar saat Bos menyentuh karyawan di kantor 3D. */
+  const [sheetTall, setSheetTall] = useState(false)
   const [cmoVar, setCmoVar] = useState(0)
   const [speaking, setSpeaking] = useState(false)
   /* Akordeon Tim AI: satu karyawan terbuka pada satu waktu (null = semua tertutup) */
@@ -463,10 +467,11 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
   }
 
   /* Jembatan: klik karakter 3D → KantorCeo3D panggil window.__kceo.openSheet()
-     supaya sheet ikut terbuka saat Bos menyentuh karyawan di kantor virtual */
+     supaya sheet ikut terbuka saat Bos menyentuh karyawan di kantor virtual —
+     dan langsung mode BESAR biar detail karyawan mudah dibaca */
   useEffect(() => {
     const w = window as any
-    w.__kceo = { ...(w.__kceo || {}), openSheet: () => setIsSheetOpen(true) }
+    w.__kceo = { ...(w.__kceo || {}), openSheet: (r?: string) => { if (r) setRoom(r); setIsSheetOpen(true); setSheetTall(true) } }
     return () => { if (w.__kceo) delete w.__kceo.openSheet }
   }, [])
 
@@ -539,7 +544,7 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
       {/* ===== WUJUD 1 — FLOATING PILL (standby): semua kartu tersembunyi ===== */}
       {!isSheetOpen && (
         <button
-          onClick={() => setIsSheetOpen(true)}
+          onClick={() => { setIsSheetOpen(true); setSheetTall(false) }}
           aria-label="Buka CEO Command Center"
           className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/20 backdrop-blur-2xl border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] text-white text-sm font-medium whitespace-nowrap cursor-pointer hover:bg-black/30 transition-all active:scale-95"
         >
@@ -556,11 +561,12 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
         <div className="fixed inset-0 z-30" onClick={() => setIsSheetOpen(false)} aria-hidden="true" />
       )}
 
-      {/* ===== WUJUD 2 — GLASS BOTTOM SHEET (maks 50% tinggi layar) ===== */}
+      {/* ===== WUJUD 2 — GLASS BOTTOM SHEET (50vh, bisa DIPERBESAR ke ~94vh) ===== */}
       <div
         role="dialog"
         aria-label="CEO Command Center"
-        className={`fixed bottom-0 left-0 w-full z-40 transform transition-transform duration-300 ease-out max-h-[50vh] bg-black/40 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl p-5 flex flex-col gap-3 overflow-hidden ${isSheetOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'}`}
+        style={{ height: sheetTall ? 'min(94vh, 1000px)' : '50vh', paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+        className={`fixed bottom-0 left-0 w-full z-40 transform transition-[transform,height] duration-300 ease-out bg-black/40 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl p-5 flex flex-col gap-3 overflow-hidden ${isSheetOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'}`}
       >
         {/* grabber — ketuk untuk menutup */}
         <button onClick={() => setIsSheetOpen(false)} aria-label="Tutup panel" className="shrink-0 self-center w-12 h-1.5 rounded-full bg-white/25 hover:bg-white/40 transition-colors cursor-pointer" />
@@ -579,6 +585,15 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
           <div className="ml-auto flex items-center gap-2.5 shrink-0">
             <Dot tone={busy ? 'busy' : 'ok'} />
             <ClockWib />
+            {/* tombol PERBESAR/PERKECIL — popup tugas & detail karyawan enak dibaca */}
+            <button
+              onClick={() => setSheetTall(v => !v)}
+              aria-label={sheetTall ? 'Perkecil panel' : 'Perbesar panel biar mudah dibaca'}
+              title={sheetTall ? 'Perkecil panel' : 'Perbesar panel biar mudah dibaca'}
+              className="w-8 h-8 rounded-full bg-white/10 border border-white/15 text-white/80 hover:bg-white/20 hover:text-white grid place-items-center transition-colors cursor-pointer"
+            >
+              {sheetTall ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
             <button
               onClick={() => setIsSheetOpen(false)}
               aria-label="Tutup"
@@ -969,7 +984,9 @@ export default function RuangCeoDashboard(P: RuangCeoDashboardProps) {
               <div className="text-white/50 text-[11px] mb-3 leading-relaxed">
                 Jabatan, pekerjaan &amp; jadwal tiap karyawan — plus <b className="text-amber-300">batas kemampuan yang jujur</b>, biar Bos bisa menilai apa yang kurang dan layak ditambah. Klik karyawan untuk status kerja live, detail tugas &amp; memori kerjanya.
               </div>
-              <div className="max-h-[34vh] overflow-y-auto kscroll pr-0.5">
+              {/* Kap 34vh dihapus (keluhan Bos 16-11) — daftar karyawan ikut
+                  tinggi panel; di mode BESAR semua tugas terbaca lega */}
+              <div className="pr-0.5">
                 {TEAM_DETAIL.map(m => (
                   <EmployeeCard
                     key={m.id}

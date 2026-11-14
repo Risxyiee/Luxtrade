@@ -425,28 +425,34 @@ export default function KantorCeo3D() {
       const sp1=spot(PU,1.9,[-5,10,0],[-2,0,0]),sp2=spot(EM,1.6,[10,9,4],[10,0,4])
       const accL=new THREE.PointLight(EM,1.2,18);accL.position.set(1.5,3,-8.4);scene.add(accL)
       const pl2=new THREE.PointLight(PU,.9,18);pl2.position.set(6,2.5,-5);scene.add(pl2)
-      const ceilGlows=[];const lampMs=[]
-      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#a8a0d5'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#2d3250'),cBgSleep=new THREE.Color('#232744'),cT=new THREE.Color()
+      const ceilGlows=[];const lampMs=[];const roomLights=[];const pendants=[]
+      const cSunD=new THREE.Color('#fff3e0'),cSunN=new THREE.Color('#b8b0e0'),cAmbD=new THREE.Color('#e3e8f5'),cAmbN=new THREE.Color('#b9b3e4'),cBgD=new THREE.Color('#dfe7f2'),cBgN=new THREE.Color('#383e66'),cBgSleep=new THREE.Color('#3a406b'),cT=new THREE.Color()
       const dayFactor=m=>m<300?0:m<420?(m-300)/120:m<870?1:m<1020?1-(m-870)/150:0
       let dayF=null,sleepF=0
       const lightTick=dt=>{
         const d=dayFactor(C.min);if(dayF===null)dayF=d;dayF=dm(dayF,d,.6,dt)
-        /* jam tidur (22:00–07:00): kantor meredup PELAN TAPI TETAP TERANG
-           (permintaan Bos 11-11: "mode malem agak diterangin dikit kasih
-           lampu kek gelap bgt") — shift malam tetap terlihat jelas:
-           lampu plafon samar, lampu meja lembur nyala, lampu tidur hangat */
+        /* jam tidur (22:00–07:00): MALAM TETAP TERANG (permintaan Bos 16-11:
+           "kalau malem kasih lampu biar agak terang ruangannya") — dulu semua
+           lampu meredup 62–78% → ruangan nyaris gelap. Kini kantor malam
+           terasa hidup: lampu plafon & lampu tiap ruangan tetap menyala
+           jelas, lampu meja lembur nyala, langit cuma ikut senja lembut. */
         sleepF=dm(sleepF,isNight(C.min)?1:0,.45,dt)
-        sun.intensity=(.22+1.05*dayF)*(1-sleepF*.70);cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
-        amb.intensity=(.55+.45*dayF)*(1-sleepF*.30);cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
-        sp1.intensity=1.9*(.4+.6*dayF)*(1-sleepF*.62);sp2.intensity=1.6*(.4+.6*dayF)*(1-sleepF*.62)
-        accL.intensity=1.2*(1-sleepF*.5);pl2.intensity=.9*(1-sleepF*.45)
-        /* lampu plafon meredup ke nyala samar saat jam tidur (dulu: nyaris mati) */
-        ceilGlows.forEach(m=>m.emissiveIntensity=(.85+.35*dayF)*(1-sleepF*.70))
-        /* lampu meja: SHIFT MALAM LEMBUR — tetap nyala lembut (dulu: padam .92) */
-        lampMs.forEach(m=>m.emissiveIntensity=(.25+2.6*(1-dayF))*(1-sleepF*.78))
+        sun.intensity=(.22+1.05*dayF)*(1-sleepF*.38);cT.copy(cSunD).lerp(cSunN,1-dayF);sun.color.copy(cT)
+        amb.intensity=(.62+.42*dayF)*(1-sleepF*.10);cT.copy(cAmbD).lerp(cAmbN,1-dayF);amb.color.copy(cT)
+        sp1.intensity=1.9*(.4+.6*dayF)*(1-sleepF*.22);sp2.intensity=1.6*(.4+.6*dayF)*(1-sleepF*.22)
+        accL.intensity=1.2*(1-sleepF*.10);pl2.intensity=.9*(1-sleepF*.12)
+        /* lampu plafon: nyala PENUH malam hari (dulu meredup .70 — nyaris mati) */
+        ceilGlows.forEach(m=>m.emissiveIntensity=.9+.4*(1-dayF)-.18*sleepF)
+        /* lampu meja: SHIFT MALAM LEMBUR — tetap nyala terang */
+        lampMs.forEach(m=>m.emissiveIntensity=(.25+2.6*(1-dayF))*(1-sleepF*.22))
+        /* lampu gantung linear (renovasi 16-11): makin hangat saat malam */
+        pendants.forEach(m=>m.emissiveIntensity=.45+2.1*sleepF)
         /* lampu tidur di sisi kasur — menghangat saat jam tidur */
         bedLamps.forEach(m=>m.emissiveIntensity=.25+1.9*sleepF)
-        cT.copy(cBgD).lerp(cBgN,1-dayF);if(sleepF>.01)cT.lerp(cBgSleep,sleepF*.78)
+        /* lampu plafon tiap ruangan: LEBIH TERANG saat malam — tanpa light
+           baru, cukup naikkan intensitas lampu ruangan yang sudah ada */
+        roomLights.forEach(l=>{l.intensity=.65+1.1*sleepF})
+        cT.copy(cBgD).lerp(cBgN,1-dayF);if(sleepF>.01)cT.lerp(cBgSleep,sleepF*.55)
         scene.background.copy(cT);scene.fog.color.copy(cT)}
 
       /* ---------- lantai, dinding, neon ---------- */
@@ -502,6 +508,39 @@ export default function KantorCeo3D() {
       const rug2=flat(0,-1.7,17,3.4,.008,M('#e8e2d6',{roughness:.95,map:tileTex(128,128,g2=>{g2.fillStyle='#e8e2d6';g2.fillRect(0,0,128,128);g2.strokeStyle='rgba(124,58,237,.18)';g2.lineWidth=4;g2.strokeRect(6,6,116,116);g2.strokeRect(14,14,100,100)},6,1)}))
       rug2.position.y=.006
 
+      /* ---------- RENOVASI 16-11 (permintaan Bos: "rombak kantor jadi lebih
+         bagus dan modern, kalau malem kasih lampu biar agak terang") ---------- */
+      /* Lampu gantung LINEAR di atas 2 baris meja (gaya kantor modern):
+         kabel ganda + bodi gelap metalik + strip cahaya hangat yang
+         menyala makin terang saat malam (terdaftar di pendants[]) */
+      const pendantAt=(x,z,len)=>{
+        const g=new THREE.Group();g.position.set(x,0,z);scene.add(g)
+        cyl(.018,1.02,M('#2b2f3a',{metalness:.7,roughness:.3}),-len/2+.35,4.29,0,g)
+        cyl(.018,1.02,M('#2b2f3a',{metalness:.7,roughness:.3}),len/2-.35,4.29,0,g)
+        box(len,.1,.26,M('#20242e',{metalness:.55,roughness:.35}),0,3.73,0,g)
+        const strip=new THREE.MeshStandardMaterial({color:'#3a3f4c',emissive:'#ffe7c4',emissiveIntensity:.5});pendants.push(strip)
+        box(len-.35,.035,.19,strip,0,3.655,0,g,false)
+        return g}
+      pendantAt(-2.6,-6.5,16)   /* baris belakang: meja Raka · Sinta · Alexander */
+      pendantAt(-9,3,5.6)       /* baris depan: meja Maya */
+      pendantAt(4.3,9.4,3.8)    /* meja rapat */
+      /* Cove light putih mengelilingi tepi plafon — sentuhan kantor modern,
+         tembok terasa "mengambang" + ikut menerangi ruangan malam hari */
+      const coveM=new THREE.MeshStandardMaterial({color:'#f2f4fa',emissive:'#cfe0ff',emissiveIntensity:.35});ceilGlows.push(coveM)
+      box(33,.05,.08,coveM,1.5,4.72,-11.5,scene,false)
+      box(33,.05,.08,coveM,1.5,4.72,11.5,scene,false)
+      box(.08,.05,23,coveM,-15.1,4.72,0,scene,false)
+      box(.08,.05,23,coveM,18.1,4.72,0,scene,false)
+      /* Lampu berdiri modern (arc lamp) di pojok lounge pantry —
+         lengkung tipis + kap gelap + bola hangat, nyala lembut 24 jam */
+      {const g=new THREE.Group();g.position.set(16.7,0,9.6);scene.add(g)
+        cyl(.28,.04,M('#2b2f3a',{metalness:.6}),0,.02,0,g)
+        cyl(.032,1.72,M('#2b2f3a',{metalness:.6}),0,.87,0,g)
+        box(.95,.034,.034,M('#2b2f3a',{metalness:.6}),.44,1.73,0,g)
+        const shade2=new THREE.Mesh(new THREE.ConeGeometry(.17,.24,14,1,true),new THREE.MeshStandardMaterial({color:'#1f2430',roughness:.4,metalness:.3,side:THREE.DoubleSide}));shade2.position.set(.85,1.62,0);shade2.rotation.z=-.65;g.add(shade2)
+        sph(.065,glow('#ffd9a0',1.8),.85,1.45,0,g)
+        const sl=new THREE.PointLight('#ffd9a0',.5,4.5);sl.position.set(.85,1.4,0);g.add(sl)}
+
       const wallM=M('#edeaf3',{roughness:.9}),glassW=new THREE.MeshStandardMaterial({color:'#8ab4ff',transparent:true,opacity:.2,roughness:.05,metalness:.3})
       const wallL=new THREE.Group(),wallR=new THREE.Group(),wallF=new THREE.Group(),ceil=new THREE.Group();scene.add(wallL,wallR,wallF,ceil)
       for(const[g,x]of[[wallL,-15.55],[wallR,18.55]]){box(.2,.9,24,wallM,x,.45,0,g);box(.2,.5,24,wallM,x,4.75,0,g);box(.05,3.6,24,glassW,x,2.7,0,g,false)
@@ -531,7 +570,7 @@ export default function KantorCeo3D() {
       /* partisi Ruang COO + kusen pintu */
       partV(8.5,-10,-2.5);partH(8.5,10.1,-2.5);partH(11.7,13.5,-2.5);jamb(10.1,-2.5);jamb(11.7,-2.5)
       const roomAcc=(x,z,col,rugC)=>{const r=new THREE.Mesh(new THREE.PlaneGeometry(4.8,4.6),M(rugC,{roughness:.9}));r.rotation.x=-PI/2;r.position.set(x,.008,z);r.receiveShadow=true;scene.add(r)
-        const l=new THREE.PointLight(col,.65,9);l.position.set(x,2.3,z);scene.add(l)}
+        const l=new THREE.PointLight(col,.65,9);l.position.set(x,2.3,z);scene.add(l);roomLights.push(l)}
       roomAcc(-11,-6.2,'#14b8a6','#d8f2ea');roomAcc(-2.75,-6.2,'#8b5cf6','#ebe3fa')
       roomAcc(-11,3,'#ec4899','#fae1ee')
       neon('RUANG CTO',3.3,.8,46,-11,1.95,-9.86,0,'#0d9488')
@@ -761,6 +800,11 @@ export default function KantorCeo3D() {
         const S={pace:rnd(.85,1.15),fat:0,arr:0,dep:1e9,cfg,R,chair,mats,d,seatZ,x:d[0],z:seatZ,yaw:PI,sit:1,ch:0,speed:0,ph:rnd(0,6),wph:0,wp:[],stage:'seated',goal:false,delay:rnd(0,2000),sub:'deep',until:0,glow:1,chatWith:null,speaking:false,report:false,ret:false,reportT:0,spot:SPOTS[i]||SPOTS[4],
           night:false,nmode:null,bedTime:SLEEPT+(i*23)%35,wake:WAKE+(i*29)%50,lieA:0,preRouted:false,walkCd:0,dest:null,napUntil:0,bedInside:false,sleepX:0,sleepZ:0,sleepYaw:0,sleepLie:0,napWake:null,stX:0,stZ:0,stT:0}
         E.push(S)})
+      /* CEO index DINAMIS — dulu alur insiden melarik E[4] (index era 5
+         karyawan); setelah tim dirampingkan CEO ada di index 3 → E[4]=
+         undefined → begitu tombol Cepat/Lompat dipakai, loop 3D freeze
+         (Cannot read properties of undefined). Kini dicari otomatis. */
+      const CEO_I=E.findIndex(s=>s.cfg.ceo)
 
       /* ---------- bubble nama ---------- */
       const bv=new THREE.Vector3()
@@ -880,10 +924,10 @@ export default function KantorCeo3D() {
               if(Math.hypot(S.x-S.stX,S.z-S.stZ)<.06){if(!S.stT)S.stT=t;else if(t-S.stT>6&&S.wp.length){S.wp.shift();S.stT=0}}
               else S.stT=0
               S.stX=S.x;S.stZ=S.z}}}
-        else if(S.stage==='report'){sitT=0;pose='chat';S.chatWith=4
-          yawT=Math.atan2(E[4].x-S.x,E[4].z-S.z)
+        else if(S.stage==='report'){sitT=0;pose='chat';S.chatWith=CEO_I
+          yawT=Math.atan2(E[CEO_I].x-S.x,E[CEO_I].z-S.z)
           if(t>INC.endT){S.report=false;S.chatWith=null;S.ret=true;S.until=0;S.stage='rising'
-            E[4].chatWith=null;E[4].reportT=0;E[4].until=0
+            E[CEO_I].chatWith=null;E[CEO_I].reportT=0;E[CEO_I].until=0
             INC.active=false;INC.boostT=t+45;INC.next=C.min+rnd(140,260)
             showToast('Hotfix dikerjakan — CTO & tim mode serius')}}
         else if(S.stage==='sitting'){yawT=PI;S.x=dm(S.x,d[0],3,dt);S.z=dm(S.z,seatZ,3,dt);if(S.sit>.96&&Math.hypot(S.x-d[0],S.z-seatZ)<.03){S.stage='seated';S.arriving=false;S.until=0}}
@@ -983,20 +1027,20 @@ export default function KantorCeo3D() {
           showToast(b?' 11:00 — Jam istirahat: yang lapang jalan-jalan & ngopi dulu':'13:00 — Jam istirahat selesai — kembali ke meja')}
         const nightNow=isNight(C.min)
         if(nightNow!==C.wasNight){C.wasNight=nightNow
-          if(nightNow)showToast('22:00 — JAM TIDUR 🛏️ Tim berangkalan ke kamar masing-masing, lampu meredup')
+          if(nightNow)showToast('22:00 — JAM TIDUR 🛏️ Tim berangkalan ke kamar masing-masing · lampu malam tetap menyala')
           else showToast('07:00 — BANGUN! Rutinitas pagi, briefing jam 08:00')}
         if(!INC.active&&C.min>INC.next){
-          if(E[0].stage==='seated'&&E[4].stage==='seated'&&C.min>=WORKSTART&&C.min<SLEEPT-20){ /* insiden jam kerja saja — malam tim tidur */
+          if(E[0].stage==='seated'&&E[CEO_I].stage==='seated'&&C.min>=WORKSTART&&C.min<SLEEPT-20){ /* insiden jam kerja saja — malam tim tidur */
             INC.active=true;const R0=E[0]
             R0.report=true;R0.goal=false;R0.coffee=0;R0.until=1e9;R0.stage='rising'
-            E[4].reportT=t+19;E[4].until=1e9
+            E[CEO_I].reportT=t+19;E[CEO_I].until=1e9
             INC.endT=t+14
             showToast('Insiden live: bug checkout — CTO lapor ke CEO')}
           else INC.next=C.min+12}
         if(INC.active&&t>INC.endT+4){
           const R0=E[0]
           if(R0.report){R0.report=false;R0.chatWith=null;R0.until=0;R0.ret=true;R0.stage='rising'}
-          if(E[4].reportT){E[4].reportT=0;if(E[4].chatWith===0)E[4].chatWith=null;E[4].until=0}
+          if(E[CEO_I].reportT){E[CEO_I].reportT=0;if(E[CEO_I].chatWith===0)E[CEO_I].chatWith=null;E[CEO_I].until=0}
           INC.active=false;INC.boostT=t+45;INC.next=C.min+rnd(140,260)}
         if(PROJ.prog<100){let work=0
           E.forEach(S=>{if(S.stage==='seated'&&S.sub==='deep')work+=S.cfg.job===PHASE_JOB[PROJ.ph]?3:1})
@@ -1036,7 +1080,7 @@ export default function KantorCeo3D() {
         frame++})
 
       setLoaded(true)
-      setTimeout(()=>showToast('Kantor LIVE — 7 AI + CEO · jam kerja 08:00–22:00 · jam 22:00 jam tidur 🛏️'),1500)
+      setTimeout(()=>showToast('Kantor LIVE — CEO + 3 karyawan AI · jam kerja 08:00–22:00 · jam 22:00 jam tidur'),1500)
       const wibMin=wibNow()
       if(isNight(wibMin))
         setTimeout(()=>showToast(fmt(wibMin)+' WIB — tim lagi tidur di kamar masing-masing, bangun 07:00. Coba "Lompat 21:50" + Cepat 3× buat nonton jam tidur.'),4200)
