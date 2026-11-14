@@ -383,7 +383,7 @@ class Parser {
     return { t: 'funcdef', name, params, body, line }
   }
 
-  private parseIf(): Stmt {
+  private parseIf(): Extract<Stmt, { t: 'if' }> {
     const line = this.peek().line
     this.next() // if
     const branches: IfBranch[] = []
@@ -513,7 +513,8 @@ class Parser {
 
   private parseTernary(): Expr {
     const c = this.parseBinary(0)
-    const line = c.line
+    // Hanya varian Expr tertentu yang membawa `line?` (num/str/bool/na tidak).
+    const line = 'line' in c ? c.line : undefined
     if (this.isOp('?')) {
       this.pos++
       const a = this.parseTernary()

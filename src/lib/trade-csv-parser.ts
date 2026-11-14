@@ -410,7 +410,10 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
         /* Kolom jam close terpisah tanpa kolom tanggal close (jarang):
            gabungkan dgn tanggal open. */
         const parsed = joinDateTime(values[openSplit.dateIdx], values[closeSplit.timeIdx])
-        if (parsed && Date.parse(parsed) >= Date.parse(openTime || 0)) closeTime = parsed
+        /* Guard tipe+runtime: openTime bisa kosong ('') — jangan beri '0'
+           ke Date.parse (V8 menafsirkan "0" sbg ±tahun-2000). Tanpa
+           acuan open, ambang = -Infinity (perilaku lama: hampir selalu lolos). */
+        if (parsed && Date.parse(parsed) >= (openTime ? Date.parse(openTime) : -Infinity)) closeTime = parsed
       }
     }
     // Posisi terbuka tidak punya waktu close → samakan dgn open

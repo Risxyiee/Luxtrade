@@ -174,7 +174,9 @@ class Interp {
   private deadline: number
   private events: LuxEvent[] = []
   private plots = new Map<number, { title: string; values: number[] }>()
-  private callStates = new Map<number, CallState>()
+  // Store nyata berisi CallState (kunci seq >= 0) DAN EmaState telanjang
+  // (kunci turunan negatif utk rsi/supertrend/vwma/dll — lihat call-site).
+  private callStates = new Map<number, CallState | EmaState>()
   /** Hasil tuple call terakhir (ta.macd/ta.bb/ta.dmi/ta.supertrend). */
   private lastTuple: LuxValue[] | null = null
 
@@ -772,7 +774,7 @@ class Interp {
     return typeof v === 'string' ? v : isNa(v) ? def : String(v)
   }
 
-  private state<T extends CallState>(seq: number, make: () => T): T {
+  private state<T extends CallState | EmaState>(seq: number, make: () => T): T {
     let s = this.callStates.get(seq) as T | undefined
     if (!s) {
       s = make()
@@ -881,7 +883,7 @@ class Interp {
         return isNa(v)
       }
       case 'fixnan': {
-        const st = this.state(seq, () => ({ k: 'chg' as const, s: NA, has: false }))
+        const st = this.state(seq, () => ({ k: 'chg' as const, s: NA, has: false as boolean }))
         const v = toNum(this.arg(args, 0, bar))
         if (!Number.isNaN(v)) {
           st.s = v
@@ -924,7 +926,7 @@ class Interp {
         // call-site asli yang bernomor seq >= 0:
         const up = this.state(-(seq * 10 + 1), () => this.mkEma('rma', len))
         const dn = this.state(-(seq * 10 + 2), () => this.mkEma('rma', len))
-        const chg = this.state(-(seq * 10 + 3), () => ({ k: 'chg' as const, s: NA, has: false }))
+        const chg = this.state(-(seq * 10 + 3), () => ({ k: 'chg' as const, s: NA, has: false as boolean }))
         const prev = chg.has ? chg.s : NA
         chg.s = src
         chg.has = true
@@ -959,7 +961,7 @@ class Interp {
       case 'change':
       case 'ta.change': {
         const v = this.argNum(args, 0, bar)
-        const st = this.state(seq, () => ({ k: 'chg' as const, s: NA, has: false }))
+        const st = this.state(seq, () => ({ k: 'chg' as const, s: NA, has: false as boolean }))
         const prev = st.has ? st.s : NA
         st.s = v
         st.has = true
@@ -988,7 +990,7 @@ class Interp {
         const w1 = this.taRolling(-(seq * 10 + 1), src, Math.max(1, Math.round(len / 2)), 'wma')
         const w2 = this.taRolling(-(seq * 10 + 2), src, len, 'wma')
         const diff = 2 * w1 - w2
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(diff)) st.buf.push(diff)
         const k = Math.max(1, Math.round(Math.sqrt(len)))
         return st.buf.length >= k ? Interp.wmaOf(st.buf, st.buf.length - k, k) : NA
@@ -997,7 +999,7 @@ class Interp {
       case 'ta.mom': {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 10)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         const prev = st.buf.length >= len + 1 ? st.buf[st.buf.length - 1 - len] : NA
         if (Number.isFinite(src)) st.buf.push(src)
         return Number.isFinite(prev) ? src - prev : NA
@@ -1006,7 +1008,7 @@ class Interp {
       case 'ta.roc': {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 9)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         const prev = st.buf.length >= len + 1 ? st.buf[st.buf.length - 1 - len] : NA
         if (Number.isFinite(src)) st.buf.push(src)
         return Number.isFinite(prev) && prev !== 0 ? (100 * (src - prev)) / prev : NA
@@ -1035,7 +1037,7 @@ class Interp {
       case 'ta.cci': {
         const tp = (this.readSeries(this.high, bar, 0) + this.readSeries(this.low, bar, 0) + this.readSeries(this.close, bar, 0)) / 3
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 20)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(tp)) {
           st.buf.push(tp)
           if (st.buf.length > len) st.buf.shift()
@@ -1052,7 +1054,7 @@ class Interp {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 14)))
         const tp = Number.isFinite(src) ? src : (this.readSeries(this.high, bar, 0) + this.readSeries(this.low, bar, 0) + this.readSeries(this.close, bar, 0)) / 3
-        const st = this.state(seq, () => ({ k: 'chg' as const, s: NA, has: false }))
+        const st = this.state(seq, () => ({ k: 'chg' as const, s: NA, has: false as boolean }))
         const prevTp = st.has ? st.s : NA
         st.s = tp
         st.has = true
@@ -1068,7 +1070,7 @@ class Interp {
       }
       case 'obv':
       case 'ta.obv': {
-        const st = this.state(seq, () => ({ k: 'chg' as const, s: 0, has: false }))
+        const st = this.state(seq, () => ({ k: 'chg' as const, s: 0, has: false as boolean }))
         const c = this.readSeries(this.close, bar, 0)
         const pc = this.readSeries(this.close, bar, 1)
         if (!st.has || Number.isNaN(pc)) {
@@ -1082,7 +1084,7 @@ class Interp {
       case 'barssince':
       case 'ta.barssince': {
         const cond = toBool(this.arg(args, 0, bar))
-        const st = this.state(seq, () => ({ k: 'count' as const, n: 0, has: false }))
+        const st = this.state(seq, () => ({ k: 'count' as const, n: 0, has: false as boolean }))
         if (cond) {
           st.n = 0
           st.has = true
@@ -1096,7 +1098,7 @@ class Interp {
         const cond = toBool(this.arg(args, 0, bar))
         const src = this.argNum(args, 1, bar)
         const occ = Math.max(0, Math.round(this.argNum(args, 2, bar, 0)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (cond && Number.isFinite(src)) {
           st.buf.push(src)
           if (st.buf.length > 200) st.buf.shift()
@@ -1109,7 +1111,7 @@ class Interp {
       case 'ta.lowestbars': {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 14)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(src)) {
           st.buf.push(src)
           if (st.buf.length > len) st.buf.shift()
@@ -1128,7 +1130,7 @@ class Interp {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(2, Math.round(this.argNum(args, 1, bar, 20)))
         const offset = Math.round(this.argNum(args, 2, bar, 0))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(src)) {
           st.buf.push(src)
           if (st.buf.length > len) st.buf.shift()
@@ -1155,7 +1157,7 @@ class Interp {
       case 'ta.median': {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 20)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(src)) {
           st.buf.push(src)
           if (st.buf.length > len) st.buf.shift()
@@ -1192,7 +1194,7 @@ class Interp {
         const start = this.argNum(args, 0, bar, 0.02)
         const inc = this.argNum(args, 1, bar, 0.02)
         const maxAf = this.argNum(args, 2, bar, 0.2)
-        const st = this.state(seq, () => ({ k: 'sar' as const, trend: 1, ep: NA, af: start, cur: NA, started: false }))
+        const st = this.state(seq, () => ({ k: 'sar' as const, trend: 1, ep: NA, af: start, cur: NA, started: false as boolean }))
         const h = this.readSeries(this.high, bar, 0)
         const l = this.readSeries(this.low, bar, 0)
         const pc = this.readSeries(this.close, bar, 1)
@@ -1238,7 +1240,7 @@ class Interp {
       case 'ta.falling': {
         const src = this.argNum(args, 0, bar)
         const len = Math.max(1, Math.round(this.argNum(args, 1, bar, 1)))
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(src)) {
           st.buf.push(src)
           if (st.buf.length > len + 1) st.buf.shift()
@@ -1267,7 +1269,7 @@ class Interp {
           left = Math.max(1, Math.round(this.argNum(args, 0, bar)))
           right = Math.max(1, Math.round(this.argNum(args, 1, bar)))
         }
-        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] }))
+        const st = this.state(seq, () => ({ k: 'arr' as const, buf: [] as number[] }))
         if (Number.isFinite(src)) st.buf.push(src)
         const need = left + right + 1
         if (st.buf.length < need) return NA
@@ -1331,7 +1333,7 @@ class Interp {
           adx: { seeded: false, seedBuf: [], value: NA, alpha: 1 / adxLen, len: adxLen },
           prevH: NA,
           prevL: NA,
-          has: false,
+          has: false as boolean,
         }))
         const h = this.readSeries(this.high, bar, 0)
         const l = this.readSeries(this.low, bar, 0)
@@ -1364,7 +1366,7 @@ class Interp {
         const atrPeriod = Math.max(1, Math.round(this.argNum(args, 1, bar, 10)))
         const atrSt = this.state(-(seq * 10 + 1), () => this.mkEma('rma', atrPeriod))
         const atr = this.pushEma(atrSt, this.trueRange(bar))
-        const st = this.state(seq, () => ({ k: 'strend' as const, prevLower: NA, prevUpper: NA, prevSt: NA, prevDir: 1, has: false }))
+        const st = this.state(seq, () => ({ k: 'strend' as const, prevLower: NA, prevUpper: NA, prevSt: NA, prevDir: 1, has: false as boolean }))
         if (Number.isNaN(atr)) {
           this.lastTuple = [NA, NA]
           return NA
@@ -1690,7 +1692,7 @@ class Interp {
     len: number,
     mode: 'mean' | 'wma' | 'hi' | 'lo' | 'stdev'
   ): number {
-    const st = this.state(seq, () => ({ k: 'sma' as const, s: { buf: [], sum: 0 } }))
+    const st = this.state(seq, () => ({ k: 'sma' as const, s: { buf: [] as number[], sum: 0 } }))
     const buf = st.s.buf
     if (Number.isNaN(v)) return NA
     buf.push(v)
@@ -1721,7 +1723,7 @@ class Interp {
   }
 
   private taCross(seq: number, a: number, b: number, dir: 'up' | 'down' | 'any'): boolean {
-    const st = this.state(seq, () => ({ k: 'cross' as const, s: { prevA: NA, prevB: NA, has: false } }))
+    const st = this.state(seq, () => ({ k: 'cross' as const, s: { prevA: NA, prevB: NA, has: false as boolean } }))
     const prevA = st.s.has ? st.s.prevA : NA
     const prevB = st.s.has ? st.s.prevB : NA
     st.s.prevA = a
