@@ -83,3 +83,24 @@ Rp49.000 x 10 member = ? 💰 Itu komisi kamu BULAN INI aja. Jadi afiliator LuxT
 - Hook A = paling agresif (cocok uji awal). Kalau retensi 3 detik rendah, ganti ke hook C (angka) di video berikutnya.
 - Jangan ganti angka komisi tanpa konfirmasi (20% Pro berulang, 15% Lifetime — angka resmi).
 - Video jangan klaim "pasti untung" — framing-nya "komisi dari penjualan", bukan iming-iming investasi (aman dari review TikTok).
+
+---
+
+## B. VOICE-OVER (v2 — edge-tts id-ID-ArdiNeural, pria Indonesia)
+
+Audio per scene: `public/vo/vo*.wav` (24kHz mono, loudnorm -15 LUFS).
+Catatan: audio TikTok referensi (@ngorzc) berisi lagu, bukan suara — VO pakai voice Indonesia native.
+Untuk ganti ke suara sendiri: rekam per segmen dgn durasi di bawah, timpa file .wav, jalankan `bun run render`.
+
+| # | Waktu | Teks VO | Durasi |
+|---|-------|---------|--------|
+| vo1 | 0:00.3 | Punya skill trading emas... tapi cuma diem? | 2,0 dtk |
+| vo2 | 0:03.3 | Analisis bagus, konten keren... tapi dompet masih tipis? | 3,0 dtk |
+| vo3a | 0:06.1 | Kenalin, Luxtradee! | 1,6 dtk |
+| vo3b | 0:08.3 | Impor CSV, screenshot dibaca AI, dan deteksi pola kesalahanmu. | 4,1 dtk |
+| vo4 | 0:12.5 | Tiap member daftar lewat kodemu, kamu dapat komisi dua puluh persen. Berulang, bukan sekali! | 5,7 dtk |
+| vo5 | 0:18.2 | Khusus kreator TikTok: Free Pro tiga bulan. Gratis! | 3,8 dtk |
+| vo6 | 0:22.5 | Daftar, bagikan kode referral-mu, komisi mengalir. | 3,3 dtk |
+| vo7 | 0:26.1 | Buka luxtradee dot web dot I-D slash affiliate. Gas sekarang! | 4,1 dtk |
+
+Tips: musik trending ditambahkan lewat app TikTok saat posting (bukan di-burn ke video) — lebih aman hak cipta & algoritma.

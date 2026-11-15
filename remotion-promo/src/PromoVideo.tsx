@@ -1,5 +1,5 @@
 import React from 'react'
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion'
+import { AbsoluteFill, Audio, interpolate, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
 import { TransitionSeries, linearTiming } from '@remotion/transitions'
 import { slide } from '@remotion/transitions/slide'
 import { wipe } from '@remotion/transitions/wipe'
@@ -46,6 +46,10 @@ const { fontFamily } = loadFont('normal', { weights: ['400', '600', '700', '800'
 /* ═══ SCENE 1 — HOOK (100f) ════════════════════════════════════════ */
 const SceneHook: React.FC = () => (
   <AbsoluteFill>
+    {/* VO: "Punya skill trading emas... tapi cuma diem?" */}
+    <Sequence from={10}>
+      <Audio src={staticFile('vo/vo1.wav')} />
+    </Sequence>
     <CameraDrift zoomFrom={1.05} zoomTo={1.14} panY={-24}>
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 64 }}>
         <Float amp={8} phase={0.6}>
@@ -102,6 +106,10 @@ const SceneProblem: React.FC = () => {
   const fall = spring({ frame: frame - 64, fps, config: { damping: 20, stiffness: 60 } })
   return (
     <AbsoluteFill>
+      {/* VO: "Analisis bagus, konten keren... tapi dompet masih tipis?" */}
+      <Sequence from={12}>
+        <Audio src={staticFile('vo/vo2.wav')} />
+      </Sequence>
       <CameraDrift zoomFrom={1.02} zoomTo={1.1} panX={-18}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 46 }}>
           <FadeUp startFrame={5} fromLeft distance={70}>
@@ -161,6 +169,13 @@ const SceneBrand: React.FC = () => {
   const kamuPulse = 1 + 0.06 * Math.sin(frame * 0.15)
   return (
     <AbsoluteFill>
+      {/* VO: "Kenalin, Luxtradee!" + "Impor CSV, screenshot dibaca AI..." */}
+      <Sequence from={10}>
+        <Audio src={staticFile('vo/vo3a.wav')} />
+      </Sequence>
+      <Sequence from={76}>
+        <Audio src={staticFile('vo/vo3b.wav')} />
+      </Sequence>
       <CameraDrift zoomFrom={1.0} zoomTo={1.08} panY={-30}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 38 }}>
           <Float amp={9} speed={0.045}>
@@ -247,6 +262,10 @@ const SceneKomisi: React.FC = () => {
   const sx = shake(frame, 32, 10, 6)
   return (
     <AbsoluteFill>
+      {/* VO: "Tiap member daftar lewat kodemu, komisi 20%..." */}
+      <Sequence from={8}>
+        <Audio src={staticFile('vo/vo4.wav')} />
+      </Sequence>
       <CameraDrift zoomFrom={1.03} zoomTo={1.1} panY={20}>
         <CoinField count={8} startFrame={10} />
         <AbsoluteFill
@@ -304,6 +323,10 @@ const SceneFreePro: React.FC = () => {
   const sx = shake(frame, 100, 10, 7)
   return (
     <AbsoluteFill>
+      {/* VO: "Khusus kreator TikTok: Free Pro 3 bulan. Gratis!" */}
+      <Sequence from={16}>
+        <Audio src={staticFile('vo/vo5.wav')} />
+      </Sequence>
       <CameraDrift zoomFrom={1.02} zoomTo={1.1}>
         <Confetti startFrame={22} count={52} cy={46} power={1.35} />
         <AbsoluteFill
@@ -429,6 +452,10 @@ const SceneCara: React.FC = () => {
   const lineGrow = Math.min(1, Math.max(0, (frame - 18) / 60))
   return (
     <AbsoluteFill>
+      {/* VO: "Daftar, bagikan kode referral-mu, komisi mengalir." */}
+      <Sequence from={8}>
+        <Audio src={staticFile('vo/vo6.wav')} />
+      </Sequence>
       <CameraDrift zoomFrom={1.02} zoomTo={1.09} panX={14}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 54 }}>
           <FadeUp startFrame={0} distance={30}>
@@ -474,6 +501,10 @@ const SceneCta: React.FC = () => {
   })
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 46, opacity: endFade }}>
+      {/* VO: "Buka luxtradee.web.id/affiliate. Gas sekarang!" */}
+      <Sequence from={8}>
+        <Audio src={staticFile('vo/vo7.wav')} />
+      </Sequence>
       {/* orb glow pulsing */}
       <div
         style={{
