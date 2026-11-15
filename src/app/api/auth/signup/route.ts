@@ -4,6 +4,17 @@ import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { edgeCrypto } from '@/lib/edge-crypto'
+import { invalidateUserProCache } from '@/lib/pro-check'
+
+/* REFERRAL GANDA SISI (Tugas 2 strategi growth 18-11): user baru yang
+   daftar lewat kode referral afiliasi VALID langsung dapat Pro gratis
+   7 hari. Dulu afiliasi saja yang untung (komisi saat orang bayar) —
+   orang yang direkrut tidak dapat apa-apa → afiliasi susah menjual.
+   Kini kedua pihak untung SAAT PENDAFTARAN (model Dropbox): afiliasi
+   punya argumen jualan "daftar pakai kodeku, langsung Pro 7 hari".
+   Expiry ditangani cron downgrade-expired-pro yang sudah ada (baca
+   pro_expiry). Non-blocking: gagal bonus tidak menggagalkan signup. */
+const REFERRAL_PRO_BONUS_DAYS = 7
 
 function generateReferralCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -115,6 +126,7 @@ export async function POST(request: NextRequest) {
     // REFERRAL CODE VALIDATION (non-blocking)
     // ============================================
     let validatedReferralCode: string | null = null
+    let referrerAffiliateUserId: string | null = null
     if (referralCode && typeof referralCode === 'string' && referralCode.trim().length > 0) {
       const normalizedCode = referralCode.trim().toUpperCase()
       try {
@@ -130,6 +142,7 @@ export async function POST(request: NextRequest) {
         } else {
           console.log(`✅ [signup] Valid referral code "${normalizedCode}" from affiliate ${affiliate.user_id}`)
           validatedReferralCode = normalizedCode
+          referrerAffiliateUserId = (affiliate as any).user_id || null
         }
       } catch (refErr) {
         console.warn('[signup] Referral code validation failed (non-blocking):', refErr)
@@ -281,6 +294,69 @@ export async function POST(request: NextRequest) {
 
     const savedToken = profileResult.token
 
+    // ============================================
+    // Step 2.5: REFERRAL GANDA SISI — Pro 7 hari untuk user baru via
+    // kode afiliasi VALID. Pola identik promo/apply & webhook Midtrans:
+    // insert user_subscriptions + update profiles + sync auth metadata.
+    // Bonus HANYA utk kode yang terdaftar di tabel affiliates — random
+    // string tidak dapat. Kolom pro_expiry dibaca cron
+    // downgrade-expired-pro → otomatis turun ke FREE setelah 7 hari.
+    // ============================================
+    if (referrerAffiliateUserId && userId) {
+      try {
+        const nowIso = new Date().toISOString()
+        const bonusEnd = new Date(Date.now() + REFERRAL_PRO_BONUS_DAYS * 24 * 60 * 60 * 1000)
+        bonusEnd.setHours(23, 59, 59, 999)
+        const bonusEndIso = bonusEnd.toISOString()
+
+        const { error: bonusSubErr } = await admin.from('user_subscriptions').insert({
+          user_id: userId,
+          plan: 'PRO',
+          status: 'active',
+          start_date: nowIso,
+          end_date: bonusEndIso,
+          created_at: nowIso,
+          updated_at: nowIso,
+        })
+        if (bonusSubErr) throw new Error(`user_subscriptions: ${bonusSubErr.message}`)
+
+        const { error: bonusProfErr } = await admin.from('profiles').update({
+          plan: 'PRO',
+          is_pro: true,
+          subscription_status: 'active',
+          pro_status: 'active',
+          subscription_until: bonusEndIso,
+          pro_expiry: bonusEndIso,
+          has_ever_been_pro: true,
+          updated_at: nowIso,
+        }).eq('id', userId)
+        if (bonusProfErr) throw new Error(`profiles: ${bonusProfErr.message}`)
+
+        // PRO cache 60 dtk dibuang — user baru biasanya tidak ada cache,
+        // tapi murah dan menjamin akses PRO aktif seketika saat login.
+        invalidateUserProCache(userId)
+
+        try {
+          await authAdmin.updateUserById(userId, {
+            user_metadata: {
+              ...(userData?.user?.user_metadata || {}),
+              is_pro: true,
+              subscription_status: 'active',
+              subscription_until: bonusEndIso,
+              has_ever_been_pro: true,
+              updated_at: nowIso,
+            },
+          })
+        } catch (bonusMetaErr: any) {
+          console.warn('[signup] Bonus auth metadata sync failed (non-critical):', bonusMetaErr?.message?.slice(0, 80))
+        }
+
+        console.log(`🎁 [signup] Referral bonus: ${REFERRAL_PRO_BONUS_DAYS} hari Pro untuk user baru dari afiliasi ${referrerAffiliateUserId} (berlaku s/d ${bonusEndIso})`)
+      } catch (bonusErr: any) {
+        console.warn('[signup] Referral Pro bonus gagal (non-blocking, signup lanjut):', bonusErr?.message?.slice(0, 100))
+      }
+    }
+
     // Also store token in Supabase user metadata as backup for verify-email fallback
     try {
       await authAdmin.updateUserById(userId, {
@@ -321,7 +397,9 @@ export async function POST(request: NextRequest) {
       success: true,
       profileCreated: profileResult.success,
       message: emailSent
-        ? 'Akun berhasil dibuat! Cek email untuk verifikasi.'
+        ? validatedReferralCode
+          ? `Akun berhasil dibuat! Cek email untuk verifikasi. Bonus ${REFERRAL_PRO_BONUS_DAYS} hari Pro dari kode referral ${validatedReferralCode} aktif setelah verifikasi.`
+          : 'Akun berhasil dibuat! Cek email untuk verifikasi.'
         : 'Akun berhasil dibuat, tapi gagal mengirim email verifikasi.',
       user: { id: userId, email: emailLower },
       emailSent

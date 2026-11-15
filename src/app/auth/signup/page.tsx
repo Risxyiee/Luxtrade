@@ -630,6 +630,10 @@ function SignUpForm() {
                 icon={Tag}
                 mono
               />
+              <p className="mt-1.5 text-[11px] text-amber-400/80">
+                Kode referral teman kamu? Masukkan di sini — kamu langsung dapat{' '}
+                <strong>Pro gratis 7 hari</strong> setelah verifikasi email.
+              </p>
             </div>
 
             {/* Terms Checkbox */}
