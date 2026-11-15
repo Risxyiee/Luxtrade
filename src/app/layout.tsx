@@ -24,10 +24,20 @@ const inter = Inter({
   display: "swap",
 });
 
+/* FIX AUDIT SEO (2026-11-12): dulu title default 91 char & description 234
+   char — melebihi batas SERP Google (title ideal 25–65, desc 70–170) dan
+   DIWARISI SEMUA halaman publik → title kembar di seluruh situs.
+   Kini: default pendek (52 char) + TEMPLATE '%s | LuxTradee' — halaman
+   yang menaruh title sendiri otomatis dapat suffix brand. Metadata unik
+   per halaman publik hidup di layout rute masing-masing (page-nya 'use
+   client', metadata hanya bisa dari Server Component). */
 export const metadata: Metadata = {
   metadataBase: new URL('https://luxtradee.web.id'),
-  title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
-  description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Equity curve, analisis psikologi trading, risk calculator. Jurnal unlimited gratis selamanya.",
+  title: {
+    default: 'LuxTradee — Jurnal Trading AI untuk Trader Indonesia',
+    template: '%s | LuxTradee',
+  },
+  description: 'Jurnal trading AI untuk trader Indonesia: impor CSV MT4/MT5, screenshot auto-dibaca AI, deteksi pola kesalahan, equity curve & analisis psikologi. Gratis dimulai.',
   keywords: ["trading journal", "jurnal trading", "trading journal Indonesia", "AI trading journal", "jurnal trading AI", "catat trade", "analisis trading", "forex journal", "jurnal forex", "equity curve", "deteksi kesalahan trading", "trading psikologi", "risk calculator forex", "MT4 journal", "MT5 journal", "luxtrade"],
   authors: [{ name: "LuxTradee" }],
   manifest: '/manifest.webmanifest',
@@ -52,17 +62,17 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
-    description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Jurnal unlimited gratis selamanya.",
+    title: "LuxTradee — Jurnal Trading AI untuk Trader Indonesia",
+    description: "Jurnal trading AI untuk trader Indonesia: impor CSV MT4/MT5, screenshot auto-dibaca AI, deteksi pola kesalahan, equity curve & analisis psikologi. Gratis dimulai.",
     type: "website",
     siteName: "LuxTradee",
     locale: "id_ID",
-    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "LuxTradee - AI Trading Journal Indonesia" }],
+    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "LuxTradee — Jurnal Trading AI untuk Trader Indonesia" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "LuxTradee - AI Trading Journal Indonesia",
-    description: "Trading journal dengan AI untuk trader Indonesia. Catat trade, deteksi kesalahan, naikkan win rate.",
+    title: "LuxTradee — Jurnal Trading AI untuk Trader Indonesia",
+    description: "Jurnal trading AI: impor CSV MT4/MT5, deteksi pola kesalahan, naikkan win rate. Gratis dimulai.",
     images: ["/logo.png"],
   },
 };
