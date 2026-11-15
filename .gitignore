@@ -174,3 +174,6 @@ remotion-video/.remotion/
 # wrangler.toml dua kali bikin insiden (name salah 'luxtrade', kurang binding
 # SELF/flagship, cron kurang) karena ketemu bareng jsonc → deploy ambigu.
 /wrangler.toml
+
+# remotion promo video build output
+remotion-promo/out
