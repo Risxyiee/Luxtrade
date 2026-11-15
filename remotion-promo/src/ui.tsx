@@ -9,18 +9,21 @@ import {
 } from 'remotion'
 
 /**
- * HELPER VISUAL v2 — promo LuxTradee (penuh gerakan, anti-kaku).
+ * HELPER VISUAL v3 — BLUE EDITION (skema warna biru sesuai website Luxtradee).
  * Prinsip: SEMUA elemen punya idle motion (float/sway/pulse) + entrance spring
  * dgn overshoot + partikel & kamera drift. Deterministik (pakai random(seed)).
- * Palet: bg #050507, aksen gold #f59e0b, emerald profit, merah punchline.
+ * Palet: bg navy #050b16, biru brand #3b82f6, cyan #22d3ee, emerald profit, merah punchline.
  */
 
 export const COLORS = {
-  bg: '#050507',
-  gold: '#f59e0b',
-  goldLight: '#fbbf24',
-  white: '#ffffff',
-  muted: 'rgba(255,255,255,0.62)',
+  bg: '#050b16',
+  blue: '#3b82f6',
+  blueDeep: '#2563eb',
+  blueLight: '#60a5fa',
+  blueSoft: '#93c5fd',
+  cyan: '#22d3ee',
+  white: '#f8fafc',
+  muted: 'rgba(226,232,240,0.62)',
   red: '#ef4444',
   emerald: '#10b981',
 }
@@ -56,53 +59,53 @@ export const CameraDrift: React.FC<{
   zoomTo?: number
   panX?: number
   panY?: number
-}> = ({ children, zoomFrom = 1.05, zoomTo = 1.13, panX = 0, panY = 0 }) => {
+}> = ({ children, zoomFrom = 1.0, zoomTo = 1.08, panX = 0, panY = 0 }) => {
   const frame = useCurrentFrame()
   const { durationInFrames } = useVideoConfig()
-  const t = Math.min(1, frame / Math.max(1, durationInFrames))
-  const z = zoomFrom + (zoomTo - zoomFrom) * t
+  const t = interpolate(frame, [0, durationInFrames], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  })
+  const zoom = zoomFrom + (zoomTo - zoomFrom) * t
+  const x = panX * t
+  const y = panY * t
   return (
-    <AbsoluteFill
-      style={{ transform: `scale(${z}) translate(${panX * t}px, ${panY * t}px)` }}
-    >
+    <AbsoluteFill style={{ transform: `scale(${zoom}) translate(${x}px, ${y}px)` }}>
       {children}
     </AbsoluteFill>
   )
 }
 
-/* ═══ GOLD PARTICLES — debu emas naik terus (global) ═══════════════ */
-export const GoldParticles: React.FC<{ count?: number; opacity?: number }> = ({
-  count = 34,
-  opacity = 1,
-}) => {
+/* ═══ BLUE PARTICLES — debu biru/cyan berkilau naik ════════════════ */
+export const BlueParticles: React.FC<{ count?: number }> = ({ count = 34 }) => {
   const frame = useCurrentFrame()
-  const { durationInFrames } = useVideoConfig()
+  const { height } = useVideoConfig()
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', opacity }}>
-      {new Array(count).fill(0).map((_, i) => {
-        const seed = `gp-${i}`
-        const x = random(`x-${seed}`) * 100
-        const speed = 0.6 + random(`s-${seed}`) * 1.4
-        const size = 3 + random(`z-${seed}`) * 7
-        const phase = random(`p-${seed}`) * 1000
-        const tw = 0.04 + random(`t-${seed}`) * 0.08
-        const cycle = durationInFrames * speed * 0.05 + 30
-        const y = 110 - (((frame * speed * 0.35 + phase) % (cycle * 2)) / (cycle * 2)) * 130
-        const sway = Math.sin(frame * tw + phase) * 2.2
-        const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(frame * tw * 3 + phase))
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      {new Array(count).fill(true).map((_, i) => {
+        const seed = i * 17.3
+        const x = random(`x-${seed}`) * 1080
+        const speed = 0.5 + random(`s-${seed}`) * 1.1
+        const drift = Math.sin(frame * 0.03 + random(`d-${seed}`) * 8) * 26
+        const size = 3 + random(`z-${seed}`) * 6
+        const cycle = height + 160
+        const y = height + 80 - ((frame * speed + random(`y-${seed}`) * cycle) % cycle)
+        const tw =
+          0.35 + 0.65 * Math.abs(Math.sin(frame * 0.09 + random(`t-${seed}`) * 10))
+        const isCyan = random(`c-${seed}`) > 0.55
         return (
           <div
             key={i}
             style={{
               position: 'absolute',
-              left: `${x + sway}%`,
-              top: `${y}%`,
+              left: x + drift,
+              top: y,
               width: size,
               height: size,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, #fde68a 0%, #f59e0b 70%)',
-              boxShadow: '0 0 12px rgba(245,158,11,0.8)',
-              opacity: twinkle * 0.75,
+              background: isCyan ? COLORS.cyan : COLORS.blueLight,
+              boxShadow: `0 0 ${size * 2.4}px ${isCyan ? 'rgba(34,211,238,0.75)' : 'rgba(96,165,250,0.7)'}`,
+              opacity: tw * 0.75,
             }}
           />
         )
@@ -111,45 +114,314 @@ export const GoldParticles: React.FC<{ count?: number; opacity?: number }> = ({
   )
 }
 
-/* ═══ COIN FIELD — koin emas $ melayang naik ═══════════════════════ */
+/* alias utk kompatibilitas lama */
+export const GoldParticles = BlueParticles
+
+/* ═══ PROMO BACKGROUND — orb biru/cyan bergerak ════════════════════ */
+export const PromoBackground: React.FC = () => {
+  const frame = useCurrentFrame()
+  const ox = Math.sin(frame * 0.011) * 90
+  const oy = Math.cos(frame * 0.009) * 70
+  const cx = Math.cos(frame * 0.013 + 2) * 110
+  const cy = Math.sin(frame * 0.01 + 1) * 80
+  return (
+    <AbsoluteFill style={{ background: COLORS.bg }}>
+      <div
+        style={{
+          position: 'absolute',
+          width: 1250,
+          height: 1250,
+          left: -260 + ox,
+          top: -320 + oy,
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, rgba(59,130,246,0.17) 0%, rgba(37,99,235,0.06) 45%, transparent 70%)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          width: 1000,
+          height: 1000,
+          right: -220 + cx,
+          bottom: -260 + cy,
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, rgba(34,211,238,0.12) 0%, rgba(6,182,212,0.05) 45%, transparent 70%)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          width: 700,
+          height: 700,
+          left: 190,
+          top: 620 + oy * 0.6,
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, rgba(96,165,250,0.09) 0%, transparent 65%)',
+        }}
+      />
+    </AbsoluteFill>
+  )
+}
+
+/* ═══ VIGNETTE — gelap di tepi biar fokus ke tengah ════════════════ */
+export const Vignette: React.FC = () => (
+  <AbsoluteFill
+    style={{
+      background:
+        'radial-gradient(ellipse 78% 66% at 50% 46%, transparent 55%, rgba(2,6,14,0.55) 100%)',
+      pointerEvents: 'none',
+    }}
+  />
+)
+
+/* ═══ TICKER STRIP — harga XAUUSD berjalan (dekorasi) ══════════════ */
+export const TickerStrip: React.FC<{ top?: number; bottom?: number; speed?: number }> = ({
+  top,
+  bottom,
+  speed = 1.6,
+}) => {
+  const frame = useCurrentFrame()
+  const items = [
+    'XAUUSD 2 391.45',
+    '+0.84%',
+    'BREAKOUT H1',
+    'TP HIT +$124.50',
+    'GOLD RUN 2 388.20',
+    '-0.12%',
+    'JURNAL TERCATAT',
+    'STREAK 14 HARI',
+  ]
+  const text = items.join('   •   ') + '   •   '
+  const w = text.length * 17
+  const x = -((frame * speed) % w)
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: top !== undefined ? top : undefined,
+        bottom: bottom !== undefined ? bottom : undefined,
+        left: 0,
+        right: 0,
+        height: 44,
+        overflow: 'hidden',
+        opacity: 0.1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-block',
+          transform: `translateX(${x}px)`,
+          fontSize: 26,
+          fontWeight: 700,
+          letterSpacing: '0.14em',
+          color: COLORS.blueLight,
+        }}
+      >
+        {text + text}
+      </div>
+    </div>
+  )
+}
+
+/* ═══ VOICE BARS — equalizer menari (mengikuti greeting VO) ════════ */
+export const VoiceBars: React.FC<{
+  startFrame?: number
+  barCount?: number
+  barWidth?: number
+  maxHeight?: number
+  talkStart?: number
+  talkEnd?: number
+}> = ({ startFrame = 0, barCount = 15, barWidth = 26, maxHeight = 260, talkStart = 0, talkEnd = 76 }) => {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  const entrance = spring({ frame: frame - startFrame, fps, config: { damping: 14, stiffness: 150 } })
+  /* intensitas: besar saat "bicara", idle pelan setelahnya */
+  const talking = frame >= talkStart && frame <= talkEnd
+  const energy = talking ? 1 : 0.24 + 0.1 * Math.sin(frame * 0.05)
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: barWidth * 0.62,
+        height: maxHeight,
+        opacity: Math.min(1, entrance * 1.5),
+        transform: `scale(${0.6 + entrance * 0.4})`,
+      }}
+    >
+      {new Array(barCount).fill(true).map((_, i) => {
+        const seed = i * 13.7
+        const p1 = random(`p1-${seed}`) * 10
+        const p2 = random(`p2-${seed}`) * 10
+        const w1 = 0.14 + random(`w1-${seed}`) * 0.1
+        const w2 = 0.31 + random(`w2-${seed}`) * 0.12
+        const wave =
+          (Math.sin(frame * w1 + p1) * 0.62 + Math.sin(frame * w2 + p2) * 0.38 + 1) / 2
+        const h = (26 + wave * (maxHeight - 26)) * energy * (0.55 + 0.45 * entrance)
+        const isMid = Math.abs(i - (barCount - 1) / 2) < 2
+        return (
+          <div
+            key={i}
+            style={{
+              width: barWidth,
+              height: Math.max(10, h),
+              borderRadius: barWidth,
+              background: isMid
+                ? `linear-gradient(180deg, ${COLORS.cyan}, ${COLORS.blue})`
+                : `linear-gradient(180deg, ${COLORS.blueLight}, ${COLORS.blueDeep})`,
+              boxShadow: `0 0 ${16 + wave * 22}px rgba(59,130,246,${0.35 + wave * 0.4})`,
+              opacity: 0.9,
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+/* ═══ RING PULSE — gelombang suara memuai dari tengah ══════════════ */
+export const RingPulse: React.FC<{ startFrame?: number; cycles?: number }> = ({
+  startFrame = 0,
+  cycles = 3,
+}) => {
+  const frame = useCurrentFrame()
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', pointerEvents: 'none' }}>
+      {new Array(cycles).fill(true).map((_, i) => {
+        const local = frame - startFrame - i * 11
+        if (local < 0) return null
+        const t = (local % 46) / 46
+        const scale = 0.7 + t * 1.9
+        const opacity = (1 - t) * 0.4
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              width: 640,
+              height: 640,
+              borderRadius: '50%',
+              border: `3px solid ${i % 2 === 0 ? COLORS.blue : COLORS.cyan}`,
+              transform: `scale(${scale})`,
+              opacity,
+              boxShadow: `0 0 40px rgba(59,130,246,${opacity * 0.5})`,
+            }}
+          />
+        )
+      })}
+    </AbsoluteFill>
+  )
+}
+
+/* ═══ COIN ORB — bola dolar biru menyala (versi biru dr koin emas) ═ */
+export const CoinOrb: React.FC<{ size?: number }> = ({ size = 110 }) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      background:
+        'radial-gradient(circle at 35% 30%, #bfdbfe 0%, #3b82f6 52%, #1d4ed8 100%)',
+      border: `${Math.max(3, size * 0.045)}px solid #93c5fd`,
+      boxShadow: '0 0 34px rgba(59,130,246,0.55), inset 0 0 18px rgba(255,255,255,0.25)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: size * 0.48,
+      fontWeight: 900,
+      color: '#eff6ff',
+      textShadow: '0 0 12px rgba(255,255,255,0.7)',
+    }}
+  >
+    $
+  </div>
+)
+
+/* stub lama → orb biru */
+export const CoinStub: React.FC<{ size?: number }> = ({ size = 110 }) => <CoinOrb size={size} />
+
+/* ═══ COIN FIELD — orb $ melayang naik terus ═══════════════════════ */
 export const CoinField: React.FC<{ count?: number; startFrame?: number }> = ({
+  count = 8,
+  startFrame = 0,
+}) => {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      {new Array(count).fill(true).map((_, i) => {
+        const seed = i * 29.1
+        const x = 80 + random(`fx-${seed}`) * 900
+        const speed = 1.3 + random(`fs-${seed}`) * 1.2
+        const size = 54 + random(`fz-${seed}`) * 60
+        const cycle = 2200 / speed
+        const progress = ((frame - startFrame) * speed + random(`fp-${seed}`) * cycle) % cycle
+        const y = 2050 - progress
+        const appear = spring({
+          frame: frame - startFrame - i * 5,
+          fps,
+          config: { damping: 14, stiffness: 120 },
+        })
+        const sway = Math.sin(frame * 0.045 + random(`fw-${seed}`) * 9) * 34
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: x + sway,
+              top: y,
+              opacity: appear * 0.5 * Math.min(1, progress / 60) * Math.min(1, (cycle - progress) / 40),
+              transform: `scale(${0.75 + appear * 0.25}) rotate(${Math.sin(frame * 0.05 + seed) * 10}deg)`,
+            }}
+          >
+            <CoinOrb size={size} />
+          </div>
+        )
+      })}
+    </AbsoluteFill>
+  )
+}
+
+/* ═══ SPARKLES — bintang kecil berkedip ════════════════════════════ */
+export const Sparkles: React.FC<{ count?: number; startFrame?: number }> = ({
   count = 8,
   startFrame = 0,
 }) => {
   const frame = useCurrentFrame()
   return (
     <AbsoluteFill style={{ pointerEvents: 'none' }}>
-      {new Array(count).fill(0).map((_, i) => {
-        const seed = `coin-${i}`
-        const x = 6 + random(`x-${seed}`) * 88
-        const speed = 0.9 + random(`s-${seed}`) * 1.3
-        const size = 54 + random(`z-${seed}`) * 66
-        const phase = random(`p-${seed}`) * 100
-        const local = frame - startFrame
-        const cycle = 120
-        const p = (((local * speed * 0.6 + phase) % cycle) + cycle) % cycle
-        const y = 105 - (p / cycle) * 125
-        const sway = Math.sin(frame * 0.05 + phase) * 3
-        const wobble = Math.sin(frame * 0.08 + phase) * 14
-        const fadeIn = interpolate(p, [0, 8], [0, 1], {
-          extrapolateLeft: 'clamp',
-          extrapolateRight: 'clamp',
-        })
-        const fadeOut = interpolate(p, [cycle - 14, cycle], [1, 0], {
-          extrapolateLeft: 'clamp',
-          extrapolateRight: 'clamp',
-        })
+      {new Array(count).fill(true).map((_, i) => {
+        const seed = i * 41.7
+        const x = random(`sx-${seed}`) * 1010 + 35
+        const y = random(`sy-${seed}`) * 1780 + 70
+        const period = 42 + random(`sp-${seed}`) * 40
+        const local = (frame - startFrame + random(`so-${seed}`) * period + period) % period
+        const tw = local < 3 ? local / 3 : local > period - 8 ? (period - local) / 8 : 1
+        const size = 10 + random(`ss-${seed}`) * 16
+        const rot = frame * 0.6 + random(`sr-${seed}`) * 180
+        const col = random(`sc-${seed}`) > 0.5 ? COLORS.cyan : COLORS.white
         return (
           <div
             key={i}
             style={{
               position: 'absolute',
-              left: `${x + sway}%`,
-              top: `${y}%`,
-              opacity: fadeIn * fadeOut * 0.9,
+              left: x,
+              top: y,
+              opacity: Math.max(0, tw) * 0.85,
+              transform: `rotate(${rot}deg) scale(${0.6 + tw * 0.4})`,
+              fontSize: size,
+              color: col,
+              textShadow: `0 0 14px ${col}`,
+              fontWeight: 900,
+              lineHeight: 1,
             }}
           >
-            <Coin size={size} rotate={wobble} />
+            +
           </div>
         )
       })}
@@ -157,246 +429,23 @@ export const CoinField: React.FC<{ count?: number; startFrame?: number }> = ({
   )
 }
 
-/* ═══ COIN — koin emas tunggal ═════════════════════════════════════ */
-export const Coin: React.FC<{ size?: number; rotate?: number }> = ({ size = 70, rotate = 0 }) => (
-  <div
-    style={{
-      width: size,
-      height: size,
-      borderRadius: '50%',
-      background: 'radial-gradient(circle at 35% 30%, #fde68a 0%, #f59e0b 55%, #b45309 100%)',
-      border: `${Math.max(2, size * 0.05)}px solid #fcd34d`,
-      boxShadow:
-        'inset 0 -4px 8px rgba(120,53,15,0.6), 0 0 26px rgba(245,158,11,0.55), 0 6px 0 rgba(120,53,15,0.55)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transform: `rotate(${rotate}deg)`,
-    }}
-  >
-    <span
-      style={{
-        fontSize: size * 0.5,
-        fontWeight: 900,
-        color: '#78350f',
-        textShadow: '0 1px 0 #fde68a',
-      }}
-    >
-      $
-    </span>
-  </div>
-)
+/* ═══ FLASH — kilatan layar saat punchline ═════════════════════════ */
+export const Flash: React.FC<{ startFrame: number; color: string; max?: number }> = ({
+  startFrame,
+  color,
+  max = 0.24,
+}) => {
+  const frame = useCurrentFrame()
+  const o = frame < startFrame ? 0 : Math.max(0, max - (frame - startFrame) * (max / 7))
+  return <AbsoluteFill style={{ background: `rgba(${color},${o})`, pointerEvents: 'none' }} />
+}
 
-/* ═══ SPARKLES — bintang kelap-kelip ═══════════════════════════════ */
-export const Sparkles: React.FC<{ count?: number; startFrame?: number; spread?: number }> = ({
-  count = 10,
+/* ═══ WORD REVEAL — kata muncul satu per satu (spring + blur) ══════ */
+export const WordReveal: React.FC<{ text: string; startFrame?: number; size?: number }> = ({
+  text,
   startFrame = 0,
-  spread = 100,
+  size = 84,
 }) => {
-  const frame = useCurrentFrame()
-  const local = frame - startFrame
-  if (local < 0) return null
-  return (
-    <AbsoluteFill style={{ pointerEvents: 'none' }}>
-      {new Array(count).fill(0).map((_, i) => {
-        const seed = `sp-${i}`
-        const x = 8 + random(`x-${seed}`) * (spread < 100 ? spread : 84)
-        const y = 8 + random(`y-${seed}`) * 78
-        const size = 14 + random(`z-${seed}`) * 22
-        const phase = random(`p-${seed}`) * 10
-        const tw = 0.09 + random(`t-${seed}`) * 0.06
-        const appear = interpolate(local, [i * 2, i * 2 + 10], [0, 1], {
-          extrapolateLeft: 'clamp',
-          extrapolateRight: 'clamp',
-        })
-        const pulse = 0.5 + 0.5 * Math.sin(local * tw * 2 + phase)
-        const rot = local * 0.6 + phase * 40
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: `${x}%`,
-              top: `${y}%`,
-              opacity: appear * (0.25 + pulse * 0.75),
-              transform: `scale(${0.6 + pulse * 0.5}) rotate(${rot}deg)`,
-            }}
-          >
-            <StarIcon size={size} color={i % 3 === 0 ? COLORS.white : COLORS.goldLight} />
-          </div>
-        )
-      })}
-    </AbsoluteFill>
-  )
-}
-
-/* ═══ StarIcon — bintang 4 sudut ═══════════════════════════════════ */
-export const StarIcon: React.FC<{ size?: number; color?: string }> = ({
-  size = 20,
-  color = COLORS.goldLight,
-}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <path d="M12 0 L14.6 9.4 L24 12 L14.6 14.6 L12 24 L9.4 14.6 L0 12 L9.4 9.4 Z" />
-  </svg>
-)
-
-/* ═══ CONFETTI — ledakan potongan kertas (fisika sederhana) ════════ */
-const CONFETTI_COLORS = ['#fbbf24', '#f59e0b', '#ffffff', '#10b981', '#fde68a']
-export const Confetti: React.FC<{
-  startFrame: number
-  count?: number
-  cx?: number
-  cy?: number
-  power?: number
-}> = ({ startFrame, count = 42, cx = 50, cy = 42, power = 1 }) => {
-  const frame = useCurrentFrame()
-  const local = frame - startFrame
-  if (local < 0) return null
-  const dur = 62
-  return (
-    <AbsoluteFill style={{ pointerEvents: 'none' }}>
-      {new Array(count).fill(0).map((_, i) => {
-        const seed = `cf-${i}`
-        const angle = -Math.PI / 2 + (random(`a-${seed}`) - 0.5) * Math.PI * 1.5
-        const v = (9 + random(`v-${seed}`) * 16) * power
-        const vx = Math.cos(angle) * v
-        const vy = Math.sin(angle) * v
-        const p = Math.min(1, local / dur)
-        const x = cx + vx * p * 1.35
-        const y = cy + vy * p * 1.35 + 55 * p * p
-        const spin = (random(`r-${seed}`) - 0.5) * 900 * p
-        const size = 9 + random(`z-${seed}`) * 13
-        const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length]
-        const isCircle = i % 4 === 0
-        const fade = p < 0.5 ? 1 : 1 - (p - 0.5) / 0.35
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: `${x}%`,
-              top: `${y}%`,
-              width: size,
-              height: isCircle ? size : size * 1.7,
-              borderRadius: isCircle ? '50%' : 3,
-              background: color,
-              opacity: Math.min(1, local / 2.5) * Math.max(0, fade),
-              transform: `rotate(${spin}deg)`,
-              boxShadow: `0 0 10px ${color}55`,
-            }}
-          />
-        )
-      })}
-    </AbsoluteFill>
-  )
-}
-
-/* ═══ FLASH — kilatan radial singkat ═══════════════════════════════ */
-export const Flash: React.FC<{
-  startFrame: number
-  dur?: number
-  color?: string
-  max?: number
-}> = ({ startFrame, dur = 9, color = '255,255,255', max = 0.32 }) => {
-  const frame = useCurrentFrame()
-  const local = frame - startFrame
-  if (local < 0 || local > dur) return null
-  const o = max * (1 - local / dur)
-  return (
-    <AbsoluteFill
-      style={{
-        background: `radial-gradient(circle at 50% 50%, rgba(${color},${o}) 0%, transparent 70%)`,
-      }}
-    />
-  )
-}
-
-/* ═══ TICKER STRIP — jalur harga XAUUSD berjalan (dekor) ═══════════ */
-export const TickerStrip: React.FC<{ top?: number; bottom?: number; speed?: number }> = ({
-  top,
-  bottom,
-  speed = 2.4,
-}) => {
-  const frame = useCurrentFrame()
-  const unit = 'XAU/USD 2,034.50  +0.82%   •   JOURNAL. ANALYZE. PROFIT.   •   '
-  const text = unit.repeat(6)
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top,
-        bottom,
-        left: 0,
-        right: 0,
-        overflow: 'hidden',
-        whiteSpace: 'nowrap',
-        opacity: 0.09,
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        style={{
-          display: 'inline-block',
-          fontSize: 34,
-          fontWeight: 700,
-          letterSpacing: '0.14em',
-          color: COLORS.goldLight,
-          transform: `translateX(-${(frame * speed) % 1900}px)`,
-        }}
-      >
-        {text}
-      </div>
-      <div
-        style={{
-          display: 'inline-block',
-          fontSize: 34,
-          fontWeight: 700,
-          letterSpacing: '0.14em',
-          color: COLORS.goldLight,
-          transform: `translateX(-${(frame * speed) % 1900}px)`,
-        }}
-      >
-        {text}
-      </div>
-    </div>
-  )
-}
-
-/* ═══ BACKGROUND — orb cahaya bergerak + gradient ══════════════════ */
-export const PromoBackground: React.FC = () => {
-  const frame = useCurrentFrame()
-  const { durationInFrames } = useVideoConfig()
-  const t = frame / durationInFrames
-  return (
-    <AbsoluteFill
-      style={{
-        background: `radial-gradient(1200px 800px at ${22 + 12 * Math.sin(t * 5)}% ${16 + 9 * Math.cos(t * 4)}, rgba(245,158,11,0.16), transparent 60%),
-                     radial-gradient(1000px 900px at ${78 + 10 * Math.cos(t * 4)}% ${84 + 8 * Math.sin(t * 6)}, rgba(245,158,11,0.10), transparent 55%),
-                     radial-gradient(900px 700px at ${50 + 14 * Math.sin(t * 3)}% ${55 + 12 * Math.cos(t * 5)}, rgba(16,185,129,0.05), transparent 60%),
-                     linear-gradient(180deg, #0a0a0f 0%, #050507 100%)`,
-      }}
-    />
-  )
-}
-
-export const Vignette: React.FC = () => (
-  <AbsoluteFill
-    style={{
-      background:
-        'radial-gradient(120% 100% at 50% 45%, transparent 55%, rgba(0,0,0,0.55) 100%)',
-    }}
-  />
-)
-
-/* ═══ WORD REVEAL v2 — kata spring + rotasi + idle float ═══════════ */
-export const WordReveal: React.FC<{
-  text: string
-  startFrame: number
-  size?: number
-  color?: string
-  weight?: number
-  stagger?: number
-}> = ({ text, startFrame, size = 92, color = COLORS.white, weight = 800, stagger = 5 }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const words = text.split(' ')
@@ -406,34 +455,25 @@ export const WordReveal: React.FC<{
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'center',
-        gap: '4px 24px',
-        fontSize: size,
-        fontWeight: weight,
-        lineHeight: 1.15,
-        color,
-        textTransform: 'uppercase',
-        letterSpacing: '-0.02em',
-        maxWidth: '92%',
-        textAlign: 'center',
+        gap: `0 ${size * 0.28}px`,
+        rowGap: size * 0.18,
+        maxWidth: 940,
       }}
     >
       {words.map((w, i) => {
-        const s = spring({
-          frame: frame - (startFrame + i * stagger),
-          fps,
-          config: { damping: 12, stiffness: 190, mass: 0.7 },
-        })
-        const dir = i % 2 === 0 ? 1 : -1
-        const idleY = Math.sin(frame * 0.05 + i * 1.4) * 6
-        const idleR = Math.sin(frame * 0.04 + i * 1.1) * 1.3
+        const s = spring({ frame: frame - startFrame - i * 5, fps, config: { damping: 13, stiffness: 170 } })
         return (
           <span
-            key={`${w}-${i}`}
+            key={i}
             style={{
               display: 'inline-block',
-              opacity: Math.min(1, s * 1.6),
-              transform: `translateY(${(1 - s) * 80 + idleY}px) rotate(${dir * 9 * (1 - s) + idleR}deg) scale(${0.72 + s * 0.28})`,
-              filter: `blur(${(1 - s) * 6}px)`,
+              fontSize: size,
+              fontWeight: 800,
+              color: COLORS.white,
+              opacity: Math.min(1, s * 1.4),
+              transform: `translateY(${(1 - s) * 46}px) rotate(${(1 - s) * (i % 2 === 0 ? -7 : 7)}deg) scale(${0.8 + s * 0.2})`,
+              filter: `blur(${(1 - s) * 8}px)`,
+              textShadow: `0 0 ${28 + 10 * Math.sin(frame * 0.1 + i)}px rgba(96,165,250,0.35)`,
             }}
           >
             {w}
@@ -444,7 +484,7 @@ export const WordReveal: React.FC<{
   )
 }
 
-/* ═══ PUNCH TEXT v2 — zoom punch + shake + idle pulse ══════════════ */
+/* ═══ PUNCH TEXT — teks mendarat keras + shake ═════════════════════ */
 export const PunchText: React.FC<{
   children: React.ReactNode
   startFrame: number
@@ -452,46 +492,36 @@ export const PunchText: React.FC<{
   color?: string
   shakePower?: number
   gradient?: boolean
-}> = ({
-  children,
-  startFrame,
-  size = 110,
-  color = COLORS.white,
-  shakePower = 7,
-  gradient = false,
-}) => {
+}> = ({ children, startFrame, size = 90, color = COLORS.white, shakePower = 8, gradient = false }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const s = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 10, stiffness: 210, mass: 0.6 },
-  })
-  const sx = shake(frame, startFrame, 14, shakePower)
-  const idlePulse = 1 + 0.018 * Math.sin(frame * 0.16)
+  const s = spring({ frame: frame - startFrame, fps, config: { damping: 11, stiffness: 210 } })
+  const sx = shake(frame, startFrame, 9, shakePower)
+  const pulse = 1 + 0.025 * Math.sin(frame * 0.16)
   return (
     <div
       style={{
         fontSize: size,
         fontWeight: 900,
-        color: gradient ? undefined : color,
+        textAlign: 'center',
+        lineHeight: 1.16,
+        maxWidth: 950,
+        transform: `translateX(${sx}px) scale(${(0.55 + s * 0.45) * pulse})`,
+        opacity: Math.min(1, s * 1.5),
         ...(gradient
           ? {
-              backgroundImage: `linear-gradient(92deg, ${COLORS.goldLight}, ${COLORS.gold}, ${COLORS.goldLight})`,
+              backgroundImage: `linear-gradient(95deg, ${COLORS.blueSoft}, ${COLORS.cyan}, #ffffff, ${COLORS.blueLight})`,
+              backgroundSize: '190% 100%',
+              backgroundPosition: `${((frame * 1.5) % 190) - 45}% 0`,
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               color: 'transparent',
+              filter: 'drop-shadow(0 0 26px rgba(59,130,246,0.45))',
             }
-          : {}),
-        textTransform: 'uppercase',
-        letterSpacing: '-0.02em',
-        lineHeight: 1.08,
-        textAlign: 'center',
-        maxWidth: '92%',
-        opacity: Math.min(1, s * 2.2),
-        transform: `scale(${(1 + (1 - s) * 1.15) * idlePulse}) translateX(${sx}px)`,
-        filter: `blur(${(1 - Math.min(1, s * 2)) * 4}px)`,
-        textShadow: gradient ? 'none' : `0 0 ${55 + 18 * Math.sin(frame * 0.12)}px ${color}44`,
+          : {
+              color,
+              textShadow: `0 0 ${30 + 12 * Math.sin(frame * 0.12)}px rgba(59,130,246,0.35)`,
+            }),
       }}
     >
       {children}
@@ -499,214 +529,160 @@ export const PunchText: React.FC<{
   )
 }
 
-/* ═══ WAVE TEXT — huruf bergelombang ═══════════════════════════════ */
-export const WaveText: React.FC<{
-  text: string
-  startFrame: number
-  size?: number
-  color?: string
-  amp?: number
-}> = ({ text, startFrame, size = 80, color = COLORS.white, amp = 12 }) => {
-  const frame = useCurrentFrame()
-  const { fps } = useVideoConfig()
-  const letters = text.split('')
-  const base = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 13, stiffness: 170 },
-  })
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        fontSize: size,
-        fontWeight: 900,
-        textTransform: 'uppercase',
-        letterSpacing: '-0.01em',
-        color,
-      }}
-    >
-      {letters.map((ch, i) => (
-        <span
-          key={i}
-          style={{
-            display: 'inline-block',
-            opacity: Math.min(1, base * 1.5),
-            transform: `translateY(${(1 - base) * 50 + Math.sin(frame * 0.14 + i * 0.55) * amp * base}px) rotate(${Math.sin(frame * 0.1 + i * 0.5) * 2}deg)`,
-            whiteSpace: ch === ' ' ? 'pre' : undefined,
-          }}
-        >
-          {ch}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-/* ═══ FADE UP ══════════════════════════════════════════════════════ */
+/* ═══ FADE UP — masuk dari bawah/kiri/kanan ════════════════════════ */
 export const FadeUp: React.FC<{
   children: React.ReactNode
   startFrame: number
   distance?: number
   fromLeft?: boolean
   fromRight?: boolean
-}> = ({ children, startFrame, distance = 40, fromLeft = false, fromRight = false }) => {
+}> = ({ children, startFrame, distance = 44, fromLeft = false, fromRight = false }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const s = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 16, stiffness: 150 },
-  })
-  const dx = fromLeft ? (1 - s) * -distance : fromRight ? (1 - s) * distance : 0
+  const s = spring({ frame: frame - startFrame, fps, config: { damping: 15, stiffness: 130 } })
+  const dx = fromLeft ? -(1 - s) * distance : fromRight ? (1 - s) * distance : 0
+  const dy = fromLeft || fromRight ? 0 : (1 - s) * distance
   return (
-    <div style={{ opacity: Math.min(1, s * 1.5), transform: `translate(${dx}px, ${(1 - s) * (fromLeft || fromRight ? 0 : distance)}px)` }}>
+    <div
+      style={{
+        opacity: Math.min(1, s * 1.4),
+        transform: `translate(${dx}px, ${dy}px)`,
+        display: 'flex',
+        justifyContent: 'center',
+      }}
+    >
       {children}
     </div>
   )
 }
 
-/* ═══ FEATURE PILL v2 — pop + float + dot pulse ════════════════════ */
-export const FeaturePill: React.FC<{ children: React.ReactNode; startFrame: number; phase?: number }> = ({
-  children,
-  startFrame,
-  phase = 0,
-}) => {
+/* ═══ FEATURE PILL — kapsul fitur muncul bergantian ════════════════ */
+export const FeaturePill: React.FC<{
+  children: React.ReactNode
+  startFrame: number
+  phase?: number
+}> = ({ children, startFrame, phase = 0 }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const s = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 13, stiffness: 180, mass: 0.7 },
-  })
-  const idleY = Math.sin(frame * 0.06 + phase) * 7
-  const dotPulse = 0.5 + 0.5 * Math.sin(frame * 0.18 + phase)
+  const s = spring({ frame: frame - startFrame, fps, config: { damping: 14, stiffness: 160 } })
+  const sway = Math.sin(frame * 0.06 + phase) * 5
   return (
     <div
       style={{
-        opacity: Math.min(1, s * 1.6),
-        transform: `scale(${0.7 + s * 0.3}) translateY(${idleY}px)`,
-        border: '2px solid rgba(245,158,11,0.5)',
-        background: 'rgba(245,158,11,0.10)',
-        borderRadius: 999,
-        padding: '20px 44px',
-        fontSize: 40,
-        fontWeight: 600,
-        color: COLORS.goldLight,
         display: 'flex',
         alignItems: 'center',
-        gap: 18,
-        boxShadow: '0 0 30px rgba(245,158,11,0.12)',
+        gap: 20,
+        padding: '22px 44px',
+        borderRadius: 999,
+        border: '2px solid rgba(96,165,250,0.4)',
+        background: 'rgba(59,130,246,0.12)',
+        boxShadow: `0 0 ${22 + 8 * Math.sin(frame * 0.1 + phase)}px rgba(59,130,246,0.25)`,
+        opacity: Math.min(1, s * 1.4),
+        transform: `translateX(${(1 - s) * -110}px) translateY(${sway}px)`,
       }}
     >
       <div
         style={{
-          width: 16,
-          height: 16,
+          width: 18,
+          height: 18,
           borderRadius: '50%',
-          background: COLORS.emerald,
-          boxShadow: `0 0 ${8 + dotPulse * 14}px rgba(16,185,129,0.9)`,
+          background: COLORS.cyan,
+          boxShadow: `0 0 ${12 + 6 * Math.sin(frame * 0.14 + phase)}px rgba(34,211,238,0.9)`,
+          flexShrink: 0,
         }}
       />
-      {children}
-    </div>
-  )
-}
-
-/* ═══ SHINE TEXT v2 — sweep kilau berulang terus ═══════════════════ */
-export const ShineText: React.FC<{
-  children: React.ReactNode
-  startFrame: number
-  size?: number
-  loop?: number
-}> = ({ children, startFrame, size = 130, loop = 55 }) => {
-  const frame = useCurrentFrame()
-  const { fps } = useVideoConfig()
-  const s = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 12, stiffness: 190 },
-  })
-  const sweep = ((frame - startFrame - 12) % loop) / loop
-  const pos = -150 + Math.max(0, sweep) * 300
-  const idleY = Math.sin(frame * 0.05) * 8
-  return (
-    <div style={{ transform: `translateY(${idleY}px) scale(${0.6 + s * 0.4})` }}>
-      <div
-        style={{
-          fontSize: size,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          letterSpacing: '-0.02em',
-          lineHeight: 1.05,
-          textAlign: 'center',
-          backgroundImage: `linear-gradient(92deg, ${COLORS.goldLight} 0%, ${COLORS.gold} 40%, #fff7e0 50%, ${COLORS.gold} 60%, ${COLORS.goldLight} 100%)`,
-          backgroundSize: '200% 100%',
-          backgroundPosition: `${pos}% 0`,
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          color: 'transparent',
-          filter: `drop-shadow(0 0 ${45 + 15 * Math.sin(frame * 0.1)}px rgba(245,158,11,0.5))`,
-        }}
-      >
+      <div style={{ fontSize: 46, fontWeight: 700, color: COLORS.white, whiteSpace: 'nowrap' }}>
         {children}
       </div>
     </div>
   )
 }
 
-/* ═══ COUNTER — angka roll 0→target dgn overshoot ══════════════════ */
-export const Counter: React.FC<{ startFrame: number; target: number; suffix?: string }> = ({
-  startFrame,
-  target,
-  suffix = '%',
-}) => {
+/* ═══ SHINE TEXT — teks gradient dgn kilau menyapu ═════════════════ */
+export const ShineText: React.FC<{
+  children: React.ReactNode
+  startFrame: number
+  size?: number
+  loop?: number
+}> = ({ children, startFrame, size = 140, loop = 55 }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const s = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 13, stiffness: 80, mass: 1.2 },
-  })
-  const value = Math.round(s * target)
-  const ring = spring({
-    frame: frame - startFrame + 4,
-    fps,
-    config: { damping: 20, stiffness: 60 },
-  })
-  const glow = 0.4 + 0.3 * Math.sin(frame * 0.1)
+  const s = spring({ frame: frame - startFrame, fps, config: { damping: 13, stiffness: 150 } })
+  const pos = ((frame * (200 / loop)) % 240) - 70
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {/* cincin ekspansi saat angka mendarat */}
-      <div
-        style={{
-          position: 'absolute',
-          width: 560,
-          height: 560,
-          borderRadius: '50%',
-          border: `6px solid rgba(245,158,11,${0.5 * (1 - ring)})`,
-          transform: `scale(${0.5 + ring * 0.9})`,
-        }}
-      />
-      <span
-        style={{
-          fontSize: 300,
-          fontWeight: 900,
-          lineHeight: 1,
-          color: COLORS.gold,
-          textShadow: `0 0 ${80 + 25 * Math.sin(frame * 0.12)}px rgba(245,158,11,${glow + 0.2})`,
-          letterSpacing: '-0.04em',
-        }}
-      >
-        {value}
-        {suffix}
-      </span>
+    <div
+      style={{
+        opacity: Math.min(1, s * 1.4),
+        transform: `scale(${0.75 + s * 0.25}) translateY(${Math.sin(frame * 0.055) * 5}px)`,
+        fontSize: size,
+        fontWeight: 900,
+        textAlign: 'center',
+        lineHeight: 1.12,
+        backgroundImage: `linear-gradient(100deg, ${COLORS.blueSoft} 20%, #ffffff 38%, ${COLORS.cyan} 46%, ${COLORS.blue} 60%, ${COLORS.blueSoft} 80%)`,
+        backgroundSize: '240% 100%',
+        backgroundPosition: `${pos}% 0`,
+        WebkitBackgroundClip: 'text',
+        backgroundClip: 'text',
+        color: 'transparent',
+        filter: `drop-shadow(0 0 ${30 + 12 * Math.sin(frame * 0.11)}px rgba(59,130,246,0.5))`,
+      }}
+    >
+      {children}
     </div>
   )
 }
 
-/* ═══ STAMP TEXT — dicap masuk (scale besar → kecil, rotate) ═══════ */
+/* ═══ COUNTER — angka roll naik + ring ekspansi ════════════════════ */
+export const Counter: React.FC<{ startFrame: number; target: number }> = ({
+  startFrame,
+  target,
+}) => {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  const roll = spring({ frame: frame - startFrame, fps, config: { damping: 20, stiffness: 55 } })
+  const val = Math.round(interpolate(roll, [0, 1], [0, target], { extrapolateRight: 'clamp' }))
+  const ringT = interpolate(roll, [0, 1], [0, 1], { extrapolateRight: 'clamp' })
+  return (
+    <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      {[0, 1].map((i) => {
+        const t = ((ringT * 1.4 + i * 0.5) % 1)
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              width: 420,
+              height: 420,
+              borderRadius: '50%',
+              border: `4px solid ${COLORS.cyan}`,
+              opacity: (1 - t) * 0.35,
+              transform: `scale(${0.75 + t * 0.65})`,
+            }}
+          />
+        )
+      })}
+      <div
+        style={{
+          position: 'relative',
+          fontSize: 250,
+          fontWeight: 900,
+          lineHeight: 1,
+          backgroundImage: `linear-gradient(180deg, #ffffff 8%, ${COLORS.blueLight} 45%, ${COLORS.cyan} 100%)`,
+          WebkitBackgroundClip: 'text',
+          backgroundClip: 'text',
+          color: 'transparent',
+          filter: `drop-shadow(0 0 ${34 + 14 * Math.sin(frame * 0.13)}px rgba(59,130,246,0.55))`,
+          transform: `scale(${0.7 + roll * 0.3})`,
+        }}
+      >
+        {val}
+        <span style={{ fontSize: 110, fontWeight: 900 }}>%</span>
+      </div>
+    </div>
+  )
+}
+
+/* ═══ STAMP TEXT — dicap miring + shake ════════════════════════════ */
 export const StampText: React.FC<{
   children: React.ReactNode
   startFrame: number
@@ -715,24 +691,24 @@ export const StampText: React.FC<{
 }> = ({ children, startFrame, size = 96, color = COLORS.emerald }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const s = spring({
-    frame: frame - startFrame,
-    fps,
-    config: { damping: 9, stiffness: 260, mass: 0.5 },
-  })
-  const sx = shake(frame, startFrame, 10, 9)
-  const pulse = 1 + 0.02 * Math.sin(frame * 0.2)
+  const s = spring({ frame: frame - startFrame, fps, config: { damping: 9, stiffness: 260 } })
+  const sx = shake(frame, startFrame, 10, 7)
+  const rgb = color === COLORS.emerald ? '16,185,129' : color === COLORS.cyan ? '34,211,238' : '59,130,246'
   return (
     <div
       style={{
+        padding: `${size * 0.12}px ${size * 0.4}px`,
+        border: `${Math.max(5, size * 0.065)}px solid ${color}`,
+        borderRadius: 24,
+        color,
         fontSize: size,
         fontWeight: 900,
-        color,
-        textTransform: 'uppercase',
-        letterSpacing: '-0.01em',
-        opacity: Math.min(1, s * 2.5),
-        transform: `scale(${(1 + (1 - s) * 2.2) * pulse}) rotate(${-4 + (1 - s) * -8}deg) translateX(${sx}px)`,
-        textShadow: `0 0 ${50 + 20 * Math.sin(frame * 0.14)}px ${color}55`,
+        letterSpacing: '0.06em',
+        transform: `translateX(${sx}px) rotate(-7deg) scale(${0.5 + s * 0.5})`,
+        opacity: Math.min(1, s * 1.6),
+        boxShadow: `0 0 ${30 + 10 * Math.sin(frame * 0.14)}px rgba(${rgb},0.5), inset 0 0 24px rgba(${rgb},0.14)`,
+        textShadow: `0 0 20px rgba(${rgb},0.6)`,
+        background: `rgba(${rgb},0.07)`,
       }}
     >
       {children}
@@ -740,162 +716,118 @@ export const StampText: React.FC<{
   )
 }
 
-/* ═══ LINE CHART — garis profit tergambar live + dot ujung bercahaya ═ */
-export const LineChart: React.FC<{ startFrame: number; width?: number; height?: number }> = ({
-  startFrame,
-  width = 880,
-  height = 300,
-}) => {
+/* ═══ LINE CHART — garis untung tergambar + lilin latar ════════════ */
+export const LineChart: React.FC<{ startFrame: number }> = ({ startFrame }) => {
   const frame = useCurrentFrame()
-  const local = frame - startFrame
-  const drawDur = 75
-  const pts: Array<[number, number]> = []
-  for (let i = 0; i < 12; i++) {
-    const x = (i / 11) * width
-    const y = height - 30 - i * 21 - Math.sin(i * 1.7) * 16 - (i % 3 === 1 ? 14 : 0)
-    pts.push([x, y])
-  }
-  const segs: number[] = []
-  let total = 0
-  for (let i = 1; i < pts.length; i++) {
-    const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])
-    segs.push(d)
-    total += d
-  }
-  const progress = Math.min(1, Math.max(0, local / drawDur))
-  const eased = 1 - Math.pow(1 - progress, 2.2)
-  const targetLen = eased * total
-  let acc = 0
-  let tipX = pts[0][0]
-  let tipY = pts[0][1]
-  for (let i = 0; i < segs.length; i++) {
-    if (acc + segs[i] >= targetLen) {
-      const t = (targetLen - acc) / segs[i]
-      tipX = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t
-      tipY = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t
-      break
-    }
-    acc += segs[i]
-  }
-  const tipPulse = 1 + 0.35 * Math.sin(frame * 0.25)
-  const chip = spring({
-    frame: local - drawDur - 4,
-    fps: 30,
-    config: { damping: 12, stiffness: 170 },
+  const { fps } = useVideoConfig()
+  const card = spring({ frame: frame - startFrame + 6, fps, config: { damping: 15, stiffness: 120 } })
+  const W = 880
+  const H = 330
+  const pts = [
+    [0, 235], [95, 205], [175, 220], [265, 168], [350, 182], [445, 128],
+    [530, 142], [625, 92], [700, 108], [795, 48], [880, 30],
+  ]
+  const path = pts.map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`)).join(' ')
+  const draw = interpolate(frame, [startFrame, startFrame + 34], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
   })
-  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ')
+  const candles = [58, 132, 208, 286, 362, 438, 515, 592, 668, 745, 822]
   return (
-    <div style={{ position: 'relative', width, height }}>
-      {/* lilin latar tipis */}
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: (width - 13 * 26) / 12, opacity: 0.14 }}>
-        {new Array(13).fill(0).map((_, i) => {
-          const h = 30 + random(`c-${i}`) * 90
-          const grow = spring({ frame: local - i * 3, fps: 30, config: { damping: 15, stiffness: 150 } })
+    <div
+      style={{
+        opacity: Math.min(1, card * 1.3),
+        transform: `translateY(${(1 - card) * 40}px) scale(${0.92 + card * 0.08})`,
+        background: 'rgba(10,20,40,0.72)',
+        border: '2px solid rgba(96,165,250,0.3)',
+        borderRadius: 28,
+        padding: 26,
+        boxShadow: `0 0 ${30 + 10 * Math.sin(frame * 0.1)}px rgba(59,130,246,0.25)`,
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      {/* viewBox dipertahankan 880x330, dirender lebih kecil supaya muat dgn teks kicker */}
+      <svg width={712} height={267} viewBox={`0 0 ${W} ${H}`}>
+        {candles.map((cx, i) => {
+          const up = i % 3 !== 1
+          const base = 250 - i * 17
+          const h = 40 + ((i * 29) % 46)
+          const col = up ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.45)'
           return (
-            <div
-              key={i}
-              style={{
-                width: 26,
-                height: h,
-                borderRadius: 5,
-                background: i % 4 === 2 ? COLORS.red : COLORS.emerald,
-                transform: `scaleY(${grow})`,
-                transformOrigin: 'bottom',
-              }}
-            />
+            <g key={i}>
+              <rect x={cx - 3} y={base - h} width={6} height={h + 22} fill={col} opacity={0.55} />
+              <rect x={cx - 14} y={base} width={28} height={h} rx={5} fill={col} />
+            </g>
           )
         })}
-      </div>
-      <svg width={width} height={height} style={{ position: 'absolute', inset: 0 }}>
-        <defs>
-          <linearGradient id="lineGold" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={COLORS.goldLight} />
-            <stop offset="100%" stopColor="#fff3d0" />
-          </linearGradient>
-        </defs>
         <path
-          d={pathD}
+          d={path}
           fill="none"
-          stroke="url(#lineGold)"
+          stroke={COLORS.cyan}
           strokeWidth={9}
           strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={total}
-          strokeDashoffset={total - targetLen}
-          style={{ filter: 'drop-shadow(0 0 14px rgba(245,158,11,0.65))' }}
+          pathLength={1}
+          strokeDasharray={1}
+          strokeDashoffset={1 - draw}
+          style={{ filter: 'drop-shadow(0 0 10px rgba(34,211,238,0.75))' }}
         />
+        {draw >= 1 ? (
+          <circle cx={880} cy={30} r={11} fill="#ffffff" style={{ filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.9))' }} />
+        ) : null}
       </svg>
-      {/* dot ujung bercahaya */}
-      <div
-        style={{
-          position: 'absolute',
-          left: tipX,
-          top: tipY,
-          width: 26,
-          height: 26,
-          marginLeft: -13,
-          marginTop: -13,
-          borderRadius: '50%',
-          background: '#fff7e0',
-          boxShadow: `0 0 ${24 * tipPulse}px rgba(253,230,138,0.95), 0 0 60px rgba(245,158,11,0.6)`,
-          opacity: local > 0 ? 1 : 0,
-        }}
-      />
-      {/* chip profit */}
-      <div
-        style={{
-          position: 'absolute',
-          right: 10,
-          top: 6,
-          opacity: Math.min(1, chip * 1.6),
-          transform: `scale(${0.6 + chip * 0.4}) translateY(${Math.sin(frame * 0.08) * 6}px)`,
-          background: 'rgba(16,185,129,0.16)',
-          border: '2px solid rgba(16,185,129,0.6)',
-          borderRadius: 999,
-          padding: '14px 30px',
-          fontSize: 40,
-          fontWeight: 900,
-          color: '#34d399',
-          boxShadow: '0 0 30px rgba(16,185,129,0.25)',
-        }}
-      >
-        +$124.50
-      </div>
+      {draw >= 1 ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 26,
+            background: 'rgba(16,185,129,0.16)',
+            border: '2px solid rgba(16,185,129,0.55)',
+            borderRadius: 14,
+            padding: '6px 18px',
+            fontSize: 32,
+            fontWeight: 900,
+            color: '#34d399',
+            textShadow: '0 0 14px rgba(52,211,153,0.6)',
+          }}
+        >
+          +$124.50
+        </div>
+      ) : null}
     </div>
   )
 }
 
-/* ═══ BAR CHART — bar komisi bulanan tumbuh ════════════════════════ */
+/* ═══ MINI BAR CHART — 5 bar tumbuh (komisi berulang) ══════════════ */
 export const MiniBarChart: React.FC<{ startFrame: number }> = ({ startFrame }) => {
   const frame = useCurrentFrame()
-  const local = frame - startFrame
-  const heights = [46, 72, 102, 136, 172]
+  const { fps } = useVideoConfig()
+  const heights = [120, 165, 150, 205, 240]
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 30, height: 190 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 34, height: 250 }}>
       {heights.map((h, i) => {
         const s = spring({
-          frame: local - i * 7,
-          fps: 30,
+          frame: frame - startFrame - i * 7,
+          fps,
           config: { damping: 13, stiffness: 150 },
         })
-        const glow = 0.5 + 0.5 * Math.sin(frame * 0.12 + i)
+        const last = i === heights.length - 1
+        const glow = last ? 0.55 + 0.3 * Math.sin(frame * 0.15) : 0.2
         return (
           <div
             key={i}
             style={{
-              width: 74,
-              height: h,
-              borderRadius: '14px 14px 6px 6px',
-              background:
-                i === heights.length - 1
-                  ? `linear-gradient(180deg, #34d399, ${COLORS.emerald})`
-                  : `linear-gradient(180deg, rgba(251,191,36,0.9), rgba(245,158,11,0.35))`,
-              transform: `scaleY(${Math.max(0.01, s)})`,
+              width: 76,
+              height: h * s,
+              borderRadius: 14,
+              background: last
+                ? `linear-gradient(180deg, #34d399, ${COLORS.emerald})`
+                : `linear-gradient(180deg, ${COLORS.blueLight}, ${COLORS.blueDeep})`,
+              boxShadow: last
+                ? `0 0 ${20 + 14 * Math.sin(frame * 0.15)}px rgba(16,185,129,0.6)`
+                : `0 0 16px rgba(59,130,246,0.35)`,
+              opacity: last ? 1 : 0.85,
               transformOrigin: 'bottom',
-              boxShadow:
-                i === heights.length - 1
-                  ? `0 0 ${16 + glow * 18}px rgba(16,185,129,0.6)`
-                  : '0 0 14px rgba(245,158,11,0.25)',
             }}
           />
         )
@@ -905,19 +837,67 @@ export const MiniBarChart: React.FC<{ startFrame: number }> = ({ startFrame }) =
 }
 
 /* ═══ CHECK ICON ═══════════════════════════════════════════════════ */
-export const CheckIcon: React.FC<{ size?: number }> = ({ size = 40 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.emerald} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 6 9 17l-5-5" />
+export const CheckIcon: React.FC<{ size?: number }> = ({ size = 52 }) => (
+  <svg width={size} height={size} viewBox="0 0 52 52">
+    <circle cx="26" cy="26" r="24" fill="rgba(16,185,129,0.18)" stroke={COLORS.emerald} strokeWidth="4" />
+    <path d="M15 27 L23 35 L38 18" fill="none" stroke="#34d399" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
 /* ═══ ARROW RIGHT ══════════════════════════════════════════════════ */
-export const ArrowRight: React.FC<{ size?: number; color?: string }> = ({
-  size = 44,
-  color = '#78350f',
-}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14" />
-    <path d="m12 5 7 7-7 7" />
+export const ArrowRight: React.FC<{ size?: number }> = ({ size = 54 }) => (
+  <svg width={size} height={size} viewBox="0 0 54 54">
+    <path d="M8 27 H42 M28 13 L44 27 L28 41" fill="none" stroke="#0a1a33" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
+
+/* ═══ CONFETTI — fisika jatuh (palet biru/cyan/emerald) ════════════ */
+export const Confetti: React.FC<{
+  startFrame: number
+  count?: number
+  cy?: number
+  power?: number
+}> = ({ startFrame, count = 44, cy = 46, power = 1.0 }) => {
+  const frame = useCurrentFrame()
+  const palette = [COLORS.blue, COLORS.cyan, COLORS.blueLight, COLORS.emerald, '#ffffff']
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      {new Array(count).fill(true).map((_, i) => {
+        const seed = i * 7.77
+        const angle = -Math.PI / 2 + (random(`ca-${seed}`) - 0.5) * 2.4
+        const vel = (260 + random(`cv-${seed}`) * 340) * power
+        const vx = Math.cos(angle) * vel
+        const vy = Math.sin(angle) * vel
+        const dur = 58 + random(`cd-${seed}`) * 16
+        const local = frame - startFrame - random(`cdl-${seed}`) * 8
+        if (local < 0) return null
+        const p = local / dur
+        if (p > 1) return null
+        const x = 540 + vx * p * 0.42
+        const y = 1920 * (cy / 100) + vy * p * 0.5 + 55 * p * p
+        const rot = random(`cr-${seed}`) * 360 + local * (6 + random(`crs-${seed}`) * 9)
+        const w = 14 + random(`cw-${seed}`) * 16
+        const h = 10 + random(`ch-${seed}`) * 12
+        const fade = Math.min(1, local / 2.5) * (p > 0.72 ? (1 - p) / 0.28 : 1)
+        const col = palette[i % palette.length]
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: x,
+              top: y,
+              width: w,
+              height: h,
+              background: col,
+              borderRadius: 3,
+              transform: `rotate(${rot}deg)`,
+              opacity: fade,
+              boxShadow: `0 0 10px ${col}`,
+            }}
+          />
+        )
+      })}
+    </AbsoluteFill>
+  )
+}

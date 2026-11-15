@@ -8,9 +8,11 @@ import { clockWipe } from '@remotion/transitions/clock-wipe'
 import { loadFont } from '@remotion/google-fonts/Lexend'
 import {
   ArrowRight,
+  BlueParticles,
   CameraDrift,
   CheckIcon,
   CoinField,
+  CoinOrb,
   COLORS,
   Confetti,
   Counter,
@@ -18,17 +20,17 @@ import {
   FeaturePill,
   Flash,
   Float,
-  GoldParticles,
   LineChart,
   MiniBarChart,
   PunchText,
   PromoBackground,
+  RingPulse,
   ShineText,
   Sparkles,
   StampText,
   TickerStrip,
   Vignette,
-  WaveText,
+  VoiceBars,
   WordReveal,
   shake,
 } from './ui'
@@ -37,38 +39,89 @@ import {
 const { fontFamily } = loadFont('normal', { weights: ['400', '600', '700', '800', '900'] })
 
 /*
- * LUXTRADEE PROMO v2 — FULL MOTION (1080x1920, ±31 dtk).
- * Semua elemen bergerak terus: idle float, partikel emas, kamera drift,
- * koin terbang, confetti, transisi slide/wipe/flip/clock antar scene.
- * Copy lengkap: remotion-promo/COPYWRITING.md
+ * LUXTRADEE PROMO v3 — BLUE EDITION + VOICE GREETING (1080x1920, ±31 dtk).
+ * Skema biru sesuai website luxtradee.web.id (#3b82f6 / #22d3ee di atas navy).
+ * Scene 1 memakai suara ASLI pemilik (greeting.wav): "Hello… selamat datang!"
+ * — teks "SELAMAT DATANG" muncul tepat saat suaranya terdengar (frame 22).
+ * Sisanya kinetic typography penuh gerakan: kamera drift, partikel, orb $,
+ * confetti fisika, grafik live, transisi slide/wipe/flip/clock antar scene.
  */
 
-/* ═══ SCENE 1 — HOOK (100f) ════════════════════════════════════════ */
+/* ═══ SCENE 1 — GREETING SUARA ASLI (90f) ═══════════════════════════ */
+/* VO S1 = suara ASLI pemilik (greeting.wav) — sudah terpasang di bawah */
+const SceneGreeting: React.FC = () => {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  const sub = spring({ frame: frame - 50, fps, config: { damping: 15, stiffness: 130 } })
+  return (
+    <AbsoluteFill>
+      {/* VO suara pemilik: "Hello… selamat datang, selamat datang!" (2,39 dtk) */}
+      <Sequence from={4}>
+        <Audio src={staticFile('vo/greeting.wav')} />
+      </Sequence>
+      <CameraDrift zoomFrom={1.04} zoomTo={1.12} panY={-20}>
+        <RingPulse startFrame={6} cycles={4} />
+        <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 54 }}>
+          {/* equalizer menari tepat saat suara terdengar */}
+          <div style={{ transform: `translateY(${Math.sin(frame * 0.05) * 6}px)` }}>
+            <VoiceBars startFrame={2} talkStart={4} talkEnd={78} />
+          </div>
+          {/* teks muncul pas suara "selamat datang" (frame ~22) */}
+          <WordReveal text="SELAMAT DATANG," startFrame={20} size={112} />
+          <FadeUp startFrame={50} distance={38}>
+            <div
+              style={{
+                fontSize: 54,
+                fontWeight: 700,
+                color: COLORS.blueLight,
+                textAlign: 'center',
+                opacity: Math.min(1, sub * 1.4),
+                transform: `translateY(${(1 - sub) * 26}px)`,
+                textShadow: `0 0 ${24 + 10 * Math.sin(frame * 0.12)}px rgba(96,165,250,0.5)`,
+              }}
+            >
+              trader XAUUSD Indonesia
+            </div>
+          </FadeUp>
+          <FadeUp startFrame={64} distance={30}>
+            <div style={{ fontSize: 40, fontWeight: 500, color: COLORS.muted, textAlign: 'center' }}>
+              Kamu datang di tempat yang tepat.
+            </div>
+          </FadeUp>
+        </AbsoluteFill>
+        <Sparkles count={9} startFrame={16} />
+        <Flash startFrame={20} color="59,130,246" max={0.16} />
+      </CameraDrift>
+    </AbsoluteFill>
+  )
+}
+
+/* ═══ SCENE 2 — HOOK (100f) ═════════════════════════════════════════ */
 const SceneHook: React.FC = () => (
   <AbsoluteFill>
-    {/* VO: "Punya skill trading emas... tapi cuma diem?" */}
-    <Sequence from={10}>
-      <Audio src={staticFile('vo/vo1.wav')} />
+    {/* VO: "Punya skill trading emas... tapi cuma diem?" (2,25 dtk) */}
+    <Sequence from={6}>
+      <Audio src={staticFile('vo/vo2.wav')} />
     </Sequence>
     <CameraDrift zoomFrom={1.05} zoomTo={1.14} panY={-24}>
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 64 }}>
         <Float amp={8} phase={0.6}>
           <WordReveal text="Punya skill trading XAUUSD?" startFrame={3} size={90} />
         </Float>
-        <PunchText startFrame={56} size={104} color={COLORS.red} shakePower={9}>
+        <PunchText startFrame={52} size={104} color={COLORS.red} shakePower={9}>
           Tapi cuma diem?
         </PunchText>
         <Sparkles count={9} startFrame={50} />
-        <Flash startFrame={56} color="239,68,68" max={0.22} />
-        {/* koin dekor pojok */}
+        <Flash startFrame={52} color="239,68,68" max={0.22} />
+        {/* orb dolar dekor pojok */}
         <Float amp={16} speed={0.05} phase={2} rotateAmp={8} style={{ position: 'absolute', top: 300, right: 90 }}>
           <div style={{ opacity: 0.35, transform: 'scale(0.8)' }}>
-            <CoinStub />
+            <CoinOrb size={110} />
           </div>
         </Float>
         <Float amp={13} speed={0.045} phase={4.2} rotateAmp={-7} style={{ position: 'absolute', bottom: 430, left: 80 }}>
           <div style={{ opacity: 0.25, transform: 'scale(0.62)' }}>
-            <CoinStub />
+            <CoinOrb size={110} />
           </div>
         </Float>
       </AbsoluteFill>
@@ -76,39 +129,17 @@ const SceneHook: React.FC = () => (
   </AbsoluteFill>
 )
 
-/* stub koin tanpa field (dekor) */
-const CoinStub: React.FC = () => (
-  <div
-    style={{
-      width: 110,
-      height: 110,
-      borderRadius: '50%',
-      background: 'radial-gradient(circle at 35% 30%, #fde68a 0%, #f59e0b 55%, #b45309 100%)',
-      border: '5px solid #fcd34d',
-      boxShadow: '0 0 30px rgba(245,158,11,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 54,
-      fontWeight: 900,
-      color: '#78350f',
-    }}
-  >
-    $
-  </div>
-)
-
-/* ═══ SCENE 2 — PROBLEM (100f) ═════════════════════════════════════ */
+/* ═══ SCENE 3 — PROBLEM (100f) ══════════════════════════════════════ */
 const SceneProblem: React.FC = () => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  /* koin "dompet" jatuh saat punchline mendarat */
-  const fall = spring({ frame: frame - 64, fps, config: { damping: 20, stiffness: 60 } })
+  /* orb "dompet" jatuh saat punchline mendarat */
+  const fall = spring({ frame: frame - 62, fps, config: { damping: 20, stiffness: 60 } })
   return (
     <AbsoluteFill>
-      {/* VO: "Analisis bagus, konten keren... tapi dompet masih tipis?" */}
-      <Sequence from={12}>
-        <Audio src={staticFile('vo/vo2.wav')} />
+      {/* VO: "Analisis bagus, konten keren, tapi dompet tipis?" (3,23 dtk) */}
+      <Sequence from={4}>
+        <Audio src={staticFile('vo/vo3.wav')} />
       </Sequence>
       <CameraDrift zoomFrom={1.02} zoomTo={1.1} panX={-18}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 46 }}>
@@ -119,17 +150,17 @@ const SceneProblem: React.FC = () => {
               </div>
             </Float>
           </FadeUp>
-          <FadeUp startFrame={30} fromRight distance={70}>
+          <FadeUp startFrame={26} fromRight distance={70}>
             <Float amp={7} phase={2.6}>
               <div style={{ fontSize: 64, fontWeight: 600, color: COLORS.muted, textAlign: 'center' }}>
                 Konten kamu keren...
               </div>
             </Float>
           </FadeUp>
-          {/* 3 koin muncul lalu jatuh */}
+          {/* 3 orb muncul lalu jatuh */}
           <div style={{ display: 'flex', gap: 34, marginTop: 8 }}>
             {[0, 1, 2].map((i) => {
-              const appear = spring({ frame: frame - 28 - i * 4, fps, config: { damping: 12, stiffness: 180 } })
+              const appear = spring({ frame: frame - 26 - i * 4, fps, config: { damping: 12, stiffness: 180 } })
               const fallY = fall > 0 ? fall * 520 : 0
               return (
                 <div
@@ -141,25 +172,25 @@ const SceneProblem: React.FC = () => {
                 >
                   <Float amp={6} phase={i * 1.8} rotateAmp={6}>
                     <div style={{ transform: `scale(${1.1 - i * 0.18})` }}>
-                      <CoinStub />
+                      <CoinOrb size={110} />
                     </div>
                   </Float>
                 </div>
               )
             })}
           </div>
-          <PunchText startFrame={66} size={90} color={COLORS.red} shakePower={10}>
+          <PunchText startFrame={62} size={90} color={COLORS.red} shakePower={10}>
             Tapi dompet masih tipis?
           </PunchText>
-          <Sparkles count={7} startFrame={60} />
-          <Flash startFrame={66} color="239,68,68" max={0.25} />
+          <Sparkles count={7} startFrame={58} />
+          <Flash startFrame={62} color="239,68,68" max={0.25} />
         </AbsoluteFill>
       </CameraDrift>
     </AbsoluteFill>
   )
 }
 
-/* ═══ SCENE 3 — BRAND + SOLUSI (205f) ══════════════════════════════ */
+/* ═══ SCENE 4 — BRAND + SOLUSI (205f) ═══════════════════════════════ */
 const SceneBrand: React.FC = () => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
@@ -169,12 +200,12 @@ const SceneBrand: React.FC = () => {
   const kamuPulse = 1 + 0.06 * Math.sin(frame * 0.15)
   return (
     <AbsoluteFill>
-      {/* VO: "Kenalin, Luxtradee!" + "Impor CSV, screenshot dibaca AI..." */}
-      <Sequence from={10}>
-        <Audio src={staticFile('vo/vo3a.wav')} />
+      {/* VO: "Kenalin, Luxtradee!" (f6) + "Impor CSV, screenshot dibaca AI..." (f64) */}
+      <Sequence from={6}>
+        <Audio src={staticFile('vo/vo4a.wav')} />
       </Sequence>
-      <Sequence from={76}>
-        <Audio src={staticFile('vo/vo3b.wav')} />
+      <Sequence from={64}>
+        <Audio src={staticFile('vo/vo4b.wav')} />
       </Sequence>
       <CameraDrift zoomFrom={1.0} zoomTo={1.08} panY={-30}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 38 }}>
@@ -184,13 +215,13 @@ const SceneBrand: React.FC = () => {
                 fontSize: 134,
                 fontWeight: 900,
                 letterSpacing: '0.02em',
-                backgroundImage: `linear-gradient(92deg, ${COLORS.goldLight}, ${COLORS.gold}, #fff3d0, ${COLORS.gold})`,
+                backgroundImage: `linear-gradient(92deg, ${COLORS.blueSoft}, ${COLORS.cyan}, #ffffff, ${COLORS.blue})`,
                 backgroundSize: '200% 100%',
                 backgroundPosition: `${((frame * 1.6) % 200) - 50}% 0`,
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',
                 color: 'transparent',
-                filter: `blur(${blur}px) drop-shadow(0 0 ${55 + 15 * Math.sin(frame * 0.1)}px rgba(245,158,11,0.4))`,
+                filter: `blur(${blur}px) drop-shadow(0 0 ${55 + 15 * Math.sin(frame * 0.1)}px rgba(59,130,246,0.45))`,
                 transform: `scale(${0.85 + logoSpring * 0.15})`,
               }}
             >
@@ -203,8 +234,8 @@ const SceneBrand: React.FC = () => {
               width: `${underline}%`,
               height: 8,
               borderRadius: 4,
-              background: `linear-gradient(90deg, transparent, ${COLORS.goldLight}, ${COLORS.gold}, transparent)`,
-              boxShadow: '0 0 20px rgba(245,158,11,0.5)',
+              background: `linear-gradient(90deg, transparent, ${COLORS.cyan}, ${COLORS.blue}, transparent)`,
+              boxShadow: '0 0 20px rgba(59,130,246,0.55)',
               marginTop: -18,
             }}
           />
@@ -217,30 +248,30 @@ const SceneBrand: React.FC = () => {
             </div>
           </FadeUp>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', marginTop: 14 }}>
-            <FeaturePill startFrame={84} phase={0}>
+            <FeaturePill startFrame={74} phase={0}>
               Impor CSV MT4 / MT5
             </FeaturePill>
-            <FeaturePill startFrame={100} phase={2.1}>
+            <FeaturePill startFrame={90} phase={2.1}>
               Screenshot dibaca AI
             </FeaturePill>
-            <FeaturePill startFrame={116} phase={4.2}>
+            <FeaturePill startFrame={106} phase={4.2}>
               Deteksi pola kesalahan
             </FeaturePill>
           </div>
           {/* chart live di bawah */}
-          <div style={{ position: 'absolute', bottom: 250, left: 100, opacity: 0.95 }}>
-            <LineChart startFrame={126} />
+          <div style={{ position: 'absolute', bottom: 230, left: 158, opacity: 0.95 }}>
+            <LineChart startFrame={116} />
           </div>
-          <FadeUp startFrame={162} distance={40}>
+          <FadeUp startFrame={150} distance={40}>
             <Float amp={6} phase={1.5}>
-              <div style={{ fontSize: 54, fontWeight: 800, color: COLORS.white, textAlign: 'center' }}>
+              <div style={{ fontSize: 48, fontWeight: 800, color: COLORS.white, textAlign: 'center', maxWidth: 880 }}>
                 Sekarang giliran{' '}
                 <span
                   style={{
-                    color: COLORS.gold,
+                    color: COLORS.cyan,
                     display: 'inline-block',
                     transform: `scale(${kamuPulse})`,
-                    textShadow: `0 0 ${30 + 14 * Math.sin(frame * 0.13)}px rgba(245,158,11,0.6)`,
+                    textShadow: `0 0 ${30 + 14 * Math.sin(frame * 0.13)}px rgba(34,211,238,0.65)`,
                   }}
                 >
                   KAMU
@@ -256,15 +287,15 @@ const SceneBrand: React.FC = () => {
   )
 }
 
-/* ═══ SCENE 4 — KOMISI 20% (180f) ══════════════════════════════════ */
+/* ═══ SCENE 5 — KOMISI 20% (186f) ═══════════════════════════════════ */
 const SceneKomisi: React.FC = () => {
   const frame = useCurrentFrame()
-  const sx = shake(frame, 32, 10, 6)
+  const sx = shake(frame, 52, 10, 6)
   return (
     <AbsoluteFill>
-      {/* VO: "Tiap member daftar lewat kodemu, komisi 20%..." */}
-      <Sequence from={8}>
-        <Audio src={staticFile('vo/vo4.wav')} />
+      {/* VO: "Setiap member daftar lewat kodemu, kamu dapat komisi 20 persen. Berulang, tiap bulan." (5,59 dtk) */}
+      <Sequence from={4}>
+        <Audio src={staticFile('vo/vo5.wav')} />
       </Sequence>
       <CameraDrift zoomFrom={1.03} zoomTo={1.1} panY={20}>
         <CoinField count={8} startFrame={10} />
@@ -281,14 +312,14 @@ const SceneKomisi: React.FC = () => {
               KOMISI DARI TIAP PENJUALAN
             </div>
           </FadeUp>
-          <Counter startFrame={8} target={20} />
-          <PunchText startFrame={72} size={84} color={COLORS.goldLight} gradient shakePower={6}>
+          <Counter startFrame={36} target={20} />
+          <PunchText startFrame={130} size={84} color={COLORS.cyan} gradient shakePower={6}>
             Berulang. Bukan sekali.
           </PunchText>
           <div style={{ marginTop: 4 }}>
-            <MiniBarChart startFrame={100} />
+            <MiniBarChart startFrame={132} />
           </div>
-          <FadeUp startFrame={128} distance={36}>
+          <FadeUp startFrame={150} distance={36}>
             <Float amp={6} phase={3}>
               <div style={{ fontSize: 50, fontWeight: 700, color: COLORS.white, textAlign: 'center', lineHeight: 1.3 }}>
                 10 member aktif
@@ -305,7 +336,7 @@ const SceneKomisi: React.FC = () => {
               </div>
             </Float>
           </FadeUp>
-          <Flash startFrame={32} color="245,158,11" max={0.3} />
+          <Flash startFrame={52} color="59,130,246" max={0.26} />
           <Sparkles count={9} startFrame={30} />
         </AbsoluteFill>
       </CameraDrift>
@@ -313,27 +344,27 @@ const SceneKomisi: React.FC = () => {
   )
 }
 
-/* ═══ SCENE 5 — FREE PRO 3 BULAN (150f) ════════════════════════════ */
+/* ═══ SCENE 6 — FREE PRO 3 BULAN (145f) ═════════════════════════════ */
 const SceneFreePro: React.FC = () => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const badge = spring({ frame: frame - 2, fps, config: { damping: 13, stiffness: 170 } })
-  const strike = Math.min(100, Math.max(0, ((frame - 84) / 14) * 100))
-  const price = spring({ frame: frame - 66, fps, config: { damping: 15, stiffness: 140 } })
-  const sx = shake(frame, 100, 10, 7)
+  const strike = Math.min(100, Math.max(0, ((frame - 88) / 14) * 100))
+  const price = spring({ frame: frame - 70, fps, config: { damping: 15, stiffness: 140 } })
+  const sx = shake(frame, 104, 10, 7)
   return (
     <AbsoluteFill>
-      {/* VO: "Khusus kreator TikTok: Free Pro 3 bulan. Gratis!" */}
-      <Sequence from={16}>
-        <Audio src={staticFile('vo/vo5.wav')} />
+      {/* VO: "Khusus kreator TikTok, free Pro 3 bulan. Gratis!" (4,02 dtk) */}
+      <Sequence from={10}>
+        <Audio src={staticFile('vo/vo6.wav')} />
       </Sequence>
       <CameraDrift zoomFrom={1.02} zoomTo={1.1}>
-        <Confetti startFrame={22} count={52} cy={46} power={1.35} />
+        <Confetti startFrame={104} count={52} cy={46} power={1.35} />
         <AbsoluteFill
           style={{
             justifyContent: 'center',
             alignItems: 'center',
-            gap: 46,
+            gap: 44,
             transform: `translateX(${sx}px)`,
           }}
         >
@@ -353,7 +384,7 @@ const SceneFreePro: React.FC = () => {
           >
             Khusus Konten Kreator TikTok
           </div>
-          <ShineText startFrame={22} size={148}>
+          <ShineText startFrame={50} size={148}>
             Free Pro
             <br />
             3 Bulan
@@ -377,11 +408,11 @@ const SceneFreePro: React.FC = () => {
                 }}
               />
             </div>
-            <StampText startFrame={100} size={98} color={COLORS.emerald}>
+            <StampText startFrame={104} size={98} color={COLORS.emerald}>
               Gratis
             </StampText>
           </div>
-          <Flash startFrame={100} color="16,185,129" max={0.25} />
+          <Flash startFrame={104} color="16,185,129" max={0.25} />
           <Sparkles count={13} startFrame={16} />
         </AbsoluteFill>
       </CameraDrift>
@@ -389,7 +420,7 @@ const SceneFreePro: React.FC = () => {
   )
 }
 
-/* ═══ SCENE 6 — 3 LANGKAH (120f) ═══════════════════════════════════ */
+/* ═══ SCENE 7 — 3 LANGKAH (148f) ════════════════════════════════════ */
 const StepRow: React.FC<{
   no: string
   label: string
@@ -418,18 +449,18 @@ const StepRow: React.FC<{
           width: 108,
           height: 108,
           borderRadius: '50%',
-          border: `4px solid ${accent ? COLORS.emerald : 'rgba(245,158,11,0.7)'}`,
-          background: accent ? 'rgba(16,185,129,0.14)' : 'rgba(245,158,11,0.12)',
+          border: `4px solid ${accent ? COLORS.emerald : 'rgba(96,165,250,0.75)'}`,
+          background: accent ? 'rgba(16,185,129,0.14)' : 'rgba(59,130,246,0.14)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 52,
           fontWeight: 900,
-          color: accent ? '#34d399' : COLORS.goldLight,
+          color: accent ? '#34d399' : COLORS.cyan,
           transform: `scale(${0.5 + badge * 0.5})`,
           boxShadow: accent
             ? `0 0 ${20 + glow * 22}px rgba(16,185,129,0.5)`
-            : `0 0 ${16 + glow * 12}px rgba(245,158,11,0.35)`,
+            : `0 0 ${16 + glow * 12}px rgba(59,130,246,0.4)`,
           flexShrink: 0,
         }}
       >
@@ -449,12 +480,12 @@ const StepRow: React.FC<{
 
 const SceneCara: React.FC = () => {
   const frame = useCurrentFrame()
-  const lineGrow = Math.min(1, Math.max(0, (frame - 18) / 60))
+  const lineGrow = Math.min(1, Math.max(0, (frame - 16) / 54))
   return (
     <AbsoluteFill>
-      {/* VO: "Daftar, bagikan kode referral-mu, komisi mengalir." */}
-      <Sequence from={8}>
-        <Audio src={staticFile('vo/vo6.wav')} />
+      {/* VO: "Daftar, bagikan kode referral, komisi mengalir. Selesai!" (4,48 dtk) */}
+      <Sequence from={2}>
+        <Audio src={staticFile('vo/vo7.wav')} />
       </Sequence>
       <CameraDrift zoomFrom={1.02} zoomTo={1.09} panX={14}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 54 }}>
@@ -472,22 +503,22 @@ const SceneCara: React.FC = () => {
                 top: 100,
                 width: 5,
                 height: `${lineGrow * 230}px`,
-                background: `linear-gradient(180deg, ${COLORS.gold}, rgba(245,158,11,0.15))`,
+                background: `linear-gradient(180deg, ${COLORS.blue}, rgba(59,130,246,0.15))`,
                 borderRadius: 3,
               }}
             />
             <StepRow no="01" label="Daftar gratis" startFrame={14} phase={0} />
-            <StepRow no="02" label="Bagikan kode referral kamu" startFrame={40} phase={2.1} />
-            <StepRow no="03" label="Komisi mengalir. Selesai." startFrame={66} accent phase={4.2} />
+            <StepRow no="02" label="Bagikan kode referral kamu" startFrame={38} phase={2.1} />
+            <StepRow no="03" label="Komisi mengalir. Selesai." startFrame={62} accent phase={4.2} />
           </div>
-          <Sparkles count={7} startFrame={60} />
+          <Sparkles count={7} startFrame={56} />
         </AbsoluteFill>
       </CameraDrift>
     </AbsoluteFill>
   )
 }
 
-/* ═══ SCENE 7 — CTA (135f) ═════════════════════════════════════════ */
+/* ═══ SCENE 8 — CTA (135f) ══════════════════════════════════════════ */
 const SceneCta: React.FC = () => {
   const frame = useCurrentFrame()
   const { fps, durationInFrames: D } = useVideoConfig()
@@ -501,9 +532,9 @@ const SceneCta: React.FC = () => {
   })
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', gap: 46, opacity: endFade }}>
-      {/* VO: "Buka luxtradee.web.id/affiliate. Gas sekarang!" */}
+      {/* VO: "Buka luxtradee dot web dot id slash affiliate, daftar sekarang!" (3,59 dtk) */}
       <Sequence from={8}>
-        <Audio src={staticFile('vo/vo7.wav')} />
+        <Audio src={staticFile('vo/vo8.wav')} />
       </Sequence>
       {/* orb glow pulsing */}
       <div
@@ -512,7 +543,7 @@ const SceneCta: React.FC = () => {
           width: 900,
           height: 900,
           borderRadius: '50%',
-          background: `radial-gradient(circle, rgba(245,158,11,${0.14 + 0.05 * Math.sin(frame * 0.1)}) 0%, transparent 65%)`,
+          background: `radial-gradient(circle, rgba(59,130,246,${0.15 + 0.05 * Math.sin(frame * 0.1)}) 0%, transparent 65%)`,
         }}
       />
       <PunchText startFrame={0} size={60} color={COLORS.white} gradient={false} shakePower={5}>
@@ -522,9 +553,9 @@ const SceneCta: React.FC = () => {
         style={{
           width: `${underline}%`,
           height: 10,
-          background: `linear-gradient(90deg, ${COLORS.goldLight}, ${COLORS.gold})`,
+          background: `linear-gradient(90deg, ${COLORS.cyan}, ${COLORS.blue})`,
           borderRadius: 5,
-          boxShadow: '0 0 22px rgba(245,158,11,0.55)',
+          boxShadow: '0 0 22px rgba(59,130,246,0.6)',
           marginTop: -22,
         }}
       />
@@ -533,16 +564,16 @@ const SceneCta: React.FC = () => {
         style={{
           opacity: Math.min(1, btn * 1.6),
           transform: `scale(${(0.6 + btn * 0.4) * btnPulse}) translateY(${Math.sin(frame * 0.06) * 5}px)`,
-          background: `linear-gradient(92deg, ${COLORS.goldLight}, ${COLORS.gold})`,
+          background: `linear-gradient(92deg, ${COLORS.cyan}, ${COLORS.blue})`,
           borderRadius: 999,
           padding: '30px 64px',
           fontSize: 52,
           fontWeight: 900,
-          color: '#78350f',
+          color: '#06122b',
           display: 'flex',
           alignItems: 'center',
           gap: 22,
-          boxShadow: `0 0 ${40 + 20 * Math.sin(frame * 0.15)}px rgba(245,158,11,0.55), 0 10px 0 rgba(120,53,15,0.55)`,
+          boxShadow: `0 0 ${40 + 20 * Math.sin(frame * 0.15)}px rgba(59,130,246,0.6), 0 10px 0 rgba(29,78,216,0.6)`,
         }}
       >
         DAFTAR SEKARANG
@@ -552,7 +583,7 @@ const SceneCta: React.FC = () => {
       </div>
       <FadeUp startFrame={40} distance={30}>
         <Float amp={5} phase={1.2}>
-          <div style={{ fontSize: 42, fontWeight: 700, color: COLORS.goldLight, textAlign: 'center' }}>
+          <div style={{ fontSize: 42, fontWeight: 700, color: COLORS.cyan, textAlign: 'center' }}>
             Konten kreator TikTok → Free Pro 3 bulan
           </div>
         </Float>
@@ -578,34 +609,38 @@ export const PromoVideo: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: COLORS.bg, fontFamily }}>
       <PromoBackground />
-      <GoldParticles count={36} />
+      <BlueParticles count={36} />
       <TickerStrip top={80} />
       <TickerStrip bottom={60} speed={1.9} />
       <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={100}>
-          <SceneHook />
+        <TransitionSeries.Sequence durationInFrames={90}>
+          <SceneGreeting />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={slide({ direction: 'from-right' })} timing={linearTiming({ durationInFrames: 14 })} />
         <TransitionSeries.Sequence durationInFrames={100}>
-          <SceneProblem />
+          <SceneHook />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={wipe({ direction: 'from-left' })} timing={linearTiming({ durationInFrames: 12 })} />
+        <TransitionSeries.Sequence durationInFrames={114}>
+          <SceneProblem />
+        </TransitionSeries.Sequence>
+        <TransitionSeries.Transition presentation={clockWipe({ width: 1080, height: 1920 })} timing={linearTiming({ durationInFrames: 13 })} />
         <TransitionSeries.Sequence durationInFrames={205}>
           <SceneBrand />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={clockWipe({ width: 1080, height: 1920 })} timing={linearTiming({ durationInFrames: 13 })} />
-        <TransitionSeries.Sequence durationInFrames={180}>
+        <TransitionSeries.Transition presentation={flip({ direction: 'from-right' })} timing={linearTiming({ durationInFrames: 15 })} />
+        <TransitionSeries.Sequence durationInFrames={186}>
           <SceneKomisi />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={flip({ direction: 'from-right' })} timing={linearTiming({ durationInFrames: 15 })} />
-        <TransitionSeries.Sequence durationInFrames={150}>
+        <TransitionSeries.Transition presentation={slide({ direction: 'from-bottom' })} timing={linearTiming({ durationInFrames: 14 })} />
+        <TransitionSeries.Sequence durationInFrames={145}>
           <SceneFreePro />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={slide({ direction: 'from-bottom' })} timing={linearTiming({ durationInFrames: 14 })} />
-        <TransitionSeries.Sequence durationInFrames={120}>
+        <TransitionSeries.Transition presentation={wipe({ direction: 'from-right' })} timing={linearTiming({ durationInFrames: 12 })} />
+        <TransitionSeries.Sequence durationInFrames={148}>
           <SceneCara />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={wipe({ direction: 'from-right' })} timing={linearTiming({ durationInFrames: 12 })} />
+        <TransitionSeries.Transition presentation={clockWipe({ width: 1080, height: 1920 })} timing={linearTiming({ durationInFrames: 12 })} />
         <TransitionSeries.Sequence durationInFrames={135}>
           <SceneCta />
         </TransitionSeries.Sequence>
