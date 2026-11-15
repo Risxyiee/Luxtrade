@@ -26,6 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const statics: MetadataRoute.Sitemap = [
     { url: BASE, lastModified: now, changeFrequency: 'daily', priority: 1.0 },
     { url: `${BASE}/blog`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
+    /* Tool gratis publik (magnet SEO "kalkulator lot xauusd") */
+    { url: `${BASE}/kalkulator-lot-xauusd`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE}/auth/signup`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     /* Halaman legal — WAJIB publik & terindeks (syarat review TikTok
