@@ -153,6 +153,34 @@ export function getSessionFromHour(isoDate: string): string | null {
   return 'New York'
 }
 
+/* FIX SESSION CSV (temuan uji 17-11: CSV dgn kolom "Session" berisi
+   "London" tetap tercatat "Asia" karena session selalu dihitung ulang
+   dari jam — nilai dari file diabaikan). Kini kolom Session dikenali &
+   nilainya dinormalisasi ke 3 sesi kanonik app (Asia / London /
+   New York). Nilai tak dikenal → fallback hitungan dari jam (perilaku
+   lama). Alias diterima: asia/asian/tokyo/japan/sydney/sgd-time,
+   london/europe/european/uk/ldn, newyork/ny/usa/us/america/nyc. */
+const SESSION_ALIAS_RE: Array<[RegExp, string]> = [
+  [/^(asia|asian|tokyo|japan|jpn|sydney|sidney|australia|singapore|sg)$/i, 'Asia'],
+  [/^(london|europe|european|eu|uk|england|ldn|gb)$/i, 'London'],
+  [/^(new york|newyork|ny|nyc|us|usa|america|american|us session)$/i, 'New York'],
+]
+export function normalizeSessionValue(raw: string | undefined | null): string | null {
+  if (!raw) return null
+  const v = raw.trim()
+  if (!v) return null
+  for (const [re, name] of SESSION_ALIAS_RE) {
+    if (re.test(v)) return name
+  }
+  /* Nilai bebas yang menyebut sesi di dalam kalimat: "Sesi London"
+     / "London Session" → tangkap kata kuncinya. */
+  const low = v.toLowerCase()
+  if (/london|europe|european|\beu\b|\buk\b/.test(low)) return 'London'
+  if (/new\s?york|\bny\b|\busa?\b|america/.test(low)) return 'New York'
+  if (/asia|tokyo|japan|sydney|singapore/.test(low)) return 'Asia'
+  return null
+}
+
 // ==================== HELPER: DELIMITER & HEADER ====================
 function detectDelimiter(lines: string[]): string {
   const candidates = ['\t', ';', ',']
@@ -322,6 +350,13 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     if (plainPrice >= 0 && plainPrice !== closePriceIdx) entryPriceIdx = plainPrice
   }
   const notesIdx = findCol(['notes', 'note', 'reason', 'alesan entry', 'alesan', 'alasan', 'comment', 'comments', 'keterangan', 'strategy', 'setup', 'catatan'], ['alesan', 'alasan', 'reason', 'comment', 'keterangan', 'notes', 'catatan'])
+  /* FIX SESSION CSV: kenali kolom Session/Sesi — dulu diabaikan total
+     sehingga jurnal dgn kolom session eksplisit dipaksa hitung ulang dari
+     jam (baris London jam 00:00 UTC berubah jadi "Asia"). */
+  const sessionIdx = findCol(
+    ['session', 'sesi', 'trading session', 'session trade', 'sesi trading', 'sesi trade'],
+    ['session', 'sesi'],
+  )
   const ticketIdx = findCol(['ticket', 'ticket_number', 'order', 'position id', 'deal', 'no. order'], ['ticket', 'order', 'position'])
   /* Kolom status utk posisi terbuka: 'Open' / 'Running' / 'Aktif' / 'Live'.
      Alias Indo ('status trade', 'status posisi') + Inggris. */
@@ -337,7 +372,7 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
     return OPEN_VALUE_RE.test(v) || /^(open|running)$/i.test(v)
   }
 
-  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Entry: ${entryPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}, OpenDate: ${openSplit.dateIdx}, OpenTime: ${openSplit.timeIdx}, CloseDate: ${closeSplit.dateIdx}, CloseTime: ${closeSplit.timeIdx}, SingleTime: ${singleTimeIdx}, SL: ${slIdx}, TP: ${tpIdx}, Notes: ${notesIdx}, Ticket: ${ticketIdx}`)
+  console.log(`📊 CSV columns (delimiter: ${delimiter === '\t' ? 'TAB' : delimiter}) - Symbol: ${symbolIdx}, Type: ${typeIdx}, Lot: ${lotIdx}, Entry: ${entryPriceIdx}, Close: ${closePriceIdx}, Profit: ${profitIdx}, OpenDate: ${openSplit.dateIdx}, OpenTime: ${openSplit.timeIdx}, CloseDate: ${closeSplit.dateIdx}, CloseTime: ${closeSplit.timeIdx}, SingleTime: ${singleTimeIdx}, SL: ${slIdx}, TP: ${tpIdx}, Notes: ${notesIdx}, Ticket: ${ticketIdx}, Session: ${sessionIdx}`)
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(delimiter).map(cleanToken)
@@ -438,6 +473,9 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
       tradeDuration = Math.round((closeMs - openMs) / 60000)
     }
 
+    /* FIX SESSION CSV: hormati kolom Session dari file kalau ada & dikenal. */
+    const sessionFromCsv = sessionIdx >= 0 ? normalizeSessionValue(values[sessionIdx]) : null
+
     trades.push({
       symbol,
       type,
@@ -447,7 +485,7 @@ function parseWithHeader(lines: string[], delimiter: string): CsvTrade[] {
       profit_loss: profitLoss,
       open_time: openTime,
       close_time: closeTime,
-      session: getSessionFromHour(openTime),
+      session: sessionFromCsv ?? getSessionFromHour(openTime),
       notes,
       stop_loss: stopLoss,
       take_profit: takeProfit,
