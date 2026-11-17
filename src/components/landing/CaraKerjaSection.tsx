@@ -112,7 +112,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
   const stepsData = steps[language]
 
   return (
-    <section id="cara-kerja" className="py-32 relative z-10">
+    <section id="cara-kerja" className="py-20 relative z-10">
       <div className="max-w-7xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

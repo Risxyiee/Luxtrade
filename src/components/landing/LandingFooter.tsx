@@ -129,7 +129,7 @@ export default function LandingFooter({ language }: LandingFooterProps) {
                 {t('Dapatkan tips trading & update', 'Get trading tips & updates')}
               </p>
               <p className="text-[11px] text-[#a8b2d1]/80">
-                {t('Bergabung dengan 150+ trader. Tidak ada spam, berhenti kapan saja.', 'Join 150+ traders. No spam, unsubscribe anytime.')}
+                {t('Bergabung dengan 53 trader. Tidak ada spam, berhenti kapan saja.', 'Join 53 traders. No spam, unsubscribe anytime.')}
               </p>
             </div>
             <form onSubmit={handleSubscribe} className="flex w-full sm:w-auto gap-2">

@@ -71,7 +71,7 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             : 'Metals, forex, indices, crypto — just type any symbol right in the chart symbol box.',
       },
     ],
-    cta: language === 'id' ? 'Coba Chart Gratis' : 'Try the Chart for Free',
+    cta: language === 'id' ? 'Daftar Gratis' : 'Sign Up Free',
     demoLabel: language === 'id' ? 'Demo live — XAU/USD 15m, feed TradingView' : 'Live demo — XAU/USD 15m, TradingView feed',
   }
 

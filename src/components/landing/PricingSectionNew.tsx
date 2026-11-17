@@ -48,7 +48,7 @@ export default function PricingSectionNew({
   const monthlyPromoPrice = 'Rp25K'
 
   return (
-    <section id="pricing" className="py-32 relative z-10">
+    <section id="pricing" className="py-20 relative z-10">
       <div className="max-w-5xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

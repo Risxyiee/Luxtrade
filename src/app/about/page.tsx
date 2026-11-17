@@ -83,15 +83,15 @@ export default function AboutPage() {
       year: 'Q2 2024',
       title: isEnglish ? 'Official Launch' : 'Peluncuran Resmi',
       description: isEnglish
-        ? 'Official public launch with Elite PRO and Lifetime Ultra plans, supporting Indonesian and English traders.'
-        : 'Peluncuran publik resmi dengan paket Elite PRO dan Lifetime Ultra, mendukung trader Indonesia dan Inggris.'
+        ? 'Official public launch with the free and PRO plans, supporting Indonesian and English traders.'
+        : 'Peluncuran publik resmi dengan paket Gratis dan PRO, mendukung trader Indonesia dan Inggris.'
     },
     {
       year: 'Q3 2024',
       title: isEnglish ? 'Community Growth' : 'Pertumbuhan Komunitas',
       description: isEnglish
-        ? 'Reached 50+ active traders and built a supportive community on Discord, Instagram, and TikTok.'
-        : 'Mencapai 50+ trader aktif dan membangun komunitas yang suportif di Discord, Instagram, dan TikTok.'
+        ? 'Reached 53 registered traders and built a supportive community on Discord, Instagram, and TikTok.'
+        : 'Mencapai 53 trader terdaftar dan membangun komunitas yang suportif di Discord, Instagram, dan TikTok.'
     },
     {
       year: 'Future',
@@ -179,8 +179,11 @@ export default function AboutPage() {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
+          {/* FIX Bos: teks hero sempat sangat redup saat halaman dimuat
+              (animasi mulai opacity 0) → container langsung "visible"
+              supaya hero TERBACA begitu muncul tanpa menunggu JS. */}
           <motion.div
-            initial="hidden"
+            initial="visible"
             animate="visible"
             variants={staggerContainer}
           >

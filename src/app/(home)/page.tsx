@@ -24,6 +24,8 @@ const loadingDiv = <div className="h-32" />
 // berada di dalam useEffect (SSR-safe). ssr:false DIPERTAHANKAN hanya
 // untuk 2 modal (butuh state klik) + 3 widget interaktif berat.
 const SocialProofBar = dynamic(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.default })), { loading: () => loadingDiv })
+// Jurnal tamu (Bos: pengunjung mencatat trade TANPA daftar dulu, baru ditawari signup)
+const GuestJournalSection = dynamic(() => import('@/components/landing/GuestJournalSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
 const AIVisionSimulator = dynamic(() => import('@/components/landing/AIVisionSimulator').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const InteractiveTutorial = dynamic(() => import('@/components/landing/InteractiveTutorial').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { loading: () => loadingDiv })
@@ -149,6 +151,9 @@ export default function LuxTradeLanding() {
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
           <SocialProofBar language={language} />
+          {/* JURNAL TAMU (Bos): CTA utama hero/nav mengarah ke sini —
+              pengunjung bisa mencatat trade tanpa akun (localStorage) */}
+          <GuestJournalSection language={language} />
           {/* Chart demo live TradingView (direktif Bos 11 Nov: "ganti
               semuanya ke tradingview mulai dari pine alert") — pengganti
               PineAlertShowcase. Dipasang tepat setelah hero supaya chart
@@ -190,11 +195,11 @@ export default function LuxTradeLanding() {
         {/* LiveActivityFeed removed — fake data */}
         <CSBotWidget language={language} />
 
-        {/* Mobile Sticky CTA */}
+        {/* Mobile Sticky CTA — jurnal tamu (bukan signup) */}
         <div ref={mobileCtaRef} id="mobile-cta" className="md:hidden fixed bottom-0 left-0 w-full p-4 bg-[#050507]/90 backdrop-blur-xl border-t border-white/10 z-40">
-          <button onClick={handleProUpgrade} className="block w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-center font-semibold rounded-xl glow-bg-luxury text-sm cursor-pointer">
-            {language === 'en' ? 'Sign Up Free Now' : 'Daftar Gratis Sekarang'}
-          </button>
+          <a href="#jurnal-gratis" className="block w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-[#05100c] text-center font-bold rounded-xl glow-bg-luxury text-sm">
+            {language === 'en' ? 'Start Journal Free' : 'Mulai Jurnal Gratis'}
+          </a>
         </div>
 
         <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />

@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Sparkles, ScanLine } from 'lucide-react'
+import { Sparkles, ScanLine, NotebookPen } from 'lucide-react'
 
 interface HeroSectionProps {
   language?: 'id' | 'en'
@@ -166,8 +166,8 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             className="max-w-xl text-lg text-gray-400"
           >
             {language === 'en'
-              ? 'Track trades, monitor drawdowns, and AI detects your losing patterns. 8 traders passed prop firm challenges using LuxTradee. Be next.'
-              : 'Catat trade, pantau drawdown, dan AI deteksi pola loss kamu. 8 trader sudah lewat challenge prop firm dengan LuxTradee. Kamu berikutnya.'}
+              ? 'Track trades, monitor drawdowns, and AI detects your losing patterns. 53 traders already journal with LuxTradee. Be next.'
+              : 'Catat trade, pantau drawdown, dan AI deteksi pola loss kamu. Sudah 53 trader jurnal dengan LuxTradee. Kamu berikutnya.'}
           </motion.p>
 
           <motion.div
@@ -176,14 +176,16 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             transition={{ duration: 0.5, delay: 0.24 }}
             className="flex flex-col sm:flex-row gap-4 mt-4"
           >
-            <Link prefetch={false} href="#simulator">
-              <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
-                {language === 'en' ? 'Try AI Simulator' : 'Coba AI Simulator'} <ScanLine className="w-4 h-4" />
+            {/* CTA UTAMA — buka form jurnal tamu (tanpa daftar), BUKAN signup
+                (Bos: pengunjung harus bisa mencatat sebelum diminta daftar) */}
+            <Link prefetch={false} href="#jurnal-gratis">
+              <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-400 text-[#05100c] font-bold rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
+                {language === 'en' ? 'Start Journal Free' : 'Mulai Jurnal Gratis'} <NotebookPen className="w-4 h-4" />
               </span>
             </Link>
-            <Link prefetch={false} href="#pricing">
+            <Link prefetch={false} href="#simulator">
               <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-colors">
-                {language === 'en' ? 'View Pricing' : 'Lihat Pricing'}
+                {language === 'en' ? 'Try AI Simulator' : 'Coba AI Simulator'} <ScanLine className="w-4 h-4" />
               </span>
             </Link>
           </motion.div>

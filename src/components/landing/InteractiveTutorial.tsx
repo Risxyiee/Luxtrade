@@ -234,12 +234,12 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
             {language === 'en' ? 'INTERACTIVE DEMO' : 'DEMO INTERAKTIF'}
           </span>
           <h2 className="text-3xl md:text-4xl font-bold mt-6 mb-4 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-600">
-            {language === 'en' ? 'Try It Yourself - No Sign Up Required' : 'Coba Sendiri - Tanpa Daftar'}
+            {language === 'en' ? 'See the Demo — Sample Data' : 'Lihat Demo — Contoh Data'}
           </h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             {language === 'en'
-              ? 'Experience LuxTradee with real demo data. See how we help prop firm traders pass challenges.'
-              : 'Rasakan LuxTradee dengan data demo asli. Lihat bagaimana kami membantu trader prop firm lulus challenge.'}
+              ? 'A read-only walkthrough with sample data. Want to actually write trades? Use the free guest journal above — no sign-up needed.'
+              : 'Panduan baca-saja dengan data contoh. Mau benar-benar mencatat trade? Pakai jurnal tamu gratis di atas — tanpa daftar.'}
           </p>
         </motion.div>
 
