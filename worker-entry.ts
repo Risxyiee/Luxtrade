@@ -28,6 +28,12 @@
 //                 pilih maks 2 taruhan baru) dan review produk Raka
 //                 (backlog perbaikan website berbukti data → ACC Bos →
 //                 issue GitHub). Numpang slot Senin — nol slot cron baru.
+//               + RISET NICHE IG MINGGUAN (ig-niche-research, Bos 17-11):
+//                 scan pasar gold-trading Indonesia via Exa MCP (backend
+//                 CLI Agent Reach, read-only) — 6 query (pasar, segmen
+//                 jurnal, hashtag, 3 kompetitor top) → hasil di agent_kv
+//                 niche_research:latest → dibaca Sinta saat menyusun
+//                 konten mingguan. Idempotent per minggu ISO (dedup).
 //                 RIWAYAT TUGAS A 14-11: review produk Raka DIMATIKAN
 //                 dari cron (route tetap hidup — pemicu manual/tombol).
 //   */15 * * * → watchdog CTO 24/7 (DOWN/bug/kuota → alarm Discord instan)
@@ -118,7 +124,7 @@ const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/cron/price-alerts', '
 const CRON_ROUTES: Record<string, string[]> = {
   '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/ceo-agent?action=briefing', '/api/cron/ig-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
-  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting'],
+  '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/cron/ig-niche-research'],
   // Kunci '5-menit' dipakai wrangler baru; kunci '15-menit' disimpan sbg
   // alias transisi (deploy lama yang masih pakai trigger 15-menit tetap jalan).
   '*/5 * * * *': FAST_5MIN,
@@ -165,6 +171,9 @@ const IG_METRICS_TIMEOUT_MS = 90_000
    di-reclaim 30 menit → diulang terus (konten tidak pernah tayang).
    180 dtk mencakup mayoritas Reels; sisanya ditolong reclaim + retry. */
 const IG_AUTO_POST_TIMEOUT_MS = 180_000
+/* ig-niche-research (Senin 10:00 WIB): 6 query Exa MCP paralel × ~1–5 dtk
+   + simpan agent_kv + Discord → 90 dtk cukup walau Exa lambat. */
+const NICHE_RESEARCH_TIMEOUT_MS = 90_000
 /* seo-factory: kumpul data riil (harga/sinyal/kalender) + 1 insert →
    60 dtk cukup. (RIWAYAT TUGAS A 14-11: timeout growth-sentinel &
    comment-hunter dibuang — rutenya tidak lagi di cron.) */
@@ -197,6 +206,8 @@ const timeoutFor = (route: string) =>
         ? IG_METRICS_TIMEOUT_MS
       : route.startsWith('/api/cron/ig-auto-post')
         ? IG_AUTO_POST_TIMEOUT_MS
+      : route.startsWith('/api/cron/ig-niche-research')
+        ? NICHE_RESEARCH_TIMEOUT_MS
         : DEFAULT_TIMEOUT_MS
 
 export default {
