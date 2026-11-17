@@ -8,11 +8,12 @@ name: Master Autonomous Workforce
 #               (🎓 Akademi belajar → Raka+Maya+Bagas+Putri+Dewi →
 #                Farhan+Sinta → Alexander)
 #
-#   ⚠️ SHIFT SORE 20.00 WIB (video Sinta) PINDAH: sekarang SATU
-#   pipeline di video-bot-cron.yml jam 19.10 WIB — render SEKALI,
-#   posting ke TikTok + Instagram Reels (19–20 WIB, 2 hari sekali).
-#   Job "sinta-video" di file ini TIDAK dijadwalkan lagi (cuma
-#   workflow_dispatch utk uji manual) — mencegah render dobel.
+#   ⚠️ SHIFT SORE (video Sinta) PINDAH: sekarang SATU pipeline di
+#   video-bot-cron.yml jam 18:50 WIB (tayang ±19:00 WIB — Bos 17-11:
+#   "jam 19.00 ajaa") — render SEKALI, posting ke TikTok + Instagram
+#   Reels (window 18–20 WIB, harian Senin–Jumat). Job "sinta-video"
+#   di file ini TIDAK dijadwalkan lagi (cuma workflow_dispatch utk
+#   uji manual) — mencegah render dobel.
 #
 # CF Workers gratis = MAKS 50 SUBREQUEST per invokasi. Run penuh 8 agen
 # (13 probe Raka + rantai LLM + DB + Discord) bisa melampaui batas itu →

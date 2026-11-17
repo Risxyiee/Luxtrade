@@ -20,10 +20,10 @@ import {
  *   POST /{page-id}/media?media_type=REELS&video_url=&caption=
  *   → poll FINISHED (1–5 menit) → /media_publish?creation_id=
  *
- * ATURAN JADWAL + ACC (permintaan Bos, update terakhir):
- *   • "posting konten jam 18-19 WIB senin sampe jumat — tiktok belum bisa
- *     lewat api resmi, sementara ig dulu" → window digeser dari 19–20
- *     ke 18:00–18:59 WIB (runner jalan 18:10 WIB, Senin–Jumat).
+ * ATURAN JADWAL + ACC (permintaan Bos, update terakhir 17-11:
+ *   "jam 19.00 ajaa" — posting video tayang ±19:00 WIB):
+ *   • Runner video-bot-cron jalan 18:50 WIB (Senin–Jumat), render
+ *     ±2–3 menit → POST ke sini ±19:00 WIB → publish inline (±19:00).
  *   • "nunggu saya acc" → DEFAULT MODE = APPROVAL:
  *       runner kirim draft → ai_pending_actions (PUBLISH_IG_REEL) →
  *       Bos ACC di Kantor CEO → Antrean Eksekusi → /api/execute-action
@@ -48,7 +48,7 @@ import {
  *   2. Validasi input
  *   3. Mode APPROVAL: draft selalu disimpan (window/cadence tidak
  *      membuang konten lagi — catatan lateRunNote bila telat)
- *   4. Mode AUTO: window 18–19 WIB + cadence 20 jam → skipped (honest)
+ *   4. Mode AUTO: window 18–20 WIB + cadence 20 jam → skipped (honest)
  *   5. ensureFreshToken (token > 55 hari → refresh otomatis 60 hari)
  *   6. Enqueue instagram_posts (media_type REELS, source sinta-video)
  *   7. Publish inline (poll sampai 6 menit). Timeout → row 'publishing'
@@ -73,13 +73,15 @@ const MIN_GAP_MS = 20 * 60 * 60 * 1000
  *  besok (konten TIDAK hangus). */
 const WINDOW_HOURS_WIB = [18, 19, 20]
 
-/** 18:00 WIB berikutnya (≥ after) — 18:00 WIB = 11:00 UTC.
+/** 19:00 WIB berikutnya (≥ after) — 19:00 WIB = 12:00 UTC.
+ *  Target tayang harian (Bos 17-11: "jam 19.00 ajaa"). Antrean yang
+ *  gagal window/cadence dijadwalkan tayang 19:00 WIB berikutnya.
  *  Sabtu/Minggu DILEWATI (permintaan Bos: "sabtu minggu libur") —
  *  video buatan Jumat yang telat dieksekusi Sabtu dini hari tetap
- *  tayang Senin 18:00 WIB, bukan Sabtu/Minggu. */
+ *  tayang Senin 19:00 WIB, bukan Sabtu/Minggu. */
 function nextWindowStartWib(after: Date = new Date()): Date {
   const d = new Date(
-    Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate(), 11, 0, 0)
+    Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate(), 12, 0, 0)
   )
   if (d.getTime() <= after.getTime()) d.setUTCDate(d.getUTCDate() + 1)
   while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1)
@@ -298,7 +300,7 @@ export async function POST(request: NextRequest) {
           ...(topicMeta ? { topic: topicMeta } : {}),
           renderBy: 'sinta (cmo) — remotion 9:16',
           scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
-          scheduleNote: `runner ${alasan} → video dijadwalkan (tidak dibuang) — window 18–19 WIB, libur Sabtu/Minggu`,
+          scheduleNote: `runner ${alasan} → video dijadwalkan tayang ±19:00 WIB (tidak dibuang) — window 18–20 WIB, libur Sabtu/Minggu`,
         },
         scheduled_for: new Date(schedMs).toISOString(),
       })
@@ -320,7 +322,7 @@ export async function POST(request: NextRequest) {
       queued: true,
       scheduledFor: new Date(schedMs).toISOString(),
       reason: alasan,
-      note: 'Video masuk antrean dgn jadwal — cron ig-auto-post (09:00/19:00/20:30 WIB) yang mempublish saat jatuh tempo.',
+      note: 'Video masuk antrean dgn jadwal 19:00 WIB — cron ig-auto-post yang mempublish saat jatuh tempo (window 18–20 WIB).',
     })
   }
 

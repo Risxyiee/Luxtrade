@@ -7,12 +7,13 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 #  sabtu minggu libur"
 #
 # Aturan berlaku:
-#   • JADWAL  : SENIN–JUMAT 18:10 WIB (11:10 UTC). Sabtu/Minggu LIBUR.
-#     (Permintaan Bos: "posting konten mau tiktok atau ig dijam 18-19
-#      wib senin sampe jumat — tiktok belum bisa lewat api resmi,
-#      sementara ig dulu")
+#   • JADWAL  : SENIN–JUMAT 18:50 WIB (11:50 UTC) → konten tayang ±19:00 WIB.
+#     Sabtu/Minggu LIBUR. (RIWAYAT BOS 17-11: "jam 19.00 ajaa" — dulu
+#     jadwal 18:10 WIB; menit 50 sengaja bukan menit genap biar tidak
+#     mengantre di antrean padat GitHub Actions, render ±2-3 menit →
+#     POST ke ig-video-post tepat ±19:00 WIB di dalam window 18–20 WIB).
 #   • 1 konten/hari — rotasi platform otomatis:
-#       SEMUA HARI → Instagram Reels dulu (window server 18–19 WIB);
+#       SEMUA HARI → Instagram Reels dulu (window server 18–20 WIB);
 #         Sel/Kam tetap COBA TikTok dulu, tapi karena app TikTok belum
 #         approved → fallback IG otomatis di bawah (konten tidak hangus).
 #         Begitu app TikTok approved, Sel/Kam otomatis balik ke TikTok.
@@ -53,12 +54,13 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 on:
   schedule:
-    # 11:10 UTC = 18:10 WIB — Senin–Jumat saja (1-5). Sabtu/Minggu LIBUR (Bos).
-    - cron: '10 11 * * 1-5'
+    # 11:50 UTC = 18:50 WIB — Senin–Jumat saja (1-5). Sabtu/Minggu LIBUR (Bos).
+    # Tayang ±19:00 WIB (render ±2-3 menit) — permintaan Bos 17-11: "jam 19.00 ajaa".
+    - cron: '50 11 * * 1-5'
   workflow_dispatch:
     inputs:
       force:
-        description: 'Lewati window 18-19 WIB & cadence (tes manual)'
+        description: 'Lewati window 18-20 WIB & cadence (tes manual)'
         type: boolean
         required: false
         default: false
@@ -297,8 +299,9 @@ jobs:
             -d "$(jq -n --arg c "${CAPTION:-}" --arg p "${PUBLISH_ID:-}" '{caption:$c, publishId:$p}')" \
             "$PROD_URL/api/tiktok/report" || echo "⚠️ lapor katalog tiktok gagal (best-effort, dilewati)"
 
-      # 📸 IG Reels — jalur utama SEMUA hari (18:10 WIB) ATAU fallback dari TikTok yang gagal
-      - name: 📸 Posting ke Instagram Reels (18–19 WIB · server putuskan window/cadence)
+      # 📸 IG Reels — jalur utama SEMUA hari (18:50 WIB → tayang ±19:00 WIB)
+      #    ATAU fallback dari TikTok yang gagal
+      - name: 📸 Posting ke Instagram Reels (window 18–20 WIB · server putuskan window/cadence)
         if: env.PLATFORM == 'ig' || env.IG_FALLBACK == 'true'
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
@@ -346,7 +349,7 @@ jobs:
             *) echo "⚠️ Semua host publik gagal (nanti dicoba lagi jadwal berikutnya)"; exit 0 ;;
           esac
 
-          # 2) Kirim ke worker → server cek window 19-20 WIB + cadence 1x/hari
+          # 2) Kirim ke worker → server cek window 18–20 WIB + cadence 1x/hari
           CAPTION=$(jq -r '(.spec.igCaption // .spec.caption // "")[0:2100]' /tmp/spec.json)
           TEMPLATE=$(jq -r '.template // "promo"' /tmp/spec.json)
           HOOK=$(jq -r '.spec.scenes[0].title // ""' /tmp/spec.json)
@@ -420,7 +423,7 @@ jobs:
           echo "Slide ter-upload: $NURL"
           if [ "$NURL" -lt 2 ]; then echo "⚠️ Ter-upload <2 slide — carousel dilewati (coba jadwal berikutnya)"; exit 0; fi
 
-          # 3) Kirim ke worker → server cek window 19-20 WIB + cadence
+          # 3) Kirim ke worker → server cek window 18–20 WIB + cadence
           CAPTION=$(jq -r '(.spec.igCaption // .spec.caption // "")[0:2100]' /tmp/spec.json)
           BODY=$(jq -n --argjson u "$URLS" --arg c "$CAPTION" '{imageUrls:$u, caption:$c}')
           code=$(curl -sS -L -o /tmp/igc.json -w '%{http_code}' --max-time 600 -X POST \

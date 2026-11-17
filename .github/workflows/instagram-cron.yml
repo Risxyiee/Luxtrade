@@ -27,8 +27,9 @@ on:
   schedule:
     # 02:00 UTC = 09:00 WIB — post pagi (prime time cek harga pagi)
     - cron: '0 2 * * *'
-    # 11:45 UTC = 18:45 WIB — publish Reels Sinta (runner render 18:10 WIB)
-    #       pas di window 18–19 WIB (permintaan Bos: posting jam 18-19)
+    # 11:45 UTC = 18:45 WIB — jaring pengaman antrean konten kreatif Sinta
+    #       (video-bot-cron render 18:50 WIB → tayang ±19:00 WIB; ini tolong
+    #       antrean yang belum ke-publish sebelum window tutup)
     - cron: '45 11 * * *'
     # 13:30 UTC = 20:30 WIB — jaring pengaman: Reels Sinta yang belum
     #       terpublish (timeout/pending) dicoba lagi
