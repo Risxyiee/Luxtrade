@@ -32,6 +32,15 @@ import {
  *   4. Klaim maks N baris 'pending' (scheduled_for ≤ now, N default 2,
  *      maks 5 via ?max=) → postToInstagram (media → poll → media_publish;
  *      Reels poll sampai 6 menit, carousel 3 menit).
+ *      FIX CRON IG (17-11): konten kreatif (sinta-*) di luar window
+ *      18–21 WIB dulu DITAHAN PERMANEN — bukti log GH Actions 12–16 Nov:
+ *      slot malam GitHub selalu telat 9–11 jam (runner antre) → run
+ *      "18:45 WIB" beneran jalan 01–05 WIB → "2 konten kreatif ditahan"
+ *      tiap hari, konten tidak pernah tayang. Kini konten yang sudah
+ *      OVERDUE ≥ 12 jam sejak scheduled_for DIPOSTING JUGA di run
+ *      berikutnya (apa pun cron-nya) — jam tayang kurang prime masih
+ *      jauh lebih baik daripada konten busuk di antrean + media host
+ *      TTL 7 hari kedaluwarsa. Konten fresh tetap dihormati window-nya.
  *   5. Sukses → published + permalink. Gagal → attempts<3 balik pending,
  *      else failed permanen. Ringkasan gagal → Discord admin.
  *
@@ -56,6 +65,7 @@ interface QueueRow {
   caption: string | null
   attempts: number
   source?: string | null
+  scheduled_for?: string | null
   meta?: { image_urls?: string[] } | null
 }
 
@@ -74,6 +84,12 @@ interface QueueRow {
    otomatis lain tidak terpengaruh. */
 const CONTENT_SOURCES = new Set(['sinta-video', 'sinta-content', 'sinta-carousel'])
 const CONTENT_WINDOW_HOURS_WIB = [18, 19, 20]
+/* Konten kreatif yang sudah menunggu ≥ 12 jam sejak scheduled_for dianggap
+ * KEHILANGAN WINDOW-nya (mis. runner GH telat 9–11 jam + slot worker lewat)
+ * → posting darurat di run berikutnya alih-alih ditahan sampai besok.
+ * 12 jam dipilih supaya: konten 18:45 WIB yang lolos → diselamatkan run
+ * pagi berikutnya (07–16 WIB), bukan menunggu window besok (23 jam lagi). */
+const CONTENT_OVERDUE_MS = 12 * 60 * 60 * 1000
 
 function contentInWindow(): boolean {
   const day = new Date(Date.now() + 7 * 3_600_000).getUTCDay()
@@ -161,7 +177,7 @@ async function handle(request: NextRequest) {
     /* ── 4) Klaim antrean pending ── */
     const { data: due, error: qErr } = await admin
       .from('instagram_posts')
-      .select('id, media_type, image_url, video_url, caption, attempts, source, meta')
+      .select('id, media_type, image_url, video_url, caption, attempts, source, scheduled_for, meta')
       .eq('status', 'pending')
       .lte('scheduled_for', new Date().toISOString())
       .order('created_at', { ascending: true })
@@ -171,17 +187,29 @@ async function handle(request: NextRequest) {
     }
     const rows = (due ?? []) as QueueRow[]
 
-    /* ── 4b) Window konten kreatif 18–19 WIB: di luar window baris konten
-       DITINGGAL pending (diambil lagi run 18:45 WIB berikutnya) ── */
+    /* ── 4b) Window konten kreatif 18–21 WIB: di luar window baris konten
+       DITINGGAL pending (diambil lagi run 18:45 WIB berikutnya) — KECUALI
+       sudah overdue ≥ 12 jam → posting darurat (FIX cron IG 17-11, lihat
+       docblock atas). ── */
     const windowOpen = contentInWindow()
-    const claimable = rows.filter(r => windowOpen || !CONTENT_SOURCES.has(r.source || ''))
+    const nowMs = Date.now()
+    let overduePosted = 0
+    const claimable = rows.filter((r) => {
+      if (windowOpen || !CONTENT_SOURCES.has(r.source || '')) return true
+      const schedMs = Date.parse(r.scheduled_for || '')
+      if (Number.isFinite(schedMs) && nowMs - schedMs >= CONTENT_OVERDUE_MS) {
+        overduePosted++
+        return true // kehilangan window → posting darurat, jangan tahan selamanya
+      }
+      return false
+    })
     const heldByWindow = rows.length - claimable.length
     if (!claimable.length) {
       return NextResponse.json({
         ok: true,
         posted: 0,
         message: heldByWindow > 0
-          ? `${heldByWindow} konten kreatif ditahan — di luar window posting 18–19 WIB (Senin–Jumat)`
+          ? `${heldByWindow} konten kreatif ditahan — di luar window posting 18–21 WIB (Senin–Jumat); konten overdue ≥12 jam otomatis diposting run berikutnya`
           : 'Antrean kosong',
       })
     }
@@ -300,10 +328,17 @@ async function handle(request: NextRequest) {
       ).catch(() => {})
     }
 
+    if (overduePosted > 0 && failures === 0) {
+      await sendAdminNotification(
+        `📸⏰ <b>Instagram: ${overduePosted} konten kreatif diposting darurat</b>\nKehilangan window 18–21 WIB (overdue ≥12 jam) — dibunuh cron berikutnya agar tidak busuk di antrean.\n\n⏰ ${new Date().toLocaleString('id-ID')}`
+      ).catch(() => {})
+    }
+
     return NextResponse.json({
       ok: true,
       posted: results.filter((r) => r.ok).length,
       failed: failures,
+      overduePosted,
       tokenRefreshed: tok.refreshed,
       tokenRefreshError: tok.refreshError,
       results,

@@ -159,6 +159,12 @@ const PROP_GUARD_TIMEOUT_MS = 60_000
 /* ig-metrics: sampai 12 Reels × 2 panggilan Graph API (±2 dtk per call)
    + ringkasan → 90 dtk biar tidak kepotong pas jaringan lambat. */
 const IG_METRICS_TIMEOUT_MS = 90_000
+/* ig-auto-post (jaring pengaman IG di jalur berat): posting Reels menunggu
+   proses server IG 1–5 menit (poll FINISHED) — timeout default 30 dtk
+   MEMOTONG posting di tengah jalan → baris menggantung 'publishing' →
+   di-reclaim 30 menit → diulang terus (konten tidak pernah tayang).
+   180 dtk mencakup mayoritas Reels; sisanya ditolong reclaim + retry. */
+const IG_AUTO_POST_TIMEOUT_MS = 180_000
 /* seo-factory: kumpul data riil (harga/sinyal/kalender) + 1 insert →
    60 dtk cukup. (RIWAYAT TUGAS A 14-11: timeout growth-sentinel &
    comment-hunter dibuang — rutenya tidak lagi di cron.) */
@@ -188,8 +194,10 @@ const timeoutFor = (route: string) =>
       : route.startsWith('/api/cron/prop-firm-guard')
         ? PROP_GUARD_TIMEOUT_MS
         : route.startsWith('/api/cron/ig-metrics')
-          ? IG_METRICS_TIMEOUT_MS
-          : DEFAULT_TIMEOUT_MS
+        ? IG_METRICS_TIMEOUT_MS
+      : route.startsWith('/api/cron/ig-auto-post')
+        ? IG_AUTO_POST_TIMEOUT_MS
+        : DEFAULT_TIMEOUT_MS
 
 export default {
   async fetch(request, env, ctx) {
