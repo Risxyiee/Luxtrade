@@ -2562,7 +2562,11 @@ async function handleRequest(request: NextRequest) {
     if (dry) {
       return NextResponse.json({ success: true, runId, version: RUN_VERSION, dryRun: true, academy: { note: 'dry-run — sesi belajar dilewati' } })
     }
-    const order = ['farhan', 'sinta', 'raka', 'maya', 'bagas', 'putri', 'dewi', 'alexander']
+    /* PEMBERSIHAN 17-11 (keluhan Bos "karyawan lama masih ada"): urutan
+       akademi hanya KARYAWAN AKTIF — dulu melatih 8 agen termasuk
+       Farhan/Bagas/Putri/Dewi yang sudah dipecat Tugas A (buang kuota
+       LLM tiap pagi + memori kantor penuh nama karyawan lama). */
+    const order = ['sinta', 'raka', 'maya', 'alexander']
     const academy: Record<string, { status: string; topik?: string; sumber?: string }> = {}
     for (const key of order) {
       const lesson = await runAcademyForAgent(admin, key, false)

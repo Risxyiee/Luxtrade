@@ -3621,13 +3621,13 @@ async function growthAgent(e: Env): Promise<GhInsight> {
 
   /* AMBANG TRAFFIC MINIMAL (spec perbaikan kantor AI): funnel < 10 pendaftar
      → analisis funnel & A/B belum bermakna → JANGAN panggil LLM (A/B test
-     butuh traffic, ditunda sampai ada). Sementara Farhan kerja 1 eksperimen
-     akuisisi/minggu via artefak (job gh:experiment, Rabu). Menyala otomatis
-     lagi begitu ≥10 pendaftar. */
+     butuh traffic, ditunda sampai ada). Menyala otomatis lagi begitu
+     ≥10 pendaftar. (RIWAYAT PEMBERSIHAN 17-11: referensi job
+     gh:experiment dihapus — Farhan pecat Tugas A, katalog kerja bersih.) */
   if (total < 10) {
     const abViews = ab ? ab.A.views + ab.B.views : 0
     const out: GhInsight = { ...base, provider: 'fallback',
-      insight: `Funnel masih terlalu kecil untuk dianalisis: ${total}/10 pendaftar (A/B landing baru ${abViews} lihat dalam 7 hari — butuh traffic lebih besar). Analisis funnel & A/B otomatis menyala begitu ada traffic. Sementara: 1 eksperimen akuisisi per minggu (panel artefak, job gh:experiment).`,
+      insight: `Funnel masih terlalu kecil untuk dianalisis: ${total}/10 pendaftar (A/B landing baru ${abViews} lihat dalam 7 hari — butuh traffic lebih besar). Analisis funnel & A/B otomatis menyala begitu ada traffic.`,
       experiments: [],
       ab: ab || undefined }
     await kvSet(e, 'gh:last', JSON.stringify(out)).catch(() => {})

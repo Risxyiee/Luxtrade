@@ -24,8 +24,10 @@ name: Master Autonomous Workforce
 #   Wave 0: 🎓 AKADEMI — semua agen belajar pagi sesuai keahlian (kurikulum
 #           rotasi harian, lib/agent-academy.ts) → pelajaran tercache;
 #           pekerja di wave berikutnya tinggal baca cache (1 subrequest)
-#   Wave 1: Raka (security sweep) + Maya + Bagas + Putri + Dewi
-#   Wave 2: Farhan (artikel SEO) + Sinta (draf TikTok)  [LLM berat]
+#   Wave 1: Raka (security sweep) + Maya
+#   Wave 2: Sinta (draf TikTok)  [LLM berat]
+#   (PEMBERSIHAN 17-11: Bagas/Putri/Dewi/Farhan DIPECAT Tugas A — dihapus
+#    dari gelombang; route tetap bisa memanggil manual via ?agents=...)
 #   Wave 3: Alexander → Morning Briefing → Discord
 #
 # Catatan limit: CF Workers Free = maks 5 cron triggers dan semua
@@ -157,9 +159,15 @@ jobs:
             fi
             echo "✅ $label selesai (agen gagal ada di daftar atas bila ada)"
           }
-          kick "?agents=raka,maya,bagas,putri,dewi" "Gelombang 1: Raka + agen data"
+          kick "?agents=raka,maya" "Gelombang 1: Raka + Maya"
+          # PEMBERSIHAN 17-11 (keluhan Bos "karyawan lama masih ada & kirim
+          # tugas aneh"): Bagas/Putri/Dewi DIPECAT Tugas A 14-11 — kursi
+          # dilepas FASE 2-3 tapi gelombang ini lupa diubah → mereka terus
+          # kerja tiap pagi (email jualan/toggle fitur/task internal aneh).
+          # Route master-autonomous tetap bisa memanggil mereka MANUAL
+          # (?agents=bagas,putri,dewi) bila suatu saat diperlukan.
 
-      - name: "🎬 Gelombang 2/3 — Farhan + Sinta (konten LLM berat)"
+      - name: "🎬 Gelombang 2/3 — Sinta (konten LLM berat)"
         # SELALU jalan walau Gelombang 1 gagal (infra pun: hasil parsial
         # lebih baik daripada karyawan konten mingguan tak pernah bekerja)
         if: always()
@@ -196,7 +204,9 @@ jobs:
           }
           # force=true: guard interval 30 menit memblok wave ke-2 dalam run yang
           # sama (wave 1 baru saja mencatat master:lastRun) — aman, tetap ber-auth.
-          kick "?agents=farhan,sinta&force=true" "Gelombang 2: Farhan + Sinta"
+          # PEMBERSIHAN 17-11: Farhan DIPECAT Tugas A 14-11 — dihapus dari
+          # gelombang (dulu ikut kerja tiap pagi: artikel SEO + A/B landing).
+          kick "?agents=sinta&force=true" "Gelombang 2: Sinta"
 
       - name: "👔 Gelombang 3/3 — Alexander (briefing → Discord)"
         # SELALU jalan — briefing harus terkirim walau gelombang sebelumnya

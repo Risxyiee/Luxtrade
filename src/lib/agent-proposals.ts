@@ -676,13 +676,19 @@ export interface SweepStep { agent: string; actionType: string; triggered: boole
  */
 export async function runProposalSweep(cfg: SbConfig, opts?: { includeRaka?: boolean }): Promise<{ ok: boolean; steps: SweepStep[]; created: number }> {
   const steps: SweepStep[] = []
+  /* PEMBERSIHAN 17-11 (keluhan Bos "kirim tugas aneh bgt"): karyawan
+     pecatan Tugas A (Farhan, Bagas, Dewi, Putri) DIHAPUS dari daftar
+     detektor sweep — sweep ini masih dipicu cron (worker slot berat
+     tiap 75 menit), jadi karyawan pecatan terus menghasilkan proposal
+     (Bagas email jualan, Farhan ubah A/B landing, Putri toggle fitur,
+     Dewi task internal) meski kursinya sudah dilepas FASE 2-3.
+     Fungsi detektornya TETAP ADA & diekspor (pemicu manual/eksperimen
+     tetap bisa) — hanya diputus dari sweep otomatis, pola sama dgn
+     Tugas A FASE 1. Yang tinggal: Sinta (pasar), Maya (winback),
+     Raka (maintenance — penjaga keamanan, REVISI BOS 15-11). */
   const detectors: Array<{ agent: string; type: string; fn: () => Promise<DetectedProposal | null> }> = [
     { agent: 'Sinta', type: 'PUBLISH_CONTENT', fn: () => sintaMarketProposal(cfg) },
     { agent: 'Maya', type: 'SEND_WINBACK_EMAIL', fn: () => mayaWinbackProposal(cfg) },
-    { agent: 'Farhan', type: 'UPDATE_AB_TEST', fn: () => farhanABProposal(cfg) },
-    { agent: 'Bagas', type: 'SEND_UPGRADE_OFFER', fn: () => bagasHotLeadsProposal(cfg) },
-    { agent: 'Dewi', type: 'TRIGGER_INTERNAL_TASK', fn: () => dewiPatternProposal(cfg) },
-    { agent: 'Putri', type: 'TOGGLE_FREE_FEATURES', fn: () => putriQuotaProposal(cfg) },
   ]
   if (opts?.includeRaka !== false) {
     detectors.push({ agent: 'Raka', type: 'BROADCAST_MAINTENANCE', fn: () => rakaMaintenanceProposal(cfg) })

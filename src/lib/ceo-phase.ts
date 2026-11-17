@@ -126,9 +126,9 @@ export const LAUNCH_CHECKLIST: string[] = [
   'Pasang webhook Resend (resend.com → Webhooks → https://luxtradee.web.id/api/webhooks/resend) supaya open-rate email terukur',
   'Tayangkan konten pertama: ambil draf terbaik Sinta di Ruang CMO, posting di TikTok dan Instagram hari ini',
   'Ajak 5 trader yang kamu kenal mencoba upload 1 screenshot — catat di langkah mana mereka bingung',
-  'Bagikan link di 3 grup/komunitas trader memakai draf community seeding Kevin (edukasi dulu, jangan jualan)',
+  'Bagikan link di 3 grup/komunitas trader — edukasi dulu, jangan jualan (draf jawaban bermanfaat bisa dibuat lewat skill ig-comment)',
   'Rekam demo layar 30 detik: upload screenshot → evaluasi AI keluar; pakai di landing dan TikTok',
-  'Kirim pesan kolaborasi ke 5 kreator trading kecil memakai draf Bagas di panel artefak Ruang COO',
+  'Kirim pesan kolaborasi ke 5 kreator trading kecil — program affiliate komisi 20% berulang (halaman /affiliate)',
   'Terbitkan artikel SEO pertama dari draf Sinta lalu submit sitemap ke Google Search Console',
   'Perbaiki jalur daftar → upload trade pertama berdasarkan temuan dari 5 teman tadi (bandingkan dengan rancangan onboarding Maya)',
 ]
@@ -180,8 +180,15 @@ interface Job {
   build: (c: JobCtx) => Promise<{ title: string; body: string } | null>
 }
 
+/* RIWAYAT TUGAS A 14-11 + pembersihan 17-11 (keluhan Bos "karyawan lama
+   masih ada & kirim tugas aneh"): karyawan pecatan (Bagas COO, Putri CFO,
+   Farhan GH, Dewi DA, Kevin seeding) DIHAPUS TOTAL dari katalog kerja —
+   dulu 4 job mereka tertinggal di JOBS (cfo:breakeven jalan tiap SENIN,
+   coo/gh Selasa, kevin Jumat) → artefak "CFO Putri" dsb terus terkirim.
+   Yang tersisa: Sinta (CMO), Maya (CSO), Raka (CTO) — sesuai susunan
+   Kantor CEO pasca-merger (LUXTRADEE GROWTH = Sinta+Maya + Raka CTO). */
 const ROLE_NAME: Record<string, string> = {
-  cmo: 'Sinta', coo: 'Bagas', cso: 'Maya', cto: 'Raka', cfo: 'Putri', gh: 'Farhan', kevin: 'Kevin',
+  cmo: 'Sinta', cso: 'Maya', cto: 'Raka', ceo: 'Alexander',
 }
 
 const NO_FABRICATION =
@@ -285,35 +292,10 @@ async function seoAudit(c: JobCtx): Promise<{ title: string; body: string } | nu
   }
 }
 
-async function breakeven(c: JobCtx): Promise<{ title: string; body: string } | null> {
-  const n = (name: string, def: number) => { const v = parseInt(c.d.env(name) || '', 10); return Number.isFinite(v) ? v : def }
-  const price = n('PRO_PRICE_IDR', 49000)
-  const fixed = n('FIXED_COST_IDR', 0)
-  const cash = n('CASH_IDR', 0)
-  let pro = -1
-  try { pro = await c.d.count('profiles', 'is_pro=eq.true') } catch { pro = -1 }
-  const idr = (x: number) => 'Rp' + Math.round(x).toLocaleString('id-ID')
-  const mrr = pro > 0 ? pro * price : 0
-  const L: string[] = [`Titik impas & runway (matematika murni, tanpa LLM) — ${c.d.wibDay()}`, '']
-  L.push(`Harga paket bulanan: ${idr(price)} (env PRO_PRICE_IDR) · user PRO sekarang: ${pro >= 0 ? pro : 'gagal dibaca'} · MRR estimasi: ${idr(mrr)}`)
-  if (fixed > 0) {
-    const need = Math.ceil(fixed / price)
-    L.push(`Biaya tetap/bulan: ${idr(fixed)} → titik impas = ${need} user PRO (${idr(fixed)} ÷ ${idr(price)})`)
-    L.push(pro >= 0 ? `Kekurangan: ${Math.max(0, need - pro)} user PRO lagi` : 'Kekurangan: tidak bisa dihitung (jumlah PRO gagal dibaca)')
-    if (cash > 0) {
-      const burn = Math.max(0, fixed - mrr)
-      L.push(burn > 0
-        ? `Kas ${idr(cash)} · pengeluaran bersih ${idr(burn)}/bulan → runway ≈ ${(cash / burn).toFixed(1)} bulan`
-        : `Kas ${idr(cash)} · pendapatan sudah menutup biaya tetap → runway tidak terbatas`)
-    } else L.push('Runway belum bisa dihitung: set env CASH_IDR (saldo kas yang dialokasikan untuk operasional).')
-  } else {
-    L.push('Titik impas belum bisa dihitung: set env FIXED_COST_IDR = total biaya tetap per bulan (domain, API berbayar, tools, dll.).')
-  }
-  L.push('', 'Batas: harga paket 6 bulanan/lifetime, potongan payment gateway, dan pajak belum dihitung.')
-  return { title: fixed > 0 ? `Titik impas ${Math.ceil(fixed / price)} user PRO` : 'Titik impas: biaya tetap belum diisi', body: L.join('\n') }
-}
-
-/* ---------- Jadwal mingguan (0 = Minggu … 6 = Sabtu, WIB) ---------- */
+/* ---------- Jadwal mingguan (0 = Minggu … 6 = Sabtu, WIB) ----------
+   Susunan aktif: Sinta CMO (Minggu kalender, Rabu artikel), Maya CSO
+   (Senin onboarding), Raka CTO (Kamis audit). Karyawan pecatan TIDAK
+   ADA lagi di sini — lihat catatan di atas ROLE_NAME. */
 const JOBS: Job[] = [
   {
     id: 'cmo:calendar', role: 'cmo', kind: 'calendar', label: 'Kalender konten 7 hari', who: 'CMO Sinta', weekdays: [0],
@@ -328,22 +310,6 @@ const JOBS: Job[] = [
       () => 'Rancang atau perbarui paket onboarding minggu ini.', 2500),
   },
   {
-    id: 'cfo:breakeven', role: 'cfo', kind: 'breakeven', label: 'Titik impas & runway', who: 'CFO Putri', weekdays: [1],
-    build: breakeven,
-  },
-  {
-    id: 'coo:outreach', role: 'coo', kind: 'outreach', label: 'Paket outbound', who: 'COO Bagas', weekdays: [2],
-    build: llmJob('coo',
-      'Kamu Bagas, COO Luxtradee. Belum ada free user untuk dijual-ulang, jadi kerjamu OUTBOUND mencari user pertama. Hasilkan 3 bagian: (A) 8 jenis target (komunitas trader Indonesia, kreator trading kecil, mentor, grup belajar SMC/ICT, dll.) beserta KATA KUNCI PENCARIAN untuk menemukannya di Telegram, Facebook, Instagram, YouTube — jangan sebut nama grup/akun spesifik; (B) 2 draf pesan kolaborasi/affiliate (maksimal 90 kata, sopan, jelas manfaat buat mereka, tanpa janji komisi spesifik); (C) 1 draf postingan komunitas yang bermanfaat dan tidak terasa spam. Semua dikirim MANUAL oleh Bos.',
-      () => 'Susun paket outbound minggu ini.', 2200),
-  },
-  {
-    id: 'gh:experiment', role: 'gh', kind: 'experiment', label: 'Eksperimen akuisisi mingguan', who: 'GH Farhan', weekdays: [2],
-    build: llmJob('gh',
-      'Kamu Farhan, Growth Hacker Luxtradee. Rancang SATU eksperimen akuisisi untuk minggu ini (bukan tiga). Isi: Hipotesis; Langkah konkret (maksimal 5); Metrik keberhasilan dengan ambang LANJUT dan ambang STOP; Estimasi effort; Alasan dipilih dibanding alternatif. Daftar output sebelumnya adalah buku catatan eksperimenmu — jangan ulangi eksperimen yang sama; kalau perlu, lanjutkan yang sebelumnya dengan variasi.',
-      () => 'Rancang eksperimen minggu ini.', 1800),
-  },
-  {
     id: 'cmo:seo-article', role: 'cmo', kind: 'seo-article', label: 'Artikel SEO mingguan', who: 'CMO Sinta', weekdays: [3],
     build: llmJob('cmo',
       'Kamu Sinta, CMO Luxtradee. Tulis 1 artikel blog SEO bahasa Indonesia (600–800 kata) untuk topik long-tail yang dicari trader XAUUSD pemula–menengah dan BELUM pernah kamu tulis. Sertakan di awal isi: meta description (maksimal 155 karakter) dan slug, lalu artikel dengan struktur H2/H3, akhiri CTA lembut ke luxtradee.web.id. Tanpa janji profit, tanpa angka karangan, bahasa natural (bukan terjemahan kaku).',
@@ -352,12 +318,6 @@ const JOBS: Job[] = [
   {
     id: 'cto:seo-audit', role: 'cto', kind: 'seo-audit', label: 'Audit SEO teknis', who: 'CTO Raka', weekdays: [4],
     build: seoAudit,
-  },
-  {
-    id: 'kevin:seeding', role: 'kevin', kind: 'seeding', label: 'Community seeding', who: 'Growth Kevin', weekdays: [5],
-    build: llmJob('gh',
-      'Kamu Kevin, Growth Hunter Luxtradee. Tulis 3 draf JAWABAN BERMANFAAT untuk pertanyaan umum trader XAUUSD di forum/grup (mis. cara evaluasi trade, kenapa sering kena stop loss, cara menjaga daily loss). Untuk tiap draf tulis: pertanyaan khas yang dijawab, lalu jawaban 60–100 kata yang MURNI edukasi. Jangan promosi; soft mention Luxtradee hanya boleh 1 kalimat dan hanya bila benar-benar relevan. Bos akan memposting manual dan wajib mengikuti aturan grup masing-masing.',
-      () => 'Buat 3 draf jawaban minggu ini.', 1800),
   },
 ]
 
