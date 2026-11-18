@@ -644,7 +644,10 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                   onClick={onGetStarted}
                   className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white hover:opacity-90"
                 >
-                  {language === 'en' ? 'Get Started Free' : 'Mulai Gratis Sekarang'}
+                  {/* FIX kejujuran: dulu "Mulai Gratis Sekarang" tapi klik ini
+                      membuka modal CHECKOUT (pilih paket berbayar). Label kini
+                      jujur sesuai aksi: daftar + pilih paket PRO. */}
+                  {language === 'en' ? 'Sign Up & Choose PRO Plan' : 'Daftar & Pilih Paket PRO'}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               )}

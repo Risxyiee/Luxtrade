@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Sparkles, ScanLine } from 'lucide-react'
+import { Sparkles, PenLine } from 'lucide-react'
 
 interface HeroSectionProps {
   language?: 'id' | 'en'
@@ -176,9 +176,13 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             transition={{ duration: 0.5, delay: 0.24 }}
             className="flex flex-col sm:flex-row gap-4 mt-4"
           >
-            <Link prefetch={false} href="#simulator">
+            {/* FIX kejujuran CTA (arahan Bos): "Mulai Jurnal Gratis" TIDAK
+                menuju signup — tapi ke form jurnal tamu di halaman ini.
+                Visitor mencatat trade dulu (localStorage), signup baru
+                ditawarkan setelahnya di #jurnal-tamu. */}
+            <Link prefetch={false} href="#jurnal-tamu">
               <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
-                {language === 'en' ? 'Try AI Simulator' : 'Coba AI Simulator'} <ScanLine className="w-4 h-4" />
+                {language === 'en' ? 'Start Your Free Journal' : 'Mulai Jurnal Gratis'} <PenLine className="w-4 h-4" />
               </span>
             </Link>
             <Link prefetch={false} href="#pricing">

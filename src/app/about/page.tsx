@@ -83,15 +83,22 @@ export default function AboutPage() {
       year: 'Q2 2024',
       title: isEnglish ? 'Official Launch' : 'Peluncuran Resmi',
       description: isEnglish
-        ? 'Official public launch with Elite PRO and Lifetime Ultra plans, supporting Indonesian and English traders.'
-        : 'Peluncuran publik resmi dengan paket Elite PRO dan Lifetime Ultra, mendukung trader Indonesia dan Inggris.'
+        ? /* FIX (poin 4): dulu menyebut "Elite PRO dan Lifetime Ultra" — nama
+             paket yang tidak ada di tabel harga landing (Gratis & PRO).
+             "Lifetime Ultra" hanya varian PRO di checkout. Sekarang sinkron
+             dengan pricing yang benar-benar terlihat visitor. */
+          'Official public launch with the Free and PRO plans, supporting Indonesian and English traders.'
+        : 'Peluncuran publik resmi dengan paket Gratis dan PRO, mendukung trader Indonesia dan Inggris.'
     },
     {
       year: 'Q3 2024',
       title: isEnglish ? 'Community Growth' : 'Pertumbuhan Komunitas',
       description: isEnglish
-        ? 'Reached 50+ active traders and built a supportive community on Discord, Instagram, and TikTok.'
-        : 'Mencapai 50+ trader aktif dan membangun komunitas yang suportif di Discord, Instagram, dan TikTok.'
+        ? /* FIX (poin 4): dulu "Reached 50+ active traders" — angka tidak
+             terverifikasi. Satu angka per metrik: pakai klaim yang sama dan
+             bisa dibuktikan dengan hero — 8 trader lolos challenge. */
+          '8 traders passed their prop firm challenges with LuxTradee, and a supportive community grew on Discord, Instagram, and TikTok.'
+        : '8 trader lolos challenge prop firm bersama LuxTradee, dan komunitas yang suportif tumbuh di Discord, Instagram, dan TikTok.'
     },
     {
       year: 'Future',
@@ -422,7 +429,10 @@ export default function AboutPage() {
                 <Link prefetch={false} href="/auth/signup">
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                     <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-xl">
-                      {isEnglish ? 'Start Free Trial' : 'Mulai Gratis Sekarang'}
+                      {/* FIX kejujuran: dulu EN "Start Free Trial" — menyiratkan
+                          trial berbatas waktu, padahal paket Gratis selamanya.
+                          "Start Free Now" = jujur sesuai paket Gratis. */}
+                      {isEnglish ? 'Start Free Now' : 'Mulai Gratis Sekarang'}
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                   </motion.div>

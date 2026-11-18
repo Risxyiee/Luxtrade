@@ -9,6 +9,9 @@ import LandingSidebar from '@/components/landing/LandingSidebar'
 import HeroSection from '@/components/landing/HeroSection'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
 import LazySection from '@/components/landing/LazySection'
+// FIX kejujuran CTA: jurnal tamu ringan — render langsung (SSR, SEO ikut
+// terindeks; form-nya cuma lucide + Link, tidak layak lazy chunk).
+import GuestJournalCTA from '@/components/landing/GuestJournalCTA'
 
 // PERF: modal HANYA tampil saat diklik (legal/checkout) — jangan ikut bundle
 // awal landing. framer-motion + isi legal ±ratusan KB JS tak perlu di-parse
@@ -164,6 +167,10 @@ export default function LuxTradeLanding() {
           <LazySection minHeight={640} rootMargin={250} aria-label="Tutorial interaktif">
             <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           </LazySection>
+          {/* FIX kejujuran CTA (arahan Bos): setelah demo interaktif, visitor
+              bisa LANGSUNG mencatat trade pertama — localStorage, tanpa akun.
+              Signup baru ditawarkan SETELAH trade tercatat, bukan sebelumnya. */}
+          <GuestJournalCTA language={language} />
           <CaraKerjaSection language={language} />
           {/* FIX Bos 6 Nov: chart demo dobel bikin bingung → cukup SATU
               (TradingViewShowcase di atas). */}
@@ -182,7 +189,14 @@ export default function LuxTradeLanding() {
           <FinalCTA language={language} />
         </main>
 
-        <LandingFooter language={language} openLegalPage={openLegalPage} />
+        {/* FIX angka jujur: klaim "150+ trader" → jumlah terdaftar RIIL dari
+            /api/landing-stats (sudah di-fetch di atas). Kalau API gagal/nol,
+            footer tampil tanpa angka — tidak pernah mengarang angka. */}
+        <LandingFooter
+          language={language}
+          openLegalPage={openLegalPage}
+          totalTraders={landingStats?.totalUsers ?? null}
+        />
 
 
 

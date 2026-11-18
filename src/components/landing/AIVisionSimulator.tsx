@@ -68,6 +68,14 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
           <span className="font-mono text-cyan-400 text-sm">{language === 'en' ? 'INTERACTIVE DEMO' : 'DEMO INTERAKTIF'}</span>
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight mt-2 mb-4 text-white">{language === 'en' ? 'Try AI Vision Simulator' : 'Coba AI Vision Simulator'}</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">{language === 'en' ? 'See how our AI extracts data from MT5/TradingView screenshots in seconds.' : 'Lihat bagaimana AI kami mengekstrak data dari screenshot MT5/TradingView dalam hitungan detik.'}</p>
+          {/* FIX kejujuran: simulator ini menjalankan DATA CONTOH hardcoded di
+              browser — bukan panggilan AI live. Label wajib jujur biar visitor
+              tidak mengira output JSON di bawah adalah hasil AI sungguhan. */}
+          <p className="text-xs text-gray-500 font-mono mt-3">
+            {language === 'en'
+              ? 'Simulation with sample data — not a live AI call. The real AI runs inside your account.'
+              : 'Simulasi dengan data contoh — bukan panggilan AI live. AI asli berjalan di dalam akun kamu.'}
+          </p>
         </motion.div>
 
         <motion.div
@@ -141,7 +149,7 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
                 <div className="w-3 h-3 rounded-full bg-green-500/50" />
               </div>
               <span className="text-xs font-mono text-gray-500 flex items-center gap-2">
-                <Terminal className="w-3 h-3" /> {language === 'en' ? 'AI Extract Output' : 'Output AI Extract'}
+                <Terminal className="w-3 h-3" /> {language === 'en' ? 'Sample AI Output (simulated)' : 'Contoh Output AI (simulasi)'}
               </span>
             </div>
             <pre className="text-sm font-mono text-gray-300 flex-1 overflow-auto leading-relaxed">

@@ -10,12 +10,16 @@ import SocialIcons from './SocialIcons'
 
 interface LandingFooterProps {
   language: 'id' | 'en'
+  /** FIX angka jujur (poin 4): jumlah trader TERDAFTAR riil dari
+   *  /api/landing-stats (profiles count). Null = API gagal → footer tampil
+   *  TANPA angka. Dulu klaim statis "150+ trader" yang tidak terverifikasi. */
+  totalTraders?: number | null
   /** Masih diterima dari page.tsx (kompatibilitas) — legal kini lewat URL
    *  nyata /privacy /terms (syarat review TikTok), bukan modal. */
   openLegalPage?: (tab: LegalPageTab) => void
 }
 
-export default function LandingFooter({ language }: LandingFooterProps) {
+export default function LandingFooter({ language, totalTraders = null }: LandingFooterProps) {
   const [email, setEmail] = useState('')
 
   /* FIX REVIEW TIKTOK (11 Nov): semua tautan legal WAJIB <Link> ke URL
@@ -129,7 +133,17 @@ export default function LandingFooter({ language }: LandingFooterProps) {
                 {t('Dapatkan tips trading & update', 'Get trading tips & updates')}
               </p>
               <p className="text-[11px] text-[#a8b2d1]/80">
-                {t('Bergabung dengan 150+ trader. Tidak ada spam, berhenti kapan saja.', 'Join 150+ traders. No spam, unsubscribe anytime.')}
+                {/* Poin 4 — satu angka per metrik: hanya angka riil dari DB.
+                    Kalau tidak tersedia, klaim tanpa angka (tidak pernah mengarang). */}
+                {totalTraders !== null && totalTraders > 0
+                  ? t(
+                      `Bergabung dengan ${totalTraders} trader terdaftar. Tidak ada spam, berhenti kapan saja.`,
+                      `Join ${totalTraders} registered traders. No spam, unsubscribe anytime.`
+                    )
+                  : t(
+                      'Bergabung dengan komunitas trader. Tidak ada spam, berhenti kapan saja.',
+                      'Join our trader community. No spam, unsubscribe anytime.'
+                    )}
               </p>
             </div>
             <form onSubmit={handleSubscribe} className="flex w-full sm:w-auto gap-2">

@@ -71,7 +71,10 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             : 'Metals, forex, indices, crypto — just type any symbol right in the chart symbol box.',
       },
     ],
-    cta: language === 'id' ? 'Coba Chart Gratis' : 'Try the Chart for Free',
+    /* FIX kejujuran: dulu "Coba Chart Gratis" tapi tombolnya ke /auth/signup —
+       menyesatkan. Chart demo di atas MEMANG sudah gratis & tanpa daftar;
+       tombol ini kini jujur berlabel daftar. */
+    cta: language === 'id' ? 'Daftar Gratis' : 'Sign Up Free',
     demoLabel: language === 'id' ? 'Demo live — XAU/USD 15m, feed TradingView' : 'Live demo — XAU/USD 15m, TradingView feed',
   }
 
@@ -130,8 +133,9 @@ export default function TradingViewShowcase({ language = 'id' }: TradingViewShow
             {t.cta}
           </a>
           <p className="mt-3 text-[11px] text-white/40">
-            Chart &amp; data feed resmi TradingView —{' '}
-            <span className="text-blue-300 font-semibold">gratis untuk semua user</span> Luxtradee.
+            {language === 'id'
+              ? 'Chart demo di atas sudah bisa dicoba langsung — tanpa daftar. Daftar untuk mencatat trade & mengaktifkan fitur jurnal.'
+              : 'The demo chart above is ready to try — no sign up needed. Sign up to log trades & unlock journal features.'}
           </p>
         </div>
       </div>
