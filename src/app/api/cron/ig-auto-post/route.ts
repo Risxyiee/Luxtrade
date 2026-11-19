@@ -32,15 +32,16 @@ import {
  *   4. Klaim maks N baris 'pending' (scheduled_for ≤ now, N default 2,
  *      maks 5 via ?max=) → postToInstagram (media → poll → media_publish;
  *      Reels poll sampai 6 menit, carousel 3 menit).
- *      FIX CRON IG (17-11): konten kreatif (sinta-*) di luar window
- *      18–21 WIB dulu DITAHAN PERMANEN — bukti log GH Actions 12–16 Nov:
- *      slot malam GitHub selalu telat 9–11 jam (runner antre) → run
- *      "18:45 WIB" beneran jalan 01–05 WIB → "2 konten kreatif ditahan"
- *      tiap hari, konten tidak pernah tayang. Kini konten yang sudah
- *      OVERDUE ≥ 12 jam sejak scheduled_for DIPOSTING JUGA di run
- *      berikutnya (apa pun cron-nya) — jam tayang kurang prime masih
- *      jauh lebih baik daripada konten busuk di antrean + media host
- *      TTL 7 hari kedaluwarsa. Konten fresh tetap dihormati window-nya.
+ *      ERA AUTO-ACC (Bos 19-11: "auto acc konten aja"): penahan window
+ *      konten kreatif DIHAPUS TOTAL. Riwayat: dulu baris sinta-* di luar
+ *      window 18–20 WIB DITAHAN ("2 konten kreatif ditahan" tiap hari,
+ *      bukti log GH 12–16 Nov — runner GitHub telat 9–11 jam), lalu
+ *      17-11 diberi penyelamat overdue ≥12 jam. Kini scheduled_for
+ *      adalah SATU-SATUNYA penentu waktu tayang — sumber antrean
+ *      (ig-video-post / execute-action) sudah menetapkan scheduled_for
+ *      tepat ±19:00 WIB berikutnya (Senin–Jumat), jadi jatuh tempo →
+ *      langsung posting, apa pun jam tick cron. Konten tidak pernah
+ *      ditahan lagi dan tidak minta ACC.
  *   5. Sukses → published + permalink. Gagal → attempts<3 balik pending,
  *      else failed permanen. Ringkasan gagal → Discord admin.
  *
@@ -69,33 +70,12 @@ interface QueueRow {
   meta?: { image_urls?: string[] } | null
 }
 
-/* ── WINDOW POSTING 18–20 WIB (permintaan Bos 8 Nov 2026 + FIX Bos
-   11 Nov 2026: "kok ga post ig karyawanku") ──
-   Konten kreatif karyawan (source sinta-video / sinta-content /
-   sinta-carousel) tayang jam 18:00–20:59 WIB Senin–Jumat.
-   AKAR BUG: dulu window hanya [18,19] — cron jaring pengaman
-   20:30 WIB (13:30 UTC, workflow instagram-cron.yml) selalu MENAHAN
-   konten karyawan (jam 20 di luar window) → Reels/konten yang lolos
-   dari run 18:45 WIB (GitHub Actions sering telat >15 menit, bisa
-   lewat jam 19) TIDAK PERNAH tayang, menggantung 'pending' sampai
-   besok. Sekarang jam 20 ikut dibuka agar jaring pengaman 20:30
-   benar-benar menyelamatkan. Di luar window → baris ditinggal
-   'pending' (bukan dibuang) → diambil run berikutnya. Post pasar/
-   otomatis lain tidak terpengaruh. */
-const CONTENT_SOURCES = new Set(['sinta-video', 'sinta-content', 'sinta-carousel'])
-const CONTENT_WINDOW_HOURS_WIB = [18, 19, 20]
-/* Konten kreatif yang sudah menunggu ≥ 12 jam sejak scheduled_for dianggap
- * KEHILANGAN WINDOW-nya (mis. runner GH telat 9–11 jam + slot worker lewat)
- * → posting darurat di run berikutnya alih-alih ditahan sampai besok.
- * 12 jam dipilih supaya: konten 18:45 WIB yang lolos → diselamatkan run
- * pagi berikutnya (07–16 WIB), bukan menunggu window besok (23 jam lagi). */
-const CONTENT_OVERDUE_MS = 12 * 60 * 60 * 1000
-
-function contentInWindow(): boolean {
-  const day = new Date(Date.now() + 7 * 3_600_000).getUTCDay()
-  if (day === 0 || day === 6) return false // Sabtu/Minggu libur
-  return CONTENT_WINDOW_HOURS_WIB.includes((new Date().getUTCHours() + 7) % 24)
-}
+/* ── ERA AUTO-ACC (Bos 19-11: "auto acc konten aja") — tidak ada
+   penahanan window di sini. Waktu tayang ditentukan penuh oleh kolom
+   scheduled_for yang diisi sumber antrean (ig-video-post → ±19:00 WIB
+   berikutnya; execute-action → window 18–20 WIB berikutnya). Cron ini
+   murni eksekutor: jatuh tempo → posting. Libur Sabtu/Minggu sudah
+   diurus sumber antrean saat menetapkan scheduled_for. */
 
 export async function GET(request: NextRequest) {
   return handle(request)
@@ -187,38 +167,17 @@ async function handle(request: NextRequest) {
     }
     const rows = (due ?? []) as QueueRow[]
 
-    /* ── 4b) Window konten kreatif 18–21 WIB: di luar window baris konten
-       DITINGGAL pending (diambil lagi run 18:45 WIB berikutnya) — KECUALI
-       sudah overdue ≥ 12 jam → posting darurat (FIX cron IG 17-11, lihat
-       docblock atas). ── */
-    const windowOpen = contentInWindow()
-    const nowMs = Date.now()
-    let overduePosted = 0
-    const claimable = rows.filter((r) => {
-      if (windowOpen || !CONTENT_SOURCES.has(r.source || '')) return true
-      const schedMs = Date.parse(r.scheduled_for || '')
-      if (Number.isFinite(schedMs) && nowMs - schedMs >= CONTENT_OVERDUE_MS) {
-        overduePosted++
-        return true // kehilangan window → posting darurat, jangan tahan selamanya
-      }
-      return false
-    })
-    const heldByWindow = rows.length - claimable.length
-    if (!claimable.length) {
-      return NextResponse.json({
-        ok: true,
-        posted: 0,
-        message: heldByWindow > 0
-          ? `${heldByWindow} konten kreatif ditahan — di luar window posting 18–21 WIB (Senin–Jumat); konten overdue ≥12 jam otomatis diposting run berikutnya`
-          : 'Antrean kosong',
-      })
+    /* ── 4b) AUTO-ACC: semua baris jatuh tempo langsung diklaim —
+       TIDAK ada penahanan window (riwayat di docblock atas). */
+    if (!rows.length) {
+      return NextResponse.json({ ok: true, posted: 0, message: 'Antrean kosong' })
     }
 
     /* ── 5) Posting satu per satu ── */
     const results: Array<{ id: string; ok: boolean; postId?: string; permalink?: string; mediaType?: string; error?: string }> = []
     let failures = 0
 
-    for (const row of claimable) {
+    for (const row of rows) {
       // Klaim atomik: hanya baris yang masih 'pending' yang jadi 'publishing'
       const claimed = await admin
         .from('instagram_posts')
@@ -328,17 +287,10 @@ async function handle(request: NextRequest) {
       ).catch(() => {})
     }
 
-    if (overduePosted > 0 && failures === 0) {
-      await sendAdminNotification(
-        `📸⏰ <b>Instagram: ${overduePosted} konten kreatif diposting darurat</b>\nKehilangan window 18–21 WIB (overdue ≥12 jam) — dibunuh cron berikutnya agar tidak busuk di antrean.\n\n⏰ ${new Date().toLocaleString('id-ID')}`
-      ).catch(() => {})
-    }
-
     return NextResponse.json({
       ok: true,
       posted: results.filter((r) => r.ok).length,
       failed: failures,
-      overduePosted,
       tokenRefreshed: tok.refreshed,
       tokenRefreshError: tok.refreshError,
       results,

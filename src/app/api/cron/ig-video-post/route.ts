@@ -20,19 +20,25 @@ import {
  *   POST /{page-id}/media?media_type=REELS&video_url=&caption=
  *   → poll FINISHED (1–5 menit) → /media_publish?creation_id=
  *
- * ATURAN JADWAL + ACC (permintaan Bos, update terakhir 17-11:
- *   "jam 19.00 ajaa" — posting video tayang ±19:00 WIB):
+ * ATURAN JADWAL + MODE (update terakhir 19-11, arahan Bos: "auto acc
+ *   konten aja" — capek ACC manual tiap hari, draft cuma numpuk di
+ *   Antrean Eksekusi sementara host video ber-TTL 3 hari busuk duluan):
  *   • Runner video-bot-cron jalan 18:50 WIB (Senin–Jumat), render
- *     ±2–3 menit → POST ke sini ±19:00 WIB → publish inline (±19:00).
- *   • "nunggu saya acc" → DEFAULT MODE = APPROVAL:
- *       runner kirim draft → ai_pending_actions (PUBLISH_IG_REEL) →
- *       Bos ACC di Kantor CEO → Antrean Eksekusi → /api/execute-action
- *       → publish REELS. (Set env IG_AUTO_POST="true" utk mode lama)
+ *     ±2–3 menit → POST ke sini ±19:00 WIB.
+ *   • DEFAULT MODE = AUTO-ACC — konten TIDAK menunggu ACC manual lagi:
+ *       – Di window 18–20 WIB + cadence aman → publish inline (±19:00).
+ *       – Di luar window / cadence → diantrekan otomatis tayang ±19:00
+ *         WIB berikutnya (Senin–Jumat) oleh ig-auto-post. Konten tidak
+ *         hangus, tidak ditahan, tidak minta ACC.
+ *     Bos tetap dapat notifikasi Discord (dengan permalink) tiap tayang.
+ *   • Mode APPROVAL jadi OPT-IN: set env IG_AUTO_POST="approval" untuk
+ *     balik ke gerbang ACC manual (draft → Kantor CEO → Antrean Eksekusi
+ *     → /api/execute-action → publish REELS).
  *   • Cadence: 1x/hari (guard: Reels published terakhir ≥ 20 jam lalu)
  *   • Rotasi platform dikelola runner: semua hari → IG dulu (TikTok
  *     auto-fallback ke IG sampai app TikTok approved — perilaku sama,
  *     cuma penjelasan yang diperbarui)
- *   ?force=true → lewati window + cadence (TIDAK melewati ACC)
+ *   ?force=true → lewati window + cadence (publish inline paksa)
  *
  * FIX 2026-11-07 "auto post IG error": GitHub Actions sering MENUNDA
  * scheduled runs berjam-jam (run nyata: jadwal 12:10 UTC = 19:10 WIB
@@ -46,9 +52,11 @@ import {
  * Flow:
  *   1. Auth CRON_SECRET (fail-closed produksi)
  *   2. Validasi input
- *   3. Mode APPROVAL: draft selalu disimpan (window/cadence tidak
- *      membuang konten lagi — catatan lateRunNote bila telat)
- *   4. Mode AUTO: window 18–20 WIB + cadence 20 jam → skipped (honest)
+ *   3. Mode APPROVAL (opt-in IG_AUTO_POST=approval): draft disimpan di
+ *      ai_pending_actions — timing ditentukan ACC Bos, bukan runner
+ *   4. Mode AUTO (default): window 18–20 WIB + cadence 20 jam terpenuhi
+ *      → publish inline; di luar itu → antrean 19:00 WIB berikutnya
+ *      (konten tidak pernah dibuang)
  *   5. ensureFreshToken (token > 55 hari → refresh otomatis 60 hari)
  *   6. Enqueue instagram_posts (media_type REELS, source sinta-video)
  *   7. Publish inline (poll sampai 6 menit). Timeout → row 'publishing'
@@ -117,11 +125,12 @@ export async function GET(request: NextRequest) {
 
   const last = lastReels?.[0] ?? null
   const lastMs = last?.published_at ? Date.parse(last.published_at) : null
-  const autoPost = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'true'
-    || process.env.IG_AUTO_POST === 'true'
+  const approvalMode = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'approval'
   return NextResponse.json({
     ok: true,
-    postMode: autoPost ? 'auto' : 'approval (nunggu ACC Bos — Kantor CEO → Antrean Eksekusi)',
+    postMode: approvalMode
+      ? 'approval (nunggu ACC Bos — Kantor CEO → Antrean Eksekusi) — OPT-IN via IG_AUTO_POST=approval'
+      : 'auto-acc (default — tayang otomatis ±19:00 WIB, tanpa ACC manual)',
     windowWib: WINDOW_HOURS_WIB,
     wibHourNow: wibHourNow(),
     cadenceHours: Math.round(MIN_GAP_MS / 3_600_000),
@@ -165,15 +174,16 @@ export async function POST(request: NextRequest) {
   const admin = await getCronAdmin()
   if (!admin) return NextResponse.json({ error: 'Database not available' }, { status: 503 })
 
-  /* ── 2) MODE APPROVAL (default — permintaan Bos: "nunggu saya acc") ──
+  /* ── 2) MODE APPROVAL (kini OPT-IN: env IG_AUTO_POST=approval) ──
+     DEFAULT adalah AUTO-ACC (Bos 19-11: "auto acc konten aja") — blok
+     ini hanya jalan kalau Bos sengaja menyalakan gerbang manual.
      Draft SELALU disimpan walau runner jalan di luar window / cadence
      (GHA sering telat berjam-jam — dulu video dibuang sia-sia).
      ACC Bos = gerbang timing sesungguhnya. Draft disimpan di
      ai_pending_actions (PUBLISH_IG_REEL), dipublish oleh
      /api/execute-action setelah ACC. */
-  const autoPost = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'true'
-    || process.env.IG_AUTO_POST === 'true'
-  if (!autoPost) {
+  const approvalMode = (await getEnvVar('IG_AUTO_POST', { quiet: true }).catch(() => null)) === 'approval'
+  if (approvalMode) {
     const hour = wibHourNow()
     const offWindow = !force && !WINDOW_HOURS_WIB.includes(hour)
     /* Cap harian tetap dihormati */
@@ -244,11 +254,11 @@ export async function POST(request: NextRequest) {
       mode: 'approval',
       actionId: (action as { id: string }).id,
       ...(offWindow ? { note: `Draft tersimpan walau runner telat (${hour}:00 WIB) — konten tidak hangus. ACC Bos di Kantor CEO → Antrean Eksekusi.` } : {}),
-      note2: 'Konten TIDAK diposting sampai Bos ACC (Kantor CEO → Antrean Eksekusi). Set env IG_AUTO_POST=true untuk mode otomatis.',
+      note2: 'Mode approval aktif (IG_AUTO_POST=approval) — konten TIDAK diposting sampai Bos ACC (Kantor CEO → Antrean Eksekusi). Hapus env itu untuk kembali ke auto-acc (default).',
     })
   }
 
-  /* ── 3) MODE AUTO: window 18–19 WIB + cadence 1x/hari (kecuali force) ──
+  /* ── 3) MODE AUTO (default AUTO-ACC): window 18–20 WIB + cadence 1x/hari ──
      FIX "auto post IG error" (lanjutan 2026-11-07): GHA TERBUKTI telat
      2 hari beruntun (jadwal 19:10 WIB dieksekusi 02:18 & 02:52 WIB).
      Dulu: di luar window → skip → video hasil render (±2 menit CPU

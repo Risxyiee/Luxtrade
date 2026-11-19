@@ -18,7 +18,11 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 #         approved → fallback IG otomatis di bawah (konten tidak hangus).
 #         Begitu app TikTok approved, Sel/Kam otomatis balik ke TikTok.
 #   • Window + cadence tetap divalidasi SERVER (ig-video-post: window
-#     18–19 WIB, jeda minimal 20 jam) — runner cuma eksekutor.
+#     18–20 WIB, jeda minimal 20 jam) — runner cuma eksekutor.
+#   • 🤖 AUTO-ACC (Bos 19-11: "auto acc konten aja"): konten TIDAK
+#     menunggu ACC manual lagi — di window → langsung tayang ±19:00 WIB;
+#     di luar window → otomatis diantrekan tayang 19:00 WIB berikutnya.
+#     Mode ACC manual kini OPT-IN via env IG_AUTO_POST=approval.
 #   • Carousel IG: MANUAL only (Run workflow → carousel ✔) — sesuai
 #     "1 konten aja sehari".
 #   • 🎵 MUSIK LATAR: public/music/bg.mp3 (SoundHelix — bebas hak
