@@ -8,6 +8,7 @@ import {
   validateIgPostInput,
   IG_DAILY_CAP,
 } from '@/lib/instagram'
+import { crossPostToFacebook, fbMetaEntry } from '@/lib/facebook-post'
 
 /**
  * ============================================================
@@ -358,6 +359,14 @@ export async function POST(request: NextRequest) {
     }
 
     /* ── 5) Enqueue (riwayat + retry otomatis oleh ig-auto-post) ── */
+    const rowMeta = {
+      template: body?.template || 'reels',
+      hook: body?.hook || '',
+      ...(angleMeta ? { angle: angleMeta } : {}),
+      ...(topicMeta ? { topic: topicMeta } : {}),
+      renderBy: 'sinta (cmo) — remotion 9:16',
+      scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
+    }
     const { data: inserted, error: insErr } = await admin
       .from('instagram_posts')
       .insert({
@@ -366,14 +375,7 @@ export async function POST(request: NextRequest) {
         caption,
         status: 'pending',
         source: 'sinta-video',
-        meta: {
-          template: body?.template || 'reels',
-          hook: body?.hook || '',
-          ...(angleMeta ? { angle: angleMeta } : {}),
-          ...(topicMeta ? { topic: topicMeta } : {}),
-          renderBy: 'sinta (cmo) — remotion 9:16',
-          scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
-        },
+        meta: rowMeta,
         scheduled_for: new Date().toISOString(),
       })
       .select('id')
@@ -405,10 +407,24 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', rowId)
 
+      /* ── Cross-post Facebook (keluhan Bos 19-11: "post IG cuma IG, FB ga
+         sekalian gabungin") — Reels yang tayang di IG langsung diposting
+         sekalian ke feed Halaman FB (token Halaman sama, tanpa kredensial
+         baru). Best-effort: gagal FB TIDAK menggagalkan IG — hasil jujur
+         dicatat meta.fb + dilapor. */
+      const fb = await crossPostToFacebook(tok.cfg, { mediaType: 'REELS', videoUrl, caption })
+      await admin
+        .from('instagram_posts')
+        .update({ meta: { ...rowMeta, fb: fbMetaEntry(fb) } })
+        .eq('id', rowId)
+
       await sendAdminNotification(
-        `📸🎬 <b>Sinta posting Reels ke Instagram</b>\n` +
+        `📸🎬 <b>Sinta posting Reels ke Instagram${fb.ok ? ' + Facebook' : ''}</b>\n` +
         `${caption ? caption.slice(0, 220) + (caption.length > 220 ? '…' : '') + '\n' : ''}` +
-        (r.permalink ? `🔗 ${r.permalink}\n` : '') +
+        (r.permalink ? `🔗 IG: ${r.permalink}\n` : '') +
+        (fb.ok
+          ? (fb.permalink ? `📘 FB: ${fb.permalink}\n` : `📘 FB: tayang (${fb.postId})\n`)
+          : `📘 FB gagal (IG tetap tayang): ${(fb.error || '?').slice(0, 200)}\n`) +
         `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
       ).catch(() => {})
 
@@ -418,6 +434,7 @@ export async function POST(request: NextRequest) {
         mediaType: 'REELS',
         postId: r.postId,
         permalink: r.permalink,
+        fb: { ok: fb.ok, postId: fb.postId, permalink: fb.permalink, error: fb.ok ? undefined : fb.error },
         tokenRefreshed: tok.refreshed,
       })
     }

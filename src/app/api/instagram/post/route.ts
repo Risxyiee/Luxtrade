@@ -10,6 +10,7 @@ import {
   IG_CAPTION_MAX,
   IG_DAILY_CAP,
 } from '@/lib/instagram'
+import { crossPostToFacebook, fbMetaEntry } from '@/lib/facebook-post'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
   const [{ data: rows, error }, cfg] = await Promise.all([
     admin
       .from('instagram_posts')
-      .select('id, media_type, image_url, video_url, caption, status, ig_post_id, permalink, error, attempts, scheduled_for, published_at, created_at')
+      .select('id, media_type, image_url, video_url, caption, status, ig_post_id, permalink, error, attempts, scheduled_for, published_at, created_at, meta')
       .order('created_at', { ascending: false })
       .limit(50),
     getIgConfig(admin),
@@ -160,7 +161,29 @@ export async function POST(request: NextRequest) {
           error: null,
         })
         .eq('id', (inserted as any).id)
-      return NextResponse.json({ ok: true, post: inserted, publishNow: true, postId: r.postId, permalink: r.permalink })
+
+      /* Cross-post Facebook (keluhan Bos 19-11: "post IG cuma IG, FB ga
+         sekalian gabungin") — manual publish juga tayang sekalian di FB.
+         Best-effort: gagal FB dicatat meta.fb, IG tetap published. */
+      const fb = await crossPostToFacebook(tok.cfg, {
+        mediaType,
+        imageUrl: mediaType === 'IMAGE' ? imageUrl : undefined,
+        videoUrl: mediaType === 'REELS' ? videoUrl : undefined,
+        caption: caption || undefined,
+      })
+      await admin
+        .from('instagram_posts')
+        .update({ meta: { fb: fbMetaEntry(fb) } })
+        .eq('id', (inserted as any).id)
+
+      return NextResponse.json({
+        ok: true,
+        post: inserted,
+        publishNow: true,
+        postId: r.postId,
+        permalink: r.permalink,
+        fb: { ok: fb.ok, postId: fb.postId, permalink: fb.permalink, error: fb.ok ? undefined : fb.error },
+      })
     }
     await admin
       .from('instagram_posts')

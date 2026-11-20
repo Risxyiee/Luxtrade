@@ -10,6 +10,7 @@ import {
   IG_CAROUSEL_MAX,
   IG_CAROUSEL_MIN,
 } from '@/lib/instagram'
+import { crossPostToFacebook, fbMetaEntry } from '@/lib/facebook-post'
 
 /**
  * ============================================================
@@ -182,6 +183,13 @@ export async function POST(request: NextRequest) {
     }
 
     /* ── 5) Enqueue (riwayat + retry otomatis oleh ig-auto-post) ── */
+    const rowMeta = {
+      image_urls: imageUrls,
+      slideCount: imageUrls.length,
+      slides: (body?.slides || []).slice(0, IG_CAROUSEL_MAX),
+      renderBy: 'sinta (cmo) — remotion carousel 1080x1350',
+      scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
+    }
     const { data: inserted, error: insErr } = await admin
       .from('instagram_posts')
       .insert({
@@ -191,13 +199,7 @@ export async function POST(request: NextRequest) {
         caption,
         status: 'pending',
         source: 'sinta-carousel',
-        meta: {
-          image_urls: imageUrls,
-          slideCount: imageUrls.length,
-          slides: (body?.slides || []).slice(0, IG_CAROUSEL_MAX),
-          renderBy: 'sinta (cmo) — remotion carousel 1080x1350',
-          scheduledWib: `${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
-        },
+        meta: rowMeta,
         scheduled_for: new Date().toISOString(),
       })
       .select('id')
@@ -229,10 +231,24 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', rowId)
 
+      /* ── Cross-post Facebook (keluhan Bos 19-11: "post IG cuma IG, FB ga
+         sekalian gabungin") — carousel IG → multi-foto 1 post di feed
+         Halaman FB (per slide /photos published=false → /feed
+         attached_media; token Halaman sama). Best-effort: gagal FB TIDAK
+         menggagalkan IG — hasil jujur dicatat meta.fb + dilapor. */
+      const fb = await crossPostToFacebook(tok.cfg, { mediaType: 'CAROUSEL', imageUrls, caption })
+      await admin
+        .from('instagram_posts')
+        .update({ meta: { ...rowMeta, fb: fbMetaEntry(fb) } })
+        .eq('id', rowId)
+
       await sendAdminNotification(
-        `📸🖼️ <b>Sinta posting carousel ${imageUrls.length} slide ke Instagram</b>\n` +
+        `📸🖼️ <b>Sinta posting carousel ${imageUrls.length} slide ke Instagram${fb.ok ? ' + Facebook' : ''}</b>\n` +
         `${caption ? caption.slice(0, 220) + (caption.length > 220 ? '…' : '') + '\n' : ''}` +
-        (r.permalink ? `🔗 ${r.permalink}\n` : '') +
+        (r.permalink ? `🔗 IG: ${r.permalink}\n` : '') +
+        (fb.ok
+          ? (fb.permalink ? `📘 FB: ${fb.permalink}\n` : `📘 FB: tayang (${fb.postId})\n`)
+          : `📘 FB gagal (IG tetap tayang): ${(fb.error || '?').slice(0, 200)}\n`) +
         `⏰ ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`
       ).catch(() => {})
 
@@ -243,6 +259,7 @@ export async function POST(request: NextRequest) {
         slides: r.carouselItems ?? imageUrls.length,
         postId: r.postId,
         permalink: r.permalink,
+        fb: { ok: fb.ok, postId: fb.postId, permalink: fb.permalink, error: fb.ok ? undefined : fb.error },
         tokenRefreshed: tok.refreshed,
       })
     }

@@ -9,6 +9,7 @@ import {
   IG_DAILY_CAP,
   type IgConfig,
 } from '@/lib/instagram'
+import { crossPostToFacebook, fbMetaEntry } from '@/lib/facebook-post'
 
 /**
  * ============================================================
@@ -32,6 +33,14 @@ import {
  *   4. Klaim maks N baris 'pending' (scheduled_for ≤ now, N default 2,
  *      maks 5 via ?max=) → postToInstagram (media → poll → media_publish;
  *      Reels poll sampai 6 menit, carousel 3 menit).
+ *   4b. CROSS-POST FACEBOOK (keluhan Bos 19-11: "post IG cuma IG, FB ga
+ *      sekalian gabungin"): tiap baris yang SUKSES tayang di IG langsung
+ *      diposting sekalian ke feed Halaman FB (crossPostToFacebook —
+ *      token Halaman YANG SAMA, tanpa kredensial baru): IMAGE → /photos,
+ *      REELS → /videos, CAROUSEL → /photos published=false + /feed
+ *      attached_media. Best-effort: gagal FB TIDAK menggagalkan baris IG
+ *      (status tetap 'published', tidak di-retry → tidak ada risiko dobel
+ *      post di IG) — hasil jujur dicatat di meta.fb + lapor Discord.
  *      ERA AUTO-ACC (Bos 19-11: "auto acc konten aja"): penahan window
  *      konten kreatif DIHAPUS TOTAL. Riwayat: dulu baris sinta-* di luar
  *      window 18–20 WIB DITAHAN ("2 konten kreatif ditahan" tiap hari,
@@ -174,8 +183,10 @@ async function handle(request: NextRequest) {
     }
 
     /* ── 5) Posting satu per satu ── */
-    const results: Array<{ id: string; ok: boolean; postId?: string; permalink?: string; mediaType?: string; error?: string }> = []
+    const results: Array<{ id: string; ok: boolean; postId?: string; permalink?: string; mediaType?: string; error?: string; fb?: { ok: boolean; permalink?: string; error?: string } }> = []
     let failures = 0
+    let fbFailures = 0
+    let fbPosted = 0
 
     for (const row of rows) {
       // Klaim atomik: hanya baris yang masih 'pending' yang jadi 'publishing'
@@ -261,7 +272,32 @@ async function handle(request: NextRequest) {
             error: null,
           })
           .eq('id', row.id)
-        results.push({ id: row.id, ok: true, postId: r.postId, permalink: r.permalink, mediaType: r.mediaType })
+
+        /* ── 5b) Cross-post Facebook (senada tayang IG — lihat docblock 4b).
+           Best-effort: hasil gagal dicatat meta.fb + Discord, baris IG
+           TETAP published (tidak di-retry → tidak ada dobel post IG). */
+        const fb = await crossPostToFacebook(cfg, {
+          mediaType: isCarousel ? 'CAROUSEL' : row.media_type === 'REELS' ? 'REELS' : 'IMAGE',
+          imageUrl: isCarousel ? undefined : (row.image_url || undefined),
+          videoUrl: isCarousel ? undefined : (row.video_url || undefined),
+          imageUrls: isCarousel ? carouselUrls : undefined,
+          caption: row.caption || undefined,
+        })
+        if (fb.ok) fbPosted++
+        else fbFailures++
+        await admin
+          .from('instagram_posts')
+          .update({ meta: { ...(row.meta || {}), fb: fbMetaEntry(fb) } })
+          .eq('id', row.id)
+
+        results.push({
+          id: row.id,
+          ok: true,
+          postId: r.postId,
+          permalink: r.permalink,
+          mediaType: r.mediaType,
+          fb: { ok: fb.ok, permalink: fb.permalink, error: fb.ok ? undefined : fb.error },
+        })
       } else {
         const giveUp = (row.attempts || 0) + 1 >= MAX_ATTEMPTS
         await admin
@@ -277,13 +313,20 @@ async function handle(request: NextRequest) {
     }
 
     /* ── 6) Lapor gagal ke admin (Discord, best-effort) ── */
-    if (failures > 0) {
+    if (failures > 0 || fbFailures > 0) {
       const detail = results
         .filter((x) => !x.ok)
         .map((x) => `• ${x.id.slice(0, 8)}… — ${x.error}`)
         .join('\n')
+      const fbDetail = results
+        .filter((x) => x.ok && x.fb && !x.fb.ok)
+        .map((x) => `• ${x.id.slice(0, 8)}… — ${x.fb?.error || '?'}`)
+        .join('\n')
+      const fbBlock = fbFailures > 0
+        ? `\n\n📘 <b>Facebook cross-post: ${fbFailures} gagal</b> (IG-nya tayang — baris tidak di-retry):\n${fbDetail}`
+        : ''
       await sendAdminNotification(
-        `📸❌ <b>Instagram auto-post: ${failures} gagal</b>\n${detail}\n\n⏰ ${new Date().toLocaleString('id-ID')}`
+        `📸❌ <b>Instagram auto-post: ${failures} gagal</b>\n${detail}${fbBlock}\n\n⏰ ${new Date().toLocaleString('id-ID')}`
       ).catch(() => {})
     }
 
@@ -291,6 +334,8 @@ async function handle(request: NextRequest) {
       ok: true,
       posted: results.filter((r) => r.ok).length,
       failed: failures,
+      fbPosted,
+      fbFailed: fbFailures,
       tokenRefreshed: tok.refreshed,
       tokenRefreshError: tok.refreshError,
       results,
