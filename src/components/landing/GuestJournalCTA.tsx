@@ -19,7 +19,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { PenLine, CheckCircle2, Trash2, Lock } from 'lucide-react'
+import { PenLine, CheckCircle2, Trash2, Lock, Sparkles, Loader2 } from 'lucide-react'
 
 interface GuestJournalCTAProps {
   language?: 'id' | 'en'
@@ -39,6 +39,15 @@ type GuestTrade = {
 
 const STORAGE_KEY = 'luxtradee_guest_journal'
 
+/** Pilihan pair form tamu — Auto Jurnal bisa MENAMBAH pair dinamis
+ *  kalau AI mendeteksi pair lain dari teks yang ditempel. */
+const BASE_PAIRS = ['XAUUSD', 'XAGUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'USDCAD', 'BTCUSD', 'ETHUSD']
+
+/** Batas jurnal tamu (permintaan Bos: "batasin 2 atau 3 kali kalau udah
+ *  ketiga suruh orang buat daftar") — tamu bebas mencatat 3 trade;
+ *  pas catatan ke-3 tersimpan, form dikunci dan tamu disuruh daftar. */
+const MAX_GUEST_TRADES = 3
+
 const EMPTY_FORM = {
   pair: 'XAUUSD',
   direction: 'BUY' as 'BUY' | 'SELL',
@@ -55,6 +64,21 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
   const [justSaved, setJustSaved] = useState(false)
+
+  /* ── AUTO JURNAL (permintaan Bos): tempel teks trade → AI isi form ──
+     Dua tab: "Isi Manual" (form lama) & "Auto Jurnal" (tempel teks).
+     Hasil parse AI MENGISI form manual — tamu tetap review & simpan
+     sendiri (angka tidak pernah langsung disimpan tanpa lihat). */
+  const [mode, setMode] = useState<'manual' | 'auto'>('manual')
+  const [rawText, setRawText] = useState('')
+  const [autoLoading, setAutoLoading] = useState(false)
+  const [autoError, setAutoError] = useState('')
+  const [autoNote, setAutoNote] = useState('')
+  const [pairOptions, setPairOptions] = useState<string[]>(BASE_PAIRS)
+
+  /* ── Batas jurnal tamu: 3 catatan, habis → form dikunci + CTA daftar ── */
+  const limitReached = trades.length >= MAX_GUEST_TRADES
+  const remaining = Math.max(0, MAX_GUEST_TRADES - trades.length)
 
   useEffect(() => {
     try {
@@ -81,6 +105,14 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (trades.length >= MAX_GUEST_TRADES) {
+      setError(
+        isEn
+          ? 'Guest journal is full (3 trades) — sign up free to keep journaling.'
+          : 'Jurnal tamu penuh (3 trade) — daftar gratis untuk lanjut mencatat.'
+      )
+      return
+    }
     if (!isNumeric(form.entry) || !isNumeric(form.sl) || !isNumeric(form.tp)) {
       setError(
         isEn
@@ -105,6 +137,92 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
     setJustSaved(false)
   }
 
+  /* ── AUTO JURNAL: kirim teks ke /api/journal/auto-parse → isi form.
+     Jujur: gagal AI / rate limit / teks tidak jelas → pesan jelas,
+     form TIDAK diisi sebagian. Sukses → tamu diarahkan ke form manual
+     untuk review sebelum simpan. */
+  const handleAutoParse = async () => {
+    if (autoLoading) return
+    if (trades.length >= MAX_GUEST_TRADES) {
+      setAutoError(
+        isEn
+          ? 'Guest journal is full (3 trades) — sign up free to keep journaling.'
+          : 'Jurnal tamu penuh (3 trade) — daftar gratis untuk lanjut mencatat.'
+      )
+      return
+    }
+    const text = rawText.trim()
+    if (text.length < 2) {
+      setAutoError(isEn ? 'Paste your trade text first.' : 'Tempel teks trade-nya dulu ya.')
+      return
+    }
+    setAutoError('')
+    setAutoNote('')
+    setAutoLoading(true)
+    try {
+      const res = await fetch('/api/journal/auto-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.ok || !data?.fields) {
+        setAutoError(
+          String(
+            data?.error ||
+              (isEn
+                ? 'AI could not read that text — try writing it differently or fill the form manually.'
+                : 'AI belum bisa baca teks itu — coba tulis ulang atau isi manual.')
+          )
+        )
+        return
+      }
+      const f = data.fields as {
+        pair?: string
+        direction?: 'BUY' | 'SELL'
+        entry?: string
+        sl?: string
+        tp?: string
+        lot?: string
+        note?: string
+      }
+      setForm({
+        pair: String(f.pair || 'XAUUSD'),
+        direction: f.direction === 'SELL' ? 'SELL' : 'BUY',
+        entry: String(f.entry || ''),
+        sl: String(f.sl || ''),
+        tp: String(f.tp || ''),
+        lot: String(f.lot || ''),
+        note: String(f.note || ''),
+      })
+      const p = String(f.pair || '')
+      if (p && !BASE_PAIRS.includes(p)) {
+        setPairOptions((prev) => (prev.includes(p) ? prev : [...prev, p]))
+      }
+      setAutoNote(String(data.note || ''))
+      setJustSaved(false)
+      setMode('manual') // review & simpan di form
+    } catch {
+      setAutoError(
+        isEn
+          ? 'Connection problem — try again or fill the form manually.'
+          : 'Masalah koneksi — coba lagi atau isi form manual.'
+      )
+    } finally {
+      setAutoLoading(false)
+    }
+  }
+
+  const fillSample = () => {
+    setAutoError('')
+    setAutoNote('')
+    setRawText(
+      isEn
+        ? 'buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — london breakout, RR 1:2'
+        : 'buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — breakout london, RR 1:2'
+    )
+  }
+
   const inputCls =
     'w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400/40 transition-colors'
 
@@ -125,11 +243,142 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
               ? 'Fill the form below — your trade is saved in your own browser instantly. No account, no email, no credit card. Sign up is only offered afterwards, if you want to keep your journal permanently.'
               : 'Isi form di bawah — trade kamu langsung tersimpan di browser sendiri. Tanpa akun, tanpa email, tanpa kartu kredit. Daftar hanya ditawarkan setelahnya, kalau kamu ingin jurnal tersimpan permanen.'}
           </p>
+          <p className="mt-2 text-white/40 text-xs md:text-sm">
+            {isEn
+              ? 'Too lazy to type numbers? Use the “Auto Journal (AI)” tab — paste your trade text and AI fills the form for you.'
+              : 'Males ngetik angka? Pakai tab “Auto Jurnal (AI)” — tempel teks trade, AI isiin formnya.'}
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
           {/* ---------- Form ---------- */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
+            {limitReached ? (
+              /* ── BATAS TERCAPAI (permintaan Bos): catatan ke-3 tersimpan →
+                 form dikunci, tamu disuruh daftar. Jujur: data tetap di
+                 browser, tidak ada yang hilang. ── */
+              <div className="flex flex-col items-center text-center gap-3 py-8" role="status">
+                <span className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-cyan-500/15 border border-cyan-400/30">
+                  <Lock className="w-5 h-5 text-cyan-300" aria-hidden="true" />
+                </span>
+                <p className="text-sm font-bold text-white">
+                  {isEn ? 'Guest journal full — 3 of 3 trades' : 'Jurnal tamu penuh — 3 dari 3 trade'}
+                </p>
+                <p className="text-xs text-white/50 leading-relaxed max-w-[320px]">
+                  {isEn
+                    ? 'Your 3 trades stay safe in this browser. Create a free account to journal without limits — saved permanently, plus AI analysis of every trade.'
+                    : '3 trade kamu tetap aman di browser ini. Daftar gratis untuk catat tanpa batas — tersimpan permanen, plus analisis AI tiap trade.'}
+                </p>
+                <Link
+                  href="/auth/signup"
+                  prefetch={false}
+                  className="mt-1 inline-flex items-center justify-center gap-2 min-h-[48px] w-full max-w-[320px] rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-sm font-bold hover:opacity-90 transition-all"
+                >
+                  {isEn ? 'Sign Up Free — Keep Journaling' : 'Daftar Gratis — Lanjut Catat'}
+                </Link>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="min-h-[44px] px-2 text-[11px] text-white/35 hover:text-white/60 underline underline-offset-2 cursor-pointer"
+                >
+                  {isEn
+                    ? 'Or clear the guest journal — 3 free slots again (all guest data deleted)'
+                    : 'Atau hapus jurnal tamu — 3 slot bebas lagi (semua data tamu terhapus)'}
+                </button>
+              </div>
+            ) : (
+            <>
+            {/* ── Cara isi: manual atau AUTO JURNAL (AI) ── */}
+            <div className="grid grid-cols-2 gap-2 mb-5" role="group" aria-label={isEn ? 'Input method' : 'Cara isi form'}>
+              <button
+                type="button"
+                onClick={() => setMode('manual')}
+                aria-pressed={mode === 'manual'}
+                className={`min-h-[44px] rounded-xl text-sm font-bold transition-colors cursor-pointer ${
+                  mode === 'manual'
+                    ? 'bg-white/10 text-white border border-white/30'
+                    : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
+                }`}
+              >
+                {isEn ? 'Fill Manually' : 'Isi Manual'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('auto')}
+                aria-pressed={mode === 'auto'}
+                className={`min-h-[44px] rounded-xl text-sm font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                  mode === 'auto'
+                    ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/40'
+                    : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                {isEn ? 'Auto Journal (AI)' : 'Auto Jurnal (AI)'}
+              </button>
+            </div>
+
+            {mode === 'auto' ? (
+              /* ── Panel AUTO JURNAL: tempel teks → AI isi form ── */
+              <div className="flex flex-col gap-3">
+                <label htmlFor="gj-raw" className="block text-xs font-medium text-white/60">
+                  {isEn
+                    ? 'Paste your raw trade text — MT4/MT5 history, broker notification, or just write it freely'
+                    : 'Tempel teks trade mentah kamu — history MT4/MT5, notifikasi broker, atau tulisan bebas'}
+                </label>
+                <textarea
+                  id="gj-raw"
+                  rows={5}
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  placeholder={
+                    isEn
+                      ? 'e.g. buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — london breakout, RR 1:2'
+                      : 'mis. buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — breakout london, RR 1:2'
+                  }
+                  className={`${inputCls} resize-y`}
+                />
+                <button
+                  type="button"
+                  onClick={fillSample}
+                  className="self-start min-h-[44px] py-2 px-1 text-[11px] text-cyan-300/80 hover:text-cyan-200 underline underline-offset-2 cursor-pointer"
+                >
+                  {isEn ? 'Try an example' : 'Coba contoh'}
+                </button>
+
+                {autoError && (
+                  <p role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">
+                    {autoError}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleAutoParse}
+                  disabled={autoLoading}
+                  className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {autoLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" aria-hidden="true" />
+                  )}
+                  {autoLoading
+                    ? isEn
+                      ? 'AI is reading your trade…'
+                      : 'AI sedang membaca trade…'
+                    : isEn
+                      ? 'Auto-Fill the Form'
+                      : 'Isi Form Otomatis'}
+                </button>
+
+                <p className="text-[11px] text-white/40 flex items-start gap-1.5">
+                  <Lock className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
+                  {isEn
+                    ? 'AI only uses numbers found in your text — nothing is invented. After auto-fill you review everything before saving.'
+                    : 'AI hanya memakai angka yang ada di teks kamu — tidak ada yang dikarang. Setelah form terisi, kamu review dulu sebelum simpan.'}
+                </p>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4" aria-label={isEn ? 'Guest trade journal form' : 'Form jurnal trade tamu'}>
               {/* Pair (fixed) + Direction */}
               <div className="grid grid-cols-2 gap-3">
@@ -143,7 +392,11 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     onChange={(e) => setForm({ ...form, pair: e.target.value })}
                     className={inputCls}
                   >
-                    <option value="XAUUSD">XAUUSD</option>
+                    {pairOptions.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -249,6 +502,16 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                 </div>
               </div>
 
+              {autoNote && (
+                <p role="status" className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-400/20 rounded-lg px-3 py-2 flex items-start gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>
+                    <strong className="font-semibold">{isEn ? 'Auto-filled by AI. ' : 'Form terisi otomatis oleh AI. '}</strong>
+                    {autoNote}
+                  </span>
+                </p>
+              )}
+
               {error && (
                 <p role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">
                   {error}
@@ -261,6 +524,12 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                   {isEn ? 'Trade saved to your guest journal (browser).' : 'Trade tersimpan di jurnal tamu (browser kamu).'}
                 </p>
               )}
+
+              <p className="text-[11px] text-white/40" aria-live="polite">
+                {isEn
+                  ? `Guest slots: ${remaining} of 3 left — signup is free when it's full`
+                  : `Sisa catatan tamu: ${remaining} dari 3 — pas penuh tinggal daftar gratis`}
+              </p>
 
               <button
                 type="submit"
@@ -277,6 +546,9 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                   : 'Tersimpan di browser kamu sendiri (localStorage). Belum perlu akun.'}
               </p>
             </form>
+            )}
+            </>
+            )}
           </div>
 
           {/* ---------- Saved list + honest signup CTA ---------- */}
@@ -340,10 +612,14 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
 
             {trades.length > 0 && (
               <div className="mt-auto pt-2 border-t border-white/10">
-                <p className="text-[11px] text-white/50 mb-2.5">
-                  {isEn
-                    ? 'Want this saved permanently with AI analysis? Sign up — takes a minute.'
-                    : 'Ingin tersimpan permanen lengkap dengan analisis AI? Daftar — cuma sebentar.'}
+                <p className={`text-[11px] mb-2.5 ${limitReached ? 'text-cyan-200 font-semibold' : 'text-white/50'}`}>
+                  {limitReached
+                    ? isEn
+                      ? 'Guest limit reached (3 trades) — sign up free to save them permanently & journal without limits.'
+                      : 'Batas jurnal tamu tercapai (3 trade) — daftar gratis untuk simpan permanen & catat tanpa batas.'
+                    : isEn
+                      ? 'Want this saved permanently with AI analysis? Sign up — takes a minute.'
+                      : 'Ingin tersimpan permanen lengkap dengan analisis AI? Daftar — cuma sebentar.'}
                 </p>
                 <Link
                   href="/auth/signup"
