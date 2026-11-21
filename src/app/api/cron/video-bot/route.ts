@@ -290,10 +290,10 @@ function buildSignalSpec(signal: SignalData): VideoSpec {
     carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
     signal,
     scenes: [
-      { kind: 'hook', title: win ? 'TP KEBELI 🎯' : 'DISIPLIN SL 🛡️', sub: `sinyal ${signal.side} ${signal.symbolLabel} dari engine luxtrade`, vo: win ? `Take profit kebeli. Sinyal ${signal.side} gold dari engine Luxtrade.` : `Stop loss nyala sesuai rencana. Ini sinyal ${signal.side} gold dari Luxtrade.` },
-      { kind: 'chart', title: signal.side === 'LONG' ? 'LONG SEJAK ENTRY' : 'SHORT SEJAK ENTRY', sub: `entry ${signal.entry.toLocaleString('id-ID')} → exit ${signal.exit.toLocaleString('id-ID')}`, vo: `Entry di ${signal.entry.toLocaleString('id-ID', { minimumFractionDigits: 2 })}, keluar di ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}.` },
-      { kind: 'stat', title: `${pctText}`, sub: win ? 'hasil per gerakan ini — tercatat otomatis di jurnal' : 'risiko terkendali — SL jalan sesuai rencana', vo: win ? `Hasilnya ${pctText.replace('%', ' persen')}. Tercatat otomatis di jurnal.` : `Risikonya terkendali, ${pctText.replace('%', ' persen')}. SL jalan sesuai rencana.` },
-      { kind: 'cta', title: 'MAU SINYAL KE HP?', sub: 'alert entry/sl/tp otomatis ke HP — link di bio', vo: 'Mau sinyal begini masuk ke layar HP kamu? Cek link di bio.' },
+      { kind: 'hook', title: win ? 'TP KEBELI 🎯' : 'DISIPLIN SL 🛡️', sub: `sinyal ${signal.side} ${signal.symbolLabel} dari engine luxtrade`, vo: win ? `TP kebeli. Sinyal ${signal.side} dari Luxtrade.` : `SL nyala. Sinyal ${signal.side} dari Luxtrade.` },
+      { kind: 'chart', title: signal.side === 'LONG' ? 'LONG SEJAK ENTRY' : 'SHORT SEJAK ENTRY', sub: `entry ${signal.entry.toLocaleString('id-ID')} → exit ${signal.exit.toLocaleString('id-ID')}`, vo: `Entry ${signal.entry.toLocaleString('id-ID', { minimumFractionDigits: 2 })}, keluar ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}.` },
+      { kind: 'stat', title: `${pctText}`, sub: win ? 'hasil per gerakan ini — tercatat otomatis di jurnal' : 'risiko terkendali — SL jalan sesuai rencana', vo: win ? `Hasilnya ${pctText.replace('%', ' persen')}. Tercatat di jurnal.` : 'Risikonya terkendali. SL jalan sesuai rencana.' },
+      { kind: 'cta', title: 'MAU SINYAL KE HP?', sub: 'tim manual atau auto? komen — link di bio', vo: 'Sinyal ke HP kamu. Link di bio.' },
     ],
   }
 }
@@ -327,7 +327,12 @@ ATURAN BENTUK KONTEN (HARD RULE dari Bos):
 - Satu output = SATU topik dalam DUA bentuk sekaligus: scenes video + slides carousel dari topik yang sama.
 
 KAMU MENERIMA: (1) data performa asli (top video TikTok + profil audiens + rata-rata performa IG per template), (2) template yang SUDAH DIPILIH sistem ('promo' | 'tip' | 'signal'), (3) ANGLE + TOPIK HARI INI hasil riset sistem — WAJIB diikuti.
-TUGASMU: tulis 4-5 scene utk template itu DENGAN ANGLE & TOPIK yang ditugaskan, plus caption TikTok (pendek), caption Instagram (panjang), dan 4-6 slide carousel.
+TUGASMU: tulis TEPAT 4 scene (struktur HOOK → MASALAH → SOLUSI → CTA) utk template itu DENGAN ANGLE & TOPIK yang ditugaskan, plus caption TikTok (pendek), caption Instagram (panjang), dan 4-6 slide carousel.
+
+ATURAN FORMAT 20 DETIK (HARD RULE dari Bos — referensi reel Luxtradee):
+- STRUKTUR WAJIB TEPAT 4 SCENE: (1) HOOK — masalah menyindir 1 baris; (2) MASALAH — elaborasi pain/konsekuensinya, bikin penonton ngaku "itu gue banget"; (3) SOLUSI — jalan keluar konkret (konsep teknikal ATAU fitur Luxtradee); (4) CTA — 1 pertanyaan spesifik buat komen + link di bio.
+- VIDEO TEPAT ±20 DETIK. Voiceover ±13 karakter/detik + jeda 0.9 detik tiap scene → TOTAL SELURUH VO ≤ 220 karakter. Kalau kepanjangan, PANGKAS isi — DILARANG menambah scene.
+- Budget VO per scene: HOOK ≤45 karakter, MASALAH ≤65, SOLUSI ≤75, CTA ≤35. Satu-dua kalimat pendek per scene, bukan paragraf.
 
 ATURAN KERAS:
 - IKUTI TUGASAN ANGLE & TOPIK: konten hari ini WAJIB membahas topik yang ditugaskan dengan sudut (angle) yang ditugaskan. Hook WAJIB memvariasikan salah satu pola hook angle tsb (boleh dimodifikasi, JANGAN salin mentah).
@@ -335,11 +340,11 @@ ATURAN KERAS:
 ATURAN 3 DETIK PERTAMA (DATA BOS 11 NOV: 163 views, cuma 13% lolos 3 detik, rata-rata nonton 2 detik — video lama MULAI GELAP & PELAN = mati):
 - Detik 0-1 WAJIB: title hook menghajar + sub (subtitle di layar) SUDAH TERBACA. Penonton scroll TANPA SUARA — jangan simpan konteks penting di VO saja; sub = subtitle wajib, bukan pelengkap.
 - DILARANG hook yang butuh setup/dengan pembukaan pelan. Kata pertama VO LANGSUNG INTI — "hai guys", "di video ini", "pernah ga sih" = GAGAL.
-- VO scene pertama maksimal 120 karakter dan habis di bawah 6 detik.
+- VO scene pertama maksimal 45 karakter dan habis di bawah 4 detik.
 - Scene penutup (cta): sub WAJIB berisi 1 PERTANYAAN SPESIFIK yang gampang dijawab komen (mis. "kamu sering loss jam berapa? komen", "tim buy atau sell?") — bukan cuma "cek link di bio". Pertanyaan = komentar = distribusi.
 
 - Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
-- Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, maks 120 karakter, natural — angka dibaca dengan huruf).
+- Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, natural — angka dibaca dengan huruf; ikuti budget 20 detik: hook ≤45, masalah ≤65, solusi ≤75, cta ≤35).
 - Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
 - VARIASI LINGUISTIK: jangan mulai hook dengan kata/frasa yang sama dengan daftar "jangan ulangi"; ganti struktur kalimat (pertanyaan / pernyataan / angka / perintah) dibanding run sebelumnya.
 - caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio" + 1 pertanyaan spesifik buat komen (2 kalimat terakhir).
@@ -474,9 +479,24 @@ function validSpec(s: VideoSpec | null, template: Template): s is VideoSpec {
   return scenesOk && carouselOk && (template !== 'signal' || !!s.signal)
 }
 
+/** Pangkas VO ke batas karakter di batas kata (punctuation nyangkut ikut dibuang).
+ *  Jaring pengaman kalau LLM melanggar budget VO format 20 detik. */
+function capVo(text: string, max: number): string {
+  const t = text.trim()
+  if (t.length <= max) return t
+  const cut = t.slice(0, max)
+  const sp = cut.lastIndexOf(' ')
+  return (sp > Math.floor(max * 0.5) ? cut.slice(0, sp) : cut).replace(/[\s,.;:!?—-]+$/, '').trim()
+}
+
 function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | null): VideoSpec {
   const ALLOWED: SceneKind[] = ['hook', 'point', 'chart', 'quote', 'stat', 'cta']
-  const scenes = s.scenes.slice(0, 6).map((sc, i, arr) => {
+  /* FORMAT 20 DETIK (arah Bos — referensi reel Luxtradee): maks 4 scene
+     hook → masalah → solusi → cta. Budget VO per posisi (edge-tts ±13
+     karakter/detik + jeda 0.9 dtk tiap scene): hook 46 · masalah 66 ·
+     solusi 76 · cta 36 → total ≤ 224 karakter ≈ 20 detik. */
+  const VO_CAPS = [46, 66, 76, 36]
+  let scenes = s.scenes.slice(0, 6).map((sc, i, arr) => {
     const kind = sc.kind && ALLOWED.includes(sc.kind)
       ? sc.kind
       : i === 0 ? 'hook' : i === arr.length - 1 ? 'cta' : 'point'
@@ -484,9 +504,14 @@ function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | nul
       kind: kind as SceneKind,
       title: String(sc.title).slice(0, 30),
       sub: String(sc.sub).slice(0, 60),
-      vo: String(sc.vo).slice(0, 160),
+      vo: String(sc.vo),
     }
   })
+  if (scenes.length > 4) {
+    // Buang scene tengah berlebih — simpan hook, masalah pertama, solusi terdekat cta, cta
+    scenes = [scenes[0], scenes[1], scenes[scenes.length - 2], scenes[scenes.length - 1]]
+  }
+  scenes = scenes.map((sc, i) => ({ ...sc, vo: capVo(sc.vo, VO_CAPS[i] ?? 36) }))
   // Paksa scene pertama hook & terakhir cta (aturan komposisi)
   if (scenes.length >= 2) {
     scenes[0].kind = 'hook'
