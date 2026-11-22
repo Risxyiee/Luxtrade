@@ -316,6 +316,15 @@ REFERENSI GAYA DARI BOS (reel FB Sans Traders — patokan selera Bos, TIRU STRUK
 - Akhiri dgn janji SERI ("Seri Trader Pemula Luxtradee bagian X") + disclaimer edukasi 1 baris ("Konten edukasi, bukan ajakan transaksi. Trading berisiko tinggi.").
 - Referensi asli: https://www.facebook.com/share/r/1Dg6ykHFCp/?mibextid=wwXIfr
 
+REFERENSI #2 DARI BOS (reel IG Phoenix Signal — pola bedah 2 konsep, TIRU POLANYA, brand tetap Luxtradee):
+- Hook = PERTANYAAN PERBANDINGAN 2 konsep: "A vs B, bedanya apa?" — penonton penasaran jawabannya.
+- Bedah SIMETRIS paralel: tiap konsep 1 blok pendek — emoji identitas + definisi metafora konkret ("ORDER BLOCK = sebuah CANDLE", "FVG = sebuah CELAH") + 1 kalimat analogi nyata. Sederhana sampai anak SMA paham.
+- Tutup dgn SINTESIS praktis: kapan harga balik ke zona + kombinasi 2 konsep = setup terkuat + aturan konfirmasi sebelum entry.
+- CTA paling kuat = LEAD MAGNET DM KEYWORD: "Komen 'ZONA', aku kirim cheat sheet ke DM kamu" → komen naik + DM terbuka. Untuk konten edukasi, pakai pola ini (keyword 1 kata + hadiah cheat sheet nyata). Alternatif save CTA dgn konteks pemakaian: "Simpan buat dibuka pas lagi analisa".
+- Caption tutup dgn disclaimer 1 baris: "Chart ilustrasi. Konten edukasi, bukan ajakan beli/jual." — dan hashtag FOKUS 5-6 saja, jangan 12.
+- Referensi asli: https://www.instagram.com/reel/DfWWWw2SnZO/
+- CATATAN: STYLE mengikuti referensi di atas; DURASI & struktur scene tetap kena ATURAN FORMAT 20 DETIK di bawah.
+
 KEMANDIRIAN (amanat Bos: "harus pintar, berpikir sendiri, menemukan solusi sendiri, belajar sendiri"):
 - BERPIKIR KRITIS: analisa data di bawah dulu (top video + audiens + pelajaran run sebelumnya) SEBELUM menulis. Pilih sudut/angle paling menohok dari bukti — jangan menunggu perintah detail.
 - BELAJAR: kalau ada bagian "PELAJARAN RUN SEBELUMNYA", wajib mengikuti instruksi koreksinya (hindari hook/topik/kesalahan yang disebut). Jangan pernah mengulang hook yang persis sama dgn Reels terakhir.
@@ -341,14 +350,14 @@ ATURAN 3 DETIK PERTAMA (DATA BOS 11 NOV: 163 views, cuma 13% lolos 3 detik, rata
 - Detik 0-1 WAJIB: title hook menghajar + sub (subtitle di layar) SUDAH TERBACA. Penonton scroll TANPA SUARA — jangan simpan konteks penting di VO saja; sub = subtitle wajib, bukan pelengkap.
 - DILARANG hook yang butuh setup/dengan pembukaan pelan. Kata pertama VO LANGSUNG INTI — "hai guys", "di video ini", "pernah ga sih" = GAGAL.
 - VO scene pertama maksimal 45 karakter dan habis di bawah 4 detik.
-- Scene penutup (cta): sub WAJIB berisi 1 PERTANYAAN SPESIFIK yang gampang dijawab komen (mis. "kamu sering loss jam berapa? komen", "tim buy atau sell?") — bukan cuma "cek link di bio". Pertanyaan = komentar = distribusi.
+- Scene penutup (cta): sub WAJIB berisi 1 PERTANYAAN SPESIFIK yang gampang dijawab komen, ATAU ajakan komen KEYWORD 1 kata utk lead magnet DM (referensi Bos: komen "ZONA" → cheat sheet ke DM) — bukan cuma "cek link di bio". Pertanyaan/keyword = komentar = distribusi.
 
 - Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
 - Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, natural — angka dibaca dengan huruf; ikuti budget 20 detik: hook ≤45, masalah ≤65, solusi ≤75, cta ≤35).
 - Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
 - VARIASI LINGUISTIK: jangan mulai hook dengan kata/frasa yang sama dengan daftar "jangan ulangi"; ganti struktur kalimat (pertanyaan / pernyataan / angka / perintah) dibanding run sebelumnya.
 - caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio" + 1 pertanyaan spesifik buat komen (2 kalimat terakhir).
-- igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, 8-12 hashtag relevan trading Indonesia.
+- igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, disclaimer 1 baris, hashtag FOKUS 5-8 relevan (referensi Bos: sedikit tapi nendang, bukan 12 sekaligus).
 - 4-5 hashtag untuk TikTok.
 - Carousel: 4-6 slides. Slide pertama kind='cover' (hook, TANPA vo), slide terakhir kind='cta' (ajak save/share + cek link di bio), slide tengah kind 'point'|'chart'|'stat'|'quote'. Isi carousel = versi SAVEABLE dari topik video (poin-poin padat layak disave user), BUKAN salinan mentah scene video. title ≤ 40 karakter, sub ≤ 90 karakter.
 

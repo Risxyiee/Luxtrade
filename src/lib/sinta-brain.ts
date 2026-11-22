@@ -123,9 +123,12 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
     id: 'edukasi',
     label: 'Bedah 1 konsep SMC/ICT super sederhana',
     guidance:
-      'SATU konsep saja. Jelaskan seolah ke anak SMA: definisi 1 kalimat → contoh nyata di gold/XAUUSD → kesalahan pemula saat pakai konsep itu → CTA jurnal supaya konsepnya keuji.',
+      'SATU konsep saja (ATAU perbandingan 2 konsep model referensi Bos: "A vs B, bedanya apa?"). Jelaskan seolah ke anak SMA: definisi pakai METAFORA KONKRET ("ORDER BLOCK = sebuah CANDLE", "FVG = sebuah CELAH") → contoh nyata di gold/XAUUSD → kesalahan pemula saat pakai konsep itu → CTA jurnal supaya konsepnya keuji.',
     hookPatterns: [
       '{KONSEP} dijelaskan dalam 20 detik',
+      /* FORMAT REFERENSI BOS (reel Phoenix Signal): perbandingan 2 konsep */
+      '{KONSEP A} vs {KONSEP B} — bedanya apa?',
+      '{KONSEP A} dan {KONSEP B} kelihatan sama — padahal beda jauh',
       'Kenapa harga balik ke sini dulu sebelum jalan?',
       'Inilah konsep yang paling sering disalahpahami pemula',
       'Kalau kamu paham ini, setengah TradingView nggak kamu butuhin',
@@ -256,6 +259,7 @@ export const TOPIC_POOL: TopicEntry[] = [
   { topic: 'Pindah-pindah strategi tiap minggu — akun jadi lab rat, bukan bisnis', angle: 'pain-point' },
   // edukasi
   { topic: 'Apa itu Order Block & kenapa harga sering balik ke sana sebelum jalan', angle: 'edukasi' },
+  { topic: 'Order Block vs FVG — bedanya apa? (OB = candle, FVG = celah; keduanya numpuk = zona paling kuat)', angle: 'edukasi' },
   { topic: 'Fair Value Gap (FVG): celah harga yang suka diisi ulang — cara baca + entry-nya', angle: 'edukasi' },
   { topic: 'Liquidity sweep vs breakout asli — bedanya tipis tapi fatal buat SL kamu', angle: 'edukasi' },
   { topic: 'Premium vs discount: beli di zona murah, bukan di puncak FOMO', angle: 'edukasi' },
