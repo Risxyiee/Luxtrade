@@ -11,15 +11,24 @@
  *   2. Tersimpan di browser (localStorage) → langsung tampil di daftar
  *   3. BARU setelah trade tercatat muncul CTA "Simpan permanen — Daftar"
  *
+ * FITUR AUTO JURNAL (permintaan Bos 22 Nov: "upload foto nanti langsung
+ * muncul hasil kaya yang di dashboard — jadi fitur"):
+ *   - Tab "Auto Jurnal (AI)" punya 2 input: UPLOAD FOTO screenshot trade
+ *     (utama) & tempel teks (jalur lama).
+ *   - Setelah diparse → KARTU HASIL gaya dashboard muncul LANGSUNG di
+ *     landing (pair, BUY/SELL, entry/SL/TP/lot, RR, profit) — persis
+ *     pengalaman dashboard, tapi tanpa akun.
+ *   - Dari kartu: "Simpan ke Jurnal Tamu" (langsung masuk daftar) atau
+ *     "Isi form manual" (review kolom per kolom dulu).
+ *   - Foto diproses di memori server, TIDAK disimpan (privasi tamu).
+ *
  * SSR-safe: akses localStorage hanya di useEffect / handler.
- * Catatan jujur: data localStorage TIDAK otomatis pindah ke akun —
- * CTA di bawah tidak pernah menjanjikan migrasi otomatis.
  * ============================================================
  */
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { PenLine, CheckCircle2, Trash2, Lock, Sparkles, Loader2 } from 'lucide-react'
+import { PenLine, CheckCircle2, Trash2, Lock, Sparkles, Loader2, Upload, ImageIcon, X, Activity } from 'lucide-react'
 
 interface GuestJournalCTAProps {
   language?: 'id' | 'en'
@@ -34,13 +43,24 @@ type GuestTrade = {
   tp: string
   lot: string
   note: string
+  /** Ekstra dari Auto Jurnal FOTO (dashboard-style) — opsional. */
+  profit?: string
+  exit?: string
   createdAt: string
+}
+
+type AutoResult = {
+  fields: { pair: string; direction: 'BUY' | 'SELL'; entry: string; sl: string; tp: string; lot: string; note: string }
+  extra: { exit: string; profit: string }
+  missing: string[]
+  note: string
+  source: 'image' | 'text'
 }
 
 const STORAGE_KEY = 'luxtradee_guest_journal'
 
 /** Pilihan pair form tamu — Auto Jurnal bisa MENAMBAH pair dinamis
- *  kalau AI mendeteksi pair lain dari teks yang ditempel. */
+ *  kalau AI mendeteksi pair lain dari teks/screenshot. */
 const BASE_PAIRS = ['XAUUSD', 'XAGUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD', 'USDCAD', 'BTCUSD', 'ETHUSD']
 
 /** Batas jurnal tamu (permintaan Bos: "batasin 2 atau 3 kali kalau udah
@@ -58,6 +78,17 @@ const EMPTY_FORM = {
   note: '',
 }
 
+/** RR sederhana: reward(risiko) dari entry/SL/TP — tampil di kartu
+ *  hasil & daftar trade gaya dashboard. Null kalau angka tak lengkap. */
+function rrOf(entry: string, sl: string, tp: string): string | null {
+  const e = Number(entry), s = Number(sl), t = Number(tp)
+  if (!isFinite(e) || !isFinite(s) || !isFinite(t) || !e || e === s) return null
+  const risk = Math.abs(e - s)
+  if (!risk) return null
+  const reward = Math.abs(t - e)
+  return `1:${(reward / risk).toFixed(1).replace('.', ',')}`
+}
+
 export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProps) {
   const isEn = language === 'en'
   const [trades, setTrades] = useState<GuestTrade[]>([])
@@ -65,15 +96,20 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
   const [error, setError] = useState('')
   const [justSaved, setJustSaved] = useState(false)
 
-  /* ── AUTO JURNAL (permintaan Bos): tempel teks trade → AI isi form ──
-     Dua tab: "Isi Manual" (form lama) & "Auto Jurnal" (tempel teks).
-     Hasil parse AI MENGISI form manual — tamu tetap review & simpan
-     sendiri (angka tidak pernah langsung disimpan tanpa lihat). */
+  /* ── AUTO JURNAL (permintaan Bos): upload FOTO atau tempel teks →
+     AI membaca → KARTU HASIL gaya dashboard muncul langsung di landing.
+     Tamu tetap yang memutuskan: simpan sekali klik, atau isi form manual
+     untuk review kolom per kolom (angka tidak pernah diam-diam disimpan). */
   const [mode, setMode] = useState<'manual' | 'auto'>('manual')
+  const [autoInput, setAutoInput] = useState<'foto' | 'teks'>('foto')
   const [rawText, setRawText] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [autoLoading, setAutoLoading] = useState(false)
   const [autoError, setAutoError] = useState('')
   const [autoNote, setAutoNote] = useState('')
+  const [autoResult, setAutoResult] = useState<AutoResult | null>(null)
   const [pairOptions, setPairOptions] = useState<string[]>(BASE_PAIRS)
 
   /* ── Batas jurnal tamu: 3 catatan, habis → form dikunci + CTA daftar ── */
@@ -90,6 +126,11 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
     } catch {
       /* storage diblok — form tetap jalan, cuma tidak persist */
     }
+    /* Bersihkan object URL preview saat unmount (memory hygiene). */
+    return () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const persist = (next: GuestTrade[]) => {
@@ -137,10 +178,27 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
     setJustSaved(false)
   }
 
-  /* ── AUTO JURNAL: kirim teks ke /api/journal/auto-parse → isi form.
-     Jujur: gagal AI / rate limit / teks tidak jelas → pesan jelas,
-     form TIDAK diisi sebagian. Sukses → tamu diarahkan ke form manual
-     untuk review sebelum simpan. */
+  /* ── Pilih foto (screenshot trade) + preview thumbnail ── */
+  const handlePhotoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] || null
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhoto(f)
+    setPhotoPreview(f ? URL.createObjectURL(f) : '')
+    setAutoError('')
+    setAutoResult(null)
+  }
+
+  const clearPhoto = () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhoto(null)
+    setPhotoPreview('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  /* ── AUTO JURNAL: kirim FOTO / TEKS ke /api/journal/auto-parse.
+     Sukses → hasil TIDAK langsung disimpan & TIDAK mengganti form:
+     muncul KARTU HASIL gaya dashboard, tamu pilih sendiri
+     (simpan sekali klik / isi form manual). */
   const handleAutoParse = async () => {
     if (autoLoading) return
     if (trades.length >= MAX_GUEST_TRADES) {
@@ -151,28 +209,39 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
       )
       return
     }
-    const text = rawText.trim()
-    if (text.length < 2) {
+    if (autoInput === 'teks' && rawText.trim().length < 2) {
       setAutoError(isEn ? 'Paste your trade text first.' : 'Tempel teks trade-nya dulu ya.')
+      return
+    }
+    if (autoInput === 'foto' && !photo) {
+      setAutoError(isEn ? 'Pick a trade screenshot first.' : 'Pilih screenshot trade-nya dulu ya.')
       return
     }
     setAutoError('')
     setAutoNote('')
+    setAutoResult(null)
     setAutoLoading(true)
     try {
-      const res = await fetch('/api/journal/auto-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      })
+      let res: Response
+      if (autoInput === 'foto') {
+        const fd = new FormData()
+        fd.append('image', photo as File)
+        res = await fetch('/api/journal/auto-parse', { method: 'POST', body: fd })
+      } else {
+        res = await fetch('/api/journal/auto-parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: rawText.trim() }),
+        })
+      }
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.ok || !data?.fields) {
         setAutoError(
           String(
             data?.error ||
               (isEn
-                ? 'AI could not read that text — try writing it differently or fill the form manually.'
-                : 'AI belum bisa baca teks itu — coba tulis ulang atau isi manual.')
+                ? 'AI could not read that — try again or fill the form manually.'
+                : 'AI belum bisa membacanya — coba lagi atau isi manual.')
           )
         )
         return
@@ -186,22 +255,30 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
         lot?: string
         note?: string
       }
-      setForm({
-        pair: String(f.pair || 'XAUUSD'),
-        direction: f.direction === 'SELL' ? 'SELL' : 'BUY',
-        entry: String(f.entry || ''),
-        sl: String(f.sl || ''),
-        tp: String(f.tp || ''),
-        lot: String(f.lot || ''),
-        note: String(f.note || ''),
-      })
       const p = String(f.pair || '')
       if (p && !BASE_PAIRS.includes(p)) {
         setPairOptions((prev) => (prev.includes(p) ? prev : [...prev, p]))
       }
-      setAutoNote(String(data.note || ''))
+      setAutoResult({
+        fields: {
+          pair: String(f.pair || 'XAUUSD'),
+          direction: f.direction === 'SELL' ? 'SELL' : 'BUY',
+          entry: String(f.entry || ''),
+          sl: String(f.sl || ''),
+          tp: String(f.tp || ''),
+          lot: String(f.lot || ''),
+          note: String(f.note || ''),
+        },
+        extra: {
+          exit: String(data.extra?.exit || ''),
+          profit: String(data.extra?.profit || ''),
+        },
+        missing: Array.isArray(data.missing) ? data.missing.map(String) : [],
+        note: String(data.note || ''),
+        source: data.source === 'text' ? 'text' : 'image',
+      })
+      setAutoNote('')
       setJustSaved(false)
-      setMode('manual') // review & simpan di form
     } catch {
       setAutoError(
         isEn
@@ -213,9 +290,45 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
     }
   }
 
+  /* ── Dari kartu hasil → simpan langsung ke jurnal tamu (1 klik) ── */
+  const saveFromResult = () => {
+    if (!autoResult || trades.length >= MAX_GUEST_TRADES) return
+    const trade: GuestTrade = {
+      ...autoResult.fields,
+      profit: autoResult.extra.profit,
+      exit: autoResult.extra.exit,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+    }
+    persist([trade, ...trades])
+    setJustSaved(true)
+    setAutoResult(null)
+    setRawText('')
+    clearPhoto()
+    setAutoNote(
+      isEn
+        ? 'Saved from AI result — check the numbers in your journal list.'
+        : 'Tersimpan dari hasil AI — cek angkanya di daftar jurnal kamu.'
+    )
+  }
+
+  /* ── Dari kartu hasil → isi form manual (review kolom per kolom) ── */
+  const fillFormFromResult = () => {
+    if (!autoResult) return
+    setForm({ ...autoResult.fields })
+    setAutoNote(
+      (autoResult.source === 'image'
+        ? (isEn ? 'Auto-filled from your screenshot by AI. ' : 'Form terisi otomatis dari screenshot oleh AI. ')
+        : (isEn ? 'Auto-filled by AI. ' : 'Form terisi otomatis oleh AI. ')) + (autoResult.note || '')
+    )
+    setJustSaved(false)
+    setMode('manual')
+  }
+
   const fillSample = () => {
     setAutoError('')
     setAutoNote('')
+    setAutoResult(null)
     setRawText(
       isEn
         ? 'buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — london breakout, RR 1:2'
@@ -240,13 +353,13 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
           </h2>
           <p className="mt-4 text-white/60 text-sm md:text-base leading-relaxed">
             {isEn
-              ? 'Fill the form below — your trade is saved in your own browser instantly. No account, no email, no credit card. Sign up is only offered afterwards, if you want to keep your journal permanently.'
-              : 'Isi form di bawah — trade kamu langsung tersimpan di browser sendiri. Tanpa akun, tanpa email, tanpa kartu kredit. Daftar hanya ditawarkan setelahnya, kalau kamu ingin jurnal tersimpan permanen.'}
+              ? 'Upload a trade screenshot and AI reads it instantly — the result appears right here, just like in the dashboard. No account needed.'
+              : 'Upload screenshot trade — AI bacain langsung, hasilnya muncul di sini juga, kaya di dashboard. Tanpa akun.'}
           </p>
           <p className="mt-2 text-white/40 text-xs md:text-sm">
             {isEn
-              ? 'Too lazy to type numbers? Use the “Auto Journal (AI)” tab — paste your trade text and AI fills the form for you.'
-              : 'Males ngetik angka? Pakai tab “Auto Jurnal (AI)” — tempel teks trade, AI isiin formnya.'}
+              ? 'Your trade is saved in your own browser instantly. Sign up is only offered afterwards, if you want to keep your journal permanently.'
+              : 'Trade kamu langsung tersimpan di browser sendiri. Daftar hanya ditawarkan setelahnya, kalau kamu ingin jurnal tersimpan permanen.'}
           </p>
         </div>
 
@@ -318,32 +431,155 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
             </div>
 
             {mode === 'auto' ? (
-              /* ── Panel AUTO JURNAL: tempel teks → AI isi form ── */
+              /* ── Panel AUTO JURNAL: upload FOTO / tempel teks → kartu hasil ── */
               <div className="flex flex-col gap-3">
-                <label htmlFor="gj-raw" className="block text-xs font-medium text-white/60">
-                  {isEn
-                    ? 'Paste your raw trade text — MT4/MT5 history, broker notification, or just write it freely'
-                    : 'Tempel teks trade mentah kamu — history MT4/MT5, notifikasi broker, atau tulisan bebas'}
-                </label>
-                <textarea
-                  id="gj-raw"
-                  rows={5}
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder={
-                    isEn
-                      ? 'e.g. buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — london breakout, RR 1:2'
-                      : 'mis. buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — breakout london, RR 1:2'
-                  }
-                  className={`${inputCls} resize-y`}
-                />
-                <button
-                  type="button"
-                  onClick={fillSample}
-                  className="self-start min-h-[44px] py-2 px-1 text-[11px] text-cyan-300/80 hover:text-cyan-200 underline underline-offset-2 cursor-pointer"
-                >
-                  {isEn ? 'Try an example' : 'Coba contoh'}
-                </button>
+                {/* Sub-pilihan input: FOTO (utama — permintaan Bos) / TEKS */}
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label={isEn ? 'Auto journal input' : 'Input auto jurnal'}>
+                  <button
+                    type="button"
+                    onClick={() => { setAutoInput('foto'); setAutoError('') }}
+                    aria-pressed={autoInput === 'foto'}
+                    className={`min-h-[44px] rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                      autoInput === 'foto'
+                        ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/40'
+                        : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                    {isEn ? 'Upload Screenshot' : 'Upload Foto'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAutoInput('teks'); setAutoError('') }}
+                    aria-pressed={autoInput === 'teks'}
+                    className={`min-h-[44px] rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      autoInput === 'teks'
+                        ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/40'
+                        : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    {isEn ? 'Paste Text' : 'Tempel Teks'}
+                  </button>
+                </div>
+
+                {autoInput === 'foto' ? (
+                  /* ── Upload FOTO: drop-zone + preview ── */
+                  <div className="flex flex-col gap-3">
+                    <input
+                      ref={fileInputRef}
+                      id="gj-photo"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handlePhotoPick}
+                      className="sr-only"
+                      aria-label={isEn ? 'Trade screenshot' : 'Screenshot trade'}
+                    />
+                    {!photo ? (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="min-h-[96px] w-full rounded-xl border border-dashed border-cyan-400/30 bg-cyan-500/[0.04] hover:bg-cyan-500/[0.08] hover:border-cyan-400/50 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Upload className="w-5 h-5 text-cyan-300" aria-hidden="true" />
+                        <span className="text-xs font-semibold text-cyan-200">
+                          {isEn ? 'Tap to pick your trade screenshot' : 'Ketuk buat pilih screenshot trade'}
+                        </span>
+                        <span className="text-[10px] text-white/40">
+                          {isEn ? 'MT4 / MT5 / TradingView — JPG, PNG, WebP (max 10 MB)' : 'MT4 / MT5 / TradingView — JPG, PNG, WebP (maks 10 MB)'}
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="relative rounded-xl border border-white/15 overflow-hidden bg-black/30">
+                        {/* preview thumbnail — tinggi terbatas biar layout aman */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photoPreview}
+                          alt={isEn ? 'Selected trade screenshot preview' : 'Pratinjau screenshot trade'}
+                          className="max-h-40 w-full object-contain"
+                        />
+                        <div className="flex items-center justify-between px-3 py-2 bg-black/50">
+                          <span className="text-[11px] text-white/60 truncate max-w-[75%]">{photo.name}</span>
+                          <button
+                            type="button"
+                            onClick={clearPhoto}
+                            aria-label={isEn ? 'Remove screenshot' : 'Hapus screenshot'}
+                            className="inline-flex items-center gap-1 min-h-[44px] py-1 px-2 -my-1 text-[11px] text-white/50 hover:text-red-300 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            {isEn ? 'Remove' : 'Hapus'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleAutoParse}
+                      disabled={autoLoading || !photo}
+                      className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {autoLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" aria-hidden="true" />
+                      )}
+                      {autoLoading
+                        ? isEn
+                          ? 'AI is reading your screenshot… usually 5–15s'
+                          : 'AI membaca screenshot… biasanya 5–15 detik'
+                        : isEn
+                          ? 'Read Screenshot with AI'
+                          : 'Baca Screenshot dengan AI'}
+                    </button>
+                  </div>
+                ) : (
+                  /* ── Tempel TEKS (jalur lama) ── */
+                  <div className="flex flex-col gap-3">
+                    <label htmlFor="gj-raw" className="block text-xs font-medium text-white/60">
+                      {isEn
+                        ? 'Paste your raw trade text — MT4/MT5 history, broker notification, or just write it freely'
+                        : 'Tempel teks trade mentah kamu — history MT4/MT5, notifikasi broker, atau tulisan bebas'}
+                    </label>
+                    <textarea
+                      id="gj-raw"
+                      rows={5}
+                      value={rawText}
+                      onChange={(e) => setRawText(e.target.value)}
+                      placeholder={
+                        isEn
+                          ? 'e.g. buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — london breakout, RR 1:2'
+                          : 'mis. buy gold 2034.5, sl 2030, tp 2050, lot 0.10 — breakout london, RR 1:2'
+                      }
+                      className={`${inputCls} resize-y`}
+                    />
+                    <button
+                      type="button"
+                      onClick={fillSample}
+                      className="self-start min-h-[44px] py-2 px-1 text-[11px] text-cyan-300/80 hover:text-cyan-200 underline underline-offset-2 cursor-pointer"
+                    >
+                      {isEn ? 'Try an example' : 'Coba contoh'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAutoParse}
+                      disabled={autoLoading}
+                      className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {autoLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" aria-hidden="true" />
+                      )}
+                      {autoLoading
+                        ? isEn
+                          ? 'AI is reading your trade…'
+                          : 'AI sedang membaca trade…'
+                        : isEn
+                          ? 'Auto-Fill the Form'
+                          : 'Isi Form Otomatis'}
+                    </button>
+                  </div>
+                )}
 
                 {autoError && (
                   <p role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">
@@ -351,31 +587,108 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                   </p>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleAutoParse}
-                  disabled={autoLoading}
-                  className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {autoLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" aria-hidden="true" />
-                  )}
-                  {autoLoading
-                    ? isEn
-                      ? 'AI is reading your trade…'
-                      : 'AI sedang membaca trade…'
-                    : isEn
-                      ? 'Auto-Fill the Form'
-                      : 'Isi Form Otomatis'}
-                </button>
+                {/* ── KARTU HASIL AI gaya dashboard (muncul langsung setelah baca) ── */}
+                {autoResult && (
+                  <div
+                    className="rounded-xl border border-cyan-400/25 bg-gradient-to-b from-cyan-500/[0.07] to-white/[0.02] p-4"
+                    role="status"
+                    aria-label={isEn ? 'AI result — dashboard style' : 'Hasil AI — gaya dashboard'}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-cyan-300 uppercase">
+                        <Activity className="w-3 h-3" aria-hidden="true" />
+                        {isEn ? 'AI result — dashboard preview' : 'Hasil AI — seperti di dashboard'}
+                      </span>
+                      <span className="text-[10px] text-white/30 font-mono">
+                        {autoResult.source === 'image' ? (isEn ? 'from screenshot' : 'dari screenshot') : (isEn ? 'from text' : 'dari teks')}
+                      </span>
+                    </div>
+
+                    {/* Baris identitas: arah + pair + profit */}
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <span
+                        className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded ${
+                          autoResult.fields.direction === 'BUY'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-red-500/20 text-red-300'
+                        }`}
+                      >
+                        {autoResult.fields.direction}
+                      </span>
+                      <span className="text-base font-bold text-white font-mono">{autoResult.fields.pair}</span>
+                      {autoResult.extra.profit && (
+                        <span
+                          className={`font-mono text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                            Number(autoResult.extra.profit) < 0
+                              ? 'bg-red-500/20 text-red-300'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                          }`}
+                        >
+                          {Number(autoResult.extra.profit) < 0 ? '−' : '+'}${Math.abs(Number(autoResult.extra.profit)).toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Grid harga gaya dashboard */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                      {[
+                        { label: isEn ? 'Entry' : 'Entry', value: autoResult.fields.entry, ok: true },
+                        { label: isEn ? 'Stop Loss' : 'Stop Loss', value: autoResult.fields.sl, ok: !!autoResult.fields.sl },
+                        { label: isEn ? 'Take Profit' : 'Take Profit', value: autoResult.fields.tp, ok: !!autoResult.fields.tp },
+                        { label: isEn ? 'Lot' : 'Lot', value: autoResult.fields.lot, ok: !!autoResult.fields.lot },
+                      ].map((c) => (
+                        <div key={c.label} className="rounded-lg bg-white/[0.04] border border-white/10 px-2.5 py-2">
+                          <div className="text-[9px] uppercase tracking-wider text-white/40 font-bold">{c.label}</div>
+                          <div className={`font-mono text-sm font-bold ${c.ok ? 'text-white' : 'text-white/30'}`}>
+                            {c.value || '—'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Strip RR + exit (kalau ada) */}
+                    <div className="flex items-center gap-2 flex-wrap mb-3">
+                      {rrOf(autoResult.fields.entry, autoResult.fields.sl, autoResult.fields.tp) && (
+                        <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
+                          RR {rrOf(autoResult.fields.entry, autoResult.fields.sl, autoResult.fields.tp)}
+                        </span>
+                      )}
+                      {autoResult.extra.exit && (
+                        <span className="text-[10px] font-mono text-white/50 px-1.5 py-0.5 rounded bg-white/[0.05] border border-white/10">
+                          {isEn ? 'exit' : 'keluar'} {autoResult.extra.exit}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-white/50 leading-relaxed mb-3">{autoResult.note}</p>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={saveFromResult}
+                        disabled={trades.length >= MAX_GUEST_TRADES}
+                        className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-xs font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        {isEn ? 'Save to Guest Journal' : 'Simpan ke Jurnal Tamu'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={fillFormFromResult}
+                        className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.06] border border-white/15 text-white text-xs font-bold hover:bg-white/[0.1] transition-colors cursor-pointer"
+                      >
+                        <PenLine className="w-3.5 h-3.5" aria-hidden="true" />
+                        {isEn ? 'Review in Form' : 'Review di Form'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <p className="text-[11px] text-white/40 flex items-start gap-1.5">
                   <Lock className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
                   {isEn
-                    ? 'AI only uses numbers found in your text — nothing is invented. After auto-fill you review everything before saving.'
-                    : 'AI hanya memakai angka yang ada di teks kamu — tidak ada yang dikarang. Setelah form terisi, kamu review dulu sebelum simpan.'}
+                    ? 'AI only uses numbers visible in your screenshot/text — nothing is invented. The photo is processed in memory and never stored.'
+                    : 'AI hanya memakai angka yang kelihatan di screenshot/teks kamu — tidak ada yang dikarang. Foto diproses di memori dan tidak disimpan.'}
                 </p>
               </div>
             ) : (
@@ -572,11 +885,11 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
 
             {trades.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center py-10 rounded-xl border border-dashed border-white/10">
-                <PenLine className="w-8 h-8 text-white/20 mb-3" />
-                <p className="text-sm text-white/40 max-w-[240px]">
+                <ImageIcon className="w-8 h-8 text-white/20 mb-3" aria-hidden="true" />
+                <p className="text-sm text-white/40 max-w-[260px]">
                   {isEn
-                    ? 'Still empty. Save your first trade from the form — it will appear here.'
-                    : 'Masih kosong. Simpan trade pertamamu dari form — akan muncul di sini.'}
+                    ? 'Still empty. Upload a screenshot or save a trade from the form — it will appear here like in the dashboard.'
+                    : 'Masih kosong. Upload screenshot atau simpan trade dari form — nanti muncul di sini kaya di dashboard.'}
                 </p>
               </div>
             ) : (
@@ -586,12 +899,26 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     key={t.id}
                     className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-xs text-white/70 leading-relaxed"
                   >
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`font-mono font-bold px-1.5 py-0.5 rounded ${t.direction === 'BUY' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
                         {t.direction}
                       </span>
-                      <span className="font-semibold text-white/90">{t.pair}</span>
-                      <span className="text-white/30 font-mono">
+                      <span className="font-semibold text-white/90 font-mono">{t.pair}</span>
+                      {rrOf(t.entry, t.sl, t.tp) && (
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
+                          RR {rrOf(t.entry, t.sl, t.tp)}
+                        </span>
+                      )}
+                      {t.profit && (
+                        <span
+                          className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            Number(t.profit) < 0 ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'
+                          }`}
+                        >
+                          {Number(t.profit) < 0 ? '−' : '+'}${Math.abs(Number(t.profit)).toLocaleString('id-ID')}
+                        </span>
+                      )}
+                      <span className="text-white/30 font-mono ml-auto">
                         {new Date(t.createdAt).toLocaleString(isEn ? 'en-US' : 'id-ID', { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>

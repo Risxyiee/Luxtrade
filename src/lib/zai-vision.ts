@@ -21,20 +21,34 @@ const DEFAULT_MODEL = 'glm-4.6v'
 // ==================== SINGLETON ====================
 
 let _zaiInstance: any = null
+let _zaiInstancePromise: Promise<any> | null = null
 
-function getZAIInstance(): any {
+/** Ambil instance ZAI: pakai env eksplisit kalau ada (ZAI_BASE_URL/ZAI_API_KEY),
+ *  kalau tidak → fallback ke ZAI.create() yang self-configure dari konfigurasi
+ *  platform (dipakai sandbox/lokal). Kosong → null (pemanggil cek). */
+async function getZAIInstance(): Promise<any> {
   if (_zaiInstance) return _zaiInstance
+  if (_zaiInstancePromise) return _zaiInstancePromise
 
-  const baseUrl = process.env.ZAI_BASE_URL
-  const apiKey = process.env.ZAI_API_KEY
+  _zaiInstancePromise = (async () => {
+    const baseUrl = process.env.ZAI_BASE_URL
+    const apiKey = process.env.ZAI_API_KEY
 
-  if (!baseUrl || !apiKey) {
-    throw new Error('ZAI_BASE_URL and ZAI_API_KEY environment variables are required')
+    if (baseUrl && apiKey) {
+      _zaiInstance = new ZAI({ baseUrl, apiKey })
+      return _zaiInstance
+    }
+    /* Fallback: SDK self-configure (tanpa env) — jalan di mana saja backend hidup. */
+    _zaiInstance = await (ZAI as any).create()
+    return _zaiInstance
+  })()
+
+  try {
+    return await _zaiInstancePromise
+  } catch (e) {
+    _zaiInstancePromise = null
+    throw e
   }
-
-  // @ts-ignore - ZAI constructor is private in types but available at runtime
-  _zaiInstance = new ZAI({ baseUrl, apiKey })
-  return _zaiInstance
 }
 
 // ==================== MAIN FUNCTION ====================
@@ -49,7 +63,7 @@ export async function analyzeImageWithZAIVision(
 ): Promise<VisionAnalysisResult> {
   const { model = DEFAULT_MODEL } = options
 
-  const zai = getZAIInstance()
+  const zai = await getZAIInstance()
 
   // Auto-detect MIME type from base64 header
   let mimeType = 'image/jpeg'
