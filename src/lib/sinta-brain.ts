@@ -15,10 +15,10 @@
  *      storytelling, stat-fakta, checklist, tanya-audiens, motivasi,
  *      promo-fitur, promo-cta) — masing-masing punya panduan menulis +
  *      pola hook, jadi Sinta "mikir kreatif" dengan kerangka, bukan improvisasi.
- *   B. 24 TOPIK inti dalam pool — tiap hari sistem memilih 1 topik yang
+ *   B. 42 TOPIK inti dalam pool — tiap hari sistem memilih 1 topik yang
  *      TIDAK dipakai 10 run terakhir (deterministik per hari + 25% lompatan
  *      eksperimen) → topik diinjeksi WAJIB ke prompt LLM.
- *   C. 7 FALLBACK SCRIPT lengkap (bukan 2 lagi) — kalau semua provider LLM
+ *   C. 9 FALLBACK SCRIPT lengkap (bukan 2 lagi) — kalau semua provider LLM
  *      mati, konten tetap berganti-ganti ±mingguan tanpa kembar berdekatan.
  *   D. PEMBELAJAR PERFORMA: ringkasan rata-rata views/likes/saves per
  *      template dari meta.metrics instagram_posts (diisi /api/cron/ig-metrics)
@@ -248,7 +248,7 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
 }
 
 /* ============================================================
-   B) TOPIK POOL — 24 topik inti (anti "itu-itu mulu")
+   B) TOPIK POOL — 42 topik inti (anti "itu-itu mulu")
    ============================================================ */
 
 export const TOPIC_POOL: TopicEntry[] = [
@@ -289,10 +289,34 @@ export const TOPIC_POOL: TopicEntry[] = [
   { topic: 'Sinyal Entry/SL/TP otomatis ke layar HP — kamu tidur, agen tetap jaga (soft-sell) — JANGAN janji "realtime" (amanat Bos)', angle: 'promo-fitur' },
   // promo-cta
   { topic: 'PRO Rp49.000/bulan: 8 agen AI + jurnal otomatis — hitung balik modalnya (hard-sell)', angle: 'promo-cta' },
+  /* ===== BATCH TEMA BARU (bikinan Sinta sendiri atas arah Bos "temanya km
+     bikinkan sendiri", 22 Nov) — meluaskan pola referensi Phoenix Signal
+     (bedah 2 konsep A vs B) + tema segar lintas angle ===== */
+  // edukasi — pola A vs B (referensi Phoenix Signal)
+  { topic: 'Break of Structure vs Change of Character — BOS lanjut arah, CHC balik arah; salah baca = entry lawan tren', angle: 'edukasi' },
+  { topic: 'Support & Resistance vs Supply & Demand — S&R garis, S&D zona; kenapa zona lebih jujur', angle: 'edukasi' },
+  { topic: 'Liquidity vs Order Block — dari mana harga "berangkat" dan ke mana harga "berhenti"', angle: 'edukasi' },
+  { topic: 'Risk-to-Reward vs Winrate — RR 1:3 winrate 40% tetap untung; kenapa winrate tinggi bisa tetap rugi', angle: 'edukasi' },
+  { topic: 'Scalping vs Swing di gold — mana yang cocok buat jam sibuk kamu (waktu, RR, psikologi)', angle: 'edukasi' },
+  // pain-point
+  { topic: 'TP cuma 1 digit, SL kena duluan — TP kejauhan, SL kerapat, rasio mundur sendiri', angle: 'pain-point' },
+  { topic: 'Entry pas candle udah gede — bayar harga mahal di ujung move, SL jauh RR jelek', angle: 'pain-point' },
+  { topic: 'Modal kecil lot besar — 0.5 lot di akun 100 dolar, satu candle news langsung margin call', angle: 'pain-point' },
+  // kesalahan
+  { topic: '3 kesalahan pakai indikator: numpuk 5 indikator, sinyal tumpang tindih, entry telat konfirmasi', angle: 'kesalahan' },
+  { topic: '3 kesalahan lot sizing: asal 0.01, nggak hitung jarak SL, martingale pas rugi', angle: 'kesalahan' },
+  // myth-buster
+  { topic: 'MITOS: lot kecil nggak akan konsisten — FAKTA: konsistensi dari risk %, bukan ukuran lot', angle: 'myth-buster' },
+  { topic: 'MITOS: sinyal bagus bikin kamu profit — FAKTA: sinyal alat, eksekusi & disiplin yang menentukan', angle: 'myth-buster' },
+  // storytelling
+  { topic: 'Cerita: 1 bulan catat emosi di jurnal — ketahuan loss-nya selalu keluar pas habis news', angle: 'storytelling' },
+  // tanya-audiens
+  { topic: 'Gold sekarang: buy di dip atau tunggu breakout? Dua kubu, argumen dua-duanya + komentar', angle: 'tanya-audiens' },
+  { topic: 'Jujur: kamu lebih sering kena SL dulu, atau kelewat entry? Jawab di komentar', angle: 'tanya-audiens' },
 ]
 
 /* ============================================================
-   C) FALLBACK LIBRARY — 7 script lengkap (LLM mati semua pun feed ganti-ganti)
+   C) FALLBACK LIBRARY — 9 script lengkap (LLM mati semua pun feed ganti-ganti)
    Topik di sini SENGAJA sama dengan TOPIC_POOL → anti-repeat tetap nyambung.
    ============================================================ */
 
@@ -393,6 +417,38 @@ const FALLBACK_LIBRARY: VideoSpecLite[] = [
       { kind: 'point', title: 'BOLONG TIAP 2 MINGGU', sub: 'capek ngetik — jurnal kesimpen doang', vo: 'Dua minggu kemudian, jurnal bolong.' },
       { kind: 'point', title: 'CUKUP SCREENSHOT', sub: 'upload — AI baca entry/SL/TP sendiri', vo: 'Screenshot aja — AI baca entry, SL, TP sendiri.' },
       { kind: 'cta', title: 'MULAI MALEM INI', sub: 'jurnal manual atau otomatis? komen — bio', vo: 'Mulai malem ini. Link di bio.' },
+    ],
+  },
+  /* ===== 2 FALLBACK BARU (22 Nov, arah Bos "temanya km bikinkan sendiri") —
+     pola bedah 2 konsep A vs B ala referensi Phoenix Signal (REFERENSI #2 di
+     route video-bot). VO audit: hook ≤46 · masalah ≤66 · solusi ≤76 · cta ≤36,
+     total ≤220 karakter (format 20 detik). ===== */
+  {
+    template: 'tip',
+    topic: 'Break of Structure vs Change of Character — BOS lanjut arah, CHC balik arah; salah baca = entry lawan tren',
+    caption: 'BOS vs CHC — bedanya tipis, akibatnya beda arah. 20 detik ⚡ Cek link di bio',
+    hashtags: ['smc', 'breakofstructure', 'xauusd', 'belajartrading', 'luxtrade'],
+    igCaption:
+      '"BOS dan CHC itu sama-sama nembus structure — bedanya apa?" 🤔\n\nIni yang paling sering bikin pemula entry lawan arah:\n\n1️⃣ BOS (Break of Structure) — harga nembus structure SEARAH tren. Tanda tren masih lanjut.\n2️⃣ CHC (Change of Character) — harga nembus structure MELAWAN tren. Tanda tren mulai balik arah.\n3️⃣ Aturan praktis: jangan langsung entry pas tembus — tunggu retest zonanya dulu, konfirmasi, baru eksekusi.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nMau tiap setup tercatat otomatis? Screenshot aja di Luxtradee. Link di bio 🔗\n\n#smc #breakofstructure #xauusd #belajartrading #luxtrade',
+    scenes: [
+      { kind: 'hook', title: 'BOS VS CHC', sub: 'kelihatan sama — padahal beda arah', vo: 'BOS dan CHC kelihatan sama. Padahal beda arah.' },
+      { kind: 'point', title: 'SALAH BACA, SALAH ARAH', sub: 'salah baca dua-duanya = entry lawan tren', vo: 'Salah baca dua-duanya, kamu entry lawan arah tren.' },
+      { kind: 'point', title: 'BOS LANJUT, CHC BALIK', sub: 'BOS = tren lanjut — CHC = tren berbalik', vo: 'BOS artinya tren lanjut. CHC artinya tren berbalik. Tunggu retest dulu.' },
+      { kind: 'cta', title: 'KOMEN BOS ATAU CHC', sub: 'sering salah baca yang mana? komen', vo: 'Komen BOS atau CHC. Link di bio.' },
+    ],
+  },
+  {
+    template: 'tip',
+    topic: 'Support & Resistance vs Supply & Demand — S&R garis, S&D zona; kenapa zona lebih jujur',
+    caption: 'Garis vs zona — kenapa harga sering "tembus" support? 📏 Cek link di bio',
+    hashtags: ['supplydemand', 'supportresistance', 'xauusd', 'belajartrading', 'luxtrade'],
+    igCaption:
+      'Pernah support "tembus" dikit terus harga naik lagi? Kesel kan? 😅\n\nBukan support-nya salah — kamu pakai GARIS, padahal harga jalan di ZONA.\n\nBedanya:\n1️⃣ Support & Resistance = GARIS di satu harga. Harga jarang mantul pas di angka yang kamu tarik.\n2️⃣ Supply & Demand = ZONA dari candle besar (basis order). Lebih fleksibel, lebih jujur.\n3️⃣ Praktiknya: gambar zona dari candle terakhir sebelum move — batas atas & bawah, bukan satu garis.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSetup kamu kecatat otomatis cukup dengan screenshot di Luxtradee. Link di bio 🔗\n\n#supplydemand #supportresistance #xauusd #belajartrading #luxtrade',
+    scenes: [
+      { kind: 'hook', title: 'GARIS VS ZONA', sub: 'support sering tembus dikit? cek ini', vo: 'Garis support vs zona supply, bedanya apa?' },
+      { kind: 'point', title: 'S&R CUMA GARIS', sub: 'harga jarang mantul pas di satu angka', vo: 'Support-resistance cuma garis. Supply-demand itu zona.' },
+      { kind: 'point', title: 'ZONA LEBIH JUJUR', sub: 'gambar zona dari candle sebelum move', vo: 'Zona lebih fleksibel — harga sering tembus garis, tapi mantul di zona.' },
+      { kind: 'cta', title: 'TIM GARIS ATAU ZONA', sub: 'tim garis atau zona? komen — link di bio', vo: 'Tim garis atau zona? Link di bio.' },
     ],
   },
 ]

@@ -257,11 +257,11 @@ function isFreshSignal(s: SignalData | null): s is SignalData {
 
 /* ============================================================
    Pemilihan template + ANGLE + TOPIK → pindah ke src/lib/sinta-brain.ts
-   (Sinta Brain v4: 11 angle, 24 topik, anti-kembar 10 run, A/B performa)
+   (Sinta Brain v4: 11 angle, 42 topik, anti-kembar 10 run, A/B performa)
    ============================================================ */
 
 /* ============================================================
-   Fallback spec → FALLBACK_LIBRARY 7 spec variatif di src/lib/sinta-brain.ts
+   Fallback spec → FALLBACK_LIBRARY 9 spec variatif di src/lib/sinta-brain.ts
    (dulu cuma 2 spec hardcoded — itu biang "kontennya itu-itu mulu"
    saat semua provider LLM mati)
    ============================================================ */
@@ -862,7 +862,7 @@ async function handle(request: NextRequest) {
       signalSymbol: latestSignal?.symbol ?? null,
       perfSamples: perf?.samplePosts ?? 0,
     },
-    note: 'Sinta Brain v4: 11 angle + 24 topik + anti-kembar 10 run + A/B performa (70% pemenang / 30% eksperimen) + skrip ACC Bos jadi inti video sore (agent_kv sinta:approved_script). Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). Performa IG disinkron /api/cron/ig-metrics (08:00 WIB). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
+    note: 'Sinta Brain v4: 11 angle + 42 topik + anti-kembar 10 run + A/B performa (70% pemenang / 30% eksperimen) + skrip ACC Bos jadi inti video sore (agent_kv sinta:approved_script). Render di runner (video-bot-cron.yml): VIDEO template→LuxtradePromo|SintaReels|SignalRecap + edge-tts + musik latar; CAROUSEL→renderStill SintaCarousel (manual only). Instagram: Reels → /api/cron/ig-video-post MODE APPROVAL (draft → ai_pending_actions → ACC Bos di Kantor CEO → /api/execute-action). Performa IG disinkron /api/cron/ig-metrics (08:00 WIB). LLM rantai self-healing: Groq → Gemini → OpenRouter (free).',
   })
 }
 
