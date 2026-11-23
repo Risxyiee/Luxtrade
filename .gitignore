@@ -177,3 +177,4 @@ remotion-video/.remotion/
 
 # remotion promo video build output
 remotion-promo/out
+download/*.toml
