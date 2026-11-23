@@ -50,10 +50,17 @@ export async function GET(request: NextRequest) {
 
   // ── TikTok mengembalikan error (user tolak / scope tidak disetujui) ──
   if (err) {
+    const scopeIssue = /scope/i.test(`${err} ${errDesc || ''}`)
+    const tip = scopeIssue
+      ? '<p>Ini tanda <strong>scope yang diminta belum aktif</strong> untuk app di portal developer ' +
+        '(TikTok menolak seluruh consent walau cuma 1 scope bermasalah). Perbaikan: portal → Products → ' +
+        'tambah/audit <strong>Content Posting API</strong> (video.upload + video.publish). Sementara itu, ' +
+        'nyambung dgn scope yang sudah aktif saja: <code>/api/tiktok/connect?key=...&amp;scopes=user.info.basic,video.list</code> — ' +
+        'bot tetap otomatis skip TikTok dan posting IG Reels.</p>'
+      : '<p>Buka kembali <code>/api/tiktok/connect?key=...</code> dan setujui semua permission yang diminta.</p>'
     return htmlPage(
       'Authorization dibatalkan ❌',
-      `<p>TikTok mengembalikan: <code>${err}</code>${errDesc ? ` — ${errDesc}` : ''}</p>` +
-        '<p>Buka kembali <code>/api/tiktok/connect?key=...</code> dan setujui semua permission yang diminta.</p>',
+      `<p>TikTok mengembalikan: <code>${err}</code>${errDesc ? ` — ${errDesc}` : ''}</p>${tip}`,
       400,
     )
   }
@@ -103,13 +110,38 @@ export async function GET(request: NextRequest) {
   }
 
   const jam = Math.round((res.expiresIn || 7200) / 3600)
+  // Tampilkan scope yang BENAR-BENAR disetujui TikTok (field `scope` di
+  // response token) — verifikasi visual apa adanya, bukan asumsi.
+  const granted = (res.scope || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const scopeMeaning: Record<string, string> = {
+    'user.info.basic': 'identitas dasar akun',
+    'user.info.profile': 'profil publik (bio, verified)',
+    'user.info.stats': 'statistik akun (followers, likes)',
+    'video.list': 'baca daftar video — analisis performa (tiktok-metrics 08:00 WIB)',
+    'video.upload': 'upload video — wajib utk posting bot',
+    'video.publish': 'direct post — wajib utk posting bot',
+  }
+  const canPost = granted.includes('video.upload') || granted.includes('video.publish')
+  const scopeHtml = granted.length
+    ? `<p>Scope yang disetujui TikTok:</p><ul>${granted
+        .map((s) => `<li><code>${s}</code>${scopeMeaning[s] ? ` — ${scopeMeaning[s]}` : ''}</li>`)
+        .join('')}</ul>`
+    : ''
+  const postNote = canPost
+    ? '<p>Bot <strong>siap posting langsung ke TikTok</strong> (cross-post bersama IG Reels, Senin–Jumat 18:00 WIB).</p>'
+    : '<p>⚠️ Scope posting (<code>video.upload</code>/<code>video.publish</code>) belum ada — token ini baru untuk analisis video. ' +
+      'Bot otomatis skip TikTok & tetap posting IG; tambahkan product Content Posting API di portal lalu connect ulang untuk aktif.</p>'
   return htmlPage(
     'TikTok terhubung ✅',
     `<div class="ok">✔</div>` +
-      `<p>Refresh token baru tersimpan terenkripsi di server Luxtradee. Bot video siap dipakai.</p>` +
-      `<p>Access token aktif ± <strong>${jam} jam</strong> dan akan di-refresh otomatis sebelum tiap posting. ` +
+      `<p>Refresh token baru tersimpan terenkripsi di server Luxtradee.</p>${scopeHtml}${postNote}` +
+      `<p>Access token aktif ± <strong>${jam} jam</strong> dan di-refresh otomatis sebelum tiap posting. ` +
       `Sesuai policy TikTok (per 1 Des 2026): refresh token berlaku <strong>180 hari</strong> — kalau bot gagal posting ` +
       `karena token kedaluwarsa, buka lagi <code>/api/tiktok/connect?key=...</code> ini untuk menyambung ulang (±1 menit).</p>` +
-      `<p>Mode sandbox: hasil posting muncul sebagai video <strong>privat (SELF_ONLY)</strong> di akun TikTok terhubung.</p>`,
+      `<p>Privacy posting: dicoba <strong>PUBLIC_TO_EVERYONE</strong> dulu; kalau audit direct post belum lolos, ` +
+      `otomatis fallback <strong>SELF_ONLY</strong> (privat) supaya konten tetap terkirim.</p>`,
   )
 }
