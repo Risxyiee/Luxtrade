@@ -127,7 +127,7 @@ async function runCycle(): Promise<NextResponse> {
           errorMessage = 'Candle tidak tersedia siklus ini'
         } else {
           const run = runLuxScript(script.source, candles, {
-            deadlineMs: PINE_LAB_CONFIG.ENGINE_DEADLINE_MS,
+            deadlineMs: PINE_LAB_CONFIG.ENGINE_DEADLINE_MS_CRON,
             maxBars: PINE_LAB_CONFIG.CRON_CANDLE_LIMIT,
             maxEvents: PINE_LAB_CONFIG.MAX_EVENTS_PER_RUN,
           })

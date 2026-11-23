@@ -209,10 +209,12 @@ class Interp {
       maxBars,
     }
     this.deadline = Date.now() + this.opts.deadlineMs
-    // Budget langkah: script produksi realistis (panel table.cell tiap bar,
-    // multi-plot, logika sinyal) ≈ 300+ eval/bar. Guard utama tetap
-    // wall-clock deadline — budget ini hanya pagar kedua anti-loop.
-    this.stepBudget = 400_000 + this.n * 150
+    // Budget langkah (DINAIKKAN 8x — Bos 23 Nov: "Budget langkah eksekusi
+    // habis" terus; script backtest ASLI dgn loop lookback per bar butuh
+    // jutaan langkah @1500 bar — budget lama 400k+n*150 cuma ~625k). Guard
+    // utama tetap wall-clock deadline (manual 5 dtk) — budget ini pagar
+    // kedua anti-infinite-loop.
+    this.stepBudget = 2_000_000 + this.n * 2_000
   }
 
   /* ---------- guardrail ---------- */
@@ -222,7 +224,11 @@ class Interp {
       throw new LuxError(`Eksekusi melewati batas waktu ${this.opts.deadlineMs} ms`, 'TIMEOUT')
     }
     if (this.steps > this.stepBudget) {
-      throw new LuxError('Budget langkah eksekusi habis (script terlalu berat)', 'STEP_BUDGET')
+      throw new LuxError(
+        `Budget langkah eksekusi habis (script terlalu berat) — ${this.steps.toLocaleString('en-US')} langkah > ` +
+          `batas ${this.stepBudget.toLocaleString('en-US')}. Tip: ringkas loop besar/table.cell per bar, kurangi plot.`,
+        'STEP_BUDGET',
+      )
     }
   }
 

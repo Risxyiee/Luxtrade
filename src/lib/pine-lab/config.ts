@@ -22,8 +22,13 @@ export const PINE_LAB_CONFIG = {
   /** Batas event yang DISIMPAN untuk run manual (histori penuh —
    *  Bos: "jangan stuck di 50, tampilkan terus sampai data terakhir"). */
   MANUAL_MAX_EVENTS: 2000,
-  /** Deadline mesin Lux per run (ms) — sandbox dalam engine. */
-  ENGINE_DEADLINE_MS: 2000,
+  /** Deadline mesin Lux per run MANUAL (ms) — sandbox dalam engine.
+   *  Dinaiikkan 2000→5000 (Bos 23 Nov: script berat kena STEP_BUDGET;
+   *  deadline lama juga terlalu ketat utk backtest loop lookback). */
+  ENGINE_DEADLINE_MS: 5000,
+  /** Deadline versi CRON (ms) — cron jalan berurutan dalam 1 invocation,
+   *  tetap lebih ketat supaya batch banyak script tidak menumpuk. */
+  ENGINE_DEADLINE_MS_CRON: 2500,
   /** Batas event per run yang disimpan/dipush. */
   MAX_EVENTS_PER_RUN: 50,
   /** Retensi log pine_runs (hari) — dibersihkan cron. */
