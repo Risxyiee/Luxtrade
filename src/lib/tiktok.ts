@@ -478,12 +478,13 @@ export const TIKTOK_PRIVACY = {
 
 /**
  * Tukar authorization code → token (GET /api/tiktok/callback).
- * grant_type=authorization_code — response berisi access_token + refresh_token baru.
+ * grant_type=authorization_code — response berisi access_token + refresh_token baru
+ * + field `scope` (daftar permission yang BENAR-BENAR disetujui TikTok).
  */
 export async function exchangeTiktokAuthCode(
   code: string,
   redirectUri: string,
-): Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; error?: string }> {
+): Promise<{ ok: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; scope?: string; error?: string }> {
   const clientKey = await tiktokEnv('TIKTOK_CLIENT_KEY')
   const clientSecret = await tiktokEnv('TIKTOK_CLIENT_SECRET')
   if (!clientKey || !clientSecret) {
@@ -507,11 +508,18 @@ export async function exchangeTiktokAuthCode(
       access_token?: string
       refresh_token?: string
       expires_in?: number
+      scope?: string
       error?: string
       error_description?: string
     } | null
     if (res.ok && json?.access_token) {
-      return { ok: true, accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in }
+      return {
+        ok: true,
+        accessToken: json.access_token,
+        refreshToken: json.refresh_token,
+        expiresIn: json.expires_in,
+        scope: (json.scope || '').trim() || undefined,
+      }
     }
     return { ok: false, error: json?.error_description || json?.error || `HTTP ${res.status}` }
   } catch (e: unknown) {

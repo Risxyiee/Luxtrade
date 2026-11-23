@@ -16,6 +16,18 @@ import { createTiktokOAuthState } from '@/lib/tiktok'
  * Redirect URI harus sama persis dengan yang terdaftar di TikTok Developer
  * Portal → Luxtradee → Login Kit → Redirect URI. Default:
  *   https://luxtradee.web.id/api/tiktok/callback
+ *
+ * ERROR "scope" DI HALAMAN CONSENT TIKTOK?
+ *   Artinya salah satu scope yang diminta belum disetujui/aktif utk app
+ *   di portal developer (TikTok menolak SELURUH consent walau cuma 1 scope
+ *   yang bermasalah). Solusi:
+ *     1. Portal → Products → pastikan Login Kit + Content Posting API
+ *        (+ Display API kalau mau analisis video) sudah ditambahkan.
+ *     2. App masih Development/Sandbox → akun @luxtradee WAJIB terdaftar
+ *        sbg tester di portal.
+ *     3. Nyambung pakai scope yang SUDAH aktif tanpa deploy ulang:
+ *          /api/tiktok/connect?key=...&scopes=user.info.basic,video.upload,video.publish
+ *        (tanpa video.list kalau Display API belum ada).
  */
 
 export const dynamic = 'force-dynamic'
@@ -73,10 +85,21 @@ export async function GET(request: NextRequest) {
     (await resolveEnv('NEXT_PUBLIC_SITE_URL')) ||
     url.origin
   const redirectUri = `${base.replace(/\/+$/, '')}/api/tiktok/callback`
-  // video.list → analisis performa video Bos (tiktok-metrics cron, 08:00 WIB)
-  const scope =
+  // Scope: URL ?scopes=... > env TIKTOK_SCOPES > default lengkap.
+  // Override via URL memungkinkan Bos nyambung dgn scope yang SUDAH
+  // disetujui app tanpa deploy ulang (fix error "scope" consent TikTok).
+  // Sanitasi ketat: hanya a-z 0-9 . _ per scope, dipisah koma.
+  const scopeParam = (url.searchParams.get('scopes') || '').trim()
+  const scopeRaw =
+    scopeParam ||
     (await resolveEnv('TIKTOK_SCOPES')) ||
     'user.info.basic,video.upload,video.publish,video.list'
+  const scope =
+    scopeRaw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => /^[a-zA-Z0-9._]{1,64}$/.test(s))
+      .join(',') || 'user.info.basic,video.upload,video.publish,video.list'
   const state = await createTiktokOAuthState()
 
   const authorize = new URL('https://www.tiktok.com/v2/auth/authorize/')
