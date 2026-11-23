@@ -15,18 +15,90 @@
  *     PEMILIK script (pushToUser per user_id).
  *   - Durasi run per script dicatat (pine_runs + last_run_* di script).
  *   - Log run > 7 hari dibuang.
+ *   - NOTIF ADMIN: tiap siklus yang benar-benar menjalankan script
+ *     kirim ringkasan COMPACT ke Discord admin (sendAdminNotification) —
+ *     bukti hidup "Pine Lab beneran jalan" + jumlah sinyal + daftar
+ *     script gagal. Matikan via env PINE_LAB_ADMIN_NOTIFY=0.
+ *   - BYPASS AKUN ADMIN: cron tidak lagi tergantung seed manual
+ *     user_flags — email di ADMIN_EMAILS di-resolve ke user ID via
+ *     Supabase auth admin (listUsers) dan ikut dijalankan. Pola sama
+ *     dengan gerbang halaman (access.ts) — FIX cron skip senyap.
  *
  * Auth: Bearer/x-cron-secret (pola price-alerts).
  * ============================================================
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { pushToUser } from '@/lib/push-notify'
+import { sendAdminNotification } from '@/lib/admin-notify'
+import { ADMIN_EMAILS } from '@/lib/admin-auth'
 import { PINE_LAB_CONFIG, PINE_LAB_FLAG } from '@/lib/pine-lab/config'
 import { fetchCandles, makeEventId } from '@/lib/pine-lab/runner'
 import { runLuxScript } from '@/engine/lux'
 import type { LuxCandle } from '@/engine/lux'
+
+/** Jam WIB "HH.MM" untuk stempel waktu ringkasan admin. */
+function wibStamp(): string {
+  try {
+    return new Intl.DateTimeFormat('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
+    }).format(new Date())
+  } catch {
+    return new Date().toISOString().slice(11, 16)
+  }
+}
+
+/**
+ * Notifikasi admin via Discord — SELALU non-kritis (gagal dikirim =
+ * console.warn saja, siklus cron tidak boleh kena). Bisa dimatikan
+ * dengan env PINE_LAB_ADMIN_NOTIFY=0 (default ON).
+ */
+async function notifyAdmin(body: string): Promise<void> {
+  const toggle = String(process.env.PINE_LAB_ADMIN_NOTIFY ?? '1').trim().toLowerCase()
+  if (toggle === '0' || toggle === 'off' || toggle === 'false') return
+  try {
+    await sendAdminNotification(body)
+  } catch (e) {
+    console.warn('[cron/pine-lab] notif admin gagal (non-kritis):', e)
+  }
+}
+
+/**
+ * Resolve email admin (ADMIN_EMAILS) → user ID Supabase via auth admin
+ * API. Cron tidak punya session login, jadi bypass "email admin" pada
+ * gerbang halaman tidak bisa dipakai langsung — email harus dipetakan
+ * ke user ID dulu. Gagal resolve = [] (non-kritis; user ber-flag
+ * seed manual tetap jalan seperti biasa).
+ */
+async function resolveAdminUserIds(
+  admin: SupabaseClient
+): Promise<string[]> {
+  if (!ADMIN_EMAILS.length) return []
+  const wanted = new Set(ADMIN_EMAILS.map((e) => e.toLowerCase().trim()))
+  const ids: string[] = []
+  try {
+    // userbase kecil — 1 halaman 1000 cukup; loop tahan sampai 3 halaman
+    for (let page = 1; page <= 3; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error) {
+        console.warn('[cron/pine-lab] resolveAdminUserIds gagal:', error.message)
+        return ids
+      }
+      for (const u of data?.users ?? []) {
+        const email = (u.email ?? '').toLowerCase().trim()
+        if (email && wanted.has(email)) ids.push(String(u.id))
+      }
+      if ((data?.users?.length ?? 0) < 1000) break
+    }
+  } catch (e) {
+    console.warn('[cron/pine-lab] resolveAdminUserIds error (non-kritis):', e)
+  }
+  return ids
+}
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -75,6 +147,7 @@ async function runCycle(): Promise<NextResponse> {
 
   const t0 = Date.now()
   const summary: Record<string, unknown> = { scripts: 0, ok: 0, failed: 0, eventsNew: 0, pushed: 0 }
+  const failures: string[] = []
 
   try {
     // ── 1) User ber-flag pine_lab ──
@@ -83,9 +156,16 @@ async function runCycle(): Promise<NextResponse> {
       .select('user_id')
       .eq('flag', PINE_LAB_FLAG)
     if (fErr) {
+      await notifyAdmin(`🚨 Pine Lab · ${wibStamp()} WIB — siklus GAGAL: tabel user_flags bermasalah: ${String(fErr.message).slice(0, 150)}`)
       return NextResponse.json({ error: `user_flags belum siap: ${fErr.message}` }, { status: 500 })
     }
     const flagged = new Set((flagRows ?? []).map((r) => String(r.user_id)))
+
+    // ── BYPASS ADMIN: email admin ikut dijalankan walau flag belum
+    //    di-seed manual di user_flags (pola access.ts — akun Bos
+    //    tidak pernah boleh ter-skip oleh lupa seed SQL).
+    const adminIds = await resolveAdminUserIds(admin)
+    for (const id of adminIds) flagged.add(id)
     if (!flagged.size) return NextResponse.json({ ...summary, skipped: 'tidak ada user ber-flag' })
 
     // ── 2) Semua script AKTIF milik user ber-flag ──
@@ -94,6 +174,7 @@ async function runCycle(): Promise<NextResponse> {
       .select('id, user_id, name, symbol, source')
       .eq('active', true)
     if (sErr) {
+      await notifyAdmin(`🚨 Pine Lab · ${wibStamp()} WIB — siklus GAGAL: tabel pine_scripts bermasalah: ${String(sErr.message).slice(0, 150)}`)
       return NextResponse.json({ error: `pine_scripts belum siap: ${sErr.message}` }, { status: 500 })
     }
     const mine = (scripts ?? []).filter((s) => flagged.has(String(s.user_id)))
@@ -172,7 +253,12 @@ async function runCycle(): Promise<NextResponse> {
         .eq('user_id', script.user_id)
 
       if (ok) summary.ok = ((summary.ok as number) ?? 0) + 1
-      else summary.failed = ((summary.failed as number) ?? 0) + 1
+      else {
+        summary.failed = ((summary.failed as number) ?? 0) + 1
+        failures.push(
+          `${String(script.name || script.id).slice(0, 40)} (${sym}): [${errorCode}] ${String(errorMessage ?? '').slice(0, 120)}`
+        )
+      }
 
       // ── 6) Event BARU saja → dedupe DB → push ke pemilik ──
       if (events.length) {
@@ -217,9 +303,31 @@ async function runCycle(): Promise<NextResponse> {
     await admin.from('pine_runs').delete().lt('created_at', cutoff)
 
     summary.durationMs = Date.now() - t0
+
+    // ── 8) NOTIF ADMIN — bukti hidup per siklus (compact, 1 pesan) ──
+    // Hanya bila ADA script yang dijalankan (skipped "tidak ada script"
+    // tidak diberitahu — bukan kegagalan, cuma kosong).
+    if ((summary.scripts as number) > 0) {
+      const lines: string[] = [
+        `⚙️ Pine Lab · ${wibStamp()} WIB`,
+        `Script jalan: ${summary.scripts} → ✅ ${summary.ok} · ❌ ${summary.failed}`,
+      ]
+      if ((summary.eventsNew as number) > 0) {
+        lines.push(`🔔 Sinyal baru: ${summary.eventsNew} · Push terkirim: ${summary.pushed}`)
+      }
+      if (failures.length) {
+        lines.push('Gagal:')
+        for (const f of failures.slice(0, 5)) lines.push(`• ${f}`)
+        if (failures.length > 5) lines.push(`… +${failures.length - 5} script gagal lainnya`)
+      }
+      await notifyAdmin(lines.join('\n').slice(0, 1900))
+    }
+
     return NextResponse.json({ ok: true, ...summary })
   } catch (e) {
+    const msg = e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200)
     console.error('[cron/pine-lab]', e)
+    await notifyAdmin(`🚨 Pine Lab · ${wibStamp()} WIB — siklus error internal: ${msg}`)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
