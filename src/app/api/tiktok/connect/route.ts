@@ -73,7 +73,10 @@ export async function GET(request: NextRequest) {
     (await resolveEnv('NEXT_PUBLIC_SITE_URL')) ||
     url.origin
   const redirectUri = `${base.replace(/\/+$/, '')}/api/tiktok/callback`
-  const scope = (await resolveEnv('TIKTOK_SCOPES')) || 'user.info.basic,video.upload,video.publish'
+  // video.list → analisis performa video Bos (tiktok-metrics cron, 08:00 WIB)
+  const scope =
+    (await resolveEnv('TIKTOK_SCOPES')) ||
+    'user.info.basic,video.upload,video.publish,video.list'
   const state = await createTiktokOAuthState()
 
   const authorize = new URL('https://www.tiktok.com/v2/auth/authorize/')

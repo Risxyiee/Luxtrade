@@ -58,9 +58,11 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 on:
   schedule:
-    # 11:50 UTC = 18:50 WIB — Senin–Jumat saja (1-5). Sabtu/Minggu LIBUR (Bos).
-    # Tayang ±19:00 WIB (render ±2-3 menit) — permintaan Bos 17-11: "jam 19.00 ajaa".
-    - cron: '50 11 * * 1-5'
+    # 11:50 UTC = 18:50 WIB — TIAP HARI (Senin–Minggu).
+    # PERMINTAAN BOS 23 Nov: "untuk konten setiap jam 18-19 wib satu postingan
+    # sama konsisten" → satu postingan/hari, window 18–19 WIB, tanpa hari libur.
+    # Tayang ±19:00 WIB (render ±2-3 menit). Dulu Senin–Jumat saja (1-5).
+    - cron: '50 11 * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -207,11 +209,12 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           PROD_URL="${PROD_URL%/}"
-          DOW=$(date -u +%u) # 1=Senin..5=Jumat (cron cuma 1-5; 18:10 WIB = hari sama dgn UTC)
+          DOW=$(date -u +%u) # 1=Senin..7=Minggu (cron harian; 11:50 UTC = hari sama dgn WIB)
           case "$DOW" in
-            # PERMINTAAN BOS: "tiktok belum bisa lewat api resmi — sementara ig dulu"
-            # → SEMUA hari giliran IG. Begitu TikTok approved, restore baris
-            #   berikut: 2|4) PLATFORM="tiktok" ;;
+            # ✅ APP TIKTOK APPROVED (23 Nov 2026) — baris rotasi DIAKTIFKAN lagi:
+            #    Selasa & Kamis giliran TikTok, hari lain IG Reels.
+            #    Token TikTok dicek dulu di bawah — belum ada → fallback IG otomatis.
+            2|4) PLATFORM="tiktok" ;;
             *) PLATFORM="ig" ;;
           esac
           echo "Hari ke-$DOW → giliran platform: $PLATFORM"

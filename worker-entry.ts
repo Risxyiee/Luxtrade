@@ -122,7 +122,7 @@
    dari cron (pemicu manual tetap bisa). */
 const FAST_5MIN = ['/api/cron/econ-calendar-notify', '/api/cron/price-alerts', '/api/cron/pine-lab', '/api/ceo-agent?action=watchdog']
 const CRON_ROUTES: Record<string, string[]> = {
-  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/ceo-agent?action=briefing', '/api/cron/ig-metrics', '/api/discord-interactions'],
+  '0 1 * * *': ['/api/cron/daily-reminder', '/api/cron/downgrade-expired-pro', '/api/ceo-agent?action=briefing', '/api/cron/ig-metrics', '/api/cron/tiktok-metrics', '/api/discord-interactions'],
   '0 3 * * *': ['/api/cron/re-engage', '/api/cron/downgrade-expired-pro'],
   '0 3 * * 1': ['/api/cron/weekly-summary', '/api/ceo-agent?action=weekly', '/api/ceo-agent?action=meeting', '/api/cron/ig-niche-research'],
   // Kunci '5-menit' dipakai wrangler baru; kunci '15-menit' disimpan sbg
