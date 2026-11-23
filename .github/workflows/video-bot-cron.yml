@@ -1,22 +1,25 @@
 name: Sinta — Video TikTok + Instagram Reels + Carousel
 
 # ═══════════════════════════════════════════════════════════════════
-# 🎬 DESK SINTA (CMO) — 1 KONTEN/HARI, ROTASI PLATFORM (Bos, Nov 2026)
+# 🎬 DESK SINTA (CMO) — CROSS-POST TIKTOK + IG BERSAMA (Bos, Nov 2026)
 # ───────────────────────────────────────────────────────────────────
-# "uploud tiap jam 7-8, 1 konten aja sehari, mau tiktok mau ig,
-#  sabtu minggu libur"
+# "tiktok ig posting bersama setiap senin sampe jumat sabtu minggu
+#  libur 1 konten sama jam 18 wib"
 #
 # Aturan berlaku:
-#   • JADWAL  : SENIN–JUMAT 18:50 WIB (11:50 UTC) → konten tayang ±19:00 WIB.
-#     Sabtu/Minggu LIBUR. (RIWAYAT BOS 17-11: "jam 19.00 ajaa" — dulu
-#     jadwal 18:10 WIB; menit 50 sengaja bukan menit genap biar tidak
-#     mengantre di antrean padat GitHub Actions, render ±2-3 menit →
-#     POST ke ig-video-post tepat ±19:00 WIB di dalam window 18–20 WIB).
-#   • 1 konten/hari — rotasi platform otomatis:
-#       SEMUA HARI → Instagram Reels dulu (window server 18–20 WIB);
-#         Sel/Kam tetap COBA TikTok dulu, tapi karena app TikTok belum
-#         approved → fallback IG otomatis di bawah (konten tidak hangus).
-#         Begitu app TikTok approved, Sel/Kam otomatis balik ke TikTok.
+#   • JADWAL  : SENIN–JUMAT 18:00 WIB (11:00 UTC) — tepat jam 18 sesuai
+#     permintaan. SABTU & MINGGU LIBUR (cron 1-5 → tidak ada run weekend).
+#     Render ±2-3 menit → POST ke server ±18:05 WIB, masih di window
+#     18–20 WIB → publish inline langsung, bukan menunggu 19:00.
+#   • CROSS-POST BERSAMA (bukan rotasi lagi): 1 konten SAMA → TIKTOK
+#     + IG REELS bersama-sama SETIAP hari kerja. Video dirender 1×,
+#     lalu di-upload ke kedua platform dgn caption dari spec yang sama.
+#   • Token TikTok belum ada / init upload gagal → TikTok dilewati,
+#     IG TETAP jalan (konten tidak hangus). Hubungkan akun lewat
+#     /api/tiktok/connect?key=<CRON_SECRET> (sekali buka di browser).
+#   • PRIVACY TikTok: coba PUBLIC_TO_EVERYONE dulu (app TikTok approved
+#     23 Nov); kalau init ditolak (audit video.publish belum lolos) →
+#     fallback otomatis SELF_ONLY supaya konten tetap terkirim.
 #   • Window + cadence tetap divalidasi SERVER (ig-video-post: window
 #     18–20 WIB, jeda minimal 20 jam) — runner cuma eksekutor.
 #   • 🤖 AUTO-ACC (Bos 19-11: "auto acc konten aja"): konten TIDAK
@@ -41,28 +44,37 @@ name: Sinta — Video TikTok + Instagram Reels + Carousel
 #        tip    → SintaReels    (kinetic typography edukasi)
 #        signal → SignalRecap   (chart animasi + entry/exit ASLI)
 #      + voiceover Indonesia (edge-tts) + musik latar.
-#   3. 🎛️ Putuskan platform hari ini (rotasi Sen/Rab/Jum=IG,
-#      Sel/Kam=TikTok + cek token TikTok).
-#   4. Posting: upload MP4 SELF-HOST dulu (KV /api/cron/ig-media-store —
-#      host pihak ketiga bikin IG error 2207082) → worker
-#      /api/cron/ig-video-post → Graph API /media REELS → /media_publish.
-#   5. 🖼️ Carousel IG — manual only.
+#   3. Posting BERSAMA ke 2 platform dgn konten yang sama:
+#      🎵 TikTok  — Content Posting API (FILE_UPLOAD chunk → status
+#         fetch → lapor katalog tiktok_posts; privacy publik →
+#         fallback privat bila audit belum lolos).
+#      📸 IG      — upload MP4 SELF-HOST dulu (KV /api/cron/ig-media-store —
+#         host pihak ketiga bikin IG error 2207082) → worker
+#         /api/cron/ig-video-post → Graph API /media REELS → /media_publish.
+#      Kedua platform selalu dieksekusi; salah satu gagal tidak
+#      mengganggu yang lain (1 konten tidak hangus).
+#   4. 🖼️ Carousel IG — manual only.
 #
 # SETUP SEKALI (oleh Bos):
 #   Cloudflare dashboard → luxtradee → Variables & Secrets:
 #     FACEBOOK_PAGE_ID, FACEBOOK_PAGE_TOKEN,
 #     FACEBOOK_APP_ID, FACEBOOK_APP_SECRET (refresh token 60 hari)
+#     TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET (portal developer TikTok)
+#   Hubungkan akun TikTok (sekali buka di browser, pakai akun @luxtradee):
+#     https://luxtradee.web.id/api/tiktok/connect?key=<CRON_SECRET>
+#     → setuju consent → refresh token tersimpan terenkripsi otomatis.
 #   Supabase (SQL editor): supabase-migrations/037 + 038 + 039
 #   GitHub Secrets: PROD_URL, CRON_SECRET (sudah ada)
 # ═══════════════════════════════════════════════════════════════════
 
 on:
   schedule:
-    # 11:50 UTC = 18:50 WIB — TIAP HARI (Senin–Minggu).
-    # PERMINTAAN BOS 23 Nov: "untuk konten setiap jam 18-19 wib satu postingan
-    # sama konsisten" → satu postingan/hari, window 18–19 WIB, tanpa hari libur.
-    # Tayang ±19:00 WIB (render ±2-3 menit). Dulu Senin–Jumat saja (1-5).
-    - cron: '50 11 * * *'
+    # 11:00 UTC = 18:00 WIB — SENIN–JUMAT saja (1-5), SABTU & MINGGU LIBUR.
+    # PERMINTAAN BOS: "tiktok ig posting bersama setiap senin sampe jumat
+    # sabtu minggu libur 1 konten sama jam 18 wib".
+    # Dulu: 50 11 * * * (tiap hari 18:50 WIB, rotasi platform) → kini
+    # tepat 18:00 WIB + cross-post TikTok + IG bersama.
+    - cron: '0 11 * * 1-5'
   workflow_dispatch:
     inputs:
       force:
@@ -81,7 +93,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PRIVACY: SELF_ONLY # sandbox wajib SELF_ONLY; produksi: PUBLIC_TO_EVERYONE
+  # Privacy TikTok dicoba pertama (app approved 23 Nov). Kalau init upload
+  # ditolak (audit video.publish belum lolos), step TikTok otomatis
+  # fallback ke SELF_ONLY supaya konten tetap terkirim (privat).
+  PRIVACY: PUBLIC_TO_EVERYONE
 
 jobs:
   make-and-post:
@@ -200,44 +215,19 @@ jobs:
           test -s /tmp/luxtrade-video.mp4 || { echo "❌ render gagal"; exit 1; }
           echo "Ukuran video : $(du -h /tmp/luxtrade-video.mp4 | cut -f1)"
 
-      # 🎛️ ROTASI PLATFORM — semua hari IG dulu (TikTok belum approved);
-      #    Sel/Kam tetap nyoba token TikTok — kalau nanti approved, otomatis
-      #    balik ke TikTok tanpa ubah file ini.
-      - name: 🎛️ Putuskan platform hari ini (IG dulu · TikTok kalau app sudah approved)
-        env:
-          PROD_URL: ${{ secrets.PROD_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      # ✅ CROSS-POST BERSAMA (Bos: "tiktok ig posting bersama ... 1 konten
+      #    sama") — ROTASI DIHAPUS: konten yang SAMA diposting ke TIKTOK
+      #    dan IG Reels setiap hari kerja. TikTok gagal/token kosong →
+      #    IG tetap jalan, konten tidak hangus.
+      - name: ✅ Mode cross-post — konten sama untuk TIKTOK + IG Reels
         run: |
-          PROD_URL="${PROD_URL%/}"
-          DOW=$(date -u +%u) # 1=Senin..7=Minggu (cron harian; 11:50 UTC = hari sama dgn WIB)
-          case "$DOW" in
-            # ✅ APP TIKTOK APPROVED (23 Nov 2026) — baris rotasi DIAKTIFKAN lagi:
-            #    Selasa & Kamis giliran TikTok, hari lain IG Reels.
-            #    Token TikTok dicek dulu di bawah — belum ada → fallback IG otomatis.
-            2|4) PLATFORM="tiktok" ;;
-            *) PLATFORM="ig" ;;
-          esac
-          echo "Hari ke-$DOW → giliran platform: $PLATFORM"
+          echo "🎬 Konten dirender 1× → akan di-upload ke TIKTOK + IG REELS"
+          echo "🎵 TikTok : Content Posting API (publik → fallback privat bila audit belum lolos)"
+          echo "📸 IG    : Graph API Reels (window server 18–20 WIB, auto-acc)"
 
-          # Giliran TikTok tapi token belum tersedia (app belum approved)?
-          # → fallback ke IG Reels supaya 1 konten/hari tetap jalan.
-          if [ "$PLATFORM" = "tiktok" ]; then
-            TOK=$(curl -sS -L --max-time 60 -X POST \
-              -H "Authorization: Bearer $CRON_SECRET" \
-              "$PROD_URL/api/tiktok/token") || TOK="{}"
-            ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
-            if [ -z "$ACCESS" ]; then
-              echo "⏭️ Token TikTok belum tersedia → fallback ke IG Reels"
-              PLATFORM="ig"
-            fi
-          fi
-
-          echo "PLATFORM=$PLATFORM" >> "$GITHUB_ENV"
-          echo "✅ Platform final hari ini: $PLATFORM"
-
-      # 🎵 TikTok — hanya kalau gilirannya; gagal → fallback IG (konten tidak hangus)
-      - name: 🎵 Posting ke TikTok (Content Posting API — sandbox SELF_ONLY)
-        if: env.PLATFORM == 'tiktok'
+      # 🎵 TikTok — selalu dicoba (cross-post). Gagal/token kosong →
+      #    dilewati aman, IG tetap posting konten yang sama.
+      - name: 🎵 Posting ke TikTok (Content Posting API — publik → fallback privat)
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -250,27 +240,40 @@ jobs:
             "$PROD_URL/api/tiktok/token") || TOK="{}"
           ACCESS=$(echo "$TOK" | jq -r '.access_token // empty')
           if [ -z "$ACCESS" ]; then
-            echo "⏭️ Token TikTok belum tersedia (app belum approved) — fallback ke IG"
-            echo "IG_FALLBACK=true" >> "$GITHUB_ENV"
+            echo "⏭️ Token TikTok belum tersedia — TikTok dilewati, IG tetap posting konten yang sama."
+            echo "   Hubungkan akun sekali di browser: $PROD_URL/api/tiktok/connect?key=<CRON_SECRET>"
             exit 0
           fi
           echo "✅ Token siap (source: $(echo "$TOK" | jq -r '.source'))"
 
           SIZE=$(stat -c%s /tmp/luxtrade-video.mp4)
           TITLE=$(jq -Rn --arg t "$(jq -r '.spec.caption' /tmp/spec.json | head -c 1500)" '$t')
-          INIT=$(curl -sS --max-time 60 -X POST \
-            -H "Authorization: Bearer $ACCESS" \
-            -H "Content-Type: application/json; charset=UTF-8" \
-            -d "{\"post_info\":{\"title\":$TITLE,\"privacy_level\":\"$PRIVACY\"},\"source_info\":{\"source\":\"FILE_UPLOAD\",\"video_size\":$SIZE,\"chunk_size\":$SIZE,\"total_chunk_count\":1}}" \
-            "https://open.tiktokapis.com/v2/post/publish/video/init/")
+          # Init upload dgn fungsi kecil → bisa diulang utk fallback privacy.
+          init_tiktok() {
+            local PL="$1"
+            curl -sS --max-time 60 -X POST \
+              -H "Authorization: Bearer $ACCESS" \
+              -H "Content-Type: application/json; charset=UTF-8" \
+              -d "{\"post_info\":{\"title\":$TITLE,\"privacy_level\":\"$PL\"},\"source_info\":{\"source\":\"FILE_UPLOAD\",\"video_size\":$SIZE,\"chunk_size\":$SIZE,\"total_chunk_count\":1}}" \
+              "https://open.tiktokapis.com/v2/post/publish/video/init/"
+          }
+          PRIV="${PRIVACY:-PUBLIC_TO_EVERYONE}"
+          INIT=$(init_tiktok "$PRIV")
           UPLOAD_URL=$(echo "$INIT" | jq -r '.data.upload_url // empty')
+          if [ -z "$UPLOAD_URL" ] && [ "$PRIV" != "SELF_ONLY" ]; then
+            echo "⚠️ Init publik ($PRIV) ditolak — fallback SELF_ONLY (audit video.publish belum lolos):"
+            echo "$INIT" | jq -c '.error // .' 2>/dev/null || echo "$INIT"
+            PRIV="SELF_ONLY"
+            INIT=$(init_tiktok "$PRIV")
+            UPLOAD_URL=$(echo "$INIT" | jq -r '.data.upload_url // empty')
+          fi
           PUBLISH_ID=$(echo "$INIT" | jq -r '.data.publish_id // empty')
           if [ -z "$UPLOAD_URL" ]; then
-            echo "⏭️ Init upload TikTok gagal (app belum approved?) — fallback ke IG:"
+            echo "⏭️ Init upload TikTok gagal (kedua privacy) — TikTok dilewati, IG tetap jalan:"
             echo "$INIT" | jq . 2>/dev/null || echo "$INIT"
-            echo "IG_FALLBACK=true" >> "$GITHUB_ENV"
             exit 0
           fi
+          echo "privacy    : $PRIV"
           echo "publish_id: $PUBLISH_ID"
 
           code=$(curl -sS -o /tmp/upload-resp.txt -w '%{http_code}' -X PUT \
@@ -280,7 +283,7 @@ jobs:
           echo "Upload HTTP $code"
           if [ "$code" != "200" ] && [ "$code" != "201" ]; then
             cat /tmp/upload-resp.txt
-            echo "IG_FALLBACK=true" >> "$GITHUB_ENV"
+            echo "⏭️ Upload chunk TikTok gagal — TikTok dilewati, IG tetap jalan"
             exit 0
           fi
 
@@ -306,10 +309,9 @@ jobs:
             -d "$(jq -n --arg c "${CAPTION:-}" --arg p "${PUBLISH_ID:-}" '{caption:$c, publishId:$p}')" \
             "$PROD_URL/api/tiktok/report" || echo "⚠️ lapor katalog tiktok gagal (best-effort, dilewati)"
 
-      # 📸 IG Reels — jalur utama SEMUA hari (18:50 WIB → tayang ±19:00 WIB)
-      #    ATAU fallback dari TikTok yang gagal
+      # 📸 IG Reels — SELALU jalan (cross-post bersama TikTok) — 18:00 WIB
+      #    + render → POST ±18:05 WIB, di window 18–20 → publish inline.
       - name: 📸 Posting ke Instagram Reels (window 18–20 WIB · server putuskan window/cadence)
-        if: env.PLATFORM == 'ig' || env.IG_FALLBACK == 'true'
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
