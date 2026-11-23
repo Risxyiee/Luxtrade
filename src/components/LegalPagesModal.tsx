@@ -119,7 +119,7 @@ export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' 
                     aria-selected={activeTab === tab.id}
                     className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors ${
                       activeTab === tab.id
-                        ? 'bg-[#8a2be2] text-white shadow-lg shadow-blue-500/30'
+                        ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/30'
                         : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
                     }`}
                   >
@@ -167,7 +167,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="mb-8">
       <h3 className="text-base sm:text-lg font-bold text-white mb-3 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#8a2be2]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]" />
         {title}
       </h3>
       <div className="text-white/60 text-sm leading-relaxed space-y-2 pl-4">
@@ -282,10 +282,10 @@ function TermsContent() {
         </Paragraph>
         <div className="space-y-1.5 mt-1">
           <p className="text-white/80 text-sm">
-            Email: <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a>
+            Email: <a href="mailto:luxtradee@gmail.com" className="text-[#3b82f6] hover:underline">luxtradee@gmail.com</a>
           </p>
           <p className="text-white/80 text-sm">
-            Telepon: <a href="tel:+6285712054394" className="text-[#8a2be2] hover:underline">+62 857-1205-4394</a>
+            Telepon: <a href="tel:+6285712054394" className="text-[#3b82f6] hover:underline">+62 857-1205-4394</a>
           </p>
           <p className="text-white/80 text-sm">
             Alamat: Kebumen, Jawa Tengah, Indonesia
@@ -308,8 +308,8 @@ function RefundContent() {
       </div>
 
       <Section title="1. Produk Digital">
-        <div className="bg-[#2a1b3d]/40 border border-blue-500/20 rounded-xl p-4 mb-3">
-          <p className="text-amber-400 text-sm font-semibold flex items-center gap-2 mb-1">
+        <div className="bg-[#101a3d]/40 border border-blue-500/20 rounded-xl p-4 mb-3">
+          <p className="text-blue-400 text-sm font-semibold flex items-center gap-2 mb-1">
             <AlertCircle className="w-4 h-4" />
             Penting
           </p>
@@ -347,7 +347,7 @@ function RefundContent() {
           <li><strong className="text-white/80">Pembayaran gagal namun dana terpotong</strong> — Status pembayaran gagal tetapi saldo berkurang.</li>
         </ul>
         <Paragraph>
-          Segera hubungi tim admin LuxTradee melalui Discord <span className="text-[#5865F2] font-semibold">LuxTradee Server</span> atau email <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a> dengan menyertakan bukti pembayaran (screenshot).
+          Segera hubungi tim admin LuxTradee melalui Discord <span className="text-[#3B82F6] font-semibold">LuxTradee Server</span> atau email <a href="mailto:luxtradee@gmail.com" className="text-[#3b82f6] hover:underline">luxtradee@gmail.com</a> dengan menyertakan bukti pembayaran (screenshot).
         </Paragraph>
       </Section>
 
@@ -363,23 +363,23 @@ function RefundContent() {
       <Section title="5. Cara Mengajukan Refund">
         <div className="space-y-3">
           <div className="flex items-start gap-3 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
-            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#8a2be2]/20 flex items-center justify-center text-[#8a2be2] font-bold text-sm">1</span>
+            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#3b82f6]/20 flex items-center justify-center text-[#3b82f6] font-bold text-sm">1</span>
             <div>
               <p className="text-white/80 text-sm font-semibold">Kirim bukti pembayaran</p>
               <p className="text-white/50 text-xs mt-0.5">Screenshot bukti transfer/bayar yang jelas dan tidak terpotong.</p>
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
-            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#8a2be2]/20 flex items-center justify-center text-[#8a2be2] font-bold text-sm">2</span>
+            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#3b82f6]/20 flex items-center justify-center text-[#3b82f6] font-bold text-sm">2</span>
             <div>
               <p className="text-white/80 text-sm font-semibold">Hubungi admin via Discord atau Email</p>
               <p className="text-white/50 text-xs mt-0.5">
-                Discord: <span className="text-[#5865F2]">LuxTradee Server</span> atau Email: <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a>
+                Discord: <span className="text-[#3B82F6]">LuxTradee Server</span> atau Email: <a href="mailto:luxtradee@gmail.com" className="text-[#3b82f6] hover:underline">luxtradee@gmail.com</a>
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
-            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#8a2be2]/20 flex items-center justify-center text-[#8a2be2] font-bold text-sm">3</span>
+            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#3b82f6]/20 flex items-center justify-center text-[#3b82f6] font-bold text-sm">3</span>
             <div>
               <p className="text-white/80 text-sm font-semibold">Tunggu proses verifikasi</p>
               <p className="text-white/50 text-xs mt-0.5">Tim kami akan memverifikasi dan memproses refund dalam 3-5 hari kerja.</p>
@@ -446,7 +446,7 @@ function FAQContent() {
           <AccordionItem
             key={index}
             value={`faq-${index}`}
-            className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 data-[state=open]:bg-white/[0.04] data-[state=open]:border-[#8a2be2]/30 transition-colors"
+            className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 data-[state=open]:bg-white/[0.04] data-[state=open]:border-[#3b82f6]/30 transition-colors"
           >
             <AccordionTrigger className="text-left text-sm sm:text-base font-semibold text-white/90 hover:text-white hover:no-underline py-4">
               {faq.q}
@@ -458,7 +458,7 @@ function FAQContent() {
         ))}
       </Accordion>
 
-      <div className="mt-8 p-5 bg-[#2a1b3d]/40 border border-blue-500/20 rounded-xl text-center">
+      <div className="mt-8 p-5 bg-[#101a3d]/40 border border-blue-500/20 rounded-xl text-center">
         <p className="text-white/70 text-sm mb-2">Masih punya pertanyaan?</p>
         <p className="text-white/40 text-xs mb-4">Hubungi kami langsung melalui Discord atau Email</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -466,7 +466,7 @@ function FAQContent() {
             href={DISCORD_INVITE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-semibold transition-colors shadow-lg shadow-[#5865F2]/20"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-sm font-semibold transition-colors shadow-lg shadow-[#3B82F6]/20"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
@@ -501,14 +501,14 @@ function ContactContent() {
         {/* Email */}
         <a
           href="mailto:luxtradee@gmail.com"
-          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#8a2be2]/30 transition-colors"
+          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#3b82f6]/30 transition-colors"
         >
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center group-hover:bg-[#8a2be2]/20 transition-colors">
-            <Mail className="w-5 h-5 text-[#8a2be2]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center group-hover:bg-[#3b82f6]/20 transition-colors">
+            <Mail className="w-5 h-5 text-[#3b82f6]" />
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Email</h4>
-            <p className="text-[#8a2be2] text-sm break-all">luxtradee@gmail.com</p>
+            <p className="text-[#3b82f6] text-sm break-all">luxtradee@gmail.com</p>
             <p className="text-white/40 text-xs mt-1">Respon dalam 1x24 jam</p>
           </div>
         </a>
@@ -518,16 +518,16 @@ function ContactContent() {
           href={DISCORD_INVITE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#5865F2]/30 transition-colors"
+          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#3B82F6]/30 transition-colors"
         >
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/20 flex items-center justify-center group-hover:bg-[#5865F2]/20 transition-colors">
-            <svg className="w-5 h-5 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center group-hover:bg-[#3B82F6]/20 transition-colors">
+            <svg className="w-5 h-5 text-[#3B82F6]" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
             </svg>
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Discord</h4>
-            <p className="text-[#5865F2] text-sm">LuxTradee Server</p>
+            <p className="text-[#3B82F6] text-sm">LuxTradee Server</p>
             <p className="text-white/40 text-xs mt-1">Respon tercepat</p>
           </div>
         </a>
@@ -537,14 +537,14 @@ function ContactContent() {
           href="https://wa.me/6285712054394"
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#8a2be2]/30 transition-colors"
+          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#3b82f6]/30 transition-colors"
         >
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center group-hover:bg-[#8a2be2]/20 transition-colors">
-            <Phone className="w-5 h-5 text-[#8a2be2]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center group-hover:bg-[#3b82f6]/20 transition-colors">
+            <Phone className="w-5 h-5 text-[#3b82f6]" />
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Telepon / WhatsApp</h4>
-            <p className="text-[#8a2be2] text-sm">+62 857-1205-4394</p>
+            <p className="text-[#3b82f6] text-sm">+62 857-1205-4394</p>
             <p className="text-white/40 text-xs mt-1">Senin — Sabtu, 09:00 — 21:00 WIB</p>
           </div>
         </a>
@@ -554,24 +554,24 @@ function ContactContent() {
           href={DISCORD_INVITE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#5865F2]/30 transition-colors"
+          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#3B82F6]/30 transition-colors"
         >
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/20 flex items-center justify-center group-hover:bg-[#5865F2]/20 transition-colors">
-            <svg className="w-5 h-5 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center group-hover:bg-[#3B82F6]/20 transition-colors">
+            <svg className="w-5 h-5 text-[#3B82F6]" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
             </svg>
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Discord</h4>
-            <p className="text-[#5865F2] text-sm">Komunitas LuxTradee</p>
+            <p className="text-[#3B82F6] text-sm">Komunitas LuxTradee</p>
             <p className="text-white/40 text-xs mt-1">Beri masukan & dapatkan insentif</p>
           </div>
         </a>
 
         {/* Address */}
         <div className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl">
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center">
-            <MapPin className="w-5 h-5 text-[#8a2be2]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center">
+            <MapPin className="w-5 h-5 text-[#3b82f6]" />
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Alamat Usaha</h4>
@@ -584,20 +584,20 @@ function ContactContent() {
 
         {/* Website */}
         <div className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl">
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center">
-            <Globe className="w-5 h-5 text-[#8a2be2]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center">
+            <Globe className="w-5 h-5 text-[#3b82f6]" />
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Website</h4>
-            <p className="text-[#8a2be2] text-sm">luxtradee.web.id</p>
+            <p className="text-[#3b82f6] text-sm">luxtradee.web.id</p>
             <p className="text-white/40 text-xs mt-1">Platform jurnal trading digital</p>
           </div>
         </div>
 
         {/* Operating Hours */}
         <div className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl sm:col-span-2">
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center">
-            <Clock className="w-5 h-5 text-[#8a2be2]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-[#3b82f6]" />
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Jam Operasional</h4>
@@ -610,7 +610,7 @@ function ContactContent() {
       </div>
 
       {/* CTA Section */}
-      <div className="p-6 bg-gradient-to-br from-[#8a2be2]/10 to-transparent border border-[#8a2be2]/20 rounded-xl text-center">
+      <div className="p-6 bg-gradient-to-br from-[#3b82f6]/10 to-transparent border border-[#3b82f6]/20 rounded-xl text-center">
         <h3 className="text-lg font-bold text-white mb-2">Butuh bantuan lebih cepat?</h3>
         <p className="text-white/50 text-sm mb-4 max-w-md mx-auto">
           Untuk respon tercepat, hubungi kami langsung melalui Discord. Kami biasanya membalas dalam hitungan menit.
@@ -619,7 +619,7 @@ function ContactContent() {
           href={DISCORD_INVITE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold text-sm transition-all shadow-lg shadow-[#5865F2]/20 active:scale-95"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-sm transition-all shadow-lg shadow-[#3B82F6]/20 active:scale-95"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
@@ -689,7 +689,7 @@ function PrivacyContent() {
       <div className="mt-8 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
         <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang privasi?</h4>
         <p className="text-white/40 text-sm">
-          Hubungi kami di <a href="mailto:support@luxtradee.web.id" className="text-[#8a2be2] hover:underline">support@luxtradee.web.id</a> atau melalui <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">Discord</a>.
+          Hubungi kami di <a href="mailto:support@luxtradee.web.id" className="text-[#3b82f6] hover:underline">support@luxtradee.web.id</a> atau melalui <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="text-[#3B82F6] hover:underline">Discord</a>.
         </p>
       </div>
     </div>
@@ -746,7 +746,7 @@ function DisclaimerContent() {
       <div className="mt-8 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
         <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang disclaimer?</h4>
         <p className="text-white/40 text-sm">
-          Hubungi kami di <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a> atau melalui <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Telegram</a>.
+          Hubungi kami di <a href="mailto:luxtradee@gmail.com" className="text-[#3b82f6] hover:underline">luxtradee@gmail.com</a> atau melalui <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Telegram</a>.
         </p>
       </div>
     </div>

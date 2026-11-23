@@ -37,7 +37,7 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
           className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden"
         >
           {/* Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-950/40 via-[#0a1018] to-sky-950/40" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-950/40 via-[#0a1018] to-blue-950/40" />
           <div className="absolute inset-0 border border-blue-500/15 rounded-2xl" />
 
           {/* Subtle glow */}
@@ -98,7 +98,7 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
                 href={PARTNER_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-sm font-bold text-white hover:from-blue-400 hover:to-sky-400 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-blue-500/20 hover:shadow-blue-400/25"
+                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-sm font-bold text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-blue-500/20 hover:shadow-blue-400/25"
               >
                 {isEn ? 'Visit Partner' : 'Kunjungi Partner'}
                 <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

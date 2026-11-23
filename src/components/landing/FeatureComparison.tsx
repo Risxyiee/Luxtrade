@@ -146,14 +146,14 @@ const features: FeatureRow[] = [
 function CellRenderer({ cell }: { cell: CellValue }) {
   switch (cell.type) {
     case 'check':
-      return <Check className="w-5 h-5 text-emerald-400 mx-auto" />
+      return <Check className="w-5 h-5 text-blue-400 mx-auto" />
     case 'cross':
       return <X className="w-5 h-5 text-gray-600 mx-auto" />
     case 'unlimited':
       return (
         <span className="flex items-center justify-center gap-1.5">
-          <Infinity className="w-4 h-4 text-cyan-400" />
-          <span className="text-cyan-400 font-semibold text-sm">{cell.label}</span>
+          <Infinity className="w-4 h-4 text-blue-400" />
+          <span className="text-blue-400 font-semibold text-sm">{cell.label}</span>
         </span>
       )
     case 'text':
@@ -222,7 +222,7 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
             <div className="px-4 sm:px-6 py-4 flex items-center justify-center border-l border-white/[0.06] bg-blue-500/[0.05]">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-white/60 uppercase tracking-wider">PRO</span>
-                <span className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wide shadow-[0_0_12px_rgba(59,130,246,0.4)]">
+                <span className="bg-gradient-to-r from-blue-500 to-blue-400 text-white text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wide shadow-[0_0_12px_rgba(59,130,246,0.4)]">
                   PRO
                 </span>
               </div>
@@ -276,7 +276,7 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
           <Link
             prefetch={false}
             href="#pricing"
-            className="inline-flex items-center gap-2 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors group"
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors group"
           >
             {isEn ? 'Start with Free, upgrade anytime' : 'Mulai dengan Gratis, upgrade kapan saja'}
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

@@ -251,7 +251,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
           </button>
           <div className="px-4 pt-3 pb-2.5">
             <div className="flex items-start gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
                 🤖
               </div>
               <p className="text-sm text-gray-200 leading-snug pr-4">
@@ -287,7 +287,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-xs">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center text-xs">
                 🤖
               </div>
               <span className="text-sm font-semibold text-white">
@@ -308,7 +308,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
             {/* Welcome message */}
             {showWelcome && messages.length === 0 && (
               <div className="flex items-start gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
                   🤖
                 </div>
                 <div className="bg-white/[0.06] text-gray-200 text-sm px-3 py-2 rounded-2xl rounded-bl-sm max-w-[85%]">
@@ -323,7 +323,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'items-start gap-2'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
                     🤖
                   </div>
                 )}
@@ -342,7 +342,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
             {/* Typing indicator */}
             {isLoading && (
               <div className="flex items-start gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
                   🤖
                 </div>
                 <div className="bg-white/[0.06] text-gray-200 text-sm px-3 py-2.5 rounded-2xl rounded-bl-sm">
@@ -374,7 +374,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading}
-                className="w-9 h-9 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
+                className="w-9 h-9 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
                 aria-label="Send message"
               >
                 <Send className="w-4 h-4 text-white" />
@@ -388,12 +388,12 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
       {!isOpen && (
         <button
           onClick={() => { setIsOpen(true); setShowTeaser(false) }}
-          className={`fixed ${bottomOffset} right-4 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group`}
+          className={`fixed ${bottomOffset} right-4 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group`}
           aria-label="Open chat"
         >
           <MessageCircle className="w-5 h-5 text-white" />
           {/* Pulse ring */}
-          <span className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 animate-ping opacity-20" />
+          <span className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 animate-ping opacity-20" />
         </button>
       )}
     </>

@@ -82,12 +82,12 @@ export default function FAQSection({ language }: FAQSectionProps) {
       technical: {
         label_id: 'Teknis',
         label_en: 'Technical',
-        className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+        className: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
       },
       payment: {
         label_id: 'Pembayaran',
         label_en: 'Payment',
-        className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        className: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
       },
     }
     const b = badges[category]

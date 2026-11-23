@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { ADMIN_EMAILS } from '@/lib/admin-auth'
 import { PINE_LAB_FLAG } from './config'
 import type { User, SupabaseClient } from '@supabase/supabase-js'
 
@@ -52,6 +53,17 @@ export async function requirePineLab(
     allowed = !error && !!data
   } catch {
     allowed = false
+  }
+
+  /* BYPASS AKUN ADMIN (fix laporan Bos 22 Nov: "pine lab ga jalan" —
+   * gerbang 403 terus padahal sudah login). Seed flag `pine_lab` butuh
+   * SQL manual di Supabase (migrasi 20261113); kalau belum dijalankan /
+   * tabel user_flags belum ada, SEMUA akun kena 403 termasuk Bos sendiri.
+   * Pola sama dengan fitur admin lain (lib/admin-auth.ts): email di
+   * ADMIN_EMAILS selalu boleh lewat — tidak perlu seed manual lagi. */
+  if (!allowed) {
+    const email = (user.email ?? '').toLowerCase().trim()
+    allowed = ADMIN_EMAILS.some((a) => a.toLowerCase().trim() === email)
   }
 
   if (!allowed) {

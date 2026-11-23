@@ -65,7 +65,7 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
           transition={{ duration: 0.5 }}
           className="text-center mb-16"
         >
-          <span className="font-mono text-cyan-400 text-sm">{language === 'en' ? 'INTERACTIVE DEMO' : 'DEMO INTERAKTIF'}</span>
+          <span className="font-mono text-blue-400 text-sm">{language === 'en' ? 'INTERACTIVE DEMO' : 'DEMO INTERAKTIF'}</span>
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight mt-2 mb-4 text-white">{language === 'en' ? 'Try AI Vision Simulator' : 'Coba AI Vision Simulator'}</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">{language === 'en' ? 'See how our AI extracts data from MT5/TradingView screenshots in seconds.' : 'Lihat bagaimana AI kami mengekstrak data dari screenshot MT5/TradingView dalam hitungan detik.'}</p>
           {/* FIX kejujuran: simulator ini menjalankan DATA CONTOH hardcoded di
@@ -105,18 +105,19 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
                   <div className="bg-[#0a0f1d]/90 p-4 rounded-lg border border-white/10">
                     <div className="flex justify-between items-center mb-4">
                       <span className="font-mono text-sm text-white">{result.pair}</span>
-                      <span className={`font-mono text-xs px-2 py-1 rounded ${result.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{result.type}</span>
+                      {/* Biru menyala = BUY · biru redup outline = SELL (keluarga biru saja) */}
+                      <span className={`font-mono text-xs px-2 py-1 rounded border ${result.type === 'BUY' ? 'bg-blue-500/30 text-blue-100 border-blue-400/50' : 'bg-blue-500/[0.08] text-blue-300 border-blue-400/25'}`}>{result.type}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 font-mono text-xs">
                       <div><p className="text-gray-500">Entry</p><p className="text-white">{result.entry}</p></div>
                       <div><p className="text-gray-500">Exit</p><p className="text-white">{result.exit}</p></div>
                       <div><p className="text-gray-500">Lot</p><p className="text-white">{result.lot}</p></div>
-                      <div><p className="text-gray-500">Session</p><p className="text-cyan-400">{result.session}</p></div>
+                      <div><p className="text-gray-500">Session</p><p className="text-blue-400">{result.session}</p></div>
                     </div>
                   </div>
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg flex items-center justify-between">
+                  <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg flex items-center justify-between">
                     <span className="text-xs text-gray-400 font-mono">Profit / Loss</span>
-                    <span className="text-lg font-bold text-emerald-400 font-mono">{result.pl}</span>
+                    <span className="text-lg font-bold text-blue-400 font-mono">{result.pl}</span>
                   </div>
                 </div>
               )}
@@ -130,7 +131,7 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
                   disabled={scanning}
                   className={`px-3 py-2.5 rounded-xl text-xs font-mono transition-colors cursor-pointer ${
                     activeKey === key
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                       : 'bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300'
                   }`}
                 >
@@ -144,9 +145,9 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
           <div className="glass-lux p-6 flex flex-col">
             <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500/50" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-                <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                <div className="w-3 h-3 rounded-full bg-blue-500/50" />
+                <div className="w-3 h-3 rounded-full bg-blue-500/50" />
+                <div className="w-3 h-3 rounded-full bg-blue-500/50" />
               </div>
               <span className="text-xs font-mono text-gray-500 flex items-center gap-2">
                 <Terminal className="w-3 h-3" /> {language === 'en' ? 'Sample AI Output (simulated)' : 'Contoh Output AI (simulasi)'}

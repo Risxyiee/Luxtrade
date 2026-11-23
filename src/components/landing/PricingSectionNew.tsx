@@ -86,7 +86,7 @@ export default function PricingSectionNew({
               <motion.span
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-400 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/25"
+                className="inline-flex items-center gap-1 bg-blue-500/15 text-blue-400 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-blue-500/25"
               >
                 <Zap className="w-3 h-3" />
                 {language === 'en' ? `Save ${annualSavings}` : `Hemat ${annualSavings}`}
@@ -111,12 +111,12 @@ export default function PricingSectionNew({
               <span className="text-gray-500">{language === 'en' ? '/month' : '/bulan'}</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-400 text-sm flex-grow">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Trade Journals — free forever' : '∞ Jurnal Transaksi — gratis selamanya'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10x AI Chat Queries' : '10x Tanya AI (Chat)'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Live Chart + 70+ Indicators' : 'Chart Live + 70+ Indikator'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'All Analytics: Heatmap, Psychology, Score, Targets' : 'Semua Analitik: Heatmap, Psikologi, Score, Target'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Import CSV / MT4 / Screenshot + Export CSV/PDF' : 'Impor CSV / MT4 / Screenshot + Ekspor CSV/PDF'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Risk Calculator, Economic Calendar, Streaks & Achievements' : 'Kalkulator Risiko, Kalender Ekonomi, Streak & Pencapaian'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Unlimited Trade Journals — free forever' : '∞ Jurnal Transaksi — gratis selamanya'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? '10x AI Chat Queries' : '10x Tanya AI (Chat)'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Live Chart + 70+ Indicators' : 'Chart Live + 70+ Indikator'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'All Analytics: Heatmap, Psychology, Score, Targets' : 'Semua Analitik: Heatmap, Psikologi, Score, Target'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Import CSV / MT4 / Screenshot + Export CSV/PDF' : 'Impor CSV / MT4 / Screenshot + Ekspor CSV/PDF'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Risk Calculator, Economic Calendar, Streaks & Achievements' : 'Kalkulator Risiko, Kalender Ekonomi, Streak & Pencapaian'}</li>
               <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Insights, Weekly Report & Alerts (PRO)' : 'AI Insights, Laporan Mingguan & Alert (PRO)'}</li>
             </ul>
             <Link prefetch={false} href="/auth/signup">
@@ -139,10 +139,10 @@ export default function PricingSectionNew({
               <div className="absolute inset-0 rounded-2xl border-glow-animated" />
             </div>
             <div className="glass-lux p-8 relative flex flex-col rounded-2xl" style={{ background: 'rgba(59, 130, 246, 0.05)' }}>
-              <div className="absolute top-0 right-8 -translate-y-1/2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-xs px-3 py-1 rounded-full font-mono">
+              <div className="absolute top-0 right-8 -translate-y-1/2 bg-gradient-to-r from-blue-500 to-blue-400 text-white text-xs px-3 py-1 rounded-full font-mono">
                 {language === 'en' ? 'MOST POPULAR' : 'PALING POPULER'}
               </div>
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">{language === 'en' ? 'PRO' : 'PRO'}</h3>
+              <h3 className="text-xl font-bold mb-2 text-blue-400">{language === 'en' ? 'PRO' : 'PRO'}</h3>
               <p className="text-gray-400 text-sm mb-6">{language === 'en' ? 'For serious traders building an edge and passing prop firms.' : 'Untuk serius membangun edge dan lewati prop firm.'}</p>
 
               <div className="mb-6">
@@ -151,7 +151,7 @@ export default function PricingSectionNew({
                     <span className="text-gray-500 line-through text-xl mr-2">
                       {isAnnual ? annualPrice : monthlyPrice}
                     </span>
-                    <span className="text-4xl font-bold text-cyan-400">
+                    <span className="text-4xl font-bold text-blue-400">
                       {isAnnual ? 'Rp250K' : monthlyPromoPrice}
                     </span>
                     <span className="text-gray-500 pb-1">
@@ -186,7 +186,7 @@ export default function PricingSectionNew({
                   <motion.p
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-1 text-xs text-emerald-400 font-medium"
+                    className="mt-1 text-xs text-blue-400 font-medium"
                   >
                     {language === 'en'
                       ? '~34% off compared to monthly'
@@ -194,7 +194,7 @@ export default function PricingSectionNew({
                   </motion.p>
                 )}
                 {promoApplied && (
-                  <div className="mt-2 flex items-center gap-2 text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full w-fit animate-float-lux">
+                  <div className="mt-2 flex items-center gap-2 text-xs font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-full w-fit animate-float-lux">
                     <Check className="w-3 h-3" />
                     <span>{language === 'en' ? 'Promo Applied: Special Discount Active!' : 'Promo Terpakai: Diskon Spesial Aktif!'}</span>
                   </div>
@@ -202,18 +202,18 @@ export default function PricingSectionNew({
               </div>
 
               <ul className="space-y-3 mb-6 text-gray-300 text-sm flex-grow">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited AI Chat (journal stays free, AI goes deeper)' : 'AI Chat Tanpa Batas (jurnal tetap gratis, AI lebih dalam)'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Insights & AI Weekly Report' : 'AI Insights & Laporan Mingguan AI'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Price & TradingView Alerts (phone push)' : 'Price Alert & Alert TradingView Tanpa Batas (push HP)'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Market Watchlist & Market News' : 'Watchlist Pasar & Market News'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Prop Firm Guard (automated rule monitoring)' : 'Prop Firm Guard (pemantauan aturan otomatis)'}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Everything in Free (journal & analytics stay free)' : 'Semua fitur Free (jurnal & analitik tetap gratis)'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Unlimited AI Chat (journal stays free, AI goes deeper)' : 'AI Chat Tanpa Batas (jurnal tetap gratis, AI lebih dalam)'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'AI Insights & AI Weekly Report' : 'AI Insights & Laporan Mingguan AI'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Unlimited Price & TradingView Alerts (phone push)' : 'Price Alert & Alert TradingView Tanpa Batas (push HP)'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Market Watchlist & Market News' : 'Watchlist Pasar & Market News'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Prop Firm Guard (automated rule monitoring)' : 'Prop Firm Guard (pemantauan aturan otomatis)'}</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> {language === 'en' ? 'Everything in Free (journal & analytics stay free)' : 'Semua fitur Free (jurnal & analitik tetap gratis)'}</li>
               </ul>
 
               {/* Promo Input */}
               <div className="mb-6 pt-4 border-t border-white/10">
                 <div className="flex items-center gap-2 mb-2">
-                  <Ticket className="w-4 h-4 text-cyan-400" />
+                  <Ticket className="w-4 h-4 text-blue-400" />
                   <span className="text-sm text-gray-300 font-medium">{language === 'en' ? 'Have a Promo Code?' : 'Punya Kode Promo?'}</span>
                 </div>
                 <div className="flex gap-2">
@@ -222,7 +222,7 @@ export default function PricingSectionNew({
                     value={localPromo}
                     onChange={(e) => { setLocalPromo(e.target.value); setPromoError(false); setPromoApplied(false) }}
                     placeholder={language === 'en' ? 'Enter code (e.g. TRADERCEPAT)' : 'Masukkan kode (cth: TRADERCEPAT)'}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 transition-colors font-mono text-white"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 transition-colors font-mono text-white"
                     onKeyDown={(e) => e.key === 'Enter' && applyPromo()}
                   />
                   <button
@@ -233,7 +233,7 @@ export default function PricingSectionNew({
                   </button>
                 </div>
                 {promoError && (
-                  <p className="mt-2 text-xs text-red-400 font-mono flex items-center gap-1">
+                  <p className="mt-2 text-xs text-blue-400 font-mono flex items-center gap-1">
                     <XCircle className="w-3 h-3" /> {language === 'en' ? 'Invalid or expired promo code.' : 'Kode promo tidak valid atau kedaluwarsa.'}
                   </p>
                 )}
@@ -241,7 +241,7 @@ export default function PricingSectionNew({
 
               <button
                 onClick={handleProUpgrade}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl hover:opacity-90 transition-all text-sm font-medium text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-400 rounded-xl hover:opacity-90 transition-all text-sm font-medium text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer"
               >
                 {language === 'en' ? 'Upgrade to PRO' : 'Upgrade ke PRO'}
                 <ArrowRight className="w-4 h-4" />

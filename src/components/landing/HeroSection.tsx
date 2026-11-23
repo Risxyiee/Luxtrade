@@ -48,7 +48,7 @@ function HeroLogo3D() {
           top: isDesktop ? '45%' : '12%',
           left: isDesktop ? '35%' : '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(96,165,250,0.08) 30%, rgba(59,130,246,0.04) 50%, transparent 70%)',
           filter: 'blur(40px)',
           animation: 'hero-logo-glow 7s ease-in-out infinite',
         }}
@@ -109,8 +109,8 @@ function HeroLogo3D() {
               style={{
                 transform: 'translateZ(30px)',
                 filter: isDesktop
-                  ? 'drop-shadow(0 0 25px rgba(59,130,246,0.35)) drop-shadow(0 0 50px rgba(6,182,212,0.2)) drop-shadow(0 0 80px rgba(16,185,129,0.1))'
-                  : 'drop-shadow(0 0 18px rgba(59,130,246,0.3)) drop-shadow(0 0 35px rgba(6,182,212,0.15))',
+                  ? 'drop-shadow(0 0 25px rgba(59,130,246,0.35)) drop-shadow(0 0 50px rgba(96,165,250,0.2)) drop-shadow(0 0 80px rgba(59,130,246,0.1))'
+                  : 'drop-shadow(0 0 18px rgba(59,130,246,0.3)) drop-shadow(0 0 35px rgba(96,165,250,0.15))',
                 opacity: isDesktop ? 0.35 : 0.25,
               }}
             />
@@ -135,7 +135,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-20 z-10">
       <HeroLogo3D />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[100%] h-[60%] bg-blue-600/10 blur-[180px] rounded-full pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[40%] bg-cyan-500/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[40%] bg-blue-500/10 blur-[150px] rounded-full pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center gap-12 text-center lg:text-left">
         <div className="flex-1 flex flex-col gap-6 lg:items-start items-center">
@@ -143,7 +143,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs font-mono tracking-wider text-cyan-300"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs font-mono tracking-wider text-blue-300"
           >
             <Sparkles className="w-3 h-3" /> {language === 'en' ? 'PROP FIRM TRADING JOURNAL' : 'JURNAL TRADING PROP FIRM'}
           </motion.div>
@@ -181,7 +181,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
                 Visitor mencatat trade dulu (localStorage), signup baru
                 ditawarkan setelahnya di #jurnal-tamu. */}
             <Link prefetch={false} href="#jurnal-tamu">
-              <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
+              <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
                 {language === 'en' ? 'Start Your Free Journal' : 'Mulai Jurnal Gratis'} <PenLine className="w-4 h-4" />
               </span>
             </Link>

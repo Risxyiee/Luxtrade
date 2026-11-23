@@ -39,7 +39,7 @@ const DEFAULT_TESTIMONIALS: DefaultTestimonial[] = [
     rating: 5,
     text: 'Dulu saya cuma catat trade di notes HP, sekarang semua terstruktur. AI-nya beneran nunjukin pola loss yang saya nggak sadar — selalu FOMO di session London. Win rate naik dari 40% ke 58% dalam 2 bulan.',
     textEn: 'I used to log trades in phone notes, now everything is structured. The AI really shows loss patterns I didn\'t realize — always FOMOing in London session. Win rate went from 40% to 58% in 2 months.',
-    gradient: 'from-blue-500 to-cyan-600',
+    gradient: 'from-blue-500 to-blue-600',
     borderHover: 'hover:border-blue-500/30',
   },
   {
@@ -49,8 +49,8 @@ const DEFAULT_TESTIMONIALS: DefaultTestimonial[] = [
     rating: 5,
     text: 'Sebagai trader part-time, saya butuh tools yang simpel. LuxTradee pas banget — screenshot langsung jadi jurnal. Nggak perlu input manual lagi. Save banget waktu saya.',
     textEn: 'As a part-time trader, I need simple tools. LuxTradee is perfect — screenshot instantly becomes a journal. No more manual input. Saves me so much time.',
-    gradient: 'from-cyan-500 to-blue-600',
-    borderHover: 'hover:border-cyan-500/30',
+    gradient: 'from-blue-500 to-blue-600',
+    borderHover: 'hover:border-blue-500/30',
   },
   {
     name: 'Dimas Kurniawan',
@@ -59,19 +59,19 @@ const DEFAULT_TESTIMONIALS: DefaultTestimonial[] = [
     rating: 5,
     text: 'Fitur equity curve dan AI analysis game changer. Saya baru sadar 60% loss saya terjadi di hari Jumat. Sekarang saya avoid trading di hari itu dan performa langsung membaik.',
     textEn: 'Equity curve and AI analysis are game changers. I just realized 60% of my losses happen on Fridays. Now I avoid trading that day and performance immediately improved.',
-    gradient: 'from-emerald-500 to-teal-600',
-    borderHover: 'hover:border-emerald-500/30',
+    gradient: 'from-blue-500 to-blue-600',
+    borderHover: 'hover:border-blue-500/30',
   },
 ]
 
 const gradients = [
-  'from-blue-500 to-cyan-600',
-  'from-cyan-500 to-blue-600',
-  'from-emerald-500 to-teal-600',
-  'from-cyan-400 to-rose-600',
-  'from-amber-500 to-orange-600',
-  'from-purple-500 to-pink-600',
-  'from-indigo-500 to-blue-600',
+  'from-blue-500 to-blue-600',
+  'from-blue-500 to-blue-600',
+  'from-blue-500 to-blue-600',
+  'from-blue-400 to-blue-600',
+  'from-blue-500 to-blue-600',
+  'from-blue-500 to-blue-600',
+  'from-blue-500 to-blue-600',
 ]
 
 export default function TestimonialsSection({ language }: { language: 'id' | 'en' }) {
@@ -190,7 +190,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
-      <Star key={i} className={`w-3.5 h-3.5 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-white/15'}`} />
+      <Star key={i} className={`w-3.5 h-3.5 ${i < rating ? 'text-blue-400 fill-blue-400' : 'text-white/15'}`} />
     ))
   }
 
@@ -237,12 +237,12 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
         >
           <button
             onClick={() => setShowForm(true)}
-            className="w-full group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 p-6 sm:p-8 hover:border-blue-500/50 transition-colors duration-300"
+            className="w-full group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-blue-500/10 to-blue-500/10 p-6 sm:p-8 hover:border-blue-500/50 transition-colors duration-300"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-blue-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 shadow-lg shadow-blue-500/25">
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-400 shadow-lg shadow-blue-500/25">
                 <PenLine className="w-6 h-6 text-white" />
               </div>
 
@@ -265,9 +265,9 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
             </div>
 
             {dbTestimonialCount > 0 && (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-                <Sparkles className="w-3 h-3 text-green-400" />
-                <span className="text-xs text-green-400 font-medium">
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                <Sparkles className="w-3 h-3 text-blue-400" />
+                <span className="text-xs text-blue-400 font-medium">
                   {dbTestimonialCount} {language === 'id' ? 'testimoni nyata' : 'real testimonials'}
                 </span>
               </div>
@@ -301,9 +301,9 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                         {renderStars(t.rating)}
                       </div>
                       {isDb && t.is_verified && (
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                          <BadgeCheck className="w-3 h-3 text-emerald-400" />
-                          <span className="text-[10px] text-emerald-400 font-semibold">
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-full">
+                          <BadgeCheck className="w-3 h-3 text-blue-400" />
+                          <span className="text-[10px] text-blue-400 font-semibold">
                             {language === 'id' ? 'Verified' : 'Verified'}
                           </span>
                         </div>
@@ -340,9 +340,9 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                       </div>
                       {isDb && t.profile_image_url && (
                         <a href={t.profile_image_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-400/40 transition-colors">
-                            <FileCheck className="w-3 h-3 text-emerald-400" />
-                            <span className="text-[10px] text-emerald-400 font-medium">
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 hover:border-blue-400/40 transition-colors">
+                            <FileCheck className="w-3 h-3 text-blue-400" />
+                            <span className="text-[10px] text-blue-400 font-medium">
                               {language === 'id' ? 'Sertifikat' : 'Cert'}
                             </span>
                           </div>

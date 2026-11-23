@@ -206,7 +206,7 @@ export default function LuxTradeLanding() {
 
         {/* Mobile Sticky CTA */}
         <div ref={mobileCtaRef} id="mobile-cta" className="md:hidden fixed bottom-0 left-0 w-full p-4 bg-[#050507]/90 backdrop-blur-xl border-t border-white/10 z-40">
-          <button onClick={handleProUpgrade} className="block w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-center font-semibold rounded-xl glow-bg-luxury text-sm cursor-pointer">
+          <button onClick={handleProUpgrade} className="block w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-400 text-white text-center font-semibold rounded-xl glow-bg-luxury text-sm cursor-pointer">
             {language === 'en' ? 'Sign Up Free Now' : 'Daftar Gratis Sekarang'}
           </button>
         </div>

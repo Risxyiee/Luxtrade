@@ -156,7 +156,7 @@ export default function LandingFooter({ language, totalTraders = null }: Landing
               />
               <button
                 type="submit"
-                className="px-5 py-2.5 text-[13px] font-medium rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white hover:opacity-90 transition-opacity shrink-0"
+                className="px-5 py-2.5 text-[13px] font-medium rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white hover:opacity-90 transition-opacity shrink-0"
               >
                 {t('Langganan', 'Subscribe')}
               </button>
@@ -169,14 +169,14 @@ export default function LandingFooter({ language, totalTraders = null }: Landing
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <p className="text-[#8892b0] text-[12px]">© 2025 LuxTradee</p>
             <span className="hidden sm:inline text-white/10">•</span>
-            <p className="text-[#8892b0] text-[12px]">Made with ❤️ in Indonesia</p>
+            <p className="text-[#8892b0] text-[12px]">Made with <span aria-hidden="true">💙</span> in Indonesia</p>
           </div>
 
           <div className="flex items-center gap-4 flex-wrap justify-center">
             <div className="flex items-center gap-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-40">
                 <rect width="24" height="24" rx="6" fill="white/10"/>
-                <path d="M6 8h12v2H6zM6 12h8v2H6zM6 16h10v2H6z" fill="#42B549"/>
+                <path d="M6 8h12v2H6zM6 12h8v2H6zM6 16h10v2H6z" fill="#3B82F6"/>
               </svg>
               <span className="text-[#8892b0] text-[12px]">Powered by <span className="text-[#f0f2ff]/60">Midtrans</span></span>
             </div>

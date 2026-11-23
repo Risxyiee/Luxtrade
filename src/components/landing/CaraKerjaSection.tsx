@@ -29,8 +29,8 @@ const steps = {
       visual: 'analytics',
       img: '/screenshot-calendar-v2.webp',
       floatingCards: [
-        { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
-        { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
+        { label: 'Win Rate', value: '50.0%', color: 'text-blue-400', position: 'top-8 left-8' },
+        { label: 'Profit Factor', value: '2.34', color: 'text-blue-400', position: 'bottom-8 right-8' },
       ],
     },
     {
@@ -77,8 +77,8 @@ const steps = {
       visual: 'analytics',
       img: '/screenshot-calendar-v2.webp',
       floatingCards: [
-        { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
-        { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
+        { label: 'Win Rate', value: '50.0%', color: 'text-blue-400', position: 'top-8 left-8' },
+        { label: 'Profit Factor', value: '2.34', color: 'text-blue-400', position: 'bottom-8 right-8' },
       ],
     },
     {
@@ -137,7 +137,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
             >
               {/* Text — always first in DOM order, reorder with md:order on the opposite column */}
               <div className={!step.rightSide ? 'md:order-2' : ''}>
-                <span className="font-mono text-cyan-400 text-sm">{step.num}</span>
+                <span className="font-mono text-blue-400 text-sm">{step.num}</span>
                 <h3 className="text-3xl font-bold mt-2 mb-4 text-white">{step.title}</h3>
                 <p className="text-gray-400">{step.desc}</p>
               </div>
@@ -160,8 +160,8 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                     <div className="relative flex flex-col items-stretch gap-3 w-full max-w-[260px] md:w-auto md:flex-1">
                       <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
                         <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <span className="font-mono text-xs text-emerald-400">Data Extracted: +$340.20</span>
+                          <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+                          <span className="font-mono text-xs text-blue-400">Data Extracted: +$340.20</span>
                         </div>
                       </div>
                       <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.4s' }}>
@@ -170,7 +170,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                       </div>
                       <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.8s' }}>
                         <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Entry → Exit</p>
-                        <p className="text-sm text-cyan-300 font-bold font-mono mt-0.5">2,384.5 → 2,350.3</p>
+                        <p className="text-sm text-blue-300 font-bold font-mono mt-0.5">2,384.5 → 2,350.3</p>
                       </div>
                     </div>
                   </div>
@@ -195,14 +195,14 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                      lebih besar + kolom chip jurnal di kanan (dulu tag kecil
                      di bawah phone → kartu tampak hampa). */
                   <div className="glass-lux p-6 md:p-8 min-h-[300px] flex flex-col md:flex-row items-center justify-center gap-5 md:gap-7 relative overflow-hidden">
-                    <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle at 26% 40%, rgba(52,211,153,0.09), transparent 62%)' }} />
+                    <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle at 26% 40%, rgba(59,130,246,0.09), transparent 62%)' }} />
                     <div className="phone-mockup w-40 sm:w-44 md:w-52 hover:scale-105 transition-transform duration-300 relative shrink-0">
                       <Image src={step.img} alt="Histori Trade" width={600} height={687} quality={100} loading="lazy" />
                     </div>
                     <div className="relative flex flex-col items-stretch gap-3 w-full max-w-[260px] md:w-auto md:flex-1">
                       <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux flex items-center justify-between gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Tag setup</span>
-                        <span className="bg-emerald-500/20 text-emerald-400 rounded-full px-2.5 py-0.5 text-[10px] font-mono">gold</span>
+                        <span className="bg-blue-500/20 text-blue-400 rounded-full px-2.5 py-0.5 text-[10px] font-mono">gold</span>
                       </div>
                       <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.4s' }}>
                         <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Emosi dicatat</p>
@@ -210,7 +210,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                       </div>
                       <div className="bg-white/5 px-3.5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux" style={{ animationDelay: '0.8s' }}>
                         <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Sesi & alasan entry</p>
-                        <p className="text-sm text-cyan-300 font-bold font-mono mt-0.5">New York · breakout</p>
+                        <p className="text-sm text-blue-300 font-bold font-mono mt-0.5">New York · breakout</p>
                       </div>
                     </div>
                   </div>
@@ -220,10 +220,10 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                   <div className="glass-lux p-8 h-64 flex items-center justify-center relative">
                     <div className="radar-pulse" />
                     <div className="radar-pulse" style={{ animationDelay: '1s' }} />
-                    <div className="z-10 bg-[#050507] border border-red-500/40 p-4 flex items-center gap-3 shadow-[0_0_30px_rgba(239,68,68,0.2)] rounded-xl">
-                      <AlertTriangle className="w-5 h-5 text-red-500" />
+                    <div className="z-10 bg-[#050507] border border-blue-500/40 p-4 flex items-center gap-3 shadow-[0_0_30px_rgba(59,130,246,0.25)] rounded-xl">
+                      <AlertTriangle className="w-5 h-5 text-blue-500" />
                       <div>
-                        <p className="text-xs font-bold text-red-400">Warning</p>
+                        <p className="text-xs font-bold text-blue-400">Warning</p>
                         <p className="text-xs text-gray-400 font-mono">70% losses on Friday</p>
                       </div>
                     </div>
@@ -235,15 +235,15 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                     <div>
                       <div className="flex justify-between mb-2 font-mono text-xs">
                         <span className="text-gray-400">Daily Drawdown</span>
-                        <span className="text-emerald-400 font-bold">1.2% / 5.0%</span>
+                        <span className="text-blue-400 font-bold">1.2% / 5.0%</span>
                       </div>
                       <div className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
-                        <div className="progress-fill bg-gradient-to-r from-emerald-500 to-cyan-500 h-full rounded-full" />
+                        <div className="progress-fill bg-gradient-to-r from-blue-400 to-blue-600 h-full rounded-full" />
                       </div>
                     </div>
-                    <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 p-4 flex items-center gap-3 w-fit rounded-xl">
-                      <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                      <span className="font-mono text-sm text-emerald-400">Status: Secure</span>
+                    <div className="mt-4 bg-blue-500/10 border border-blue-500/30 p-4 flex items-center gap-3 w-fit rounded-xl">
+                      <ShieldCheck className="w-5 h-5 text-blue-400" />
+                      <span className="font-mono text-sm text-blue-400">Status: Secure</span>
                     </div>
                   </div>
                 )}

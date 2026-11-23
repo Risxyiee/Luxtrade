@@ -355,7 +355,7 @@ export default function LandingCheckoutModal({
                   step === s.key || (s.key === 'confirm' && step === 'paying')
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                     : visibleIdx > i
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
                     : 'bg-white/5 text-white/30 border border-white/10'
                 }`}>
                   {visibleIdx > i
@@ -365,7 +365,7 @@ export default function LandingCheckoutModal({
                   <span className="hidden sm:inline">{s.label}</span>
                 </div>
                 {i < 3 && (
-                  <div className={`h-px w-3 sm:w-6 transition-colors ${visibleIdx > i ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
+                  <div className={`h-px w-3 sm:w-6 transition-colors ${visibleIdx > i ? 'bg-blue-500/40' : 'bg-white/10'}`} />
                 )}
               </React.Fragment>
             ))}
@@ -380,7 +380,7 @@ export default function LandingCheckoutModal({
             {step === 'auth' && (
               <motion.div key="auth" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
                 <div className="text-center mb-5 pt-1">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center mx-auto mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-3">
                     <Lock className="w-6 h-6 text-blue-400" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
@@ -408,7 +408,7 @@ export default function LandingCheckoutModal({
                 </div>
 
                 {authError && (
-                  <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs mb-4">
+                  <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-xs mb-4">
                     <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                     <span>{authError}</span>
                   </motion.div>
@@ -491,7 +491,7 @@ export default function LandingCheckoutModal({
                       {/* Password strength bars */}
                       <div className="flex gap-1 mt-2">
                         {[password.length >= 8, /[A-Z]/.test(password), /[a-z]/.test(password), /[0-9]/.test(password)].map((ok, i) => (
-                          <div key={i} className={`flex-1 h-1 rounded-full transition-colors ${ok ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                          <div key={i} className={`flex-1 h-1 rounded-full transition-colors ${ok ? 'bg-blue-500' : 'bg-white/10'}`} />
                         ))}
                       </div>
                     </div>
@@ -513,8 +513,8 @@ export default function LandingCheckoutModal({
             {step === 'plan' && (
               <motion.div key="plan" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
                 <div className="text-center mb-5 pt-1">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mx-auto mb-3">
-                    <Crown className="w-6 h-6 text-amber-400" />
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-3">
+                    <Crown className="w-6 h-6 text-blue-400" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
                     {isEn ? 'Choose Your Plan' : 'Pilih Paket Kamu'}
@@ -548,7 +548,7 @@ export default function LandingCheckoutModal({
                             <div className="flex items-center gap-2">
                               <span className={`font-semibold text-sm ${isSelected ? 'text-blue-300' : 'text-white/80'}`}>{isEn ? plan.labelEn : plan.label}</span>
                               {plan.badge && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
                                   {isEn ? plan.badgeEn : plan.badge}
                                 </span>
                               )}
@@ -579,15 +579,15 @@ export default function LandingCheckoutModal({
                       <input
                         type="text" value={localPromo} onChange={e => { setLocalPromo(e.target.value); setPromoError(false); if (promoApplied) setPromoApplied(false) }}
                         placeholder={isEn ? 'Enter code' : 'Masukkan kode'}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-400 transition-colors font-mono text-white placeholder:text-white/20"
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-400 transition-colors font-mono text-white placeholder:text-white/20"
                         onKeyDown={e => e.key === 'Enter' && applyPromo()}
                       />
                       <button onClick={applyPromo} disabled={promoApplied} className="px-3 py-2 bg-white/10 rounded-lg text-xs hover:bg-white/20 transition-colors font-medium text-white/70 disabled:opacity-40 cursor-pointer">
                         {promoApplied ? '✓' : (isEn ? 'Apply' : 'Terapkan')}
                       </button>
                     </div>
-                    {promoError && <p className="mt-1.5 text-[11px] text-red-400/80 font-mono">{isEn ? 'Invalid or expired code.' : 'Kode tidak valid atau kedaluwarsa.'}</p>}
-                    {promoApplied && <p className="mt-1.5 text-[11px] text-emerald-400 font-mono flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {isEn ? 'Promo applied!' : 'Promo terpakai!'}</p>}
+                    {promoError && <p className="mt-1.5 text-[11px] text-blue-400/80 font-mono">{isEn ? 'Invalid or expired code.' : 'Kode tidak valid atau kedaluwarsa.'}</p>}
+                    {promoApplied && <p className="mt-1.5 text-[11px] text-blue-400 font-mono flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {isEn ? 'Promo applied!' : 'Promo terpakai!'}</p>}
                   </div>
                 )}
 
@@ -595,7 +595,7 @@ export default function LandingCheckoutModal({
                   <button onClick={() => setStep('auth')} className="flex-shrink-0 py-3 px-4 border border-white/10 rounded-xl hover:bg-white/5 transition-all text-xs font-medium text-white/50 flex items-center gap-1.5 cursor-pointer">
                     <ArrowLeft className="w-3.5 h-3.5" /> {isEn ? 'Back' : 'Kembali'}
                   </button>
-                  <button onClick={() => setStep('confirm')} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer">
+                  <button onClick={() => setStep('confirm')} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-blue-400 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer">
                     {isEn ? 'Continue to Payment' : 'Lanjut ke Pembayaran'} <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -606,8 +606,8 @@ export default function LandingCheckoutModal({
             {step === 'confirm' && (
               <motion.div key="confirm" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
                 <div className="text-center mb-5 pt-1">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center mx-auto mb-3">
-                    <Crown className="w-6 h-6 text-amber-400" />
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-3">
+                    <Crown className="w-6 h-6 text-blue-400" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">{isEn ? 'Order Summary' : 'Ringkasan Pesanan'}</h3>
                   <p className="text-white/40 text-xs">{isEn ? 'Review before paying' : 'Periksa sebelum membayar'}</p>
@@ -620,7 +620,7 @@ export default function LandingCheckoutModal({
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-white font-semibold text-sm">{isEn ? selectedPlanInfo.labelEn : selectedPlanInfo.label}</span>
                         {selectedPlanInfo.badge && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
                             {isEn ? selectedPlanInfo.badgeEn! : selectedPlanInfo.badge}
                           </span>
                         )}
@@ -633,27 +633,27 @@ export default function LandingCheckoutModal({
                   {/* Features */}
                   <div className="border-t border-white/5 pt-3 mb-3">
                     <ul className="space-y-1.5">
-                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-emerald-400/70" />{isEn ? 'Unlimited Trade Entries' : 'Unlimited Trade Entries'}</li>
-                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-emerald-400/70" />{isEn ? 'Advanced Analytics & Equity Curve' : 'Analitik Lanjutan & Equity Curve'}</li>
-                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-emerald-400/70" />{isEn ? 'AI Auto Extract MT5/TradingView' : 'AI Auto Extract MT5/TradingView'}</li>
-                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-emerald-400/70" />{isEn ? 'AI Pattern Detection & Guard' : 'AI Pattern Detection & Guard'}</li>
+                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-blue-400/70" />{isEn ? 'Unlimited Trade Entries' : 'Unlimited Trade Entries'}</li>
+                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-blue-400/70" />{isEn ? 'Advanced Analytics & Equity Curve' : 'Analitik Lanjutan & Equity Curve'}</li>
+                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-blue-400/70" />{isEn ? 'AI Auto Extract MT5/TradingView' : 'AI Auto Extract MT5/TradingView'}</li>
+                      <li className="flex items-center gap-2 text-[11px] text-white/50"><CheckCircle className="w-3 h-3 text-blue-400/70" />{isEn ? 'AI Pattern Detection & Guard' : 'AI Pattern Detection & Guard'}</li>
                     </ul>
                   </div>
 
                   {/* Price */}
                   <div className="border-t border-white/5 pt-3">
                     {isPromoPlan && <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-white/30">{isEn ? 'Original' : 'Normal'}</span><span className="text-xs text-white/30 line-through">{formatRupiah(selectedPlanInfo.price)}</span></div>}
-                    {isPromoPlan && <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-emerald-400/70">{isEn ? 'Promo Discount' : 'Diskon Promo'}</span><span className="text-xs text-emerald-400/70">-{formatRupiah(selectedPlanInfo.price - 25000)}</span></div>}
+                    {isPromoPlan && <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-blue-400/70">{isEn ? 'Promo Discount' : 'Diskon Promo'}</span><span className="text-xs text-blue-400/70">-{formatRupiah(selectedPlanInfo.price - 25000)}</span></div>}
                     {/* Bulanan tanpa promo — tetap tampil coret harga normal Rp100.000 (Bos: diskon biar menarik) */}
                     {!isPromoPlan && selectedPlanInfo.originalPrice && (
                       <>
                         <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-white/30">{isEn ? 'Original' : 'Normal'}</span><span className="text-xs text-white/30 line-through">{formatRupiah(selectedPlanInfo.originalPrice)}</span></div>
-                        <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-emerald-400/70">{isEn ? 'Discount' : 'Diskon'}</span><span className="text-xs text-emerald-400/70">-{formatRupiah(selectedPlanInfo.originalPrice - selectedPlanInfo.price)}</span></div>
+                        <div className="flex justify-between items-center mb-1"><span className="text-[11px] text-blue-400/70">{isEn ? 'Discount' : 'Diskon'}</span><span className="text-xs text-blue-400/70">-{formatRupiah(selectedPlanInfo.originalPrice - selectedPlanInfo.price)}</span></div>
                       </>
                     )}
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-white/60 font-medium">Total</span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">{formatRupiah(finalPrice)}</span>
+                      <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-blue-400 bg-clip-text text-transparent">{formatRupiah(finalPrice)}</span>
                     </div>
                   </div>
                 </div>
@@ -662,7 +662,7 @@ export default function LandingCheckoutModal({
                   <button onClick={() => setStep('plan')} className="py-3 px-4 border border-white/10 rounded-xl hover:bg-white/5 transition-all text-xs font-medium text-white/50 flex items-center gap-1.5 cursor-pointer">
                     <ArrowLeft className="w-3.5 h-3.5" /> {isEn ? 'Back' : 'Kembali'}
                   </button>
-                  <button onClick={handlePay} disabled={!snapLoaded} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                  <button onClick={handlePay} disabled={!snapLoaded} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-blue-400 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
                     {!snapLoaded || snapLoading
                       ? <><Loader2 className="w-4 h-4 animate-spin" /> {isEn ? 'Loading...' : 'Memuat...'}</>
                       : <><Sparkles className="w-4 h-4" /> {isEn ? `Pay ${formatRupiah(finalPrice)}` : `Bayar ${formatRupiah(finalPrice)}`}</>
@@ -692,9 +692,9 @@ export default function LandingCheckoutModal({
               <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center justify-center py-10 text-center">
                 <motion.div
                   initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.1, stiffness: 200 }}
-                  className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mb-4"
+                  className="w-16 h-16 rounded-full bg-blue-500/15 border border-blue-500/25 flex items-center justify-center mb-4"
                 >
-                  <CheckCircle className="w-8 h-8 text-emerald-400" />
+                  <CheckCircle className="w-8 h-8 text-blue-400" />
                 </motion.div>
                 <h3 className="text-xl font-bold text-white mb-2">{isEn ? 'Thank You! 🎉' : 'Terima Kasih! 🎉'}</h3>
                 <p className="text-white/50 text-xs mb-1 max-w-xs">
@@ -718,7 +718,7 @@ export default function LandingCheckoutModal({
                 <div className="w-full space-y-2">
                   <button
                     onClick={() => { onClose(); window.location.href = '/dashboard' }}
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
                     {unverifiedUserId ? (isEn ? 'Login to Dashboard' : 'Login ke Dashboard') : (isEn ? 'Go to Dashboard' : 'Ke Dashboard')}

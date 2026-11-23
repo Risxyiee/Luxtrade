@@ -85,7 +85,7 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
               href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3B82F6]/10 border border-[#3B82F6]/30 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition-colors"
               title="Komunitas"
             >
               <MessageSquare className="w-4 h-4" />

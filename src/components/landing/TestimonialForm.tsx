@@ -240,8 +240,8 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
               {/* Need Login State */}
               {submitStatus === 'need-login' && (
                 <div className="space-y-4">
-                  <div className="p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
-                    <LogIn className="w-10 h-10 text-yellow-400 mx-auto mb-3" />
+                  <div className="p-6 bg-blue-500/10 border border-blue-500/20 rounded-xl text-center">
+                    <LogIn className="w-10 h-10 text-blue-400 mx-auto mb-3" />
                     <h3 className="text-lg font-bold text-white mb-2">
                       {language === 'en' ? 'Login Required' : 'Perlu Login Dulu'}
                     </h3>
@@ -251,7 +251,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         : 'Anda perlu login untuk kirim testimoni. Gratis dan cuma 30 detik!'}
                     </p>
                     <Link prefetch={false} href="/auth/signup" className="block">
-                      <Button className="w-full bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90 text-base py-5">
+                      <Button className="w-full bg-gradient-to-r from-blue-500 to-blue-400 hover:opacity-90 text-base py-5">
                         <LogIn className="w-5 h-5 mr-2" />
                         {language === 'en' ? 'Sign Up Free' : 'Daftar Gratis'}
                       </Button>
@@ -287,7 +287,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                             <Star
                               className={`w-8 h-8 ${
                                 star <= (hoverRating || rating)
-                                  ? 'fill-yellow-400 text-yellow-400'
+                                  ? 'fill-blue-400 text-blue-400'
                                   : 'text-gray-600'
                               }`}
                             />
@@ -295,7 +295,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         ))}
                       </div>
                       {(hoverRating > 0 || rating > 0) && (
-                        <span className="text-sm text-yellow-400 font-medium">
+                        <span className="text-sm text-blue-400 font-medium">
                           {getRatingLabel(hoverRating || rating)}
                         </span>
                       )}
@@ -351,16 +351,16 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                           <button
                             type="button"
                             onClick={handleRemovePhoto}
-                            className="p-2 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-colors"
+                            className="p-2 bg-blue-500/20 rounded-lg hover:bg-blue-500/30 transition-colors"
                           >
-                            <Trash2 className="w-4 h-4 text-red-400" />
+                            <Trash2 className="w-4 h-4 text-blue-400" />
                           </button>
                         </div>
                         {/* Remove button (always visible) */}
                         <button
                           type="button"
                           onClick={handleRemovePhoto}
-                          className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-red-500/60 transition-colors"
+                          className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-blue-500/60 transition-colors"
                         >
                           <X className="w-3 h-3 text-white" />
                         </button>
@@ -444,7 +444,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                   <div className="space-y-2">
                     <Label htmlFor="text">
                       {language === 'en' ? 'Your Testimonial' : 'Testimoni Anda'}
-                      <span className="text-red-400 ml-1">*</span>
+                      <span className="text-blue-400 ml-1">*</span>
                     </Label>
                     <Textarea
                       id="text"
@@ -472,7 +472,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="flex items-center gap-2 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400"
+                        className="flex items-center gap-2 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400"
                       >
                         <CheckCircle2 className="w-5 h-5" />
                         <span>
@@ -491,7 +491,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm"
+                        className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-sm"
                       >
                         {errorMessage}
                       </motion.div>
@@ -512,7 +512,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                     <Button
                       type="submit"
                       disabled={isSubmitting || isPhotoUploading || text.length < 10 || text.length > 1000}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90"
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-400 hover:opacity-90"
                     >
                       {isSubmitting || isPhotoUploading ? (
                         <span className="flex items-center gap-2">

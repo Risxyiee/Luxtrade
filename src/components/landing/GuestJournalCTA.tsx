@@ -344,7 +344,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
       <div className="max-w-6xl mx-auto">
         {/* ---------- Header ---------- */}
         <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold tracking-wider text-emerald-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-[11px] font-bold tracking-wider text-blue-300">
             <PenLine className="w-3.5 h-3.5" />
             {isEn ? 'NO SIGN UP NEEDED' : 'TANPA DAFTAR'}
           </span>
@@ -371,8 +371,8 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                  form dikunci, tamu disuruh daftar. Jujur: data tetap di
                  browser, tidak ada yang hilang. ── */
               <div className="flex flex-col items-center text-center gap-3 py-8" role="status">
-                <span className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-cyan-500/15 border border-cyan-400/30">
-                  <Lock className="w-5 h-5 text-cyan-300" aria-hidden="true" />
+                <span className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-blue-500/15 border border-blue-400/30">
+                  <Lock className="w-5 h-5 text-blue-300" aria-hidden="true" />
                 </span>
                 <p className="text-sm font-bold text-white">
                   {isEn ? 'Guest journal full — 3 of 3 trades' : 'Jurnal tamu penuh — 3 dari 3 trade'}
@@ -385,7 +385,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                 <Link
                   href="/auth/signup"
                   prefetch={false}
-                  className="mt-1 inline-flex items-center justify-center gap-2 min-h-[48px] w-full max-w-[320px] rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-sm font-bold hover:opacity-90 transition-all"
+                  className="mt-1 inline-flex items-center justify-center gap-2 min-h-[48px] w-full max-w-[320px] rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white text-sm font-bold hover:opacity-90 transition-all"
                 >
                   {isEn ? 'Sign Up Free — Keep Journaling' : 'Daftar Gratis — Lanjut Catat'}
                 </Link>
@@ -421,7 +421,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                 aria-pressed={mode === 'auto'}
                 className={`min-h-[44px] rounded-xl text-sm font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                   mode === 'auto'
-                    ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/40'
+                    ? 'bg-blue-500/15 text-blue-200 border border-blue-400/40'
                     : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
                 }`}
               >
@@ -441,7 +441,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     aria-pressed={autoInput === 'foto'}
                     className={`min-h-[44px] rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                       autoInput === 'foto'
-                        ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/40'
+                        ? 'bg-blue-500/15 text-blue-200 border border-blue-400/40'
                         : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
                     }`}
                   >
@@ -454,7 +454,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     aria-pressed={autoInput === 'teks'}
                     className={`min-h-[44px] rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                       autoInput === 'teks'
-                        ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/40'
+                        ? 'bg-blue-500/15 text-blue-200 border border-blue-400/40'
                         : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
                     }`}
                   >
@@ -478,10 +478,10 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="min-h-[96px] w-full rounded-xl border border-dashed border-cyan-400/30 bg-cyan-500/[0.04] hover:bg-cyan-500/[0.08] hover:border-cyan-400/50 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer"
+                        className="min-h-[96px] w-full rounded-xl border border-dashed border-blue-400/30 bg-blue-500/[0.04] hover:bg-blue-500/[0.08] hover:border-blue-400/50 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        <Upload className="w-5 h-5 text-cyan-300" aria-hidden="true" />
-                        <span className="text-xs font-semibold text-cyan-200">
+                        <Upload className="w-5 h-5 text-blue-300" aria-hidden="true" />
+                        <span className="text-xs font-semibold text-blue-200">
                           {isEn ? 'Tap to pick your trade screenshot' : 'Ketuk buat pilih screenshot trade'}
                         </span>
                         <span className="text-[10px] text-white/40">
@@ -503,7 +503,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                             type="button"
                             onClick={clearPhoto}
                             aria-label={isEn ? 'Remove screenshot' : 'Hapus screenshot'}
-                            className="inline-flex items-center gap-1 min-h-[44px] py-1 px-2 -my-1 text-[11px] text-white/50 hover:text-red-300 cursor-pointer"
+                            className="inline-flex items-center gap-1 min-h-[44px] py-1 px-2 -my-1 text-[11px] text-white/50 hover:text-blue-300 cursor-pointer"
                           >
                             <X className="w-3.5 h-3.5" />
                             {isEn ? 'Remove' : 'Hapus'}
@@ -516,7 +516,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                       type="button"
                       onClick={handleAutoParse}
                       disabled={autoLoading || !photo}
-                      className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {autoLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -555,7 +555,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     <button
                       type="button"
                       onClick={fillSample}
-                      className="self-start min-h-[44px] py-2 px-1 text-[11px] text-cyan-300/80 hover:text-cyan-200 underline underline-offset-2 cursor-pointer"
+                      className="self-start min-h-[44px] py-2 px-1 text-[11px] text-blue-300/80 hover:text-blue-200 underline underline-offset-2 cursor-pointer"
                     >
                       {isEn ? 'Try an example' : 'Coba contoh'}
                     </button>
@@ -563,7 +563,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                       type="button"
                       onClick={handleAutoParse}
                       disabled={autoLoading}
-                      className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {autoLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -582,7 +582,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                 )}
 
                 {autoError && (
-                  <p role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">
+                  <p role="alert" className="text-xs text-blue-300 bg-blue-500/10 border border-blue-400/20 rounded-lg px-3 py-2">
                     {autoError}
                   </p>
                 )}
@@ -590,12 +590,12 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                 {/* ── KARTU HASIL AI gaya dashboard (muncul langsung setelah baca) ── */}
                 {autoResult && (
                   <div
-                    className="rounded-xl border border-cyan-400/25 bg-gradient-to-b from-cyan-500/[0.07] to-white/[0.02] p-4"
+                    className="rounded-xl border border-blue-400/25 bg-gradient-to-b from-blue-500/[0.07] to-white/[0.02] p-4"
                     role="status"
                     aria-label={isEn ? 'AI result — dashboard style' : 'Hasil AI — gaya dashboard'}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-cyan-300 uppercase">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-blue-300 uppercase">
                         <Activity className="w-3 h-3" aria-hidden="true" />
                         {isEn ? 'AI result — dashboard preview' : 'Hasil AI — seperti di dashboard'}
                       </span>
@@ -606,22 +606,26 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
 
                     {/* Baris identitas: arah + pair + profit */}
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      {/* Biru menyala = BUY (naik) · biru redup outline = SELL (turun) —
+                          tetap 100% keluarga biru (permintaan Bos: landing tanpa warna lain),
+                          arah dibedakan lewat ikon panah + intensitas biru. */}
                       <span
-                        className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded ${
+                        className={`inline-flex items-center gap-1 font-mono font-bold text-[11px] px-1.5 py-0.5 rounded ${
                           autoResult.fields.direction === 'BUY'
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : 'bg-red-500/20 text-red-300'
+                            ? 'bg-blue-500/30 text-blue-100 border border-blue-400/50'
+                            : 'bg-blue-500/[0.08] text-blue-300 border border-blue-400/25'
                         }`}
                       >
+                        <span aria-hidden="true">{autoResult.fields.direction === 'BUY' ? '▲' : '▼'}</span>
                         {autoResult.fields.direction}
                       </span>
                       <span className="text-base font-bold text-white font-mono">{autoResult.fields.pair}</span>
                       {autoResult.extra.profit && (
                         <span
-                          className={`font-mono text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                          className={`font-mono text-[11px] font-bold px-1.5 py-0.5 rounded border ${
                             Number(autoResult.extra.profit) < 0
-                              ? 'bg-red-500/20 text-red-300'
-                              : 'bg-emerald-500/20 text-emerald-300'
+                              ? 'bg-blue-500/[0.08] text-blue-300/90 border-blue-400/20'
+                              : 'bg-blue-500/30 text-blue-100 border-blue-400/50'
                           }`}
                         >
                           {Number(autoResult.extra.profit) < 0 ? '−' : '+'}${Math.abs(Number(autoResult.extra.profit)).toLocaleString('id-ID')}
@@ -649,7 +653,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     {/* Strip RR + exit (kalau ada) */}
                     <div className="flex items-center gap-2 flex-wrap mb-3">
                       {rrOf(autoResult.fields.entry, autoResult.fields.sl, autoResult.fields.tp) && (
-                        <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
+                        <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300">
                           RR {rrOf(autoResult.fields.entry, autoResult.fields.sl, autoResult.fields.tp)}
                         </span>
                       )}
@@ -667,7 +671,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                         type="button"
                         onClick={saveFromResult}
                         disabled={trades.length >= MAX_GUEST_TRADES}
-                        className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-xs font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white text-xs font-bold hover:opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                         {isEn ? 'Save to Guest Journal' : 'Simpan ke Jurnal Tamu'}
@@ -719,25 +723,25 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                       type="button"
                       onClick={() => setForm({ ...form, direction: 'BUY' })}
                       aria-pressed={form.direction === 'BUY'}
-                      className={`min-h-[44px] rounded-xl text-sm font-bold transition-colors cursor-pointer ${
+                      className={`min-h-[44px] rounded-xl text-sm font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 ${
                         form.direction === 'BUY'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                          ? 'bg-blue-500/25 text-blue-200 border border-blue-400/50'
                           : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
                       }`}
                     >
-                      BUY
+                      <span aria-hidden="true">▲</span> BUY
                     </button>
                     <button
                       type="button"
                       onClick={() => setForm({ ...form, direction: 'SELL' })}
                       aria-pressed={form.direction === 'SELL'}
-                      className={`min-h-[44px] rounded-xl text-sm font-bold transition-colors cursor-pointer ${
+                      className={`min-h-[44px] rounded-xl text-sm font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 ${
                         form.direction === 'SELL'
-                          ? 'bg-red-500/20 text-red-300 border border-red-400/40'
+                          ? 'bg-blue-500/25 text-blue-200 border border-blue-400/50'
                           : 'bg-white/[0.04] text-gray-400 border border-white/10 hover:bg-white/[0.07]'
                       }`}
                     >
-                      SELL
+                      <span aria-hidden="true">▼</span> SELL
                     </button>
                   </div>
                 </div>
@@ -816,7 +820,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
               </div>
 
               {autoNote && (
-                <p role="status" className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-400/20 rounded-lg px-3 py-2 flex items-start gap-1.5">
+                <p role="status" className="text-xs text-blue-200 bg-blue-500/10 border border-blue-400/20 rounded-lg px-3 py-2 flex items-start gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
                   <span>
                     <strong className="font-semibold">{isEn ? 'Auto-filled by AI. ' : 'Form terisi otomatis oleh AI. '}</strong>
@@ -826,13 +830,13 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
               )}
 
               {error && (
-                <p role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">
+                <p role="alert" className="text-xs text-blue-300 bg-blue-500/10 border border-blue-400/20 rounded-lg px-3 py-2">
                   {error}
                 </p>
               )}
 
               {justSaved && !error && (
-                <p role="status" className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-400/20 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                <p role="status" className="text-xs text-blue-300 bg-blue-500/10 border border-blue-400/20 rounded-lg px-3 py-2 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                   {isEn ? 'Trade saved to your guest journal (browser).' : 'Trade tersimpan di jurnal tamu (browser kamu).'}
                 </p>
@@ -846,7 +850,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
 
               <button
                 type="submit"
-                className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer"
+                className="min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer"
               >
                 <PenLine className="w-4 h-4" />
                 {isEn ? 'Save to Guest Journal' : 'Simpan ke Jurnal Tamu'}
@@ -875,7 +879,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
               {trades.length > 0 && (
                 <button
                   onClick={clearAll}
-                  className="inline-flex items-center gap-1 min-h-[44px] px-3 -my-3 -mr-3 text-[11px] text-white/40 hover:text-red-300 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 min-h-[44px] px-3 -my-3 -mr-3 text-[11px] text-white/40 hover:text-blue-300 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3 h-3" />
                   {isEn ? 'Clear all' : 'Hapus semua'}
@@ -900,19 +904,20 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                     className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-xs text-white/70 leading-relaxed"
                   >
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`font-mono font-bold px-1.5 py-0.5 rounded ${t.direction === 'BUY' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
+                      <span className={`inline-flex items-center gap-1 font-mono font-bold px-1.5 py-0.5 rounded ${t.direction === 'BUY' ? 'bg-blue-500/30 text-blue-100 border border-blue-400/50' : 'bg-blue-500/[0.08] text-blue-300 border border-blue-400/25'}`}>
+                        <span aria-hidden="true">{t.direction === 'BUY' ? '▲' : '▼'}</span>
                         {t.direction}
                       </span>
                       <span className="font-semibold text-white/90 font-mono">{t.pair}</span>
                       {rrOf(t.entry, t.sl, t.tp) && (
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300">
                           RR {rrOf(t.entry, t.sl, t.tp)}
                         </span>
                       )}
                       {t.profit && (
                         <span
-                          className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            Number(t.profit) < 0 ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'
+                          className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                            Number(t.profit) < 0 ? 'bg-blue-500/[0.08] text-blue-300/90 border-blue-400/20' : 'bg-blue-500/30 text-blue-100 border-blue-400/50'
                           }`}
                         >
                           {Number(t.profit) < 0 ? '−' : '+'}${Math.abs(Number(t.profit)).toLocaleString('id-ID')}
@@ -939,7 +944,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
 
             {trades.length > 0 && (
               <div className="mt-auto pt-2 border-t border-white/10">
-                <p className={`text-[11px] mb-2.5 ${limitReached ? 'text-cyan-200 font-semibold' : 'text-white/50'}`}>
+                <p className={`text-[11px] mb-2.5 ${limitReached ? 'text-blue-200 font-semibold' : 'text-white/50'}`}>
                   {limitReached
                     ? isEn
                       ? 'Guest limit reached (3 trades) — sign up free to save them permanently & journal without limits.'
@@ -951,7 +956,7 @@ export default function GuestJournalCTA({ language = 'id' }: GuestJournalCTAProp
                 <Link
                   href="/auth/signup"
                   prefetch={false}
-                  className="flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-sm font-bold hover:opacity-90 transition-all"
+                  className="flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white text-sm font-bold hover:opacity-90 transition-all"
                 >
                   {isEn ? 'Keep It Forever — Sign Up Free' : 'Simpan Permanen — Daftar Gratis'}
                 </Link>

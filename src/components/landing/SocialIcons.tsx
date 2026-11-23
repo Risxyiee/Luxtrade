@@ -11,7 +11,7 @@ interface SocialIconsProps {
 
 export default function SocialIcons({ className = '', footer = false }: SocialIconsProps) {
   const baseClass = "w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center hover:bg-white/[0.05] hover:border-blue-400/30 transition-colors duration-200"
-  const discordClass = "w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center hover:bg-[#5865F2]/10 hover:border-[#5865F2]/30 transition-colors duration-200"
+  const discordClass = "w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center hover:bg-[#3B82F6]/10 hover:border-[#3B82F6]/30 transition-colors duration-200"
 
   if (footer) {
     return (
