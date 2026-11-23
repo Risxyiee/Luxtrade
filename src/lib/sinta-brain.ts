@@ -15,9 +15,11 @@
  *      storytelling, stat-fakta, checklist, tanya-audiens, motivasi,
  *      promo-fitur, promo-cta) — masing-masing punya panduan menulis +
  *      pola hook, jadi Sinta "mikir kreatif" dengan kerangka, bukan improvisasi.
- *   B. 42 TOPIK inti dalam pool — tiap hari sistem memilih 1 topik yang
+ *   B. 45 TOPIK inti dalam pool — tiap hari sistem memilih 1 topik yang
  *      TIDAK dipakai 10 run terakhir (deterministik per hari + 25% lompatan
  *      eksperimen) → topik diinjeksi WAJIB ke prompt LLM.
+ *      (3 topik tambahan Nov: referensi reel viral wfrdnto_ — zona/role
+ *      reversal/false break, arahan Bos.)
  *   C. 9 FALLBACK SCRIPT lengkap (bukan 2 lagi) — kalau semua provider LLM
  *      mati, konten tetap berganti-ganti ±mingguan tanpa kembar berdekatan.
  *   D. PEMBELAJAR PERFORMA: ringkasan rata-rata views/likes/saves per
@@ -263,6 +265,10 @@ export const TOPIC_POOL: TopicEntry[] = [
   { topic: 'Fair Value Gap (FVG): celah harga yang suka diisi ulang — cara baca + entry-nya', angle: 'edukasi' },
   { topic: 'Liquidity sweep vs breakout asli — bedanya tipis tapi fatal buat SL kamu', angle: 'edukasi' },
   { topic: 'Premium vs discount: beli di zona murah, bukan di puncak FOMO', angle: 'edukasi' },
+  // edukasi — tambahan dari referensi reel viral wfrdnto_ (arah Bos Nov 2026)
+  { topic: 'Support & resistance itu ZONA, bukan garis — cara gambar zona yang benar dari swing high/low', angle: 'edukasi' },
+  { topic: 'Role reversal: support yang jebol malah jadi resistance — cara baca + entry retestnya', angle: 'edukasi' },
+  { topic: 'MITOS: support jebol = langsung breakout — FAKTA: false break ditandai candle CLOSE balik ke dalam zona', angle: 'myth-buster' },
   // myth-buster
   { topic: 'MITOS: makin banyak indikator makin akurat — FAKTA: chart makin blur', angle: 'myth-buster' },
   { topic: 'MITOS: trader sukses nggak pernah loss — FAKTA: loss mereka kecil & terjadwal', angle: 'myth-buster' },

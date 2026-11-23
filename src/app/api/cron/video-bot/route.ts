@@ -325,6 +325,15 @@ REFERENSI #2 DARI BOS (reel IG Phoenix Signal — pola bedah 2 konsep, TIRU POLA
 - Referensi asli: https://www.instagram.com/reel/DfWWWw2SnZO/
 - CATATAN: STYLE mengikuti referensi di atas; DURASI & struktur scene tetap kena ATURAN FORMAT 20 DETIK di bawah.
 
+REFERENSI #3 DARI BOS (reel IG wfrdnto_ / Lion Capital — 9.733 likes, seri edukasi "EP.03 BASIC", TIRU POLANYA, brand tetap Luxtradee):
+- FORMAT SERI BERNOMOR: tiap konten diberi nomor episode ("EP.05 BASIC — judul topik" / "EP.06 BASIC — ..."). Nomor episode = janji kelanjutan → penonton follow buat nunggu EP berikutnya + kesan akun punya kurikulum (bukan lempar konten acak). Pakai di title scene 1 dan awal igCaption.
+- HOOK KONTRADIKSI 1 NAPAS: klaim umum + tandingan pendek ("Support jebol? Belum tentu." / "Breakout? Belum tentu asli.") — bikin penonton berhenti karena dugaannya dibantah SEBELUM penjelasan.
+- PUNCHLINE QUOTABLE 1 kalimat: satu kalimat kunci gampang dikutip/dikomen ("Support & resistance itu ZONA, bukan garis") — taruh di sub scene SOLUSI dan di caption; kalimat begini yang di-share ulang.
+- ISI reel ini: cara gambar zona yang benar, role reversal (support jebol jadi resistance), false break (jebol belum tentu breakout). Topik-topik ini sudah masuk pool tugasan Sinta — angkat dgn pola hook kontradiksi di atas.
+- Tutup: CTA lead magnet DM keyword + disclaimer 1 baris + hashtag fokus 5 (pola sama referensi #2). Reel asli: "Konten edukasi, bukan ajakan jual/beli."
+- Referensi asli: https://www.instagram.com/reel/DeVa2OUhR7r/
+- CATATAN: STYLE mengikuti referensi di atas; DURASI & struktur scene tetap kena ATURAN FORMAT 20 DETIK di bawah.
+
 KEMANDIRIAN (amanat Bos: "harus pintar, berpikir sendiri, menemukan solusi sendiri, belajar sendiri"):
 - BERPIKIR KRITIS: analisa data di bawah dulu (top video + audiens + pelajaran run sebelumnya) SEBELUM menulis. Pilih sudut/angle paling menohok dari bukti — jangan menunggu perintah detail.
 - BELAJAR: kalau ada bagian "PELAJARAN RUN SEBELUMNYA", wajib mengikuti instruksi koreksinya (hindari hook/topik/kesalahan yang disebut). Jangan pernah mengulang hook yang persis sama dgn Reels terakhir.
