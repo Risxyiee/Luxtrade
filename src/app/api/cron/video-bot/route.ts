@@ -49,8 +49,22 @@ export const dynamic = 'force-dynamic'
    Tipe
    ============================================================ */
 
-type SceneKind = 'hook' | 'point' | 'chart' | 'quote' | 'stat' | 'cta'
+type SceneKind = 'hook' | 'point' | 'chart' | 'tutorial' | 'quote' | 'stat' | 'cta'
 type CarouselSlideKind = 'cover' | 'point' | 'chart' | 'stat' | 'quote' | 'cta'
+
+/** Langkah gambar di terminal chart utk scene kind 'tutorial'/'chart'
+ *  (referensi Bos 26-11: reel @inzaghitrades — UI platform + gambar
+ *  langkah demi langkah sinkron VO). Koordinat normalisasi 0..1:
+ *  x = waktu kiri→kanan, y = harga bawah→atas. */
+interface DrawStepSpec {
+  t?: 'high' | 'low' | 'zone' | 'level' | 'path' | 'label' | 'circle' | string
+  label?: string
+  x1?: number
+  x2?: number
+  y1?: number
+  y2?: number
+  color?: string
+}
 
 interface VideoScene {
   kind?: SceneKind
@@ -58,6 +72,7 @@ interface VideoScene {
   sub: string
   vo: string
   image_prompt?: string
+  draw?: DrawStepSpec[]
 }
 
 /** Slide carousel IG 1080×1350 — dirender runner via renderStill SintaCarousel. */
@@ -315,7 +330,14 @@ REFERENSI GAYA DARI BOS (reel FB Sans Traders — patokan selera Bos, TIRU STRUK
 - SATU konsep teknikal sederhana per konten (contoh: RETEST / support-resistance) — jangan campur banyak konsep.
 - Alur konsep dijelaskan 3-4 langkah emoji-bullet (🔁✅🛑❌) — di video = 3-4 scene point yang nge-step, di carousel = slide per langkah.
 - Akhiri dgn janji SERI ("Seri Trader Pemula Luxtradee bagian X") + disclaimer edukasi 1 baris ("Konten edukasi, bukan ajakan transaksi. Trading berisiko tinggi.").
-- Referensi asli: https://www.facebook.com/share/r/1Dg6ykHFCp/?mibextid=wwXIfr
+- REFERENSI asli: https://www.facebook.com/share/r/1Dg6ykHFCp/?mibextid=wwXIfr
+
+REFERENSI #4 DARI BOS (26 Nov — reel IG @inzaghitrades "proyeksi standard deviation", TIRU POLANYA, brand tetap Luxtradee):
+- TAMPILAN = layar platform trading BENERAN (bukan kartu teks): chart XAUUSD + alat gambar digambar LANGKAH DEMI LANGKAH sinkron dgn voiceover — tandai high & low manipulation leg → tarik fibonacci → proyeksi level -2 / -2.5 / -4 → sebutkan area reversal + liquidity.
+- VO menyebut tiap langkah TEPAT saat garisnya muncul di chart. Kalimat mulai dari pain penonton ("Udah entry tapi bingung target di mana?").
+- Tutup dgn "Save dulu biar gak lupa pas lagi chart".
+- Di spec = scene kind 'tutorial' + field "draw" (aturan lengkap di ATURAN SCENE di bawah). Referensi asli: https://www.instagram.com/reel/DgAE57bBDFk/
+- CATATAN: STYLE mengikuti referensi di atas; DURASI & struktur scene tetap kena ATURAN FORMAT 20 DETIK di bawah.
 
 REFERENSI #2 DARI BOS (reel IG Phoenix Signal — pola bedah 2 konsep, TIRU POLANYA, brand tetap Luxtradee):
 - Hook = PERTANYAAN PERBANDINGAN 2 konsep: "A vs B, bedanya apa?" — penonton penasaran jawabannya.
@@ -368,7 +390,9 @@ ATURAN 3 DETIK PERTAMA (DATA BOS 11 NOV: 163 views, cuma 13% lolos 3 detik, rata
 - Scene penutup (cta): sub WAJIB berisi 1 PERTANYAAN SPESIFIK yang gampang dijawab komen, ATAU ajakan komen KEYWORD 1 kata utk lead magnet DM (referensi Bos: komen "ZONA" → cheat sheet ke DM) — bukan cuma "cek link di bio". Pertanyaan/keyword = komentar = distribusi.
 
 - Bahasa Indonesia santai gaya anak trader. TANPA janji profit/auto cuan. Angka sinyal (entry/exit/%) HARUS dipakai PERSIS seperti data yang diberikan — DILARANG mengarang/mengubah angka.
-- Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, natural — angka dibaca dengan huruf; ikuti budget 20 detik: hook ≤45, masalah ≤65, solusi ≤75, cta ≤35).
+- Setiap scene: kind (hook|point|chart|tutorial|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, natural — angka dibaca dengan huruf; ikuti budget 20 detik: hook ≤45, masalah ≤65, solusi ≤75, cta ≤35).
+- SCENE 'tutorial' — TAMPILAN BARU, WAJIB DIPAKAI (permintaan Bos 26 Nov: "ui tampilan dan vonya keren, bukan teks aja sama animasi biasa" — referensi #4): layar terminal chart XAUUSD realistis + alat gambar ANIMASI muncul langkah demi langkah sinkron VO. WAJIB sertakan field "draw": array 3-6 langkah gambar. Schema tiap langkah: {"t":"high|low|zone|level|path|label|circle","label":"maks 14 char","x1":0..1,"x2":0..1,"y1":0..1,"y2":0..1,"color":"green|red|cyan|amber"} — y = posisi harga (0 = bawah chart, 1 = atas), x = posisi waktu (0 = kiri, 1 = kanan). Pilih yang relevan: 'high'/'low' utk swing high/low & equal highs, 'zone' utk supply/demand/OB/FVG, 'level' utk proyeksi target/fib level (label contoh: "-2 SD", "-2.5", "TP 1"), 'path' utk skenario arah harga (panah animasi — paling nendang secara visual), 'label' utk chip nama (EQH/SWEEP/BIS/OB), 'circle' utk highlight area liquidity. Urutan langkah = urutan VO (langkah pertama muncul saat VO menyebutnya). Posisi HARUS realistis & konsisten dgn cerita: high di atas (0.75-0.9), low di bawah (0.1-0.3), proyeksi target di area tengah/bawah utk long. Contoh scene tutorial utuh: {"kind":"tutorial","title":"PROYEKSI TARGET","sub":"bingung target? proyeksiin pakai SD","vo":"Udah entry tapi bingung target di mana? Tandai high low manipulation, tarik fib, proyeksi minus dua sampai minus dua koma lima.","draw":[{"t":"high","y1":0.82,"label":"HIGH","color":"red"},{"t":"low","y1":0.22,"label":"LOW","color":"green"},{"t":"level","y1":0.52,"label":"-2 SD","color":"amber"},{"t":"level","y1":0.38,"label":"-2.5 SD","color":"amber"},{"t":"path","x1":0.55,"y1":0.52,"x2":0.88,"y2":0.42,"color":"cyan"}]}
+- Untuk topik EDUKASI TEKNIKAL (konsep chart: zona, fib, proyeksi, sweep, retest), scene MASALAH atau SOLUSI minimal SATU pakai kind 'tutorial' — pengganti 'point' bila isinya langkah menggambar/analisa di chart. Topik emosi/pain point (revenge, FOMO, disiplin) tetap pakai 'point'.
 - Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
 - VARIASI LINGUISTIK: jangan mulai hook dengan kata/frasa yang sama dengan daftar "jangan ulangi"; ganti struktur kalimat (pertanyaan / pernyataan / angka / perintah) dibanding run sebelumnya.
 - caption TikTok ≤ 200 karakter + 1 pertanyaan spesifik buat komen ATAU ajakan save (DILARANG "cek link di bio" — era engagement).
@@ -492,7 +516,7 @@ function validSpec(s: VideoSpec | null, template: Template): s is VideoSpec {
       typeof sc.title === 'string' && sc.title.length > 0 && sc.title.length <= 30 &&
       typeof sc.sub === 'string' &&
       typeof sc.vo === 'string' && sc.vo.length > 3 &&
-      (!sc.kind || ['hook', 'point', 'chart', 'quote', 'stat', 'cta'].includes(sc.kind)),
+      (!sc.kind || ['hook', 'point', 'chart', 'tutorial', 'quote', 'stat', 'cta'].includes(sc.kind)),
   )
   // carousel opsional dari LLM — kalau tidak valid, fallback from-scenes di sanitize
   const carouselOk =
@@ -513,8 +537,45 @@ function capVo(text: string, max: number): string {
   return (sp > Math.floor(max * 0.5) ? cut.slice(0, sp) : cut).replace(/[\s,.;:!?—-]+$/, '').trim()
 }
 
+/** Tameng langkah gambar terminal (scene 'tutorial'/'chart') — LLM bisa
+ *  mengarang tipe/koordinat aneh: whitelist tipe, clamp koordinat 0..1,
+ *  label dibersihkan, maks 6 langkah. Salah semua → undefined (scene
+ *  tetap jalan sbg chart polos, tidak pernah menggagalkan konten). */
+const DRAW_TYPES = ['high', 'low', 'zone', 'level', 'path', 'label', 'circle']
+
+function sanitizeDraw(raw: unknown): DrawStepSpec[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const num = (v: unknown, d: number): number => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v))
+    return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : d
+  }
+  const out: DrawStepSpec[] = []
+  for (const item of raw.slice(0, 6)) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const t = String(o.t || '').trim().toLowerCase()
+    if (!DRAW_TYPES.includes(t)) continue
+    const label = o.label != null
+      ? String(o.label).replace(/[^\w\s+\-.,%°]/g, '').trim().slice(0, 14)
+      : ''
+    const color = ['green', 'red', 'cyan', 'amber'].includes(String(o.color || ''))
+      ? String(o.color)
+      : undefined
+    out.push({
+      t,
+      label: label || undefined,
+      x1: num(o.x1, 0.3),
+      x2: num(o.x2, 0.7),
+      y1: num(o.y1, 0.6),
+      y2: num(o.y2, 0.3),
+      color,
+    })
+  }
+  return out.length ? out : undefined
+}
+
 function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | null): VideoSpec {
-  const ALLOWED: SceneKind[] = ['hook', 'point', 'chart', 'quote', 'stat', 'cta']
+  const ALLOWED: SceneKind[] = ['hook', 'point', 'chart', 'tutorial', 'quote', 'stat', 'cta']
   /* FORMAT 20 DETIK (arah Bos — referensi reel Luxtradee): maks 4 scene
      hook → masalah → solusi → cta. Budget VO per posisi (edge-tts ±13
      karakter/detik + jeda 0.9 dtk tiap scene): hook 46 · masalah 66 ·
@@ -529,6 +590,7 @@ function sanitizeSpec(s: VideoSpec, template: Template, signal: SignalData | nul
       title: String(sc.title).slice(0, 30),
       sub: String(sc.sub).slice(0, 60),
       vo: String(sc.vo),
+      draw: sanitizeDraw(sc.draw),
     }
   })
   if (scenes.length > 4) {

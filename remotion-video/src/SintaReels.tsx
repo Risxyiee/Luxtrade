@@ -12,8 +12,9 @@ import {
 } from "remotion";
 import { Backdrop } from "./components/Backdrop";
 import { BackgroundMusic } from "./components/Music";
-import { CandleChart, ChartPanel } from "./components/Chart";
-import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, SPRING_SOFT, clamp01, pop, rise, SceneShell } from "./components/Ui";
+import { genCandles } from "./components/Chart";
+import { activeStepIndex, ChartScreen, type TerminalStep } from "./components/ChartScreen";
+import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, SPRING_POP, SPRING_SOFT, clamp01, pop, rise, SceneShell } from "./components/Ui";
 import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
 
 /* ============================================================
@@ -21,16 +22,22 @@ import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
    ============================================================
    Berbeda dgn LuxtradePromo (5 scene produk tetap), komposisi ini
    merender scene APAPUN dari spesifikasi Sinta (LLM) via `kind`:
-     hook  → tipografi raksasa kata-per-kata + underline swipe
-     point → kartu bernomor + centang animasi
-     chart → panel candlestick animasi (nuansa pasar)
-     quote → kartu kutipan + bintang
-     stat  → angka raksasa count-up + bar
-     cta   → pil CTA glow + domain
-   Audio voiceover opsional (voFile). Dipakai utk template 'tip'. */
+     hook     → tipografi raksasa kata-per-kata + underline swipe
+     point    → kartu bernomor + centang animasi + strip candle mini
+     chart    → LAYAR TERMINAL trading realistis (Bos 26-11)
+     tutorial → terminal + ALAT GAMBAR langkah-demi-langkah
+                (garis/zona/proyeksi/panah) sinkron VO — pola reel
+                @inzaghitrades: "ui tampilan dan vonya keren, bukan
+                teks aja sama animasi biasa"
+     quote    → kartu kutipan + bintang
+     stat     → angka raksasa count-up + bar
+     cta      → pil CTA glow + domain
+   Audio voiceover per scene (voFile, edge-tts di runner). */
 
 export interface ReelsScene extends SceneProps {
   kind?: string;
+  /** Langkah gambar utk kind 'tutorial' / 'chart' (sudah di-sanitize worker). */
+  draw?: TerminalStep[];
 }
 
 export interface SintaReelsProps {
@@ -42,7 +49,7 @@ export interface SintaReelsProps {
 export const totalReelsFrames = (scenes: ReelsScene[]): number =>
   Math.max(1, scenes.reduce((sum, s) => sum + sceneFrames(s.durationSec), 0));
 
-const KINDS = ["hook", "point", "chart", "quote", "stat", "cta"] as const;
+const KINDS = ["hook", "point", "chart", "tutorial", "quote", "stat", "cta"] as const;
 type Kind = (typeof KINDS)[number];
 
 const normalizeKind = (k: string | undefined, index: number, total: number): Kind => {
@@ -272,28 +279,178 @@ const PointScene: React.FC<{ title: string; sub: string; badge: number; duration
             style={{ filter: "drop-shadow(0 0 8px rgba(52,211,153,0.7))" }}
           />
         </svg>
+
+        {/* strip candle mini — kartu tidak polos teks saja (Bos 26-11:
+            "bukan teks aja sama animasi biasa") */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 7, height: 84, marginTop: 34 }}>
+          {genCandles(badge * 17 + 5, badge % 2 === 0 ? "up" : "down", 22).map((cd, i) => {
+            const ap = spring({ fps, frame: Math.max(0, frame - 26 - i * 1.5), config: SPRING_POP });
+            const up = cd.c >= cd.o;
+            const bodyTop = (1 - Math.max(cd.o, cd.c)) * 84;
+            const bodyH = Math.max(3, Math.abs(cd.o - cd.c) * 84);
+            return (
+              <div key={i} style={{ flex: 1, opacity: clamp01(ap), transform: `scaleY(${Math.max(0.1, ap)})`, transformOrigin: "bottom" }}>
+                <div style={{ width: "100%", height: 2, background: up ? C.green : C.red, opacity: 0.7, transform: `translateY(${cd.h * 84 - 84}px)` }} />
+                <div style={{ width: "100%", height: bodyH, marginTop: bodyTop - 0, borderRadius: 3, background: up ? C.green : C.red, opacity: 0.9 }} />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </SceneShell>
   );
 };
 
-/* ---------------- chart — panel candlestick ---------------- */
+/* ---------------- chart — LAYAR TERMINAL trading (upgrade Bos 26-11) ---------------- */
 
-const ChartScene: React.FC<{ title: string; sub: string; seed: number; durationInFrames: number }> = ({ title, sub, seed, durationInFrames }) => {
+const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, seed, durationInFrames }) => {
   const frame = useCurrentFrame();
   const r = rise(frame, 4, 44);
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      <div style={{ position: "absolute", top: 560, left: 80, right: 80, ...r }}>
-        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 64, color: C.white, textAlign: "center", textShadow: "0 0 44px rgba(34,211,238,0.4)", marginBottom: 18 }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 128,
+          left: 70,
+          right: 70,
+          textAlign: "center",
+          ...r,
+        }}
+      >
+        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 62, color: C.white, textShadow: "0 0 44px rgba(34,211,238,0.4)", marginBottom: 14 }}>
           {title}
         </div>
-        <div style={{ fontFamily: FONT, fontWeight: 500, fontSize: 32, color: C.muted, textAlign: "center", marginBottom: 36 }}>
+        <div style={{ fontFamily: FONT, fontWeight: 500, fontSize: 30, color: C.muted }}>
           {sub}
         </div>
-        <ChartPanel>
-          <CandleChart seed={seed} trend="up" width={840} height={520} delay={8} />
-        </ChartPanel>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 318,
+          left: 70,
+          right: 70,
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <ChartScreen
+          width={940}
+          height={1330}
+          seed={seed}
+          trend="flat"
+          steps={draw}
+          durationInFrames={durationInFrames}
+        />
+      </div>
+    </SceneShell>
+  );
+};
+
+/* ---------------- tutorial — terminal + langkah gambar sinkron VO ---------------- */
+
+const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, seed, durationInFrames }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const steps = Array.isArray(draw) ? draw.slice(0, 6) : [];
+  const active = activeStepIndex(steps.length, frame, durationInFrames);
+  const strip = pop(frame, fps, 2);
+  const termS = spring({ fps, frame: Math.max(0, frame - 4), config: SPRING_SOFT });
+  return (
+    <SceneShell durationInFrames={durationInFrames}>
+      {/* strip judul + penghitung LANGKAH (ikut langkah gambar = ikut VO) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 128,
+          left: 70,
+          right: 70,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 20,
+          opacity: clamp01(strip),
+          transform: `translateY(${(1 - strip) * -46}px)`,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: FONT,
+            fontWeight: 900,
+            fontSize: 58,
+            lineHeight: 1.05,
+            color: C.white,
+            textShadow: "0 0 40px rgba(34,211,238,0.4)",
+          }}
+        >
+          {title}
+        </div>
+        {steps.length > 0 && (
+          <div
+            key={active}
+            style={{
+              flexShrink: 0,
+              padding: "12px 26px",
+              borderRadius: 999,
+              background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
+              color: "#04121a",
+              fontFamily: FONT,
+              fontWeight: 900,
+              fontSize: 26,
+              letterSpacing: 2,
+              boxShadow: "0 0 30px rgba(34,211,238,0.45)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            LANGKAH {Math.max(1, active + 1)}/{steps.length}
+          </div>
+        )}
+      </div>
+
+      {/* terminal trading — HERO */}
+      <div
+        style={{
+          position: "absolute",
+          top: 252,
+          left: 70,
+          right: 70,
+          display: "flex",
+          justifyContent: "center",
+          opacity: clamp01(termS),
+          transform: `translateY(${(1 - termS) * 70}px)`,
+        }}
+      >
+        <ChartScreen
+          width={940}
+          height={1370}
+          seed={seed}
+          trend="flat"
+          steps={steps}
+          durationInFrames={durationInFrames}
+        />
+      </div>
+
+      {/* subtitle — penonton scroll tanpa suara */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 176,
+          left: 60,
+          right: 60,
+          padding: "22px 34px",
+          borderRadius: 22,
+          background: "rgba(255,255,255,0.055)",
+          border: "1px solid rgba(34,211,238,0.25)",
+          fontFamily: FONT,
+          fontWeight: 700,
+          fontSize: 33,
+          color: "#E5E7EB",
+          textAlign: "center",
+          ...rise(frame, 10, 26),
+        }}
+      >
+        {sub}
       </div>
     </SceneShell>
   );
@@ -504,7 +661,8 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
           <Sequence key={`${scene.voFile}-${i}`} from={starts[i]} durationInFrames={frames[i]} name={`Scene ${i + 1} · ${kind}`}>
             {scene.voFile ? <Audio src={staticFile(scene.voFile)} /> : null}
             {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
-            : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} seed={seedBase + i * 17} durationInFrames={frames[i]} />
+            : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} seed={seedBase + i * 17} durationInFrames={frames[i]} />
+            : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} seed={seedBase + i * 17} durationInFrames={frames[i]} />
             : kind === "quote" ? <QuoteScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
             : kind === "stat" ? <StatScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
             : kind === "cta" ? <CtaScene title={scene.title} sub={scene.sub} domain={domain} durationInFrames={frames[i]} />
@@ -538,7 +696,19 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
 export const SINTA_DEFAULT_PROPS: SintaReelsProps = {
   scenes: [
     { kind: "hook", title: "SL KEBJAK TERUS?", sub: "bukan salah analisa — kamu entry kepagian", voFile: "vo/vo0.mp3", durationSec: 3.2 },
-    { kind: "chart", title: "EQUAL HIGHS = UMPAN", sub: "liquidity numpuk di atas — smart money narik dulu", voFile: "vo/vo1.mp3", durationSec: 3.6 },
+    {
+      kind: "tutorial",
+      title: "SWEEP DULU, BARU JALAN",
+      sub: "equal highs = umpan — smart money narik dulu",
+      voFile: "vo/vo1.mp3",
+      durationSec: 4.4,
+      draw: [
+        { t: "high", y1: 0.84, label: "EQH", color: "red" },
+        { t: "circle", x1: 0.66, y1: 0.86, label: "LIQUIDITY", color: "cyan" },
+        { t: "path", x1: 0.62, y1: 0.8, x2: 0.3, y2: 0.3, label: "SWEEP", color: "cyan" },
+        { t: "zone", x1: 0.12, x2: 0.45, y1: 0.34, y2: 0.2, label: "DEMAND", color: "green" },
+      ],
+    },
     { kind: "point", title: "TUNGGU SWEEP SELESAI", sub: "reaksi + displacement dulu, baru entry", voFile: "vo/vo2.mp3", durationSec: 3.6 },
     { kind: "cta", title: "CATAT TIAP SETUP", sub: "screenshot → luxtradee auto jurnal — link di bio", voFile: "vo/vo3.mp3", durationSec: 3.0 },
   ],

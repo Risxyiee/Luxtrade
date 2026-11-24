@@ -195,6 +195,10 @@ jobs:
                   "voFile": f"vo/vo{i}.mp3",
                   "durationSec": round(dur, 2),
                   "kind": sc.get("kind"),
+                  # langkah gambar terminal utk scene 'tutorial'/'chart'
+                  # (Bos 26-11: UI platform + gambar langkah demi langkah
+                  # sinkron VO — sudah di-sanitize di worker)
+                  **({"draw": sc["draw"]} if sc.get("draw") else {}),
               })
               print(f"scene {i+1} ({sc.get('kind','point')}): {dur:.2f}s — {sc['title']}")
 
