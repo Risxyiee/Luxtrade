@@ -257,7 +257,8 @@ function isFreshSignal(s: SignalData | null): s is SignalData {
 
 /* ============================================================
    Pemilihan template + ANGLE + TOPIK → pindah ke src/lib/sinta-brain.ts
-   (Sinta Brain v4: 11 angle, 42 topik, anti-kembar 10 run, A/B performa)
+   (Sinta Brain v4: 11 angle, 47 topik era engagement — promo ditangguhkan,
+   anti-kembar 10 run, A/B performa)
    ============================================================ */
 
 /* ============================================================
@@ -274,8 +275,8 @@ function buildSignalSpec(signal: SignalData): VideoSpec {
     template: 'signal',
     topic: `Recap sinyal asli ${signal.symbolLabel} ${signal.side} — ${resultLabel(signal.result)}`,
     caption: win
-      ? `${signal.side} ${signal.symbolLabel} → ${resultLabel(signal.result)} ${pctText} ✅ Sinyal dari Luxtrade, dieksekusi telat tetap keburu. Cek link di bio`
-      : `${signal.side} ${signal.symbolLabel} ke ${resultLabel(signal.result)} ${pctText}. Disiplin SL = bagian dari sistem. Cek link di bio`,
+      ? `${signal.side} ${signal.symbolLabel} → ${resultLabel(signal.result)} ${pctText} ✅ Recap asli — tim manual atau auto? Komen`
+      : `${signal.side} ${signal.symbolLabel} ke ${resultLabel(signal.result)} ${pctText}. Disiplin SL = bagian dari sistem. Tim manual atau auto? Komen`,
     hashtags: ['xauusd', 'goldtrader', 'smc', 'tradingindonesia', 'luxtrade'],
     igCaption:
       `📊 RECAP SINYAL ASLI — ${signal.symbolLabel} ${signal.side}\n\n` +
@@ -283,17 +284,17 @@ function buildSignalSpec(signal: SignalData): VideoSpec {
       `Exit   : ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}\n` +
       `Hasil  : ${resultLabel(signal.result)} ${pctText} ${win ? '✅' : '🛡️'}\n\n` +
       (win
-        ? 'Setup ini terdeteksi otomatis oleh engine Luxtrade — alert Entry/SL/TP masuk langsung ke layar HP, tinggal eksekusi.\n\n'
-        : 'SL kena itu bagian dari sistem — yang penting risiko kecil, winner lebih besar. Semua tercatat otomatis di jurnal.\n\n') +
-      'Mau sinyal seperti ini masuk ke HP kamu? Cek link di bio 🔗\n\n' +
+        ? 'Recap ini angka ASLI dari data — tanpa nebak-nebak. Disiplin eksekusi tetap kuncinya.\n\n'
+        : 'SL kena itu bagian dari sistem — yang penting risiko kecil, winner lebih besar. Recap angka ASLI, bukan gambaran.\n\n') +
+      'Save recap ini buat pembanding eksekusi kamu sendiri. Tim manual atau auto? Komen 🔗\n\n' +
       '#xauusd #goldtrader #smc #smartmoneyconcepts #tradingindonesia #tradingsignal #priceaction #tradingjournal #forexindonesia #luxtrade',
     carousel: null, // diisi otomatis oleh withCarousel() — fallback dari scenes
     signal,
     scenes: [
       { kind: 'hook', title: win ? 'TP KEBELI 🎯' : 'DISIPLIN SL 🛡️', sub: `sinyal ${signal.side} ${signal.symbolLabel} dari engine luxtrade`, vo: win ? `TP kebeli. Sinyal ${signal.side} dari Luxtrade.` : `SL nyala. Sinyal ${signal.side} dari Luxtrade.` },
       { kind: 'chart', title: signal.side === 'LONG' ? 'LONG SEJAK ENTRY' : 'SHORT SEJAK ENTRY', sub: `entry ${signal.entry.toLocaleString('id-ID')} → exit ${signal.exit.toLocaleString('id-ID')}`, vo: `Entry ${signal.entry.toLocaleString('id-ID', { minimumFractionDigits: 2 })}, keluar ${signal.exit.toLocaleString('id-ID', { minimumFractionDigits: 2 })}.` },
-      { kind: 'stat', title: `${pctText}`, sub: win ? 'hasil per gerakan ini — tercatat otomatis di jurnal' : 'risiko terkendali — SL jalan sesuai rencana', vo: win ? `Hasilnya ${pctText.replace('%', ' persen')}. Tercatat di jurnal.` : 'Risikonya terkendali. SL jalan sesuai rencana.' },
-      { kind: 'cta', title: 'MAU SINYAL KE HP?', sub: 'tim manual atau auto? komen — link di bio', vo: 'Sinyal ke HP kamu. Link di bio.' },
+      { kind: 'stat', title: `${pctText}`, sub: win ? 'hasil per gerakan ini — angka recap ASLI' : 'risiko terkendali — SL jalan sesuai rencana', vo: win ? `Hasilnya ${pctText.replace('%', ' persen')}.` : 'Risikonya terkendali. SL jalan sesuai rencana.' },
+      { kind: 'cta', title: 'TIM MANUAL ATAU AUTO?', sub: 'jujur, kamu tim mana? komen di bawah', vo: 'Tim manual atau auto? Komen.' },
     ],
   }
 }
@@ -306,7 +307,7 @@ function resultLabel(r: 'TP' | 'SL'): string {
    LLM — menulis isi sesuai template yang dipilih worker
    ============================================================ */
 
-const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten video trader Indonesia (jurnal trading AI, PRO Rp49.000/bulan, audiens SMC/ICT XAUUSD).
+const SYSTEM_PROMPT = `Kamu SINTA, CMO Luxtradee — spesialis konten video trader Indonesia (audiens SMC/ICT XAUUSD; FASE SEKARANG = growth akun konten: kejar views & komen, BUKAN jualan).
 Konten vertikal yang bikin jempol BERHENTI scroll: hook provokatif 1-2 detik pertama, isi nyindir kebiasaan buruk trader, tutup CTA.
 
 REFERENSI GAYA DARI BOS (reel FB Sans Traders — patokan selera Bos, TIRU STRUKTURNA, brand tetap Luxtradee):
@@ -348,7 +349,12 @@ KAMU MENERIMA: (1) data performa asli (top video TikTok + profil audiens + rata-
 TUGASMU: tulis TEPAT 4 scene (struktur HOOK → MASALAH → SOLUSI → CTA) utk template itu DENGAN ANGLE & TOPIK yang ditugaskan, plus caption TikTok (pendek), caption Instagram (panjang), dan 4-6 slide carousel.
 
 ATURAN FORMAT 20 DETIK (HARD RULE dari Bos — referensi reel Luxtradee):
-- STRUKTUR WAJIB TEPAT 4 SCENE: (1) HOOK — masalah menyindir 1 baris; (2) MASALAH — elaborasi pain/konsekuensinya, bikin penonton ngaku "itu gue banget"; (3) SOLUSI — jalan keluar konkret (konsep teknikal ATAU fitur Luxtradee); (4) CTA — 1 pertanyaan spesifik buat komen + link di bio.
+- STRUKTUR WAJIB TEPAT 4 SCENE: (1) HOOK — masalah menyindir 1 baris; (2) MASALAH — elaborasi pain/konsekuensinya, bikin penonton ngaku "itu gue banget"; (3) SOLUSI — jalan keluar konkret (konsep teknikal / kebiasaan / aturan pribadi); (4) CTA — 1 pertanyaan spesifik buat komen.
+
+ERA ENGAGEMENT (HARD RULE dari Bos 23 Nov: "fokus cari engagement sama views, jangan jualan jurnal dulu"):
+- FASE SEKARANG = GROWTH, BUKAN PENJUALAN. DILARANG KERAS menulis: harga/PRO/Rp, "link di bio", "download", "jurnal otomatis", "agen AI", "alert/sinyal ke HP", atau manfaat fitur produk apa pun. Produk TIDAK disebut sama sekali — konten murni edukasi/relatable trader.
+- CTA = komentar, save, share, atau follow. Pertanyaan penutup harus gampang dijawab ("kena yang mana? komen nomornya") ATAU keyword lead magnet DM (komen "ZONA" → cheat sheet). Komentar = distribusi = views.
+- Ukuran sukses fase ini: retensi 3 detik pertama + jumlah komen — BUKAN klik bio. Prioritaskan hook kontradiksi & pertanyaan yang mengundang debat.
 - VIDEO TEPAT ±20 DETIK. Voiceover ±13 karakter/detik + jeda 0.9 detik tiap scene → TOTAL SELURUH VO ≤ 220 karakter. Kalau kepanjangan, PANGKAS isi — DILARANG menambah scene.
 - Budget VO per scene: HOOK ≤45 karakter, MASALAH ≤65, SOLUSI ≤75, CTA ≤35. Satu-dua kalimat pendek per scene, bukan paragraf.
 
@@ -365,10 +371,10 @@ ATURAN 3 DETIK PERTAMA (DATA BOS 11 NOV: 163 views, cuma 13% lolos 3 detik, rata
 - Setiap scene: kind (hook|point|chart|quote|stat|cta — scene pertama WAJIB 'hook', terakhir WAJIB 'cta'), title (ID, MAKS 22 karakter, HURUF BESAR), sub (ID, maks 42 karakter), vo (ID, natural — angka dibaca dengan huruf; ikuti budget 20 detik: hook ≤45, masalah ≤65, solusi ≤75, cta ≤35).
 - Tiru POLA yang terbukti menang di data (topik/angle dari top video), TAPI JANGAN mengulang topik yang dilarang di daftar "jangan ulangi".
 - VARIASI LINGUISTIK: jangan mulai hook dengan kata/frasa yang sama dengan daftar "jangan ulangi"; ganti struktur kalimat (pertanyaan / pernyataan / angka / perintah) dibanding run sebelumnya.
-- caption TikTok ≤ 200 karakter + 1 CTA "cek link di bio" + 1 pertanyaan spesifik buat komen (2 kalimat terakhir).
+- caption TikTok ≤ 200 karakter + 1 pertanyaan spesifik buat komen ATAU ajakan save (DILARANG "cek link di bio" — era engagement).
 - igCaption Instagram: 500-1200 karakter, storytelling + poin bernomor/emoji, CTA, disclaimer 1 baris, hashtag FOKUS 5-8 relevan (referensi Bos: sedikit tapi nendang, bukan 12 sekaligus).
 - 4-5 hashtag untuk TikTok.
-- Carousel: 4-6 slides. Slide pertama kind='cover' (hook, TANPA vo), slide terakhir kind='cta' (ajak save/share + cek link di bio), slide tengah kind 'point'|'chart'|'stat'|'quote'. Isi carousel = versi SAVEABLE dari topik video (poin-poin padat layak disave user), BUKAN salinan mentah scene video. title ≤ 40 karakter, sub ≤ 90 karakter.
+- Carousel: 4-6 slides. Slide pertama kind='cover' (hook, TANPA vo), slide terakhir kind='cta' (ajak save/share + pertanyaan komen — TANPA "link di bio"), slide tengah kind 'point'|'chart'|'stat'|'quote'. Isi carousel = versi SAVEABLE dari topik video (poin-poin padat layak disave user), BUKAN salinan mentah scene video. title ≤ 40 karakter, sub ≤ 90 karakter.
 
 FORMAT OUTPUT WAJIB JSON MURNI (tanpa markdown fence):
 {"topic":"...","scenes":[{"kind":"hook","title":"...","sub":"...","vo":"..."}],"caption":"...","hashtags":["..."],"igCaption":"...","carousel":{"slides":[{"kind":"cover","title":"...","sub":"..."}]}}`
@@ -578,9 +584,9 @@ function buildCarouselFromScenes(spec: VideoSpec): CarouselSpec {
   }
   return {
     slides: [
-      { kind: 'cover', title: sc[0]?.title || 'LUXTRADE', sub: sc[0]?.sub || 'sinyal AI + jurnal otomatis buat trader Indonesia' },
+      { kind: 'cover', title: sc[0]?.title || 'LUXTRADE', sub: sc[0]?.sub || 'edukasi trading buat trader Indonesia' },
       ...mids,
-      { kind: 'cta', title: sc[sc.length - 1]?.title || 'MULAI SEKARANG', sub: 'screenshot → jurnal otomatis — cek link di bio' },
+      { kind: 'cta', title: sc[sc.length - 1]?.title || 'SAVE INI', sub: 'save buat pengingat — dan komen pendapat kamu' },
     ],
   }
 }

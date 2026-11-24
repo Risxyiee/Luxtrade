@@ -27,6 +27,18 @@
  *      → template pemenang dipakai 70%, 30% tetap eksperimen (A/B "mana
  *      yang rame mana yang nggak" versi otomatis).
  *
+ *   E. ERA ENGAGEMENT (Bos 23 Nov: "fokus cari engagement sama views,
+ *      jangan jualan jurnal dulu" + "bikin konten tema trigger masalah
+ *      trader"):
+ *      - Topik promo-fitur & promo-cta DITARIK dari pool (termasuk klaim
+ *        "8 agen AI" yang tidak akurat lagi — kini cuma 4 — dan "alert
+ *        sinyal ke HP" yang fiturnya belum aktif).
+ *      - Template promo DIMATIKAN dari rotasi → hanya tip/signal.
+ *      - 6 topik TRIGGER masalah trader baru (revenge, overconfidence,
+ *        FOMO, bosan, timeline orang profit, geser SL).
+ *      - Semua CTA fallback & prompt = komentar/save/share/follow —
+ *        TANPA "link di bio", TANPA sebut fitur produk.
+ *
  * Semua seleksi DETERMINISTIK per hari (hash tanggal) supaya:
  *   - tidak dobel walau cron kena trigger ulang di hari yang sama,
  *   - mudah diaudit ("kenapa hari ini pilih topik X" → bisa dijelaskan).
@@ -222,11 +234,15 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
       'Konsistensi itu boring. Justru itu gunanya',
     ],
   },
+  /* ERA ENGAGEMENT (Bos 23 Nov): angle promo DITANGGUHKAN dari rotasi —
+     pickAngleAndTopic tidak lagi memilih keduanya. Definisi disimpan
+     untuk fase jualan nanti; saat diaktifkan kembali, UPDATE dulu klaim
+     produknya (agen AI kini 4, bukan 8; fitur alert sinyal belum aktif). */
   'promo-fitur': {
     id: 'promo-fitur',
-    label: 'Soft-sell 1 fitur Luxtradee',
+    label: '[DITANGGUHKAN era engagement] Soft-sell 1 fitur Luxtradee',
     guidance:
-      'Buka dari pain point nyata dulu (2 scene). Fitur muncul sebagai SOLUSI di scene 3 — cuma SATU fitur, tunjukkan cara kerjanya singkat. Harga JANGAN disebut di video ini (itu tugas promo-cta).',
+      'TIDAK DIPAKAI fase engagement (23 Nov). Saat diaktifkan kembali: buka dari pain point nyata dulu (2 scene). Fitur muncul sebagai SOLUSI di scene 3 — cuma SATU fitur, tunjukkan cara kerjanya singkat. Harga JANGAN disebut di video ini (itu tugas promo-cta).',
     hookPatterns: [
       'Screenshot doang, jurnal kecatat sendiri. Begini:',
       'Alert masuk pas kamu tidur — ini cara kerjanya',
@@ -238,11 +254,10 @@ export const SINTA_ANGLES: Record<AngleId, Angle> = {
   },
   'promo-cta': {
     id: 'promo-cta',
-    label: 'Penawaran langsung (hard-sell sopan)',
+    label: '[DITANGGUHKAN era engagement] Penawaran langsung (hard-sell sopan)',
     guidance:
-      'Langsung ke value: 8 agen AI + jurnal otomatis + guard prop firm, harga PRO Rp49.000/bulan. Buktikan dengan manfaat, bukan janji cuan. Tutup: "link di bio, 2 menit setup".',
+      'TIDAK DIPAKAI fase engagement (23 Nov). KLAIM LAMA TIDAK AKURAT: dulu "8 agen AI" — kini cuma 4 — dan fitur alert sinyal ke HP belum aktif; WAJIB diverifikasi ulang sebelum angle ini dipakai lagi. Saat aktif: langsung ke value, buktikan dengan manfaat, bukan janji cuan. Tutup: "link di bio, 2 menit setup".',
     hookPatterns: [
-      'Rp49.000/bulan buat 8 agen AI pantau pasar 24 jam',
       'Kamu pantau chart — Luxtrade pantau peluangnya',
       'Hitung sendiri: 1 entry bagus cukup balik modal PRO',
     ],
@@ -289,12 +304,21 @@ export const TOPIC_POOL: TopicEntry[] = [
   // tanya-audiens
   { topic: 'Kamu tim scalping atau tim swing? Argumen dua kubus + ajakan komentar', angle: 'tanya-audiens' },
   { topic: 'Jujur: news bikin kamu profit atau loss? Debat dua sisi + komentar', angle: 'tanya-audiens' },
-  // promo-fitur
-  { topic: 'Screenshot → jurnal kecatat otomatis: begini cara kerjanya (soft-sell)', angle: 'promo-fitur' },
-  { topic: 'Guard prop firm: alert masuk SEBELUM drawdown breach, bukan sesudah (soft-sell)', angle: 'promo-fitur' },
-  { topic: 'Sinyal Entry/SL/TP otomatis ke layar HP — kamu tidur, agen tetap jaga (soft-sell) — JANGAN janji "realtime" (amanat Bos)', angle: 'promo-fitur' },
-  // promo-cta
-  { topic: 'PRO Rp49.000/bulan: 8 agen AI + jurnal otomatis — hitung balik modalnya (hard-sell)', angle: 'promo-cta' },
+  /* ===== ERA ENGAGEMENT (Bos 23 Nov): topik promo-fitur & promo-cta
+     DITARIK dari pool — fokus views + komen dulu, jualan belakangan.
+     Alasan konkret: klaim "8 agen AI" tidak akurat lagi (kini 4) dan
+     fitur "alert sinyal ke HP" belum aktif — konten jualan malah bikin
+     kredibilitas turun. ===== */
+
+  // pain-point — ERA TRIGGER (Bos 23 Nov: "bikin konten tema trigger
+  // masalah trader"): pembahasan TRIGGER (pemicu emosi) di balik masalah,
+  // bukan sekadar gejalanya — format relatable = mesin komen & save.
+  { topic: 'Trigger baru loss → langsung entry lagi: yang megang klik emosi, bukan setup', angle: 'pain-point' },
+  { topic: 'Trigger baru profit 2x → lot langsung dibesarin: overconfidence nyamar jadi skill', angle: 'pain-point' },
+  { topic: 'Trigger FOMO: lihat harga lari → klik tanpa setup, cuma takut ketinggalan', angle: 'pain-point' },
+  { topic: 'Trigger bosan: buka posisi asal biar "ada aja" — TP/SL nggak jelas', angle: 'pain-point' },
+  { topic: 'Trigger timeline: lihat orang posting profit → ikutan entry tanpa plan sendiri', angle: 'pain-point' },
+  { topic: 'Trigger SL kena dikit → geser SL terus daripada terima cut loss kecil', angle: 'pain-point' },
   /* ===== BATCH TEMA BARU (bikinan Sinta sendiri atas arah Bos "temanya km
      bikinkan sendiri", 22 Nov) — meluaskan pola referensi Phoenix Signal
      (bedah 2 konsep A vs B) + tema segar lintas angle ===== */
@@ -324,105 +348,112 @@ export const TOPIC_POOL: TopicEntry[] = [
 /* ============================================================
    C) FALLBACK LIBRARY — 9 script lengkap (LLM mati semua pun feed ganti-ganti)
    Topik di sini SENGAJA sama dengan TOPIC_POOL → anti-repeat tetap nyambung.
+   ERA ENGAGEMENT (Bos 23 Nov): SEMUA script kini template 'tip' — 3 script
+   promo DITARIK (klaim "8 agen AI" tidak akurat lagi, fitur alert belum
+   aktif, dan fase sekarang kejar views/komen dulu) → diganti 3 script
+   TRIGGER masalah trader, semua CTA engagement (komen/save/follow).
    ============================================================ */
 
 const FALLBACK_LIBRARY: VideoSpecLite[] = [
   {
     template: 'tip',
     topic: 'SL kejebak terus — kamu entry SEBELUM sweep selesai (equal highs itu umpan)',
-    caption: 'Sweep dulu, baru gerak. Ini yang bikin SL kamu kejebak terus 📉 Cek link di bio',
+    caption: 'Sweep dulu, baru gerak. Ini yang bikin SL kamu kejebak terus 📉 Save biar nggak lupa',
     hashtags: ['smc', 'smartmoneyconcepts', 'xauusd', 'tradingindonesia', 'luxtrade'],
     igCaption:
-      'SL kejebak terus padahal analisa "udah bener"? 😤\n\nBiasanya kamu entry SEBELUM sweep selesai. Equal highs itu umpan — smart money narik liquidity dulu, baru price turun.\n\n3 hal yang dibahas di video ini:\n1️⃣ Cara mark equal highs & equal lows\n2️⃣ Tanda sweep-nya SELESAI (reaksi + displacement)\n3️⃣ Kapan BOLEH entry setelah sweep\n\nSave video ini biar nggak lupa. Dan catat setiap setup kamu di Luxtradee — cukup screenshot, jurnal & winrate kehitung otomatis. Link di bio 🔗\n\n#smc #smartmoneyconcepts #xauusd #goldtrader #tradingindonesia #belajartrading #ictconcepts #tradingjournal #priceaction #luxtrade',
+      'SL kejebak terus padahal analisa "udah bener"? 😤\n\nBiasanya kamu entry SEBELUM sweep selesai. Equal highs itu umpan — smart money narik liquidity dulu, baru price turun.\n\n3 hal yang dibahas di video ini:\n1️⃣ Cara mark equal highs & equal lows\n2️⃣ Tanda sweep-nya SELESAI (reaksi + displacement)\n3️⃣ Kapan BOLEH entry setelah sweep\n\nSave video ini biar kebaca pas lagi analisa. Follow @luxtradee — seri edukasi BASIC tiap hari kerja. Jujur: pernah kena sweep juga? Komen 🔁\n\n#smc #smartmoneyconcepts #xauusd #goldtrader #tradingindonesia #belajartrading #ictconcepts #tradingjournal #priceaction #luxtrade',
     scenes: [
       { kind: 'hook', title: 'SL KEBJAK TERUS?', sub: 'bukan salah analisa — kamu entry kepagian', vo: 'SL kejebak terus padahal analisa udah bener?' },
       { kind: 'chart', title: 'EQUAL HIGHS = UMPAN', sub: 'liquidity numpuk di atas — smart money narik dulu', vo: 'Equal highs itu umpan. Liquidity numpuk di atasnya.' },
       { kind: 'point', title: 'TUNGGU SWEEP SELESAI', sub: 'reaksi + displacement dulu, baru entry', vo: 'Tunggu sweep selesai — reaksi plus displacement, baru entry.' },
-      { kind: 'cta', title: 'CATAT TIAP SETUP', sub: 'tim buy atau sell? komen — link di bio', vo: 'Catat di Luxtradee. Link di bio.' },
+      { kind: 'cta', title: 'PERNAH KENA SWEEP?', sub: 'jujur, pernah? komen di bawah', vo: 'Pernah kena sweep? Komen.' },
     ],
   },
   {
     template: 'tip',
     topic: 'Fair Value Gap (FVG): celah harga yang suka diisi ulang — cara baca + entry-nya',
-    caption: 'Harga suka "balik" ke celahnya dulu. FVG dijelaskan 20 detik 📊 Cek link di bio',
+    caption: 'Harga suka "balik" ke celahnya dulu. FVG dijelaskan 20 detik 📊 Save ini',
     hashtags: ['fvg', 'smc', 'xauusd', 'belajartrading', 'luxtrade'],
     igCaption:
-      'Pernah entry terus harga "balik dulu" ke posisi kamu, nyenggol SL, baru jalan sesuai analisa? 😅\n\nItu bukan sial — itu Fair Value Gap (FVG) lagi diisi ulang.\n\nVideo ini bahas:\n1️⃣ FVG itu apa (dalam 1 kalimat)\n2️⃣ Kenapa harga suka balik ke celahnya\n3️⃣ Cara entry yang sabar: tunggu harga MASUK gap, jangan kejar\n\nMau tiap setup kecatat otomatis? Screenshot aja di Luxtradee — jurnal, RR, dan winrate kehitung sendiri. Link di bio 🔗\n\n#fvg #fairvaluegap #smc #xauusd #goldtrader #belajartrading #ictconcepts #tradingindonesia #priceaction #luxtrade',
+      'Pernah entry terus harga "balik dulu" ke posisi kamu, nyenggol SL, baru jalan sesuai analisa? 😅\n\nItu bukan sial — itu Fair Value Gap (FVG) lagi diisi ulang.\n\nVideo ini bahas:\n1️⃣ FVG itu apa (dalam 1 kalimat)\n2️⃣ Kenapa harga suka balik ke celahnya\n3️⃣ Cara entry yang sabar: tunggu harga MASUK gap, jangan kejar\n\nSave video ini buat dibuka pas lagi analisa. Follow @luxtradee — seri edukasi BASIC tiap hari kerja. Pernah kena FVG juga? Komen 🔁\n\n#fvg #fairvaluegap #smc #xauusd #goldtrader #belajartrading #ictconcepts #tradingindonesia #priceaction #luxtrade',
     scenes: [
       { kind: 'hook', title: 'HARGA SUKA BALIK DULU?', sub: 'itu FVG lagi diisi ulang — bukan sial', vo: 'SL kena duluan, baru harga jalan? Itu FVG.' },
       { kind: 'chart', title: 'FAIR VALUE GAP', sub: 'celah harga dari candle 3 yang lagi', vo: 'FVG itu celah harga dari tiga candle berurutan.' },
       { kind: 'point', title: 'TUNGGU HARGA MASUK', sub: 'entry di dalam gap, jangan kejar candle', vo: 'Jangan kejar. Tunggu harga masuk ke gap-nya dulu.' },
-      { kind: 'cta', title: 'UJI DI JURNAL KAMU', sub: 'pernah kena FVG juga? komen — link di bio', vo: 'Uji di Luxtradee. Link di bio.' },
+      { kind: 'cta', title: 'KENA FVG JUGA?', sub: 'pernah? jujur, komen di bawah', vo: 'Pernah kena FVG? Komen.' },
     ],
   },
   {
     template: 'tip',
     topic: '3 kesalahan jurnal yang bikin winrate kamu bohong (cherry-picking setup), (tak catat emosi), (RR fiktif)',
-    caption: 'Winrate di jurnal bagus, akun tetap ngecil? Cek 3 ini 📓 Cek link di bio',
+    caption: 'Winrate di jurnal bagus, akun tetap ngecil? Cek 3 ini 📓 Save buat audit',
     hashtags: ['tradingjournal', 'winrate', 'xauusd', 'tradingindonesia', 'luxtrade'],
     igCaption:
-      'Winrate di jurnal 70% tapi akun tetap ngecil? 🤔\n\nBerarti jurnalmu yang bohong. 3 kesalahan paling umum:\n\n1️⃣ CHERRY-PICKING — cuma catat trade yang bagus. Yang hancur? "ah, lupa screenshot".\n2️⃣ TAK CATAT EMOSI — FOMO, revenge, ragu. Tanpa kolom emosi, pola buruk nggak kelihatan.\n3️⃣ RR FIKTIF — RR 1:3 di catatan, tapi SL keseret karena "yakin banget".\n\nJurnal yang jujur itu cermin, bukan dekorasi. Luxtradee mencatat SEMUA trade dari screenshot — termasuk yang jelek. Baru winrate kamu beneran ngomong. Link di bio 🔗\n\n#tradingjournal #winrate #xauusd #tradingindonesia #tradingpsychology #belajartrading #goldtrader #smc #propfirm #luxtrade',
+      'Winrate di jurnal 70% tapi akun tetap ngecil? 🤔\n\nBerarti jurnalmu yang bohong. 3 kesalahan paling umum:\n\n1️⃣ CHERRY-PICKING — cuma catat trade yang bagus. Yang hancur? "ah, lupa screenshot".\n2️⃣ TAK CATAT EMOSI — FOMO, revenge, ragu. Tanpa kolom emosi, pola buruk nggak kelihatan.\n3️⃣ RR FIKTIF — RR 1:3 di catatan, tapi SL keseret karena "yakin banget".\n\nJurnal yang jujur itu cermin, bukan dekorasi. Mulai catat SEMUA trade — termasuk yang emosian dan yang jelek. Baru winrate kamu beneran ngomong. Save post ini buat pengingat audit jurnal 🔁\n\n#tradingjournal #winrate #xauusd #tradingindonesia #tradingpsychology #belajartrading #goldtrader #smc #propfirm #luxtrade',
     scenes: [
       { kind: 'hook', title: 'WINRATE 70% TETAP RUGI?', sub: 'jurnalmu yang bohong — cek 3 ini', vo: 'Winrate 70 persen tapi akun tetap ngecil?' },
       { kind: 'point', title: 'CHERRY-PICKING', sub: 'cuma catat yang bagus, yang hancur "lupa"', vo: 'Jurnalmu bohong — cuma catat trade yang bagus.' },
       { kind: 'point', title: 'CATAT SEMUA', sub: 'termasuk yang emosian — pola kelihatan', vo: 'Solusinya: catat semua trade, termasuk yang emosian.' },
-      { kind: 'cta', title: 'JURNAL JUJUR', sub: 'jurnal kamu jujur atau cherry-pick? komen', vo: 'Luxtradee catatin. Link di bio.' },
+      { kind: 'cta', title: 'JURNAL JUJUR', sub: 'jujur: jurnalmu bohong nggak? komen', vo: 'Jujur, jurnalmu bohong nggak?' },
     ],
   },
   {
     template: 'tip',
     topic: 'Revenge trading: balas dendam ke pasar pakai posisi makin besar',
-    caption: 'Kalah → gas doubling biar balik modal? Itu bukan strategi 🚫 Cek link di bio',
+    caption: 'Kalah → gas doubling biar balik modal? Itu bukan strategi 🚫 Pernah? komen',
     hashtags: ['revengetrading', 'tradingpsychology', 'xauusd', 'tradingindonesia', 'luxtrade'],
     igCaption:
-      'Baru SL, langsung buka posisi lagi DOBEL biar "balik modal"? 🎰\n\nItu namanya revenge trading — dan itu bukan strategi, itu emosi pakai jasa leverage.\n\nYang terjadi biasanya:\n• Loss 1% → balas dendam → loss 3% → balas dendam lagi → MC.\n• Pasar nggak kenal kamu. Dia nggak "berutang" apa-apa.\n\nAntidotnya simpel tapi keras:\n1️⃣ Aturan pribadi: MAX 2 trade/hari. Habis 2, tutup laptop.\n2️⃣ Cooldown 30 menit setelah SL — nggak ada negosiasi.\n3️⃣ Semua trade kecatat (termasuk yang emosian) — pola revenge kelihatan jelas di jurnal.\n\nLuxtradee bikin langkah 3 otomatis dari screenshot. Link di bio 🔗\n\n#tradingpsychology #revengetrading #xauusd #tradingindonesia #belajartrading #discipline #goldtrader #tradingjournal #propfirm #luxtrade',
+      'Baru SL, langsung buka posisi lagi DOBEL biar "balik modal"? 🎰\n\nItu namanya revenge trading — dan itu bukan strategi, itu emosi pakai jasa leverage.\n\nYang terjadi biasanya:\n• Loss 1% → balas dendam → loss 3% → balas dendam lagi → MC.\n• Pasar nggak kenal kamu. Dia nggak "berutang" apa-apa.\n\nAntidotnya simpel tapi keras:\n1️⃣ Aturan pribadi: MAX 2 trade/hari. Habis 2, tutup laptop.\n2️⃣ Cooldown 30 menit setelah SL — nggak ada negosiasi.\n3️⃣ Semua trade kecatat (termasuk yang emosian) — pola revenge kelihatan jelas di jurnal.\n\nSave video ini buat diinget pas emosi mulai megang klik. Follow @luxtradee — seri psikologi trader tiap hari kerja. Jujur: pernah revenge? Komen 🔁\n\n#tradingpsychology #revengetrading #xauusd #tradingindonesia #belajartrading #discipline #goldtrader #tradingjournal #propfirm #luxtrade',
     scenes: [
       { kind: 'hook', title: 'BALAS DENDAM KE PASAR?', sub: 'loss → doubling → MC. Kenal pola ini?', vo: 'Baru loss langsung buka posisi dobel?' },
       { kind: 'quote', title: 'PASAR NGGAK BERUTANG', sub: 'dia nggak kenal kamu — stop nuntut balik', vo: 'Itu revenge trading — emosi pakai jasa leverage.' },
       { kind: 'point', title: 'ATURAN ANTI-DENDAM', sub: 'max 2 trade/hari + cooldown 30 menit', vo: 'Maks dua trade sehari, cooldown tiga puluh menit.' },
-      { kind: 'cta', title: 'CATAT YANG EMOSIAN', sub: 'pernah revenge trading? jujur, komen', vo: 'Catat semua di jurnal. Link di bio.' },
+      { kind: 'cta', title: 'JUJUR, PERNAH REVENGE?', sub: 'jujur di komen — berapa kali?', vo: 'Pernah revenge? Jujur di komen.' },
+    ],
+  },
+  /* ===== 3 FALLBACK ERA TRIGGER (23 Nov, arah Bos: "bikin konten tema
+     trigger masalah trader" + "fokus engagement & views, jangan jualan")
+     — menggantikan 3 script promo. VO audit per script ≤220 karakter. ===== */
+  {
+    template: 'tip',
+    topic: 'Trigger baru profit 2x → lot langsung dibesarin: overconfidence nyamar jadi skill',
+    caption: 'Baru untung 2x langsung lot gede? Itu bukan skill, itu overconfidence 🔥 Pernah? komen',
+    hashtags: ['tradingpsychology', 'riskmanagement', 'xauusd', 'belajartrading', 'luxtrade'],
+    igCaption:
+      'Baru TP dua kali berturut-turut, besoknya lot langsung kamu naikin? 📈\n\nItu namanya overconfidence — dan ini trigger pembunuh akun yang PALING sering diabaikan.\n\nKenapa berbahaya:\n1️⃣ Dua win itu sampel kecil — belum ada yang namanya "streak skill".\n2️⃣ Lot naik = risk per trade naik. Satu loss di lot gede bisa hapus 5 win sebelumnya.\n3️⃣ Pasar nggak peduli kamu lagi "panas" — streak bisa berhenti kapan saja.\n\nAturan yang menjaga akun: risk per trade TETAP % yang sama, win atau loss. Konsistensi > euforia.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSave video ini buat diinget pas mulai pengen "naikin lot". Follow @luxtradee — seri psikologi trader tiap hari kerja. Pernah overconfidence juga? Jujur, komen 🔁\n\n#tradingpsychology #riskmanagement #xauusd #belajartrading #luxtrade',
+    scenes: [
+      { kind: 'hook', title: 'BARU PROFIT → LOT GEDE', sub: 'overconfidence nyamar jadi skill', vo: 'Baru profit dua kali, lot langsung naikin?' },
+      { kind: 'point', title: 'SAMPEL KECIL, EUFORIA', sub: 'dua win bukan streak skill', vo: 'Dua win itu sampel kecil. Satu loss lot gede hapus semuanya.' },
+      { kind: 'point', title: 'RISK TETAP SAMA', sub: 'win atau loss — % risiko nggak berubah', vo: 'Aturannya: risk per trade tetap persen yang sama, apa pun hasilnya.' },
+      { kind: 'cta', title: 'PERNAH NAIKIN LOT?', sub: 'baru profit terus lot gede? komen', vo: 'Pernah? Jujur di komen.' },
     ],
   },
   {
-    template: 'promo',
-    topic: 'PRO Rp49.000/bulan: 8 agen AI + jurnal otomatis — hitung balik modalnya (hard-sell)',
-    caption: 'PRO Rp49.000/bulan — 8 agen AI + jurnal otomatis. Cek link di bio 👆',
-    hashtags: ['trading', 'xauusd', 'tradingindonesia', 'goldtrader', 'luxtrade'],
+    template: 'tip',
+    topic: 'Trigger FOMO: lihat harga lari → klik tanpa setup, cuma takut ketinggalan',
+    caption: 'Harga lari kenceng, kamu kejar? Itu FOMO — dan itu mahal 🏃 Save ini',
+    hashtags: ['fomo', 'tradingpsychology', 'xauusd', 'belajartrading', 'luxtrade'],
     igCaption:
-      'Masih nebak-nebak arah harga? 🎯\n\nLuxtrade pantau pasar 24 jam pakai 8 agen AI — sinyal masuk langsung ke HP kamu, dan setiap trade kamu otomatis kejurnal cuma dari screenshot.\n\n✅ Sinyal Entry/SL/TP otomatis (push ke layar HP)\n✅ Jurnal otomatis dari screenshot\n✅ Guard prop firm — alert sebelum drawdown breach\n\nPRO mulai Rp49.000/bulan. Hitung sendiri: satu entry bagus biasanya cukup buat balik modal setahun. Link di bio 🔗\n\n#trading #xauusd #goldtrader #tradingindonesia #tradingjournal #smc #ict #propfirm #tradingapp #luxtrade',
+      'Harga gold lari kenceng, kamu langsung klik tanpa ngecek setup? 🏃\n\nItu FOMO — fear of missing out. Dan FOMO itu bayar mahal.\n\nYang terjadi kalau kejar harga:\n1️⃣ Entry di ujung move — harga termahal, tepat sebelum reversal.\n2️⃣ SL harus jauh biar nggak kesapu noise → RR hancur.\n3️⃣ Pas kamu masuk, seringnya smart money baru mulai take profit.\n\nJalan keluarnya bukan "lebih cepat klik" — tapi ATURAN: harga lari = bukan alasan masuk. Setup yang terlewat biarkan lewat, pasar buka lagi besok.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSave video ini biar kebaca sebelum kamu kejar harga. Follow @luxtradee — seri psikologi trader tiap hari kerja. FOMO minggu ini berapa kali? Jujur, komen 🔁\n\n#fomo #tradingpsychology #xauusd #belajartrading #luxtrade',
     scenes: [
-      { kind: 'hook', title: 'MASIH NEBAK-NEBAK?', sub: 'banyak trader kalah karena tebak-tebakan', vo: 'Harga naik turun, kamu masih nebak-nebak?' },
-      { kind: 'point', title: 'TEBAKAN MAHAL', sub: 'tebak-tebakan bikin akun ngecil pelan-pelan', vo: 'Tebak-tebakan bikin akun ngecil pelan-pelan.' },
-      { kind: 'stat', title: '8 AGEN AI', sub: 'pantau pasar 24 jam nonstop', vo: 'Luxtrade pantau pasar 24 jam pakai 8 agen AI.' },
-      { kind: 'cta', title: 'TINGGAL EKSEKUSI', sub: 'tim manual atau auto? komen — link di bio', vo: 'PRO mulai 49 ribu. Link di bio.' },
+      { kind: 'hook', title: 'KEJAR HARGA LARI?', sub: 'itu FOMO — dan itu mahal', vo: 'Harga lari kenceng, kamu langsung kejar?' },
+      { kind: 'point', title: 'BAYAR MAHAL DI UJUNG', sub: 'entry ujung move, SL jauh, RR hancur', vo: 'FOMO bayar mahal: entry di ujung, SL jauh, RR hancur.' },
+      { kind: 'point', title: 'ADA ATURAN, ADA ENTRY', sub: 'harga lari bukan alasan masuk', vo: 'Harga lari bukan alasan masuk. Tanpa setup, biarkan lewat.' },
+      { kind: 'cta', title: 'FOMO MINGGU INI?', sub: 'jujur, berapa kali? komen', vo: 'FOMO minggu ini berapa kali? Komen.' },
     ],
   },
   {
-    template: 'promo',
-    topic: 'Guard prop firm: alert masuk SEBELUM drawdown breach, bukan sesudah (soft-sell)',
-    caption: 'Challenge prop firm hangus gara-gara drawdown? Ada guard-nya 🛡️ Cek link di bio',
-    hashtags: ['propfirm', 'fundedtrader', 'xauusd', 'tradingindonesia', 'luxtrade'],
+    template: 'tip',
+    topic: 'Trigger bosan: buka posisi asal biar "ada aja" — TP/SL nggak jelas',
+    caption: 'Buka posisi cuma biar "ada aja"? Trigger paling senyap pembosong akun 🕳️ Komen',
+    hashtags: ['tradingpsychology', 'discipline', 'xauusd', 'belajartrading', 'luxtrade'],
     igCaption:
-      'Buat kamu yang lagi kejar akun funded 🏆\n\nPenyebab hangusnya challenge paling sering BUKAN strategi jelek — tapi drawdown harian kelewat dikit doang. 5 pips. Satu lot kelebihan. Selesai.\n\nLuxtrade punya Guard Prop Firm:\n1️⃣ Batas drawdown kamu dipantau realtime\n2️⃣ Alert masuk SEBELUM breach — kamu masih sempat tutup posisi\n3️⃣ Riwayat risk per trade kecatat otomatis dari screenshot\n\nChallenge itu mahal. Guard-nya murah. Link di bio 🔗\n\n#propfirm #fundedtrader #xauusd #goldtrader #tradingindonesia #drawdown #riskmanagement #tradingjournal #smc #luxtrade',
+      'Nggak ada setup, tapi buka posisi juga biar "ada aja"? 🕳️\n\nIni trigger paling SENYAP — nggak kerasa, tapi mengikis akun pelan-pelan.\n\nCiri-cirinya:\n1️⃣ Nggak ada setup, tapi "pengen aktif".\n2️⃣ TP/SL nggak jelas — rencananya "lihat aja nanti".\n3️⃣ Hari tanpa trade terasa bosan banget.\n\nFakta yang sering dilupain: NGGAK trading itu juga keputusan — dan sering keputusan TERBAIK. Trader pro jago nunggu; amatir butuh aktif terus.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSave video ini buat pengingat pas bosan. Follow @luxtradee — seri psikologi trader tiap hari kerja. Kamu tim "harus aktif" atau tim "menunggu"? Komen 🔁\n\n#tradingpsychology #discipline #xauusd #belajartrading #luxtrade',
     scenes: [
-      { kind: 'hook', title: 'CHALLENGE HANGUS?', sub: 'biasanya cuma kelewat 5 pips doang', vo: 'Challenge hangus gara-gara lima pips?' },
-      { kind: 'stat', title: 'DRAWDOWN HARIAN', sub: 'pembunuh challenge nomor satu', vo: 'Drawdown harian itu pembunuh challenge nomor satu.' },
-      { kind: 'point', title: 'GUARD PROP FIRM', sub: 'alert SEBELUM breach — masih sempat mutusin', vo: 'Guard alert sebelum breach, bukan sesudah.' },
-      { kind: 'cta', title: 'JAGA CHALLENGE-MU', sub: 'lagi kejar funded? komen — link di bio', vo: 'Jaga challenge kamu. Link di bio.' },
-    ],
-  },
-  {
-    template: 'promo',
-    topic: 'Screenshot → jurnal kecatat otomatis: begini cara kerjanya (soft-sell)',
-    caption: 'Malem-malem ngisi jurnal manual? Screenshot doang cukup 📸 Cek link di bio',
-    hashtags: ['tradingjournal', 'xauusd', 'otomatis', 'tradingindonesia', 'luxtrade'],
-    igCaption:
-      'Jam 11 malem masih ngisi jurnal manual? 😮‍💨\n\nEntry price, SL, TP, RR, screenshot chart, catat emosi… berulang tiap hari. Dua minggu keluar, jurnal bolong.\n\nCara Luxtradee:\n1️⃣ Upload screenshot trade kamu (MT4/MT5/TradingView)\n2️⃣ AI baca entry, SL, TP, dan hasilnya otomatis\n3️⃣ Statistik winrate, RR, dan pola setup kehitung sendiri\n\nNol ngetik. Jurnal yang nggak nyiksa = jurnal yang konsisten = data yang bisa dipercaya. Link di bio 🔗\n\n#tradingjournal #xauusd #tradingindonesia #goldtrader #belajartrading #tradingtips #smc #ict #propfirm #luxtrade',
-    scenes: [
-      { kind: 'hook', title: 'JURNAL MANUAL SAMPAI MALAM?', sub: '11 PM masih ngetik entry price?', vo: 'Jam sebelas malem masih ngetik jurnal manual?' },
-      { kind: 'point', title: 'BOLONG TIAP 2 MINGGU', sub: 'capek ngetik — jurnal kesimpen doang', vo: 'Dua minggu kemudian, jurnal bolong.' },
-      { kind: 'point', title: 'CUKUP SCREENSHOT', sub: 'upload — AI baca entry/SL/TP sendiri', vo: 'Screenshot aja — AI baca entry, SL, TP sendiri.' },
-      { kind: 'cta', title: 'MULAI MALEM INI', sub: 'jurnal manual atau otomatis? komen — bio', vo: 'Mulai malem ini. Link di bio.' },
+      { kind: 'hook', title: 'ENTRY ASAL "ADA AJA"?', sub: 'trigger paling senyap pembosong akun', vo: 'Buka posisi cuma biar ada aja?' },
+      { kind: 'point', title: 'CIRI-CIRINYA', sub: 'pengen aktif, bukan ada setup', vo: 'TP SL nggak jelas. Rencananya, lihat aja nanti.' },
+      { kind: 'point', title: 'NO TRADE = KEPUTUSAN', sub: 'dan sering keputusan terbaik', vo: 'Nggak trading itu juga keputusan — sering yang terbaik.' },
+      { kind: 'cta', title: 'TIM MANA KAMU?', sub: 'tim aktif atau menunggu? komen', vo: 'Tim aktif atau menunggu? Komen.' },
     ],
   },
   /* ===== 2 FALLBACK BARU (22 Nov, arah Bos "temanya km bikinkan sendiri") —
@@ -432,29 +463,29 @@ const FALLBACK_LIBRARY: VideoSpecLite[] = [
   {
     template: 'tip',
     topic: 'Break of Structure vs Change of Character — BOS lanjut arah, CHC balik arah; salah baca = entry lawan tren',
-    caption: 'BOS vs CHC — bedanya tipis, akibatnya beda arah. 20 detik ⚡ Cek link di bio',
+    caption: 'BOS vs CHC — bedanya tipis, akibatnya beda arah. 20 detik ⚡ Save ini',
     hashtags: ['smc', 'breakofstructure', 'xauusd', 'belajartrading', 'luxtrade'],
     igCaption:
-      '"BOS dan CHC itu sama-sama nembus structure — bedanya apa?" 🤔\n\nIni yang paling sering bikin pemula entry lawan arah:\n\n1️⃣ BOS (Break of Structure) — harga nembus structure SEARAH tren. Tanda tren masih lanjut.\n2️⃣ CHC (Change of Character) — harga nembus structure MELAWAN tren. Tanda tren mulai balik arah.\n3️⃣ Aturan praktis: jangan langsung entry pas tembus — tunggu retest zonanya dulu, konfirmasi, baru eksekusi.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nMau tiap setup tercatat otomatis? Screenshot aja di Luxtradee. Link di bio 🔗\n\n#smc #breakofstructure #xauusd #belajartrading #luxtrade',
+      '"BOS dan CHC itu sama-sama nembus structure — bedanya apa?" 🤔\n\nIni yang paling sering bikin pemula entry lawan arah:\n\n1️⃣ BOS (Break of Structure) — harga nembus structure SEARAH tren. Tanda tren masih lanjut.\n2️⃣ CHC (Change of Character) — harga nembus structure MELAWAN tren. Tanda tren mulai balik arah.\n3️⃣ Aturan praktis: jangan langsung entry pas tembus — tunggu retest zonanya dulu, konfirmasi, baru eksekusi.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSave video ini biar nggak salah baca structure lagi. Follow @luxtradee — seri edukasi BASIC tiap hari kerja. Sering salah baca yang mana? Komen 🔁\n\n#smc #breakofstructure #xauusd #belajartrading #luxtrade',
     scenes: [
       { kind: 'hook', title: 'BOS VS CHC', sub: 'kelihatan sama — padahal beda arah', vo: 'BOS dan CHC kelihatan sama. Padahal beda arah.' },
       { kind: 'point', title: 'SALAH BACA, SALAH ARAH', sub: 'salah baca dua-duanya = entry lawan tren', vo: 'Salah baca dua-duanya, kamu entry lawan arah tren.' },
       { kind: 'point', title: 'BOS LANJUT, CHC BALIK', sub: 'BOS = tren lanjut — CHC = tren berbalik', vo: 'BOS artinya tren lanjut. CHC artinya tren berbalik. Tunggu retest dulu.' },
-      { kind: 'cta', title: 'KOMEN BOS ATAU CHC', sub: 'sering salah baca yang mana? komen', vo: 'Komen BOS atau CHC. Link di bio.' },
+      { kind: 'cta', title: 'KOMEN BOS ATAU CHC', sub: 'sering salah baca yang mana? komen', vo: 'Komen BOS atau CHC!' },
     ],
   },
   {
     template: 'tip',
     topic: 'Support & Resistance vs Supply & Demand — S&R garis, S&D zona; kenapa zona lebih jujur',
-    caption: 'Garis vs zona — kenapa harga sering "tembus" support? 📏 Cek link di bio',
+    caption: 'Garis vs zona — kenapa harga sering "tembus" support? 📏 Save ini',
     hashtags: ['supplydemand', 'supportresistance', 'xauusd', 'belajartrading', 'luxtrade'],
     igCaption:
-      'Pernah support "tembus" dikit terus harga naik lagi? Kesel kan? 😅\n\nBukan support-nya salah — kamu pakai GARIS, padahal harga jalan di ZONA.\n\nBedanya:\n1️⃣ Support & Resistance = GARIS di satu harga. Harga jarang mantul pas di angka yang kamu tarik.\n2️⃣ Supply & Demand = ZONA dari candle besar (basis order). Lebih fleksibel, lebih jujur.\n3️⃣ Praktiknya: gambar zona dari candle terakhir sebelum move — batas atas & bawah, bukan satu garis.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSetup kamu kecatat otomatis cukup dengan screenshot di Luxtradee. Link di bio 🔗\n\n#supplydemand #supportresistance #xauusd #belajartrading #luxtrade',
+      'Pernah support "tembus" dikit terus harga naik lagi? Kesel kan? 😅\n\nBukan support-nya salah — kamu pakai GARIS, padahal harga jalan di ZONA.\n\nBedanya:\n1️⃣ Support & Resistance = GARIS di satu harga. Harga jarang mantul pas di angka yang kamu tarik.\n2️⃣ Supply & Demand = ZONA dari candle besar (basis order). Lebih fleksibel, lebih jujur.\n3️⃣ Praktiknya: gambar zona dari candle terakhir sebelum move — batas atas & bawah, bukan satu garis.\n\nChart ilustrasi. Konten edukasi, bukan ajakan beli/jual.\n\nSave video ini buat pengingat sebelum gambar zona lagi. Follow @luxtradee — seri edukasi BASIC tiap hari kerja. Tim garis atau zona? Komen 🔁\n\n#supplydemand #supportresistance #xauusd #belajartrading #luxtrade',
     scenes: [
       { kind: 'hook', title: 'GARIS VS ZONA', sub: 'support sering tembus dikit? cek ini', vo: 'Garis support vs zona supply, bedanya apa?' },
       { kind: 'point', title: 'S&R CUMA GARIS', sub: 'harga jarang mantul pas di satu angka', vo: 'Support-resistance cuma garis. Supply-demand itu zona.' },
       { kind: 'point', title: 'ZONA LEBIH JUJUR', sub: 'gambar zona dari candle sebelum move', vo: 'Zona lebih fleksibel — harga sering tembus garis, tapi mantul di zona.' },
-      { kind: 'cta', title: 'TIM GARIS ATAU ZONA', sub: 'tim garis atau zona? komen — link di bio', vo: 'Tim garis atau zona? Link di bio.' },
+      { kind: 'cta', title: 'TIM GARIS ATAU ZONA', sub: 'tim garis atau zona? komen di bawah', vo: 'Tim garis atau zona? Komen!' },
     ],
   },
 ]
@@ -494,28 +525,19 @@ function isPromoAngle(angle: AngleId): boolean {
 }
 
 /**
- * Pilih template hari ini:
+ * Pilih template hari ini — ERA ENGAGEMENT (Bos 23 Nov):
  *   1. Sinyal segar → 'signal' (recap autentik selalu menang).
- *   2. Ada data performa (≥2 sampel per template) → pemenang 70%,
- *      30% eksperimen ke yang lain (A/B "mana yang rame").
- *   3. Belum ada data → bolak-balik tip/promo per hari.
+ *   2. Selain itu → SELALU 'tip' (edukasi/pain-point). Template 'promo'
+ *      DITANGGUHKAN selama fase engagement — jualan nanti, sekarang
+ *      kejar views & komen dulu.
  */
 export function pickTemplateSmart(
   freshSignal: boolean,
   perf: PerfSnapshot | null,
 ): { template: Template; reason: string } {
   if (freshSignal) return { template: 'signal', reason: 'sinyal segar ≤48 jam — recap autentik' }
-  const tip = perf?.byTemplate?.tip
-  const promo = perf?.byTemplate?.promo
-  if (tip && promo && tip.posts >= 2 && promo.posts >= 2) {
-    const winner: 'tip' | 'promo' = tip.avgViews >= promo.avgViews ? 'tip' : 'promo'
-    const other: 'tip' | 'promo' = winner === 'tip' ? 'promo' : 'tip'
-    const experiment = hash32(daySeed() * 7 + 3) % 100 < 30
-    return experiment
-      ? { template: other, reason: `eksperimen A/B (30%) — pemenang sejauh ini: ${winner} (${perf?.byTemplate?.[winner]?.avgViews.toFixed(0)} views rata-rata)` }
-      : { template: winner, reason: `ikut pemenang performa (70%) — ${winner} rata-rata ${perf?.byTemplate?.[winner]?.avgViews.toFixed(0)} views` }
-  }
-  return { template: daySeed() % 2 === 0 ? 'tip' : 'promo', reason: 'belum ada data performa — rotasi tip/promo per hari' }
+  void perf // era engagement: A/B promo ditangguhkan — dipertahankan demi kompatibilitas
+  return { template: 'tip', reason: 'era engagement (Bos 23 Nov): tip saja, promo ditangguhkan' }
 }
 
 /**
@@ -529,9 +551,12 @@ export function pickAngleAndTopic(
   recentTopics: string[],
   perf?: PerfSnapshot | null,
 ): { angle: Angle; topic: TopicEntry; rationale: string } {
-  const eligible = TOPIC_POOL.filter((t) =>
-    template === 'promo' ? isPromoAngle(t.angle) : !isPromoAngle(t.angle),
-  )
+  /* ERA ENGAGEMENT (Bos 23 Nov): pool promo ditarik → angle promo TIDAK
+     lagi dipilih apa pun template-nya (param template dipertahankan demi
+     kompatibilitas; kalau suatu saat template 'promo' diminta, tetap
+     jatuh ke pool non-promo supaya tidak pernah kosong). */
+  void template
+  const eligible = TOPIC_POOL.filter((t) => !isPromoAngle(t.angle))
   const fresh = eligible.filter((t) => !isTopicRepeated(t.topic, recentTopics))
   let pool = fresh.length ? fresh : eligible
 
