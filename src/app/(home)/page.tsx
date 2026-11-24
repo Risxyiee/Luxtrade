@@ -12,6 +12,8 @@ import LazySection from '@/components/landing/LazySection'
 // FIX kejujuran CTA: jurnal tamu ringan — render langsung (SSR, SEO ikut
 // terindeks; form-nya cuma lucide + Link, tidak layak lazy chunk).
 import GuestJournalCTA from '@/components/landing/GuestJournalCTA'
+// SAMPLE REVIEW (LOCAL ONLY - JANGAN COMMIT): banner video sampel gaya baru buat Bos
+import VideoReviewBanner from '@/components/review/VideoReviewBanner'
 
 // PERF: modal HANYA tampil saat diklik (legal/checkout) — jangan ikut bundle
 // awal landing. framer-motion + isi legal ±ratusan KB JS tak perlu di-parse
@@ -150,6 +152,8 @@ export default function LuxTradeLanding() {
         <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
 
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
+          {/* SAMPLE REVIEW (LOCAL ONLY - JANGAN COMMIT): hapus baris ini + import setelah review */}
+          <VideoReviewBanner />
           <HeroSection language={language} />
           <SocialProofBar language={language} />
           {/* Chart demo live TradingView (direktif Bos 11 Nov: "ganti
