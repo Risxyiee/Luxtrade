@@ -279,8 +279,24 @@ async function runCycle(): Promise<NextResponse> {
         const fresh = events.filter((ev) => newIds.has(makeEventId(script.id, ev)))
         summary.eventsNew = ((summary.eventsNew as number) ?? 0) + fresh.length
 
-        for (const ev of fresh.slice(0, 3)) {
-          // maks 3 push per script per jam (anti-spam; sisanya tercatat di run log)
+        // ══ FIX "sinyal BUY baru kok ga ada notif?" (laporan Bos 26-11,
+        //    Sprint v11 Univ @ 3656) ══════════════════════════════════════
+        // DULU: fresh chronological → fresh.slice(0, 3) mempush 3 event
+        // paling LAMA (sisa histori/sisa antrean setelah cron down),
+        // sementara sinyal LIVE terbaru bisa jadi #4+ → sudah ditandai
+        // "terkirim" di pine_events_sent tapi TIDAK PERNAH di-push
+        // (silent drop — event hilang selamanya, ringkasan admin pun
+        // tidak menunjukkan apa-apa).
+        // KINI: urut TERBARU dulu (time DESC) → sinyal live selalu
+        // kebagian push; histori lama yang kepotong kapasitas memang
+        // tidak layak di-push (kelihatan di Histori Sinyal UI).
+        const freshNewestFirst = [...fresh].sort((a, b) => b.time - a.time)
+        let pushNoSubs = 0
+        let pushFailed = 0
+        for (const ev of freshNewestFirst.slice(0, 3)) {
+          // maks 3 push per script per jam (anti-spam) — TERBARU diprioritaskan;
+          // sisanya TIDAK ditandai hilang diam-diam: dihitung & dilaporkan
+          // ke ringkasan admin di langkah 8.
           const res = await pushToUser(
             admin,
             String(script.user_id),
@@ -294,6 +310,19 @@ async function runCycle(): Promise<NextResponse> {
             { dedupe: false } // dedupe SUDAH oleh pine_events_sent DB-level
           )
           summary.pushed = ((summary.pushed as number) ?? 0) + (res.sent || 0)
+          if (res.skipped === 'no-subs') pushNoSubs++
+          else if (res.error) pushFailed++
+        }
+        const pushedCount = Math.min(fresh.length, 3)
+        if (fresh.length > pushedCount) {
+          summary.pushDropped =
+            ((summary.pushDropped as number) ?? 0) + (fresh.length - pushedCount)
+        }
+        if (pushNoSubs > 0) {
+          summary.pushNoSubs = ((summary.pushNoSubs as number) ?? 0) + pushNoSubs
+        }
+        if (pushFailed > 0) {
+          summary.pushFailed = ((summary.pushFailed as number) ?? 0) + pushFailed
         }
       }
     }
@@ -313,7 +342,19 @@ async function runCycle(): Promise<NextResponse> {
         `Script jalan: ${summary.scripts} → ✅ ${summary.ok} · ❌ ${summary.failed}`,
       ]
       if ((summary.eventsNew as number) > 0) {
-        lines.push(`🔔 Sinyal baru: ${summary.eventsNew} · Push terkirim: ${summary.pushed}`)
+        let line = `🔔 Sinyal baru: ${summary.eventsNew} · Push terkirim: ${summary.pushed}`
+        // Transparansi penuh — dulu sinyal yang tidak kebagian push hilang
+        // SENYAP (Bos 26-11: "sinyal BUY @ 3656 kok ga ada notif?").
+        if ((summary.pushDropped as number) > 0) {
+          line += ` · ⏭️ ${summary.pushDropped} sinyal lama tidak di-push (kap 3/script/jam — terbaru diprioritaskan)`
+        }
+        if ((summary.pushNoSubs as number) > 0) {
+          line += ` · ⚠️ ${summary.pushNoSubs} push GAGAL: tidak ada device push terdaftar (aktifkan notifikasi di /pine-lab)`
+        }
+        if ((summary.pushFailed as number) > 0) {
+          line += ` · ❌ ${summary.pushFailed} push gagal kirim (cek log CF)`
+        }
+        lines.push(line)
       }
       if (failures.length) {
         lines.push('Gagal:')
