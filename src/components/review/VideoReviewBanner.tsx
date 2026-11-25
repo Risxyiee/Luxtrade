@@ -24,13 +24,13 @@ export default function VideoReviewBanner() {
             Sample Review — Konten v4 (TradingView UI + VO Indonesia Native)
           </p>
           <h2 className="text-lg md:text-xl font-bold text-white mt-1">
-            &ldquo;SL Kena Terus? Ini Penyebabnya&rdquo; v4 — 25 detik, 9:16 — chart TradingView + motion graphics
+            &ldquo;SL Kena Terus? Ini Penyebabnya&rdquo; v5 — 34 detik, 9:16 — kartu chart + stickman + VO Indo murni
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            Revisi Bos (3 poin): <span className="text-amber-300">① VO ganti edge-tts id-ID-ArdiNeural (Indonesia native, bukan logat asing)</span> ·{' '}
-            <span className="text-amber-300">② candle gaya TradingView asli</span> (#131722, #26A69A/#EF5350, axis, grid){' '}
-            <span className="text-amber-300">③ UI dinamis</span> — ticker live, KPI count-up, badge glow, kartu glass.
-            Tekan play — <span className="text-gray-300">volume nyala</span>.
+            Revisi Bos (3 poin): <span className="text-amber-300">① VO edge-tts id-ID-ArdiNeural — Indonesia murni, tanpa logat</span> ·{' '}
+            <span className="text-amber-300">② candle TradingView</span> (#26A69A/#EF5350, wick tegas, axis chip live){' '}
+            <span className="text-amber-300">③ gaya reel referensi</span> — kartu chart ber-border, STICKMAN riding candle,
+            step pills ✓, stamp/ticket glow. Tekan play — <span className="text-gray-300">volume nyala</span>.
           </p>
         </div>
         <button
@@ -54,19 +54,19 @@ export default function VideoReviewBanner() {
           {/* Unduh langsung MP4 buat dipindah ke HP / dikirim ulang */}
           <a
             href="/review/luxtrade-sl-pain-sample.mp4"
-            download="luxtrade-sl-kena-v4.mp4"
+            download="luxtrade-sl-kena-v5.mp4"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors"
           >
-            &#8681; Unduh Video v4 (MP4, 2.6 MB)
+            &#8681; Unduh Video v5 (MP4, 6.3 MB)
           </a>
         </div>
         <ul className="text-sm text-gray-300 space-y-2 flex-1">
-          <li>&bull; Scene 1 (0-5s): Hook — panel TradingView, candle streaming naik &rarr; crash candle tembus SL (flash merah + shake + badge &ldquo;SL HIT!&rdquo;)</li>
-          <li>&bull; Scene 2 (5-12s): Agitasi — SL kena 3× berturut (badge ✕ beruntun), saldo count-down $1.000 &rarr; $412, chip &ldquo;90% trader pemula&rdquo;</li>
-          <li>&bull; Scene 3 (12-19s): Solusi — SAFE ZONE di bawah swing low, SL/TP line, rally ke TP HIT +$86, kartu &ldquo;RUMUS SL ANTI-BAKAR&rdquo; 3 langkah</li>
-          <li>&bull; Scene 4 (19-25s): CTA — kartu profil LX + tombol FOLLOW glow + 3 benefit + caption penutup</li>
+          <li>&bull; Scene 1 (0-5s): HOOK — judul &ldquo;SL KENA DULU, BARU HARGA JALAN&rdquo;, kartu chart streaming, stickman ?&rarr; SHOCK saat candle tembus SL (flash + shake + stamp) &rarr; CELEBRATE + ticket +$137 count-up</li>
+          <li>&bull; Scene 2 (5-15s): SWEEP LIKUIDITAS — step pills 1 EQH ✓ 2 LIQUIDITY 3 SWEEP 4 DEMAND, garis EQH, ring LIQUIDITY pulse, panah SWEEP glow, stickman jalan</li>
+          <li>&bull; Scene 3 (15-22s): SL MEPET VS SL + BUFFER — zone DEMAND gradient, garis SL+ATR & ENTRY, panah TARGET, stickman point</li>
+          <li>&bull; Scene 4 (22-34s): CTA — mockup app sinyal + chip PnL mengapung + row fitur ✓ ENTRY JELAS ✓ STOP LOGIS ✓ JURNAL OTOMATIS + FOLLOW glow</li>
           <li className="text-gray-400">
-            VO edge-tts id-ID-ArdiNeural rate +12% (Indonesia native). Chart: TV dark #131722, bull #26A69A / bear #EF5350.
+            VO edge-tts id-ID-ArdiNeural rate +18% (Indonesia murni). Chart TradingView #26A69A/#EF5350 dalam kartu border teal + header DATA ILUSTRASI — gaya reel referensi Bos.
           </li>
         </ul>
       </div>
