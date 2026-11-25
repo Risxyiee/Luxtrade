@@ -21,21 +21,57 @@ export interface Candle {
   l: number;
 }
 
-/** Random-walk candlestick ternormalisasi [0..1] (1 = tinggi). */
-export function genCandles(seed: number, trend: "up" | "down" | "flat", n = 18): Candle[] {
+/**
+ * Random-walk candlestick ternormalisasi [0..1] (1 = tinggi).
+ *
+ * Upgrade Bos 26-11 ("visual masih jelek"): chart TIDAK BOLEH kosong —
+ * candle wajib memenuhi area vertikal. Setelah walk di-generate, seluruh
+ * range di-RESKALE ke [0.10, 0.90] sehingga candle memenuhi layar seperti
+ * chart TradingView asli (bukan gundukan kecil di tengah).
+ *
+ * `path` opsional: waypoints harga ternormalisasi (1 = tinggi) untuk
+ * narasi spesifik (rally → sweep → rally). Di-interpolasi halus + noise.
+ */
+export function genCandles(seed: number, trend: "up" | "down" | "flat", n = 18, path?: number[]): Candle[] {
   const out: Candle[] = [];
-  let price = 0.5;
-  const bias = trend === "up" ? 0.028 : trend === "down" ? -0.028 : 0;
-  for (let i = 0; i < n; i++) {
-    const o = price;
-    const drift = bias + (((seed * 97 + i * 13) % 100) / 100 - 0.5) * 0.11;
-    const c = Math.min(0.96, Math.max(0.04, o + drift));
-    const h = Math.max(o, c) + (((seed * 31 + i * 7) % 100) / 100) * 0.05;
-    const l = Math.min(o, c) - (((seed * 53 + i * 11) % 100) / 100) * 0.05;
-    out.push({ o, c, h: Math.min(0.99, h), l: Math.max(0.01, l) });
-    price = c;
+
+  if (path && path.length >= 2) {
+    /* narasi waypoint: resample merata ke n candle + noise deterministik */
+    const segs = path.length - 1;
+    for (let i = 0; i < n; i++) {
+      const t = (i / (n - 1)) * segs;
+      const k = Math.min(segs - 1, Math.floor(t));
+      const frac = t - k;
+      const base = path[k] + (path[k + 1] - path[k]) * frac;
+      const noise = (((seed * 97 + i * 13) % 100) / 100 - 0.5) * 0.055;
+      const o = i === 0 ? base : out[i - 1].c;
+      const c = Math.min(0.98, Math.max(0.02, base + noise));
+      const h = Math.max(o, c) + (((seed * 31 + i * 7) % 100) / 100) * 0.032;
+      const l = Math.min(o, c) - (((seed * 53 + i * 11) % 100) / 100) * 0.032;
+      out.push({ o, c, h: Math.min(0.99, h), l: Math.max(0.01, l) });
+    }
+  } else {
+    let price = 0.5;
+    const bias = trend === "up" ? 0.028 : trend === "down" ? -0.028 : 0;
+    for (let i = 0; i < n; i++) {
+      const o = price;
+      const drift = bias + (((seed * 97 + i * 13) % 100) / 100 - 0.5) * 0.11;
+      const c = Math.min(0.96, Math.max(0.04, o + drift));
+      const h = Math.max(o, c) + (((seed * 31 + i * 7) % 100) / 100) * 0.05;
+      const l = Math.min(o, c) - (((seed * 53 + i * 11) % 100) / 100) * 0.05;
+      out.push({ o, c, h: Math.min(0.99, h), l: Math.max(0.01, l) });
+      price = c;
+    }
   }
-  return out;
+
+  /* ── FILL RANGE: reskale semua candle ke [0.10, 0.90] ──
+     Ini yang bikin chart penuh (kayak TradingView beneran),
+     bukan candle kecil ngambang di tengah layar kosong. */
+  const mn = Math.min(...out.map((c) => c.l));
+  const mx = Math.max(...out.map((c) => c.h));
+  const span = mx - mn || 1;
+  const map = (v: number) => 0.1 + ((v - mn) / span) * 0.8;
+  return out.map((c) => ({ o: map(c.o), c: map(c.c), h: map(c.h), l: map(c.l) }));
 }
 
 /** Format angka gaya Indonesia: 2.335,40 — tanpa bergantung ICU runtime. */

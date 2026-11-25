@@ -14,6 +14,7 @@ import { Backdrop } from "./components/Backdrop";
 import { BackgroundMusic } from "./components/Music";
 import { genCandles } from "./components/Chart";
 import { activeStepIndex, ChartScreen, type TerminalStep } from "./components/ChartScreen";
+import { HOOK_CRASH_FRAME, HookTerminal } from "./components/HookTerminal";
 import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, SPRING_POP, SPRING_SOFT, clamp01, pop, rise, SceneShell } from "./components/Ui";
 import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
 
@@ -38,6 +39,9 @@ export interface ReelsScene extends SceneProps {
   kind?: string;
   /** Langkah gambar utk kind 'tutorial' / 'chart' (sudah di-sanitize worker). */
   draw?: TerminalStep[];
+  /** Narasi waypoint harga (normalisasi 0..1, 1 = tinggi) — chart
+   *  full-bleed pakai ini biar cerita candle = cerita VO. */
+  path?: number[];
 }
 
 export interface SintaReelsProps {
@@ -59,141 +63,73 @@ const normalizeKind = (k: string | undefined, index: number, total: number): Kin
   return "point";
 };
 
-/* ---------------- hook — tipografi kata-per-kata ---------------- */
+/* ---------------- hook — TERMINAL FULL-BLEED (Bos 26-11) ----------------
+   Dulu: tipografi raksasa di layar kosong = "teks aja" (komplain Bos:
+   "visual masih jelek"). Sekarang: LANGSUNG layar trading penuh sejak
+   frame 0 — candle streaming, SL ditembus (flash merah + screen shake +
+   stamp), lalu harga rally keras. Caption TikTok-style overlay bawah. */
 
-const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number }> = ({ title, sub, durationInFrames }) => {
+const PAIN_RE = /(SL|KENA|MC|FOMO|HABIS|BANTAI|MEPET)/i;
+const WIN_RE = /(JALAN|CUAN|PROFIT|SISTEM|NAIK|BUFFER)/i;
+
+const HookCaption: React.FC<{
+  text: string;
+  accent: string;
+  matcher: RegExp;
+  delay: number;
+  align?: "flex-start" | "flex-end";
+}> = ({ text, accent, matcher, delay, align = "flex-start" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const words = title.split(/\s+/).slice(0, 4);
+  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 14, stiffness: 220, mass: 0.9 } });
+  return (
+    <div
+      style={{
+        alignSelf: align,
+        padding: "16px 34px",
+        borderRadius: 20,
+        background: "rgba(3,6,12,0.62)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        backdropFilter: "blur(8px)",
+        fontFamily: FONT,
+        fontWeight: 900,
+        fontSize: 64,
+        lineHeight: 1.08,
+        color: "#FFFFFF",
+        textShadow: "0 2px 18px rgba(0,0,0,0.6)",
+        opacity: clamp01(s),
+        transform: `translateY(${(1 - s) * 56}px) scale(${0.92 + 0.08 * clamp01(s)})`,
+      }}
+    >
+      {text.split(/\s+/).map((w, i) => (
+        <span key={i} style={{ color: matcher.test(w) ? accent : "#FFFFFF" }}>
+          {w}{" "}
+        </span>
+      ))}
+    </div>
+  );
+};
 
-  const ringP = interpolate(frame, [0, 90], [0, 1], { extrapolateRight: "extend" });
-  const ringScale = 0.85 + 0.3 * Math.sin(ringP * Math.PI * 2);
-
-  /* ── ATURAN 3 DETIK PERTAMA (data Bos: 163 views, 13% lolos 3 dtk) ──
-     - zoom-punch: scale 1.14 → 1.0 dalam 12 frame (gerak = perhatian)
-     - spotlight terang sejak frame 0 (anti "layar gelap")
-     - flash putih 5 frame pertama (pop)
-     - kata muncul 3 frame antar-kata (dulu 7 = hook lengkap baru
-       terbaca di ~1.3 dtk), spring lebih kaku
-     - subtitle (sub) terlihat sejak ~0.5 dtk — penonton scroll
-       TANPA SUARA, subtitle bukan pelengkap */
-  const punch = interpolate(frame, [0, 12], [1.14, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
-  const flash = interpolate(frame, [0, 5], [0.2, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
+const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number }> = ({ title, sub, durationInFrames }) => {
   return (
     <SceneShell durationInFrames={durationInFrames} instantIn>
-      <AbsoluteFill style={{ transform: `scale(${punch})` }}>
-        {/* spotlight terang di balik teks — detik 0 tidak boleh gelap */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(circle at 50% 42%, rgba(34,211,238,0.34), rgba(59,130,246,0.14) 45%, rgba(5,5,10,0) 72%)",
-          }}
-        />
-        {/* flash putih singkat frame 0-5 */}
-        <div style={{ position: "absolute", inset: 0, background: "#FFFFFF", opacity: flash }} />
-        {/* cincin denyut latar (lebih terlihat dari sebelumnya) */}
-        <div
-          style={{
-            position: "absolute",
-            top: 640,
-            left: "50%",
-            width: 760,
-            height: 760,
-            marginLeft: -380,
-            borderRadius: "50%",
-            border: "3px solid rgba(34,211,238,0.4)",
-            transform: `scale(${ringScale})`,
-            opacity: 0.7,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 640,
-            left: "50%",
-            width: 540,
-            height: 540,
-            marginLeft: -270,
-            borderRadius: "50%",
-            border: "2px solid rgba(59,130,246,0.3)",
-            transform: `scale(${2 - ringScale})`,
-            opacity: 0.55,
-          }}
-        />
-
-        <div
-          style={{
-            position: "absolute",
-            top: 620,
-            left: 70,
-            right: 70,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 10,
-          }}
-        >
-          {words.map((w, i) => {
-            const s = spring({ fps, frame: Math.max(0, frame - i * 3), config: { damping: 15, stiffness: 260, mass: 0.9 } });
-            return (
-              <div
-                key={i}
-                style={{
-                  fontFamily: FONT,
-                  fontWeight: 900,
-                  fontSize: 118,
-                  lineHeight: 1.02,
-                  letterSpacing: 1,
-                  color: i === words.length - 1 ? C.accent : C.white,
-                  textShadow: "0 0 60px rgba(34,211,238,0.45)",
-                  opacity: clamp01(s),
-                  transform: `translateY(${(1 - s) * 70}px) rotate(${(1 - s) * -3}deg)`,
-                }}
-              >
-                {w}
-              </div>
-            );
-          })}
-
-          {/* underline swipe */}
-          {(() => {
-            const p = interpolate(frame, [words.length * 3 + 2, words.length * 3 + 14], [0, 1], { easing: Easing.bezier(0.16, 1, 0.3, 1), extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-            return (
-              <div
-                style={{
-                  marginTop: 22,
-                  width: 360 * p,
-                  height: 14,
-                  borderRadius: 999,
-                  background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
-                  boxShadow: "0 0 26px rgba(34,211,238,0.6)",
-                }}
-              />
-            );
-          })()}
-
-          <div
-            style={{
-              marginTop: 34,
-              fontFamily: FONT,
-              fontWeight: 700,
-              fontSize: 38,
-              color: "#E5E7EB",
-              maxWidth: 880,
-              ...rise(frame, words.length * 3 + 6, 34),
-            }}
-          >
-            {sub}
-          </div>
-        </div>
-      </AbsoluteFill>
+      <HookTerminal durationInFrames={durationInFrames} />
+      {/* caption TikTok-style — penonton scroll TANPA SUARA */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 200,
+          left: 56,
+          right: 56,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          zIndex: 12,
+        }}
+      >
+        <HookCaption text={title} accent="#FF5F56" matcher={PAIN_RE} delay={14} />
+        <HookCaption text={sub} accent="#2DD4A7" matcher={WIN_RE} delay={HOOK_CRASH_FRAME + 6} align="flex-end" />
+      </div>
     </SceneShell>
   );
 };
@@ -301,106 +237,167 @@ const PointScene: React.FC<{ title: string; sub: string; badge: number; duration
   );
 };
 
-/* ---------------- chart — LAYAR TERMINAL trading (upgrade Bos 26-11) ---------------- */
+/* ---------------- overlay chips bersama utk scene full-bleed ----------------
+   Judul = chip glass di atas, sub = caption TikTok di bawah. Chart
+   full-bleed = SELURUH layar (gaya reel @inzaghitrades). */
 
-const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, seed, durationInFrames }) => {
+const SceneTitleChip: React.FC<{ text: string; delay?: number }> = ({ text, delay = 4 }) => {
   const frame = useCurrentFrame();
-  const r = rise(frame, 4, 44);
+  const { fps } = useVideoConfig();
+  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 15, stiffness: 200 } });
+  return (
+    <div
+      style={{
+        alignSelf: "flex-start",
+        padding: "16px 30px",
+        borderRadius: 20,
+        background: "rgba(3,6,12,0.62)",
+        border: "1px solid rgba(34,211,238,0.3)",
+        backdropFilter: "blur(8px)",
+        fontFamily: FONT,
+        fontWeight: 900,
+        fontSize: 52,
+        lineHeight: 1.1,
+        color: "#FFFFFF",
+        textShadow: "0 2px 16px rgba(0,0,0,0.6)",
+        opacity: clamp01(s),
+        transform: `translateY(${(1 - s) * -50}px)`,
+      }}
+    >
+      {text}
+    </div>
+  );
+};
+
+const SceneCaption: React.FC<{ text: string; delay?: number; accent?: boolean }> = ({ text, delay = 12, accent }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 14, stiffness: 210 } });
+  return (
+    <div
+      style={{
+        alignSelf: "center",
+        padding: "18px 36px",
+        borderRadius: 20,
+        background: "rgba(3,6,12,0.62)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        backdropFilter: "blur(8px)",
+        fontFamily: FONT,
+        fontWeight: 800,
+        fontSize: 38,
+        lineHeight: 1.15,
+        color: "#E5E7EB",
+        textAlign: "center",
+        opacity: clamp01(s),
+        transform: `translateY(${(1 - s) * 46}px)`,
+        boxShadow: accent ? "0 0 34px rgba(34,211,238,0.18)" : undefined,
+      }}
+    >
+      {text}
+    </div>
+  );
+};
+
+/** Kamera push pelan sepanjang scene — chart terasa "hidup" terus.
+ *  Origin TOP: top-bar terminal tidak terpotong saat zoom. */
+const useCameraPush = (durationInFrames: number, from = 1.0, to = 1.055): string => {
+  const frame = useCurrentFrame();
+  const push = interpolate(frame, [0, durationInFrames], [from, to], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
+  });
+  return `scale(${push})`;
+};
+
+/* ---------------- chart — TERMINAL FULL-BLEED seluruh layar ---------------- */
+
+const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, path, seed, durationInFrames }) => {
+  const push = useCameraPush(durationInFrames);
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      <div
-        style={{
-          position: "absolute",
-          top: 128,
-          left: 70,
-          right: 70,
-          textAlign: "center",
-          ...r,
-        }}
-      >
-        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 62, color: C.white, textShadow: "0 0 44px rgba(34,211,238,0.4)", marginBottom: 14 }}>
-          {title}
-        </div>
-        <div style={{ fontFamily: FONT, fontWeight: 500, fontSize: 30, color: C.muted }}>
-          {sub}
-        </div>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          top: 318,
-          left: 70,
-          right: 70,
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
+      <AbsoluteFill style={{ transform: push, transformOrigin: "50% 0%" }}>
         <ChartScreen
-          width={940}
-          height={1330}
+          width={1080}
+          height={1920}
+          fullBleed
           seed={seed}
           trend="flat"
+          path={path}
           steps={draw}
+          delay={2}
           durationInFrames={durationInFrames}
         />
+      </AbsoluteFill>
+      <div style={{ position: "absolute", top: 104, left: 56, right: 56, display: "flex", flexDirection: "column", gap: 12, zIndex: 12 }}>
+        <SceneTitleChip text={title} />
+      </div>
+      <div style={{ position: "absolute", bottom: 170, left: 56, right: 56, display: "flex", flexDirection: "column", zIndex: 12 }}>
+        <SceneCaption text={sub} delay={14} />
       </div>
     </SceneShell>
   );
 };
 
-/* ---------------- tutorial — terminal + langkah gambar sinkron VO ---------------- */
+/* ---------------- tutorial — terminal full-bleed + langkah gambar sinkron VO ---------------- */
 
-const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, seed, durationInFrames }) => {
+const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, path, seed, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const steps = Array.isArray(draw) ? draw.slice(0, 6) : [];
   const active = activeStepIndex(steps.length, frame, durationInFrames);
-  const strip = pop(frame, fps, 2);
-  const termS = spring({ fps, frame: Math.max(0, frame - 4), config: SPRING_SOFT });
+  const chip = spring({ fps, frame: Math.max(0, frame - 6), config: { damping: 15, stiffness: 200 } });
+  const push = useCameraPush(durationInFrames);
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      {/* strip judul + penghitung LANGKAH (ikut langkah gambar = ikut VO) */}
+      {/* terminal full-bleed — HERO */}
+      <AbsoluteFill style={{ transform: push, transformOrigin: "50% 0%" }}>
+        <ChartScreen
+          width={1080}
+          height={1920}
+          fullBleed
+          seed={seed}
+          trend="flat"
+          path={path}
+          steps={steps}
+          delay={2}
+          durationInFrames={durationInFrames}
+        />
+      </AbsoluteFill>
+
+      {/* judul kiri + penghitung LANGKAH kanan (ikut langkah gambar = ikut VO) */}
       <div
         style={{
           position: "absolute",
-          top: 128,
-          left: 70,
-          right: 70,
+          top: 104,
+          left: 56,
+          right: 56,
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 20,
-          opacity: clamp01(strip),
-          transform: `translateY(${(1 - strip) * -46}px)`,
+          gap: 16,
+          zIndex: 12,
         }}
       >
-        <div
-          style={{
-            fontFamily: FONT,
-            fontWeight: 900,
-            fontSize: 58,
-            lineHeight: 1.05,
-            color: C.white,
-            textShadow: "0 0 40px rgba(34,211,238,0.4)",
-          }}
-        >
-          {title}
-        </div>
+        <SceneTitleChip text={title} delay={4} />
         {steps.length > 0 && (
           <div
             key={active}
             style={{
               flexShrink: 0,
-              padding: "12px 26px",
+              marginTop: 8,
+              padding: "14px 28px",
               borderRadius: 999,
               background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
               color: "#04121a",
               fontFamily: FONT,
               fontWeight: 900,
-              fontSize: 26,
+              fontSize: 27,
               letterSpacing: 2,
               boxShadow: "0 0 30px rgba(34,211,238,0.45)",
               whiteSpace: "nowrap",
+              opacity: clamp01(chip),
+              transform: `scale(${0.8 + 0.2 * clamp01(chip)})`,
             }}
           >
             LANGKAH {Math.max(1, active + 1)}/{steps.length}
@@ -408,49 +405,9 @@ const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[
         )}
       </div>
 
-      {/* terminal trading — HERO */}
-      <div
-        style={{
-          position: "absolute",
-          top: 252,
-          left: 70,
-          right: 70,
-          display: "flex",
-          justifyContent: "center",
-          opacity: clamp01(termS),
-          transform: `translateY(${(1 - termS) * 70}px)`,
-        }}
-      >
-        <ChartScreen
-          width={940}
-          height={1370}
-          seed={seed}
-          trend="flat"
-          steps={steps}
-          durationInFrames={durationInFrames}
-        />
-      </div>
-
-      {/* subtitle — penonton scroll tanpa suara */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 176,
-          left: 60,
-          right: 60,
-          padding: "22px 34px",
-          borderRadius: 22,
-          background: "rgba(255,255,255,0.055)",
-          border: "1px solid rgba(34,211,238,0.25)",
-          fontFamily: FONT,
-          fontWeight: 700,
-          fontSize: 33,
-          color: "#E5E7EB",
-          textAlign: "center",
-          ...rise(frame, 10, 26),
-        }}
-      >
-        {sub}
+      {/* caption TikTok — penonton scroll tanpa suara */}
+      <div style={{ position: "absolute", bottom: 170, left: 56, right: 56, display: "flex", flexDirection: "column", zIndex: 12 }}>
+        <SceneCaption text={sub} delay={12} accent />
       </div>
     </SceneShell>
   );
@@ -575,46 +532,167 @@ const StatScene: React.FC<{ title: string; sub: string; durationInFrames: number
   );
 };
 
-/* ---------------- cta — pil glow + domain ---------------- */
+/* ---------------- cta — MOCKUP APP + FOLLOW (Bos: bukan teks doang) ----------------
+   Tampilkan APP-nya beneran: kartu sinyal XAUUSD BUY dengan ENTRY/SL/TP,
+   progress TP hit, hasil hari ini count-up, baru CTA follow + domain. */
 
-const CtaScene: React.FC<{ title: string; sub: string; domain: string; durationInFrames: number }> = ({ title, sub, domain, durationInFrames }) => {
+const SignalRow: React.FC<{ label: string; value: string; color: string; delay: number; done?: boolean }> = ({ label, value, color, delay, done }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const pillS = spring({ fps, frame: Math.max(0, frame - 4), config: { damping: 12, stiffness: 180 } });
+  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 16, stiffness: 190 } });
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "15px 0",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        opacity: clamp01(s),
+        transform: `translateX(${(1 - s) * 44}px)`,
+      }}
+    >
+      <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 25, color: C.muted, letterSpacing: 1 }}>{label}</span>
+      <span style={{ fontFamily: FONT, fontWeight: 800, fontSize: 27, color, fontVariantNumeric: "tabular-nums" }}>
+        {done ? "\u2713 " : ""}
+        {value}
+      </span>
+    </div>
+  );
+};
+
+const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: string; durationInFrames: number }> = ({ title, sub, domain, handle, durationInFrames }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const phoneS = spring({ fps, frame: Math.max(0, frame - 4), config: { damping: 14, stiffness: 150 } });
+  const pillS = spring({ fps, frame: Math.max(0, frame - 30), config: { damping: 12, stiffness: 180 } });
   const glow = 0.5 + 0.5 * Math.sin(frame / 14);
-  const arrowY = Math.sin(frame / 10) * 12;
+  const floatY = Math.sin(frame / 18) * 10;
+  const prog = interpolate(frame, [36, 64], [12, 68], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const pnl = interpolate(frame, [40, 72], [0, 187.5], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      <div style={{ position: "absolute", top: 660, left: 70, right: 70, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 84, color: C.white, textShadow: "0 0 50px rgba(34,211,238,0.4)", ...rise(frame, 0, 40) }}>
+      {/* judul atas */}
+      <div style={{ position: "absolute", top: 150, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14, zIndex: 12 }}>
+        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 72, color: "#FFFFFF", textShadow: "0 0 50px rgba(34,211,238,0.4)", ...rise(frame, 0, 36) }}>
           {title}
         </div>
-        <div style={{ marginTop: 18, fontFamily: FONT, fontWeight: 500, fontSize: 36, color: C.muted, maxWidth: 840, ...rise(frame, 8, 30) }}>
+        <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 31, color: C.muted, maxWidth: 860, ...rise(frame, 8, 26) }}>
           {sub}
         </div>
+      </div>
+
+      {/* mockup HP — app LuxTradee */}
+      <div
+        style={{
+          position: "absolute",
+          top: 420,
+          left: "50%",
+          width: 640,
+          marginLeft: -320,
+          borderRadius: 54,
+          background: "linear-gradient(180deg, #0B1220, #0A0F1A)",
+          border: "3px solid rgba(34,211,238,0.4)",
+          boxShadow: "0 40px 120px rgba(0,0,0,0.65), 0 0 90px rgba(34,211,238,0.16)",
+          padding: "34px 38px",
+          opacity: clamp01(phoneS),
+          transform: `translateY(${(1 - phoneS) * 130 + floatY}px) scale(${0.94 + 0.06 * clamp01(phoneS)})`,
+          zIndex: 11,
+        }}
+      >
+        {/* app bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 26 }}>
+          <div style={{ width: 12, height: 12, borderRadius: 999, background: C.green, boxShadow: "0 0 10px rgba(52,211,153,0.9)" }} />
+          <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 26, letterSpacing: 5, color: "#FFFFFF" }}>LUXTRADEE</span>
+          <span
+            style={{
+              marginLeft: "auto",
+              padding: "6px 16px",
+              borderRadius: 999,
+              background: "rgba(52,211,153,0.16)",
+              color: C.green,
+              fontWeight: 800,
+              fontSize: 20,
+              letterSpacing: 1,
+            }}
+          >
+            AKTIF
+          </span>
+        </div>
+
+        {/* kartu sinyal */}
+        <div style={{ padding: "26px 30px", borderRadius: 26, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(34,211,238,0.25)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
+            <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 34, color: "#FFFFFF" }}>XAUUSD</span>
+            <span style={{ padding: "6px 18px", borderRadius: 10, background: "rgba(52,211,153,0.18)", color: C.green, fontWeight: 900, fontSize: 24 }}>BUY</span>
+            <span style={{ marginLeft: "auto", fontFamily: FONT, fontWeight: 700, fontSize: 22, color: C.muted }}>M15</span>
+          </div>
+          <SignalRow label="ENTRY" value="3.646.20" color="#22D3EE" delay={16} />
+          <SignalRow label="STOP LOSS" value="3.641.80" color="#F87171" delay={22} />
+          <SignalRow label="TAKE PROFIT 1" value="3.652.40" color="#34D399" delay={28} done />
+          <SignalRow label="TAKE PROFIT 2" value="3.658.90" color="#34D399" delay={34} />
+
+          {/* progress TP */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 22, color: C.muted }}>PROGRES</span>
+              <span style={{ fontFamily: FONT, fontWeight: 800, fontSize: 22, color: C.green }}>{"TP1 HIT \u2713"}</span>
+            </div>
+            <div style={{ height: 14, borderRadius: 999, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${prog}%`,
+                  background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
+                  boxShadow: "0 0 16px rgba(34,211,238,0.5)",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* hasil hari ini — count-up */}
         <div
           style={{
-            marginTop: 74,
-            padding: "34px 76px",
+            marginTop: 26,
+            padding: "20px 26px",
+            borderRadius: 20,
+            background: "rgba(52,211,153,0.1)",
+            border: "1px solid rgba(52,211,153,0.3)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 24, color: "#D1FAE5" }}>HASIL HARI INI</span>
+          <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 30, color: C.green, fontVariantNumeric: "tabular-nums" }}>
+            +${pnl.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      {/* CTA follow + domain */}
+      <div style={{ position: "absolute", bottom: 200, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 26, zIndex: 12 }}>
+        <div
+          style={{
+            padding: "30px 70px",
             borderRadius: 999,
             background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
             fontFamily: FONT,
             fontWeight: 900,
-            fontSize: 46,
-            letterSpacing: 3,
+            fontSize: 44,
+            letterSpacing: 2,
             color: "#04121a",
             boxShadow: `0 0 ${34 + glow * 40}px rgba(34,211,238,${0.4 + glow * 0.35})`,
             opacity: clamp01(pillS),
-            transform: `scale(${0.85 + 0.15 * pillS})`,
+            transform: `scale(${0.85 + 0.15 * clamp01(pillS)})`,
           }}
         >
-          CEK LINK DI BIO
+          FOLLOW {handle.toUpperCase()}
         </div>
-        <div style={{ marginTop: 40, fontFamily: FONT, fontWeight: 700, fontSize: 40, color: C.white, opacity: 0.9, ...rise(frame, 20, 24) }}>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 36, color: "#FFFFFF", opacity: 0.9, ...rise(frame, 40, 24) }}>
           {domain}
-        </div>
-        <div style={{ marginTop: 26, fontSize: 60, color: C.accent, transform: `translateY(${arrowY}px)`, opacity: 0.9 }}>
-          ↓
         </div>
       </div>
     </SceneShell>
@@ -647,13 +725,20 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
 
   const seedBase = Math.abs(handle.length * 7 + scenes.length * 13) || 11;
 
+  /* scene full-bleed (hook/chart/tutorial) = terminal 1080x1920 menempel
+     ke seluruh layar — chrome global (brandchip/handle) disembunyikan biar
+     bersih persis kayak reel @inzaghitrades. */
+  const FULL_BLEED = new Set(["hook", "chart", "tutorial"]);
+  const activeKind = normalizeKind(scenes[activeIndex]?.kind, activeIndex, scenes.length);
+  const chromeHidden = FULL_BLEED.has(activeKind);
+
   return (
     <AbsoluteFill style={{ backgroundColor: C.bg, fontFamily: FONT }}>
       <Backdrop />
       {/* 🎵 musik latar bebas-copyright di-bake ke MP4 (IG/TikTok API tidak bisa lampirkan musik library) */}
       <BackgroundMusic />
       <ProgressBar />
-      <BrandChip />
+      {!chromeHidden && <BrandChip />}
 
       {scenes.map((scene, i) => {
         const kind = normalizeKind(scene.kind, i, scenes.length);
@@ -661,32 +746,34 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
           <Sequence key={`${scene.voFile}-${i}`} from={starts[i]} durationInFrames={frames[i]} name={`Scene ${i + 1} · ${kind}`}>
             {scene.voFile ? <Audio src={staticFile(scene.voFile)} /> : null}
             {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
-            : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} seed={seedBase + i * 17} durationInFrames={frames[i]} />
-            : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} seed={seedBase + i * 17} durationInFrames={frames[i]} />
+            : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
+            : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
             : kind === "quote" ? <QuoteScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
             : kind === "stat" ? <StatScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
-            : kind === "cta" ? <CtaScene title={scene.title} sub={scene.sub} domain={domain} durationInFrames={frames[i]} />
+            : kind === "cta" ? <CtaScene title={scene.title} sub={scene.sub} domain={domain} handle={handle} durationInFrames={frames[i]} />
             : <PointScene title={scene.title} sub={scene.sub} badge={Math.max(1, pointBadges[i])} durationInFrames={frames[i]} />}
           </Sequence>
         );
       })}
 
-      <SceneDots activeIndex={activeIndex} total={scenes.length} />
-      <div
-        style={{
-          position: "absolute",
-          bottom: 130,
-          left: 60,
-          zIndex: 10,
-          fontFamily: FONT,
-          fontWeight: 500,
-          fontSize: 24,
-          color: C.muted,
-          opacity: 0.5,
-        }}
-      >
-        {handle}
-      </div>
+      <SceneDots activeIndex={activeIndex} total={scenes.length} bottom={chromeHidden ? 20 : 64} />
+      {!chromeHidden && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 130,
+            left: 60,
+            zIndex: 10,
+            fontFamily: FONT,
+            fontWeight: 500,
+            fontSize: 24,
+            color: C.muted,
+            opacity: 0.5,
+          }}
+        >
+          {handle}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

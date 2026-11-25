@@ -50,11 +50,16 @@ export interface ChartScreenProps {
   height?: number;
   seed?: number;
   trend?: "up" | "down" | "flat";
+  /** Narasi waypoint harga ternormalisasi (1 = tinggi) — override trend. */
+  path?: number[];
   steps?: TerminalStep[];
   symbol?: string;
   tf?: string;
   /** Tunda mulai (frame) — biar entrance scene selesai dulu. */
   delay?: number;
+  /** Full-bleed: tanpa kartu/border/shadow — chart jadi SELURUH LAYAR
+   *  (gaya reel @inzaghitrades, arahan Bos "bukan teks aja"). */
+  fullBleed?: boolean;
   /** Durasi scene (frame) — dipakai menyebar timing langkah gambar. */
   durationInFrames?: number;
 }
@@ -220,20 +225,22 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   height = 1200,
   seed = 11,
   trend = "flat",
+  path,
   steps = [],
   symbol = "XAUUSD",
   tf = "H1",
   delay = 10,
+  fullBleed = false,
   durationInFrames = 170,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const f = Math.max(0, frame - delay);
 
-  const nCandles = 30;
+  const nCandles = 34;
   const candles = React.useMemo(
-    () => genCandles(seed, trend, nCandles),
-    [seed, trend, nCandles],
+    () => genCandles(seed, trend, nCandles, path),
+    [seed, trend, nCandles, path],
   );
 
   /* ---- area plot ---- */
@@ -287,10 +294,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       style={{
         width,
         height,
-        borderRadius: 26,
+        borderRadius: fullBleed ? 0 : 26,
         background: TV_BG,
-        border: "1px solid rgba(148,163,184,0.18)",
-        boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
+        border: fullBleed ? "none" : "1px solid rgba(148,163,184,0.18)",
+        boxShadow: fullBleed ? "none" : "0 30px 90px rgba(0,0,0,0.55)",
         overflow: "hidden",
         position: "relative",
         fontFamily: FONT,

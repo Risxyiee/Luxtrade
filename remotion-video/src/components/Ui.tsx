@@ -247,15 +247,16 @@ export const ProgressBar: React.FC = () => {
 };
 
 /** Bottom-center scene indicator dots. */
-export const SceneDots: React.FC<{ activeIndex: number; total: number }> = ({
+export const SceneDots: React.FC<{ activeIndex: number; total: number; bottom?: number }> = ({
   activeIndex,
   total,
+  bottom = 64,
 }) => {
   return (
     <div
       style={{
         position: "absolute",
-        bottom: 64,
+        bottom,
         left: 0,
         right: 0,
         height: 10,
