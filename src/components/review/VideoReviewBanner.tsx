@@ -21,14 +21,15 @@ export default function VideoReviewBanner() {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <p className="text-[11px] font-bold tracking-[0.18em] text-amber-400 uppercase">
-            Sample Review — Gaya Baru Konten v3 (Full-Bleed Terminal)
+            Sample Review — Konten v4 (TradingView UI + VO Indonesia Native)
           </p>
           <h2 className="text-lg md:text-xl font-bold text-white mt-1">
-            &ldquo;SL Kena Dulu, Baru Harga Jalan&rdquo; v3 — 32 detik, 9:16 — layar trading FULL-SCREEN kayak reel referensi
+            &ldquo;SL Kena Terus? Ini Penyebabnya&rdquo; v4 — 25 detik, 9:16 — chart TradingView + motion graphics
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            Revisi Bos &ldquo;masih teks aja + animasi biasa&rdquo;: sekarang <span className="text-amber-300">chart memenuhi seluruh layar sejak detik 0</span> —
-            candle streaming, SL ditembus (flash + shake + stamp &ldquo;SL KENA!&rdquo;), harga rally lagi, CTA jadi mockup app.
+            Revisi Bos (3 poin): <span className="text-amber-300">① VO ganti edge-tts id-ID-ArdiNeural (Indonesia native, bukan logat asing)</span> ·{' '}
+            <span className="text-amber-300">② candle gaya TradingView asli</span> (#131722, #26A69A/#EF5350, axis, grid){' '}
+            <span className="text-amber-300">③ UI dinamis</span> — ticker live, KPI count-up, badge glow, kartu glass.
             Tekan play — <span className="text-gray-300">volume nyala</span>.
           </p>
         </div>
@@ -44,7 +45,7 @@ export default function VideoReviewBanner() {
       <div className="flex flex-col md:flex-row gap-4 items-start">
         <div className="flex flex-col gap-2">
           <video
-            src="/review/luxtrade-sl-pain-v3.mp4"
+            src="/review/luxtrade-sl-pain-sample.mp4"
             controls
             playsInline
             preload="metadata"
@@ -52,20 +53,20 @@ export default function VideoReviewBanner() {
           />
           {/* Unduh langsung MP4 buat dipindah ke HP / dikirim ulang */}
           <a
-            href="/review/luxtrade-sl-pain-v3.mp4"
-            download="luxtrade-sl-kena-v3.mp4"
+            href="/review/luxtrade-sl-pain-sample.mp4"
+            download="luxtrade-sl-kena-v4.mp4"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors"
           >
-            &#8681; Unduh Video v3 (MP4, 6.8 MB)
+            &#8681; Unduh Video v4 (MP4, 2.6 MB)
           </a>
         </div>
         <ul className="text-sm text-gray-300 space-y-2 flex-1">
-          <li>&bull; Scene 1 (0-5s): Hook — terminal full-bleed, candle streaming rally &rarr; tembus SL (flash merah + shake + stamp) &rarr; rally &ldquo;HARGA JALAN&rdquo;</li>
-          <li>&bull; Scene 2 (5-14s): EQH/LIQUIDITY/SWEEP/DEMAND digambar sinkron VO + chip LANGKAH</li>
-          <li>&bull; Scene 3 (14-22s): DEMAND zone + SL+ATR di bawahnya + target path, kamera push pelan</li>
-          <li>&bull; Scene 4 (22-32s): CTA mockup app — kartu sinyal XAUUSD BUY, TP1 hit, +$187.50 count-up, FOLLOW</li>
+          <li>&bull; Scene 1 (0-5s): Hook — panel TradingView, candle streaming naik &rarr; crash candle tembus SL (flash merah + shake + badge &ldquo;SL HIT!&rdquo;)</li>
+          <li>&bull; Scene 2 (5-12s): Agitasi — SL kena 3× berturut (badge ✕ beruntun), saldo count-down $1.000 &rarr; $412, chip &ldquo;90% trader pemula&rdquo;</li>
+          <li>&bull; Scene 3 (12-19s): Solusi — SAFE ZONE di bawah swing low, SL/TP line, rally ke TP HIT +$86, kartu &ldquo;RUMUS SL ANTI-BAKAR&rdquo; 3 langkah</li>
+          <li>&bull; Scene 4 (19-25s): CTA — kartu profil LX + tombol FOLLOW glow + 3 benefit + caption penutup</li>
           <li className="text-gray-400">
-            VO edge-tts id-ID-ArdiNeural (Indonesia native) + musik latar ter-bake.
+            VO edge-tts id-ID-ArdiNeural rate +12% (Indonesia native). Chart: TV dark #131722, bull #26A69A / bear #EF5350.
           </li>
         </ul>
       </div>
