@@ -152,8 +152,9 @@ export default function LuxTradeLanding() {
         <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
 
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
-          {/* SAMPLE REVIEW (LOCAL ONLY - JANGAN COMMIT): hapus baris ini + import setelah review */}
-          <VideoReviewBanner />
+          {/* SAMPLE REVIEW (LOCAL ONLY - JANGAN COMMIT): banner video sampel gaya baru buat Bos.
+              NODE_ENV guard: hanya render di dev lokal — production build (CF) tidak menampilkan. */}
+          {process.env.NODE_ENV !== 'production' && <VideoReviewBanner />}
           <HeroSection language={language} />
           <SocialProofBar language={language} />
           {/* Chart demo live TradingView (direktif Bos 11 Nov: "ganti
