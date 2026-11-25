@@ -605,33 +605,48 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   );
                 }
 
-                /* ---- zone : kotak supply/demand/OB/FVG ---- */
+                /* ---- zone : kotak supply/demand/OB/FVG — gradient fill pro ---- */
                 if (t === "zone") {
                   const yTop = py(Math.max(y1v, y2v));
                   const yBot = py(Math.min(y1v, y2v));
                   const xL = px(Math.min(x1v, x2v));
                   const xR = px(Math.max(x1v, x2v));
                   const w = (xR - xL) * p;
+                  const gid = `zgrad-${i}`;
                   return (
                     <g key={i}>
+                      <defs>
+                        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+                          <stop offset="100%" stopColor={color} stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
                       <rect
                         x={xL}
                         y={yTop}
                         width={Math.max(4, w)}
                         height={yBot - yTop}
-                        fill={color}
-                        opacity={0.13}
+                        fill={`url(#${gid})`}
                       />
-                      <rect
-                        x={xL}
-                        y={yTop}
-                        width={Math.max(4, w)}
-                        height={yBot - yTop}
-                        fill="none"
+                      {/* tepi atas & bawah tegas + glow — gaya proyeksi reel pro */}
+                      <line
+                        x1={xL}
+                        x2={xL + Math.max(4, w)}
+                        y1={yTop}
+                        y2={yTop}
                         stroke={color}
-                        strokeWidth={2}
-                        rx={6}
-                        opacity={0.85}
+                        strokeWidth={2.6}
+                        opacity={0.95}
+                        style={{ filter: `drop-shadow(0 0 8px ${color})` }}
+                      />
+                      <line
+                        x1={xL}
+                        x2={xL + Math.max(4, w)}
+                        y1={yBot}
+                        y2={yBot}
+                        stroke={color}
+                        strokeWidth={1.6}
+                        opacity={0.5}
                       />
                       {label && (
                         <Chip x={xL + 12} y={yTop - 22} text={label} color={color} anchor="start" />
@@ -640,7 +655,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   );
                 }
 
-                /* ---- level : garis proyeksi target (fib/SD) ---- */
+                /* ---- level : garis proyeksi target (fib/SD) + glow ---- */
                 if (t === "level") {
                   const yLine = py(y1v);
                   return (
@@ -651,9 +666,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                         y1={yLine}
                         y2={yLine}
                         stroke={color}
-                        strokeWidth={2.4}
+                        strokeWidth={2.6}
                         strokeDasharray="16 10"
-                        opacity={0.9}
+                        opacity={0.95}
+                        style={{ filter: `drop-shadow(0 0 8px ${color})` }}
                       />
                       <rect
                         x={plotX + plotW + 8}
@@ -681,7 +697,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   );
                 }
 
-                /* ---- path : skenario pergerakan harga (panah) ---- */
+                /* ---- path : skenario pergerakan harga (panah glow + kepala segitiga) ---- */
                 if (t === "path") {
                   const ax = px(x1v);
                   const ay = py(y1v);
@@ -693,24 +709,24 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   const approx = Math.hypot(bx - ax, by - ay) * 1.25;
                   const dash = approx * p;
                   const angle = Math.atan2(by - myp, bx - mxp);
-                  const arrow = 16;
+                  const arrow = 20;
                   return (
                     <g key={i}>
                       <path
                         d={`M ${ax} ${ay} Q ${mxp} ${myp} ${bx} ${by}`}
                         fill="none"
                         stroke={color}
-                        strokeWidth={4}
+                        strokeWidth={4.5}
                         strokeLinecap="round"
                         strokeDasharray={`${dash} ${approx + 20}`}
-                        style={{ filter: `drop-shadow(0 0 10px ${color})` }}
+                        style={{ filter: `drop-shadow(0 0 12px ${color})` }}
                       />
                       {p > 0.85 && (
                         <path
-                          d={`M ${bx} ${by} l ${-arrow * Math.cos(angle - 0.45)} ${-arrow * Math.sin(angle - 0.45)} M ${bx} ${by} l ${-arrow * Math.cos(angle + 0.45)} ${-arrow * Math.sin(angle + 0.45)}`}
-                          stroke={color}
-                          strokeWidth={4}
-                          strokeLinecap="round"
+                          d={`M 0 0 L ${-arrow} ${-arrow * 0.42} L ${-arrow} ${arrow * 0.42} Z`}
+                          transform={`translate(${bx} ${by}) rotate(${(angle * 180) / Math.PI})`}
+                          fill={color}
+                          style={{ filter: `drop-shadow(0 0 10px ${color})` }}
                         />
                       )}
                       {label && (
@@ -720,33 +736,46 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   );
                 }
 
-                /* ---- circle : highlight area (liquidity/sweep) ---- */
+                /* ---- circle : highlight area (liquidity/sweep) —
+                        dashed ring kecil + PING PULSE berulang ---- */
                 if (t === "circle") {
                   const cxp = px(x1v);
                   const cyp = py(y1v);
-                  const total = 2 * (2 * 100 + 2 * 64);
+                  const rx = 74;
+                  const ry = 46;
+                  const total = 2 * (2 * 74 + 2 * 46);
+                  /* pulse loop: ring mengembang 42 frame berulang */
+                  const pf = ((f - start) % 42) / 42;
+                  const pulseR = 1 + pf * 0.35;
+                  const pulseO = 0.55 * (1 - pf);
                   return (
                     <g key={i}>
+                      <ellipse cx={cxp} cy={cyp} rx={rx} ry={ry} fill={color} opacity={0.09} />
                       <ellipse
                         cx={cxp}
                         cy={cyp}
-                        rx={100}
-                        ry={64}
-                        fill={color}
-                        opacity={0.08}
-                      />
-                      <ellipse
-                        cx={cxp}
-                        cy={cyp}
-                        rx={100}
-                        ry={64}
+                        rx={rx * pulseR}
+                        ry={ry * pulseR}
                         fill="none"
                         stroke={color}
-                        strokeWidth={3}
-                        strokeDasharray={`${total * p} ${total + 20}`}
-                        style={{ filter: `drop-shadow(0 0 10px ${color})` }}
+                        strokeWidth={2}
+                        opacity={pulseO}
                       />
-                      {label && <Chip x={cxp} y={cyp - 82} text={label} color={color} />}
+                      <ellipse
+                        cx={cxp}
+                        cy={cyp}
+                        rx={rx}
+                        ry={ry}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={2.6}
+                        strokeDasharray="10 7"
+                        strokeDashoffset={-((f - start) * 0.6)}
+                        style={{ filter: `drop-shadow(0 0 12px ${color})` }}
+                      />
+                      {/* titik pusat + crosshair kecil */}
+                      <circle cx={cxp} cy={cyp} r={5} fill={color} style={{ filter: `drop-shadow(0 0 8px ${color})` }} />
+                      {label && <Chip x={cxp} y={cyp - ry - 24} text={label} color={color} />}
                     </g>
                   );
                 }

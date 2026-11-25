@@ -13,8 +13,12 @@ import {
 import { Backdrop } from "./components/Backdrop";
 import { BackgroundMusic } from "./components/Music";
 import { genCandles } from "./components/Chart";
-import { activeStepIndex, ChartScreen, type TerminalStep } from "./components/ChartScreen";
-import { HOOK_CRASH_FRAME, HookTerminal } from "./components/HookTerminal";
+import {
+  ChartCard,
+  activeCardStep,
+  hookCrashFrame,
+  type TerminalStep,
+} from "./components/ChartCard";
 import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, SPRING_POP, SPRING_SOFT, clamp01, pop, rise, SceneShell } from "./components/Ui";
 import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
 
@@ -63,74 +67,318 @@ const normalizeKind = (k: string | undefined, index: number, total: number): Kin
   return "point";
 };
 
-/* ---------------- hook — TERMINAL FULL-BLEED (Bos 26-11) ----------------
-   Dulu: tipografi raksasa di layar kosong = "teks aja" (komplain Bos:
-   "visual masih jelek"). Sekarang: LANGSUNG layar trading penuh sejak
-   frame 0 — candle streaming, SL ditembus (flash merah + screen shake +
-   stamp), lalu harga rally keras. Caption TikTok-style overlay bawah. */
+/* ---------------- SHARED: judul besar + step pills + caption polos ----------------
+   Layout reel referensi Bos (DfeAm-wPf3k): judul raksasa di atas (kata
+   kunci berwarna), pill langkah di bawahnya, kartu chart di tengah,
+   caption polos tanpa kotak di bawah. */
 
-const PAIN_RE = /(SL|KENA|MC|FOMO|HABIS|BANTAI|MEPET)/i;
-const WIN_RE = /(JALAN|CUAN|PROFIT|SISTEM|NAIK|BUFFER)/i;
-
-const HookCaption: React.FC<{
-  text: string;
-  accent: string;
-  matcher: RegExp;
-  delay: number;
-  align?: "flex-start" | "flex-end";
-}> = ({ text, accent, matcher, delay, align = "flex-start" }) => {
+const BigTitle: React.FC<{ lines: string[]; delay?: number; size?: number }> = ({
+  lines,
+  delay = 4,
+  size = 78,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 14, stiffness: 220, mass: 0.9 } });
   return (
     <div
       style={{
-        alignSelf: align,
-        padding: "16px 34px",
-        borderRadius: 20,
-        background: "rgba(3,6,12,0.62)",
-        border: "1px solid rgba(255,255,255,0.14)",
-        backdropFilter: "blur(8px)",
-        fontFamily: FONT,
-        fontWeight: 900,
-        fontSize: 64,
-        lineHeight: 1.08,
-        color: "#FFFFFF",
-        textShadow: "0 2px 18px rgba(0,0,0,0.6)",
-        opacity: clamp01(s),
-        transform: `translateY(${(1 - s) * 56}px) scale(${0.92 + 0.08 * clamp01(s)})`,
+        position: "absolute",
+        top: 140,
+        left: 48,
+        right: 48,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
+        zIndex: 12,
+        textAlign: "center",
       }}
     >
-      {text.split(/\s+/).map((w, i) => (
-        <span key={i} style={{ color: matcher.test(w) ? accent : "#FFFFFF" }}>
-          {w}{" "}
-        </span>
+      {lines.map((line, li) => (
+        <div
+          key={li}
+          style={{
+            fontFamily: FONT,
+            fontWeight: 900,
+            fontSize: size,
+            lineHeight: 1.12,
+            letterSpacing: -1,
+            ...rise(frame, delay + li * 5, 40),
+          }}
+        >
+          {line.split(/\s+/).map((w, i) => (
+            <span key={i} style={{ color: titleWordColor(w), textShadow: "0 4px 30px rgba(0,0,0,0.55)" }}>
+              {w}{" "}
+            </span>
+          ))}
+        </div>
       ))}
     </div>
   );
 };
 
-const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number }> = ({ title, sub, durationInFrames }) => {
+/** pill langkah gaya reel: "1 UPTREND ✓" — done=teal ✓, aktif=teal solid, next=dim */
+const StepPills: React.FC<{ steps: TerminalStep[]; active: number; delay?: number }> = ({
+  steps,
+  active,
+  delay = 10,
+}) => {
+  const frame = useCurrentFrame();
+  if (steps.length === 0) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 356,
+        left: 40,
+        right: 40,
+        display: "flex",
+        justifyContent: "center",
+        gap: 12,
+        flexWrap: "wrap",
+        zIndex: 12,
+      }}
+    >
+      {steps.slice(0, 6).map((s, i) => {
+        const sIn = clamp01(
+          spring({ fps: 30, frame: Math.max(0, frame - delay - i * 3), config: { damping: 15, stiffness: 220 } }),
+        );
+        const label = String(s.label || `LANGKAH ${i + 1}`).toUpperCase();
+        const done = i < active;
+        const isActive = i === active;
+        return (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 20px",
+              borderRadius: 999,
+              fontFamily: FONT,
+              fontWeight: 800,
+              fontSize: 21,
+              letterSpacing: 1,
+              whiteSpace: "nowrap",
+              opacity: clamp01(sIn) * (i > active + 1 ? 0.45 : 1),
+              transform: `scale(${0.8 + 0.2 * clamp01(sIn)})`,
+              background: isActive ? "rgba(45,212,191,0.92)" : "rgba(6,14,12,0.72)",
+              border: isActive ? "2px solid rgba(45,212,191,1)" : done ? "2px solid rgba(45,212,191,0.75)" : "2px solid rgba(255,255,255,0.16)",
+              color: isActive ? "#04120E" : done ? "#2DD4BF" : "rgba(255,255,255,0.75)",
+              boxShadow: isActive ? "0 0 26px rgba(45,212,191,0.5)" : "none",
+            }}
+          >
+            <span style={{ opacity: 0.75 }}>{i + 1}</span>
+            {label}
+            {done && <span>✓</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/** caption polos tanpa kotak di bawah — gaya reel referensi */
+const PlainCaption: React.FC<{ text: string; delay?: number; bottom?: number }> = ({
+  text,
+  delay = 14,
+  bottom = 172,
+}) => {
+  const frame = useCurrentFrame();
+  const words = text.split(/\s+/);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom,
+        left: 64,
+        right: 64,
+        textAlign: "center",
+        fontFamily: FONT,
+        fontWeight: 700,
+        fontSize: 42,
+        lineHeight: 1.25,
+        color: "#FFFFFF",
+        zIndex: 12,
+        textShadow: "0 3px 24px rgba(0,0,0,0.6)",
+      }}
+    >
+      {words.map((w, i) => (
+        <PopWord key={i} word={w} accent="#2DD4BF" matcher={WIN_RE} index={i} delay={delay} />
+      ))}
+    </div>
+  );
+};
+
+/* ---------------- hook — KARTU CHART + STICKMAN (gaya reel ref) ----------------
+   Judul 2 baris raksasa + kartu chart streaming: candle rally →
+   menembus SL (flash + shake + stamp SL KENA + stickman shock) →
+   rally recovery (ticket PnL + stickman celebrate). */
+
+const HOOK_PATH = [0.34, 0.46, 0.54, 0.58, 0.54, 0.44, 0.3, 0.18, 0.26, 0.4, 0.55, 0.7, 0.84, 0.92];
+const HOOK_N = 20;
+const HOOK_SL = 0.3;
+const HOOK_RS = 6;
+const HOOK_IV = 3;
+
+const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number; seed: number }> = ({
+  title,
+  sub,
+  durationInFrames,
+  seed,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const crash = hookCrashFrame(HOOK_N, HOOK_SL, seed, HOOK_PATH, HOOK_RS, HOOK_IV);
+  const recover = crash + 42;
+
+  const stampS = spring({ fps, frame: Math.max(0, frame - crash - 2), config: { damping: 11, stiffness: 210, mass: 0.9 } });
+  const winS = spring({ fps, frame: Math.max(0, frame - recover - 2), config: { damping: 12, stiffness: 200 } });
+  const pnl = interpolate(frame, [recover + 4, recover + 30], [0, 137.14], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
+  });
+
   return (
     <SceneShell durationInFrames={durationInFrames} instantIn>
-      <HookTerminal durationInFrames={durationInFrames} />
-      {/* caption TikTok-style — penonton scroll TANPA SUARA */}
+      {/* judul besar 2 baris */}
+      <BigTitle lines={[title, sub]} size={80} />
+
+      {/* kartu chart hook mode */}
       <div
         style={{
           position: "absolute",
-          bottom: 200,
-          left: 56,
-          right: 56,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          zIndex: 12,
+          top: 430,
+          left: "50%",
+          marginLeft: -484,
+          opacity: 1,
+          zIndex: 10,
         }}
       >
-        <HookCaption text={title} accent="#FF5F56" matcher={PAIN_RE} delay={14} />
-        <HookCaption text={sub} accent="#2DD4A7" matcher={WIN_RE} delay={HOOK_CRASH_FRAME + 6} align="flex-end" />
+        <ChartCard
+          width={968}
+          height={1150}
+          seed={seed}
+          path={HOOK_PATH}
+          durationInFrames={durationInFrames}
+          hook
+          slY={HOOK_SL}
+          entryY={0.55}
+          symbol="XAUUSD"
+          tf="1 JAM"
+        />
       </div>
+
+      {/* stamp SL KENA — stempel miring saat crash */}
+      {frame >= crash && frame < recover && (
+        <div
+          style={{
+            position: "absolute",
+            top: 700,
+            left: 96,
+            padding: "14px 32px",
+            borderRadius: 14,
+            background: "linear-gradient(135deg, rgba(220,38,38,0.96), rgba(153,27,27,0.96))",
+            border: "2px solid rgba(255,255,255,0.5)",
+            boxShadow:
+              "0 18px 60px rgba(220,38,38,0.5), inset 0 0 0 3px rgba(0,0,0,0.25), inset 0 0 34px rgba(255,255,255,0.12)",
+            fontFamily: FONT,
+            fontWeight: 900,
+            fontSize: 54,
+            color: "#FFFFFF",
+            letterSpacing: 3,
+            opacity: clamp01(stampS),
+            transform: `rotate(-6deg) scale(${0.55 + 0.45 * clamp01(stampS)})`,
+            zIndex: 14,
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 6, opacity: 0.85, marginBottom: 2 }}>ALERT</div>
+          SL KENA!
+        </div>
+      )}
+
+      {/* ticket recovery — PnL count-up glow */}
+      {frame >= recover && (
+        <div
+          style={{
+            position: "absolute",
+            top: 660,
+            right: 80,
+            padding: "18px 28px",
+            borderRadius: 20,
+            background: "rgba(6,39,32,0.82)",
+            border: "1px solid rgba(52,211,153,0.55)",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 20px 70px rgba(5,150,105,0.4), 0 0 44px rgba(52,211,153,0.22)",
+            fontFamily: FONT,
+            zIndex: 14,
+            textAlign: "right",
+            opacity: clamp01(winS),
+            transform: `scale(${0.7 + 0.3 * clamp01(winS)})`,
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: 4, color: "#6EE7B7" }}>HARGA JALAN ↗</div>
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 56,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              fontVariantNumeric: "tabular-nums",
+              textShadow: "0 0 34px rgba(52,211,153,0.75)",
+              lineHeight: 1,
+            }}
+          >
+            +${pnl.toFixed(2)}
+          </div>
+        </div>
+      )}
     </SceneShell>
+  );
+};
+
+const PAIN_RE = /(SL|KENA|MC|FOMO|HABIS|BANTAI|MEPET|SIAL|JEBOL)/i;
+const WIN_RE = /(JALAN|CUAN|PROFIT|SISTEM|NAIK|BUFFER|AMAN|SWEEP|LIKUIDITAS|ZONA|ENTRY|TARGET|DEMAND)/i;
+
+/* kata ter-highlight merah (pain) / teal (win) — gaya judul reel */
+const titleWordColor = (w: string): string => {
+  if (PAIN_RE.test(w)) return "#F87171";
+  if (WIN_RE.test(w)) return "#2DD4BF";
+  return "#FFFFFF";
+};
+
+/** Kata tunggal dengan pop-in spring — TikTok style word timing. */
+const PopWord: React.FC<{
+  word: string;
+  accent: string;
+  matcher: RegExp;
+  index: number;
+  delay: number;
+}> = ({ word, accent, matcher, index, delay }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const s = spring({
+    fps,
+    frame: Math.max(0, frame - delay - index * 2),
+    config: { damping: 13, stiffness: 260, mass: 0.7 },
+  });
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        marginRight: 14,
+        color: matcher.test(word) ? accent : "#FFFFFF",
+        opacity: clamp01(s),
+        transform: `translateY(${(1 - clamp01(s)) * 26}px) scale(${0.7 + 0.3 * clamp01(s)})`,
+        textShadow:
+          matcher.test(word)
+            ? `0 0 30px ${accent}66, 0 2px 18px rgba(0,0,0,0.65)`
+            : "0 2px 18px rgba(0,0,0,0.65)",
+      }}
+    >
+      {word}
+    </span>
   );
 };
 
@@ -237,181 +485,61 @@ const PointScene: React.FC<{ title: string; sub: string; badge: number; duration
   );
 };
 
-/* ---------------- overlay chips bersama utk scene full-bleed ----------------
-   Judul = chip glass di atas, sub = caption TikTok di bawah. Chart
-   full-bleed = SELURUH layar (gaya reel @inzaghitrades). */
+/* ---------------- kartu chart: langkah gambar + stickman (gaya reel ref) ----------------
+   Judul besar atas → pill langkah (sinkron VO) → kartu chart dengan
+   alat gambar berurutan + Stickman yang jalan/nunjuk → caption polos. */
 
-const SceneTitleChip: React.FC<{ text: string; delay?: number }> = ({ text, delay = 4 }) => {
+import { type StickmanPose } from "./components/Stickman";
+
+const CardStepsScene: React.FC<{
+  title: string;
+  sub: string;
+  draw?: TerminalStep[];
+  path?: number[];
+  seed: number;
+  durationInFrames: number;
+  poses: StickmanPose[];
+}> = ({ title, sub, draw, path, seed, durationInFrames, poses }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 15, stiffness: 200 } });
-  return (
-    <div
-      style={{
-        alignSelf: "flex-start",
-        padding: "16px 30px",
-        borderRadius: 20,
-        background: "rgba(3,6,12,0.62)",
-        border: "1px solid rgba(34,211,238,0.3)",
-        backdropFilter: "blur(8px)",
-        fontFamily: FONT,
-        fontWeight: 900,
-        fontSize: 52,
-        lineHeight: 1.1,
-        color: "#FFFFFF",
-        textShadow: "0 2px 16px rgba(0,0,0,0.6)",
-        opacity: clamp01(s),
-        transform: `translateY(${(1 - s) * -50}px)`,
-      }}
-    >
-      {text}
-    </div>
-  );
-};
-
-const SceneCaption: React.FC<{ text: string; delay?: number; accent?: boolean }> = ({ text, delay = 12, accent }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 14, stiffness: 210 } });
-  return (
-    <div
-      style={{
-        alignSelf: "center",
-        padding: "18px 36px",
-        borderRadius: 20,
-        background: "rgba(3,6,12,0.62)",
-        border: "1px solid rgba(255,255,255,0.14)",
-        backdropFilter: "blur(8px)",
-        fontFamily: FONT,
-        fontWeight: 800,
-        fontSize: 38,
-        lineHeight: 1.15,
-        color: "#E5E7EB",
-        textAlign: "center",
-        opacity: clamp01(s),
-        transform: `translateY(${(1 - s) * 46}px)`,
-        boxShadow: accent ? "0 0 34px rgba(34,211,238,0.18)" : undefined,
-      }}
-    >
-      {text}
-    </div>
-  );
-};
-
-/** Kamera push pelan sepanjang scene — chart terasa "hidup" terus.
- *  Origin TOP: top-bar terminal tidak terpotong saat zoom. */
-const useCameraPush = (durationInFrames: number, from = 1.0, to = 1.055): string => {
-  const frame = useCurrentFrame();
-  const push = interpolate(frame, [0, durationInFrames], [from, to], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.inOut(Easing.quad),
-  });
-  return `scale(${push})`;
-};
-
-/* ---------------- chart — TERMINAL FULL-BLEED seluruh layar ---------------- */
-
-const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, path, seed, durationInFrames }) => {
-  const push = useCameraPush(durationInFrames);
-  return (
-    <SceneShell durationInFrames={durationInFrames}>
-      <AbsoluteFill style={{ transform: push, transformOrigin: "50% 0%" }}>
-        <ChartScreen
-          width={1080}
-          height={1920}
-          fullBleed
-          seed={seed}
-          trend="flat"
-          path={path}
-          steps={draw}
-          delay={2}
-          durationInFrames={durationInFrames}
-        />
-      </AbsoluteFill>
-      <div style={{ position: "absolute", top: 104, left: 56, right: 56, display: "flex", flexDirection: "column", gap: 12, zIndex: 12 }}>
-        <SceneTitleChip text={title} />
-      </div>
-      <div style={{ position: "absolute", bottom: 170, left: 56, right: 56, display: "flex", flexDirection: "column", zIndex: 12 }}>
-        <SceneCaption text={sub} delay={14} />
-      </div>
-    </SceneShell>
-  );
-};
-
-/* ---------------- tutorial — terminal full-bleed + langkah gambar sinkron VO ---------------- */
-
-const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = ({ title, sub, draw, path, seed, durationInFrames }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
   const steps = Array.isArray(draw) ? draw.slice(0, 6) : [];
-  const active = activeStepIndex(steps.length, frame, durationInFrames);
-  const chip = spring({ fps, frame: Math.max(0, frame - 6), config: { damping: 15, stiffness: 200 } });
-  const push = useCameraPush(durationInFrames);
+  const active = activeCardStep(steps.length, frame, durationInFrames);
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      {/* terminal full-bleed — HERO */}
-      <AbsoluteFill style={{ transform: push, transformOrigin: "50% 0%" }}>
-        <ChartScreen
-          width={1080}
-          height={1920}
-          fullBleed
-          seed={seed}
-          trend="flat"
-          path={path}
-          steps={steps}
-          delay={2}
-          durationInFrames={durationInFrames}
-        />
-      </AbsoluteFill>
-
-      {/* judul kiri + penghitung LANGKAH kanan (ikut langkah gambar = ikut VO) */}
+      <BigTitle lines={[title]} size={72} />
+      <StepPills steps={steps} active={active} />
       <div
         style={{
           position: "absolute",
-          top: 104,
-          left: 56,
-          right: 56,
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-          zIndex: 12,
+          top: 448,
+          left: "50%",
+          marginLeft: -484,
+          zIndex: 10,
         }}
       >
-        <SceneTitleChip text={title} delay={4} />
-        {steps.length > 0 && (
-          <div
-            key={active}
-            style={{
-              flexShrink: 0,
-              marginTop: 8,
-              padding: "14px 28px",
-              borderRadius: 999,
-              background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
-              color: "#04121a",
-              fontFamily: FONT,
-              fontWeight: 900,
-              fontSize: 27,
-              letterSpacing: 2,
-              boxShadow: "0 0 30px rgba(34,211,238,0.45)",
-              whiteSpace: "nowrap",
-              opacity: clamp01(chip),
-              transform: `scale(${0.8 + 0.2 * clamp01(chip)})`,
-            }}
-          >
-            LANGKAH {Math.max(1, active + 1)}/{steps.length}
-          </div>
-        )}
+        <ChartCard
+          width={968}
+          height={1130}
+          seed={seed}
+          path={path}
+          steps={steps}
+          durationInFrames={durationInFrames}
+          stickPoses={poses}
+          symbol="XAUUSD"
+          tf="1 JAM"
+        />
       </div>
-
-      {/* caption TikTok — penonton scroll tanpa suara */}
-      <div style={{ position: "absolute", bottom: 170, left: 56, right: 56, display: "flex", flexDirection: "column", zIndex: 12 }}>
-        <SceneCaption text={sub} delay={12} accent />
-      </div>
+      <PlainCaption text={sub} delay={16} />
     </SceneShell>
   );
 };
+
+const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = (props) => (
+  <CardStepsScene {...props} poses={["walk", "point", "point", "celebrate"]} />
+);
+
+const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = (props) => (
+  <CardStepsScene {...props} poses={["point", "idle", "shock", "point"]} />
+);
 
 /* ---------------- quote — kartu kutipan + bintang ---------------- */
 
@@ -568,26 +696,96 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
   const pillS = spring({ fps, frame: Math.max(0, frame - 30), config: { damping: 12, stiffness: 180 } });
   const glow = 0.5 + 0.5 * Math.sin(frame / 14);
   const floatY = Math.sin(frame / 18) * 10;
+  const floatY2 = Math.sin(frame / 14 + 1.7) * 12;
   const prog = interpolate(frame, [36, 64], [12, 68], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const pnl = interpolate(frame, [40, 72], [0, 187.5], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
 
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      {/* judul atas */}
+      {/* glow orb cyan di belakang HP — depth + brand glow */}
+      <div
+        style={{
+          position: "absolute",
+          top: 300,
+          left: "50%",
+          marginLeft: -420,
+          width: 840,
+          height: 840,
+          borderRadius: 999,
+          background: "radial-gradient(circle, rgba(34,211,238,0.16) 0%, rgba(59,130,246,0.07) 45%, rgba(0,0,0,0) 70%)",
+          filter: "blur(6px)",
+          opacity: clamp01(phoneS) * (0.75 + 0.25 * glow),
+          zIndex: 0,
+        }}
+      />
+
+      {/* judul atas — kata kunci di-highlight */}
       <div style={{ position: "absolute", top: 150, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14, zIndex: 12 }}>
         <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 72, color: "#FFFFFF", textShadow: "0 0 50px rgba(34,211,238,0.4)", ...rise(frame, 0, 36) }}>
-          {title}
+          {title.split(/\s+/).map((w, i) => (
+            <span key={i} style={{ color: WIN_RE.test(w) ? "#22D3EE" : "#FFFFFF" }}>{w} </span>
+          ))}
         </div>
         <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 31, color: C.muted, maxWidth: 860, ...rise(frame, 8, 26) }}>
           {sub}
         </div>
       </div>
 
+      {/* chip mengapung kiri — ENTRY HIT */}
+      <div
+        style={{
+          position: "absolute",
+          top: 560,
+          left: 44,
+          padding: "14px 22px",
+          borderRadius: 16,
+          background: "rgba(3,6,12,0.62)",
+          border: "1px solid rgba(34,211,238,0.4)",
+          backdropFilter: "blur(8px)",
+          fontFamily: FONT,
+          fontWeight: 900,
+          fontSize: 24,
+          color: "#22D3EE",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.4), 0 0 26px rgba(34,211,238,0.25)",
+          opacity: clamp01(phoneS) * 0.95,
+          transform: `translateY(${floatY}px)`,
+          zIndex: 12,
+        }}
+      >
+        ENTRY HIT ✓
+      </div>
+
+      {/* chip mengapung kanan — TP1 CUAICNG (count-up) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 480,
+          right: 40,
+          padding: "14px 22px",
+          borderRadius: 16,
+          background: "rgba(6,39,32,0.7)",
+          border: "1px solid rgba(52,211,153,0.5)",
+          backdropFilter: "blur(8px)",
+          fontFamily: FONT,
+          fontWeight: 900,
+          fontSize: 24,
+          color: "#34D399",
+          textShadow: "0 0 22px rgba(52,211,153,0.6)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.4), 0 0 26px rgba(52,211,153,0.25)",
+          opacity: clamp01(pillS),
+          transform: `translateY(${floatY2}px)`,
+          fontVariantNumeric: "tabular-nums",
+          zIndex: 12,
+        }}
+      >
+        +${pnl.toFixed(2)} ✓
+      </div>
+
       {/* mockup HP — app LuxTradee */}
       <div
         style={{
           position: "absolute",
-          top: 420,
+          top: 500,
           left: "50%",
           width: 640,
           marginLeft: -320,
@@ -672,6 +870,45 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
         </div>
       </div>
 
+      {/* row fitur — isi gap antara HP dan CTA */}
+      <div
+        style={{
+          position: "absolute",
+          top: 1280,
+          left: 60,
+          right: 60,
+          display: "flex",
+          justifyContent: "center",
+          gap: 16,
+          zIndex: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        {["✓ ENTRY JELAS", "✓ STOP LOGIS", "✓ JURNAL OTOMATIS"].map((t, i) => {
+          const s = spring({ fps, frame: Math.max(0, frame - 26 - i * 6), config: { damping: 14, stiffness: 200 } });
+          return (
+            <div
+              key={t}
+              style={{
+                padding: "16px 26px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(34,211,238,0.35)",
+                backdropFilter: "blur(8px)",
+                fontFamily: FONT,
+                fontWeight: 800,
+                fontSize: 26,
+                color: "#22D3EE",
+                opacity: clamp01(s),
+                transform: `translateY(${(1 - clamp01(s)) * 30}px)`,
+              }}
+            >
+              {t}
+            </div>
+          );
+        })}
+      </div>
+
       {/* CTA follow + domain */}
       <div style={{ position: "absolute", bottom: 200, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 26, zIndex: 12 }}>
         <div
@@ -691,8 +928,34 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
         >
           FOLLOW {handle.toUpperCase()}
         </div>
-        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 36, color: "#FFFFFF", opacity: 0.9, ...rise(frame, 40, 24) }}>
-          {domain}
+        {(() => {
+          const d = rise(frame, 40, 24);
+          return (
+            <div
+              style={{
+                fontFamily: FONT,
+                fontWeight: 700,
+                fontSize: 36,
+                color: "#FFFFFF",
+                opacity: 0.9 * clamp01(d.opacity),
+                transform: d.transform,
+              }}
+            >
+              {domain}
+            </div>
+          );
+        })()}
+        <div
+          style={{
+            fontFamily: FONT,
+            fontWeight: 600,
+            fontSize: 22,
+            color: "rgba(255,255,255,0.45)",
+            letterSpacing: 3,
+            ...rise(frame, 48, 18),
+          }}
+        >
+          SINYAL · JURNAL · DISIPLIN
         </div>
       </div>
     </SceneShell>
@@ -745,7 +1008,7 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
         return (
           <Sequence key={`${scene.voFile}-${i}`} from={starts[i]} durationInFrames={frames[i]} name={`Scene ${i + 1} · ${kind}`}>
             {scene.voFile ? <Audio src={staticFile(scene.voFile)} /> : null}
-            {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
+            {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} seed={seedBase + i * 17} />
             : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
             : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
             : kind === "quote" ? <QuoteScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />

@@ -5,14 +5,14 @@
       "title": "SL KENA DULU,",
       "sub": "BARU HARGA JALAN",
       "voFile": "vo/vo0.mp3",
-      "durationSec": 5.1
+      "durationSec": 5.5
     },
     {
       "kind": "tutorial",
       "title": "SWEEP LIKUIDITAS DULU",
       "sub": "equal highs = umpan — smart money narik dulu",
       "voFile": "vo/vo1.mp3",
-      "durationSec": 8.6,
+      "durationSec": 9.2,
       "path": [0.42, 0.55, 0.65, 0.72, 0.78, 0.76, 0.82, 0.6, 0.42, 0.3, 0.36, 0.5, 0.66, 0.78],
       "draw": [
         { "t": "high", "y1": 0.85, "label": "EQH", "color": "red" },
@@ -26,7 +26,7 @@
       "title": "SL MEPET VS SL + BUFFER",
       "sub": "stop di bawah zone + buffer ATR",
       "voFile": "vo/vo2.mp3",
-      "durationSec": 7.7,
+      "durationSec": 6.8,
       "path": [0.4, 0.34, 0.28, 0.36, 0.48, 0.42, 0.56, 0.68, 0.8, 0.86, 0.78, 0.88],
       "draw": [
         { "t": "zone", "x1": 0.1, "x2": 0.42, "y1": 0.34, "y2": 0.16, "label": "DEMAND", "color": "green" },
@@ -40,7 +40,7 @@
       "title": "STOP FEELING, IKUTI SISTEM",
       "sub": "sinyal + jurnal otomatis — link di bio",
       "voFile": "vo/vo3.mp3",
-      "durationSec": 7.3
+      "durationSec": 8.6
     }
   ],
   "handle": "@luxtradee",

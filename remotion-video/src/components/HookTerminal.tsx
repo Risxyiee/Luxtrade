@@ -99,10 +99,14 @@ export const HookTerminal: React.FC<{ durationInFrames: number }> = ({ durationI
   const shakeX = shakeAmp * Math.sin(sinceCrash * 2.6);
   const shakeY = shakeAmp * Math.cos(sinceCrash * 3.1) * 0.6;
 
-  /* momen recovery = stamp hijau menggantikan stamp merah (fixed offset
+  /* momen recovery = ticket hijau menggantikan stamp merah (fixed offset
      dari crash — beri jeda biar "SL KENA!" sempat dibaca ±1.3 dtk) */
   const RECOVER_HOLD = 40;
   const sinceRecover = f - (crashFrame + RECOVER_HOLD);
+
+  /* ping ring di candle yang menembus SL — laporan visual "di sini SL pecah" */
+  const pingP = clamp01(sinceCrash / 22);
+  const pingOpacity = sinceCrash >= 0 && sinceCrash <= 22 ? 0.85 * (1 - pingP) : 0;
 
   /* zoom punch pembuka (jempol berhenti scroll) + drift kamera pelan */
   const punch = interpolate(f, [0, 14], [1.1, 1], {
@@ -302,57 +306,107 @@ export const HookTerminal: React.FC<{ durationInFrames: number }> = ({ durationI
         </text>
       </svg>
 
-      {/* ═══ STAMP SL KENA — slam saat crash, tahan sampai recovery ═══ */}
+      {/* ═══ STAMP SL KENA — gaya stempel miring double-ring, tidak menutup chart ═══ */}
       {sinceCrash >= 0 && sinceCrash <= RECOVER_HOLD && (
         <div
           style={{
             position: "absolute",
-            top: 470,
-            left: 90,
-            padding: "22px 44px",
-            borderRadius: 22,
-            background: "linear-gradient(135deg, #DC2626, #B91C1C)",
-            border: "2px solid rgba(255,255,255,0.35)",
-            boxShadow: "0 20px 70px rgba(220,38,38,0.55)",
+            top: 450,
+            left: 76,
+            padding: "16px 36px",
+            borderRadius: 14,
+            background: "linear-gradient(135deg, rgba(220,38,38,0.96), rgba(153,27,27,0.96))",
+            border: "2px solid rgba(255,255,255,0.5)",
+            boxShadow:
+              "0 18px 60px rgba(220,38,38,0.5), inset 0 0 0 3px rgba(0,0,0,0.25), inset 0 0 34px rgba(255,255,255,0.12)",
             fontFamily: FONT,
             fontWeight: 900,
-            fontSize: 72,
+            fontSize: 58,
             color: "#FFFFFF",
-            letterSpacing: 2,
+            letterSpacing: 3,
             opacity: clamp01(stampS),
-            transform: `rotate(-7deg) scale(${0.6 + 0.4 * clamp01(stampS)})`,
+            transform: `rotate(-6deg) scale(${0.55 + 0.45 * clamp01(stampS)})`,
+            transformOrigin: "50% 50%",
             zIndex: 8,
           }}
         >
+          <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 6, opacity: 0.85, marginBottom: 2 }}>
+            ALERT
+          </div>
           SL KENA!
         </div>
       )}
 
-      {/* ═══ STAMP RECOVERY — harga jalan (hijau) ═══ */}
+      {/* ═══ PING RING — lingkaran merah mengembang di candle yang menembus SL ═══ */}
+      {pingOpacity > 0 && (
+        <svg
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          style={{ position: "absolute", inset: 0, zIndex: 7, pointerEvents: "none" }}
+        >
+          <circle
+            cx={px(crashIdx)}
+            cy={py(SL_Y)}
+            r={26 + pingP * 120}
+            fill="none"
+            stroke={TV_DOWN}
+            strokeWidth={5 * (1 - pingP) + 1.5}
+            opacity={pingOpacity}
+            style={{ filter: "drop-shadow(0 0 16px rgba(239,83,80,0.9))" }}
+          />
+          <circle cx={px(crashIdx)} cy={py(SL_Y)} r={9} fill={TV_DOWN} opacity={Math.max(0, pingOpacity)} />
+        </svg>
+      )}
+
+      {/* ═══ TICKET RECOVERY — glass card compact + PnL count-up glow ═══ */}
       {sinceRecover > 0 && (
         <div
           style={{
             position: "absolute",
             top: 430,
-            right: 90,
-            padding: "22px 44px",
-            borderRadius: 22,
-            background: "linear-gradient(135deg, #059669, #047857)",
-            border: "2px solid rgba(255,255,255,0.35)",
-            boxShadow: "0 20px 70px rgba(5,150,105,0.55)",
+            right: 70,
+            padding: "20px 32px",
+            borderRadius: 20,
+            background: "rgba(6,39,32,0.78)",
+            border: "1px solid rgba(52,211,153,0.55)",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 20px 70px rgba(5,150,105,0.4), 0 0 44px rgba(52,211,153,0.22)",
             fontFamily: FONT,
-            fontWeight: 900,
-            fontSize: 60,
-            color: "#FFFFFF",
-            letterSpacing: 1,
-            opacity: clamp01(winS),
-            transform: `rotate(5deg) scale(${0.6 + 0.4 * clamp01(winS)})`,
             zIndex: 8,
-            textAlign: "center",
+            textAlign: "right",
+            opacity: clamp01(winS),
+            transform: `scale(${0.7 + 0.3 * clamp01(winS)})`,
           }}
         >
-          HARGA JALAN
-          <div style={{ fontSize: 40, fontWeight: 800, marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              justifyContent: "flex-end",
+              fontSize: 26,
+              fontWeight: 900,
+              letterSpacing: 4,
+              color: "#6EE7B7",
+            }}
+          >
+            HARGA JALAN
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+              <path d="M4 18 L14 8 M14 8 h-6 M14 8 v6" stroke="#34D399" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 62,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              fontVariantNumeric: "tabular-nums",
+              textShadow: "0 0 34px rgba(52,211,153,0.75)",
+              lineHeight: 1,
+            }}
+          >
             {fmtPnl(pnlNow * winP)}
           </div>
         </div>
