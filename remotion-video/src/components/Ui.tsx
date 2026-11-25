@@ -30,7 +30,7 @@ export const FONT = "'Manrope', 'DejaVu Sans', sans-serif";
 export const EASE = Easing.bezier(0.16, 1, 0.3, 1);
 
 export const SPRING_SOFT: SpringConfig = { damping: 200, mass: 1, stiffness: 100, overshootClamping: false };
-export const SPRING_POP: SpringConfig = { damping: 13, stiffness: 170, mass: 1, overshootClamping: false };
+export const SPRING_POP: SpringConfig = { damping: 15, stiffness: 120, mass: 1, overshootClamping: false }; /* Bos: gerak jgn kecepetan — spring lebih lembut */
 
 export const CARD: React.CSSProperties = {
   background: "rgba(255,255,255,0.04)",
@@ -67,7 +67,7 @@ export const rise = (
   delay: number,
   distance = 40,
 ): { opacity: number; transform: string } => {
-  const p = interpolate(frame, [delay, delay + 22], [0, 1], {
+  const p = interpolate(frame, [delay, delay + 30], [0, 1], { /* Bos: 22f terlalu cepat → 30f */
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: EASE,

@@ -103,7 +103,7 @@ const BigTitle: React.FC<{ lines: string[]; delay?: number; size?: number }> = (
             fontSize: size,
             lineHeight: 1.12,
             letterSpacing: -1,
-            ...rise(frame, delay + li * 5, 40),
+            ...rise(frame, delay + li * 8, 40),
           }}
         >
           {line.split(/\s+/).map((w, i) => (
@@ -141,7 +141,7 @@ const StepPills: React.FC<{ steps: TerminalStep[]; active: number; delay?: numbe
     >
       {steps.slice(0, 6).map((s, i) => {
         const sIn = clamp01(
-          spring({ fps: 30, frame: Math.max(0, frame - delay - i * 3), config: { damping: 15, stiffness: 220 } }),
+          spring({ fps: 30, frame: Math.max(0, frame - delay - i * 6), config: { damping: 16, stiffness: 150 } }),
         );
         const label = String(s.label || `LANGKAH ${i + 1}`).toUpperCase();
         const done = i < active;
@@ -181,7 +181,7 @@ const StepPills: React.FC<{ steps: TerminalStep[]; active: number; delay?: numbe
 /** caption polos tanpa kotak di bawah — gaya reel referensi */
 const PlainCaption: React.FC<{ text: string; delay?: number; bottom?: number }> = ({
   text,
-  delay = 14,
+  delay = 18,
   bottom = 172,
 }) => {
   const frame = useCurrentFrame();
@@ -219,7 +219,7 @@ const HOOK_PATH = [0.34, 0.46, 0.54, 0.58, 0.54, 0.44, 0.3, 0.18, 0.26, 0.4, 0.5
 const HOOK_N = 20;
 const HOOK_SL = 0.3;
 const HOOK_RS = 6;
-const HOOK_IV = 3;
+const HOOK_IV = 5; /* streaming lebih lambat — sinkron dgn REVEAL_IV ChartCard */
 
 const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number; seed: number }> = ({
   title,
@@ -230,11 +230,11 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const crash = hookCrashFrame(HOOK_N, HOOK_SL, seed, HOOK_PATH, HOOK_RS, HOOK_IV);
-  const recover = crash + 42;
+  const recover = crash + 62; /* stamp sempat dibaca ±2 dtk (Bos: jgn kecepetan) */
 
-  const stampS = spring({ fps, frame: Math.max(0, frame - crash - 2), config: { damping: 11, stiffness: 210, mass: 0.9 } });
-  const winS = spring({ fps, frame: Math.max(0, frame - recover - 2), config: { damping: 12, stiffness: 200 } });
-  const pnl = interpolate(frame, [recover + 4, recover + 30], [0, 137.14], {
+  const stampS = spring({ fps, frame: Math.max(0, frame - crash - 2), config: { damping: 14, stiffness: 140, mass: 1 } });
+  const winS = spring({ fps, frame: Math.max(0, frame - recover - 2), config: { damping: 15, stiffness: 130 } });
+  const pnl = interpolate(frame, [recover + 8, recover + 48], [0, 137.14], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.cubic),
@@ -360,8 +360,8 @@ const PopWord: React.FC<{
   const { fps } = useVideoConfig();
   const s = spring({
     fps,
-    frame: Math.max(0, frame - delay - index * 2),
-    config: { damping: 13, stiffness: 260, mass: 0.7 },
+    frame: Math.max(0, frame - delay - index * 4), /* jeda antar-kata lebih lega */
+    config: { damping: 16, stiffness: 150, mass: 0.9 },
   });
   return (
     <span
@@ -387,8 +387,8 @@ const PopWord: React.FC<{
 const PointScene: React.FC<{ title: string; sub: string; badge: number; durationInFrames: number }> = ({ title, sub, badge, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const cardS = spring({ fps, frame: Math.max(0, frame - 2), config: { damping: 15, stiffness: 160 } });
-  const tickP = interpolate(frame, [22, 40], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) });
+  const cardS = spring({ fps, frame: Math.max(0, frame - 2), config: { damping: 17, stiffness: 110 } });
+  const tickP = interpolate(frame, [30, 56], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) });
   const num = String(badge).padStart(2, "0");
 
   return (
@@ -468,7 +468,7 @@ const PointScene: React.FC<{ title: string; sub: string; badge: number; duration
             "bukan teks aja sama animasi biasa") */}
         <div style={{ display: "flex", alignItems: "flex-end", gap: 7, height: 84, marginTop: 34 }}>
           {genCandles(badge * 17 + 5, badge % 2 === 0 ? "up" : "down", 22).map((cd, i) => {
-            const ap = spring({ fps, frame: Math.max(0, frame - 26 - i * 1.5), config: SPRING_POP });
+            const ap = spring({ fps, frame: Math.max(0, frame - 30 - i * 2.5), config: SPRING_POP });
             const up = cd.c >= cd.o;
             const bodyTop = (1 - Math.max(cd.o, cd.c)) * 84;
             const bodyH = Math.max(3, Math.abs(cd.o - cd.c) * 84);
@@ -528,7 +528,7 @@ const CardStepsScene: React.FC<{
           tf="1 JAM"
         />
       </div>
-      <PlainCaption text={sub} delay={16} />
+      <PlainCaption text={sub} delay={20} />
     </SceneShell>
   );
 };
@@ -546,7 +546,7 @@ const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[
 const QuoteScene: React.FC<{ title: string; sub: string; durationInFrames: number }> = ({ title, sub, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const cardS = spring({ fps, frame: Math.max(0, frame - 2), config: { damping: 16, stiffness: 150 } });
+  const cardS = spring({ fps, frame: Math.max(0, frame - 2), config: { damping: 18, stiffness: 105 } });
   return (
     <SceneShell durationInFrames={durationInFrames}>
       <div
@@ -574,7 +574,7 @@ const QuoteScene: React.FC<{ title: string; sub: string; durationInFrames: numbe
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 40 }}>
           {[0, 1, 2, 3, 4].map((i) => {
-            const s = spring({ fps, frame: Math.max(0, frame - 18 - i * 5), config: SPRING_SOFT });
+            const s = spring({ fps, frame: Math.max(0, frame - 26 - i * 7), config: SPRING_SOFT });
             return (
               <svg key={i} width={40} height={40} viewBox="0 0 24 24" style={{ opacity: clamp01(s), transform: `scale(${0.5 + 0.5 * s})` }}>
                 <path
@@ -599,7 +599,7 @@ const StatScene: React.FC<{ title: string; sub: string; durationInFrames: number
   const numPart = match ? match[0].replace(",", ".") : null;
   const target = numPart ? parseFloat(numPart) : null;
   const shown = target != null
-    ? interpolate(frame, [6, 44], [0, target], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) })
+    ? interpolate(frame, [10, 64], [0, target], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) })
     : null;
   const bigText = shown != null
     ? (target != null && Math.abs(target) >= 100 ? Math.round(shown).toString() : shown.toFixed(2).replace(/\.?0+$/, "")) + (title.includes("%") ? "%" : "")
@@ -640,7 +640,7 @@ const StatScene: React.FC<{ title: string; sub: string; durationInFrames: number
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 34, marginTop: 64, height: 210 }}>
           {bars.map((h, i) => {
-            const p = spring({ fps, frame: Math.max(0, frame - 24 - i * 8), config: SPRING_SOFT });
+            const p = spring({ fps, frame: Math.max(0, frame - 30 - i * 10), config: SPRING_SOFT });
             return (
               <div
                 key={i}
@@ -667,7 +667,7 @@ const StatScene: React.FC<{ title: string; sub: string; durationInFrames: number
 const SignalRow: React.FC<{ label: string; value: string; color: string; delay: number; done?: boolean }> = ({ label, value, color, delay, done }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 16, stiffness: 190 } });
+  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 17, stiffness: 130 } });
   return (
     <div
       style={{
@@ -692,13 +692,13 @@ const SignalRow: React.FC<{ label: string; value: string; color: string; delay: 
 const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: string; durationInFrames: number }> = ({ title, sub, domain, handle, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const phoneS = spring({ fps, frame: Math.max(0, frame - 4), config: { damping: 14, stiffness: 150 } });
-  const pillS = spring({ fps, frame: Math.max(0, frame - 30), config: { damping: 12, stiffness: 180 } });
-  const glow = 0.5 + 0.5 * Math.sin(frame / 14);
-  const floatY = Math.sin(frame / 18) * 10;
-  const floatY2 = Math.sin(frame / 14 + 1.7) * 12;
-  const prog = interpolate(frame, [36, 64], [12, 68], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const pnl = interpolate(frame, [40, 72], [0, 187.5], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const phoneS = spring({ fps, frame: Math.max(0, frame - 4), config: { damping: 17, stiffness: 105 } });
+  const pillS = spring({ fps, frame: Math.max(0, frame - 48), config: { damping: 15, stiffness: 130 } });
+  const glow = 0.5 + 0.5 * Math.sin(frame / 20);
+  const floatY = Math.sin(frame / 26) * 10;
+  const floatY2 = Math.sin(frame / 20 + 1.7) * 12;
+  const prog = interpolate(frame, [46, 92], [12, 68], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const pnl = interpolate(frame, [50, 104], [0, 187.5], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
 
   return (
     <SceneShell durationInFrames={durationInFrames}>
@@ -885,7 +885,7 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
         }}
       >
         {["✓ ENTRY JELAS", "✓ STOP LOGIS", "✓ JURNAL OTOMATIS"].map((t, i) => {
-          const s = spring({ fps, frame: Math.max(0, frame - 26 - i * 6), config: { damping: 14, stiffness: 200 } });
+          const s = spring({ fps, frame: Math.max(0, frame - 34 - i * 9), config: { damping: 16, stiffness: 140 } });
           return (
             <div
               key={t}
@@ -929,7 +929,7 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
           FOLLOW {handle.toUpperCase()}
         </div>
         {(() => {
-          const d = rise(frame, 40, 24);
+          const d = rise(frame, 54, 30);
           return (
             <div
               style={{
@@ -952,7 +952,7 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
             fontSize: 22,
             color: "rgba(255,255,255,0.45)",
             letterSpacing: 3,
-            ...rise(frame, 48, 18),
+            ...rise(frame, 64, 26),
           }}
         >
           SINYAL · JURNAL · DISIPLIN

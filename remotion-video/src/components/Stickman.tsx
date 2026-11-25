@@ -66,12 +66,12 @@ export const Stickman: React.FC<StickmanProps> = ({
     armL = { x: 40, y: 30 };
     armR = { x: 160, y: 30 };
     /* lompat: bounce periodik */
-    const jp = (f % 36) / 36;
+    const jp = (f % 46) / 46; /* lompatan lebih lambat */
     jump = -Math.sin(jp * Math.PI) * 26;
     legL = { x: 74, y: footY - Math.sin(jp * Math.PI) * 10 };
     legR = { x: 126, y: footY - Math.sin(jp * Math.PI) * 10 };
   } else if (pose === "walk") {
-    const a = f * 0.32;
+    const a = f * 0.22; /* langkah jalan lebih pelan */
     const s = Math.sin(a);
     legL = { x: cx - 36 * s, y: footY - Math.abs(s) * 12 };
     legR = { x: cx + 36 * s, y: footY - Math.abs(Math.sin(a + Math.PI)) * 12 };
@@ -160,5 +160,5 @@ export const Stickman: React.FC<StickmanProps> = ({
 export const useStickmanIn = (delay: number): number => {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
-  return clamp01(spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 12, stiffness: 200 } }));
+  return clamp01(spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 15, stiffness: 130 } }));
 };

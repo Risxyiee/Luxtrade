@@ -70,8 +70,8 @@ const defaultColor = (t: string): string => {
 
 /* ---------------- timing langkah gambar ---------------- */
 
-export const CARD_SETTLE = 22;
-const DRAW_FRAMES = 16;
+export const CARD_SETTLE = 30; /* Bos: pace lebih santai */
+const DRAW_FRAMES = 28; /* draw lebih pelan (16 terlalu cepat) */
 
 export const cardStepTiming = (nSteps: number, durationInFrames: number) => {
   const n = Math.max(1, Math.min(6, nSteps));
@@ -208,14 +208,14 @@ export const ChartCard: React.FC<ChartCardProps> = ({
 
   /* ---- mode hook: streaming reveal ---- */
   const REVEAL_START = 6;
-  const REVEAL_IV = 3;
+  const REVEAL_IV = 5; /* streaming candle lebih lambat (Bos) */
   const revealed = hook
     ? Math.min(N, Math.max(1, Math.floor((f - REVEAL_START) / REVEAL_IV) + 1))
     : N;
 
   const lastIdx = revealed - 1;
   const last = candles[lastIdx];
-  const priceP = interpolate(f, [0, 12], [0, 1], {
+  const priceP = interpolate(f, [0, 18], [0, 1], {
     extrapolateRight: "clamp",
     extrapolateLeft: "clamp",
   });
@@ -229,17 +229,17 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   const sinceCrash = f - crashFrame;
   const flash =
     hook && sinceCrash >= 0
-      ? interpolate(f, [crashFrame, crashFrame + 3, crashFrame + 10], [0, 0.42, 0], {
+      ? interpolate(f, [crashFrame, crashFrame + 5, crashFrame + 16], [0, 0.42, 0], {
           extrapolateLeft: "clamp",
           extrapolateRight: "clamp",
         })
       : 0;
   const shakeAmp =
-    hook && sinceCrash >= 0 && sinceCrash <= 14 ? 14 * (1 - sinceCrash / 14) : 0;
+    hook && sinceCrash >= 0 && sinceCrash <= 18 ? 14 * (1 - sinceCrash / 18) : 0;
   const shakeX = shakeAmp * Math.sin(sinceCrash * 2.6);
   const shakeY = shakeAmp * Math.cos(sinceCrash * 3.1) * 0.6;
   const slBroken = hook && lastIdx >= crashIdx;
-  const RECOVER_AT = crashFrame + 42;
+  const RECOVER_AT = crashFrame + 62; /* beri jeda baca 'SL KENA' ±2 dtk (Bos: jgn kecepetan) */
   const recovered = hook && f >= RECOVER_AT;
 
   /* ---- mode steps: langkah gambar ---- */
@@ -268,7 +268,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     const prevS = active > 0 ? list[active - 1] : null;
     const prevX = prevS ? px(clamp01(typeof prevS.x1 === "number" ? prevS.x1 : 0.5)) : targetX;
     const mv = clamp01(
-      interpolate(f, [startF, startF + 14], [0, 1], {
+      interpolate(f, [startF, startF + 24], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
         easing: Easing.inOut(Easing.quad),
@@ -277,12 +277,12 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     stickX = prevX + (targetX - prevX) * mv;
     /* kaki di atas candle terdekat */
     const ci = Math.round(((stickX - plotX) / plotW) * (N - 1));
-    stickFootY = cy(candles[clamp01(ci)].c) + 8;
+    stickFootY = cy(candles[Math.min(N - 1, Math.max(0, ci))].c) + 8;
     stickPose = pose;
   }
 
   const stickIn = clamp01(
-    spring({ fps, frame: Math.max(0, f - 10), config: { damping: 13, stiffness: 190 } }),
+    spring({ fps, frame: Math.max(0, f - 10), config: { damping: 16, stiffness: 130 } }),
   );
 
   const gridRows = [0.25, 0.5, 0.75];
@@ -444,8 +444,8 @@ export const ChartCard: React.FC<ChartCardProps> = ({
           if (i >= revealed) return null;
           const appear = spring({
             fps,
-            frame: Math.max(0, f - (hook ? REVEAL_START + i * REVEAL_IV : 4 + i * 1.4)),
-            config: { damping: 15, stiffness: 190 },
+            frame: Math.max(0, f - (hook ? REVEAL_START + i * REVEAL_IV : 6 + i * 2.4)),
+            config: { damping: 16, stiffness: 140 },
           });
           const up = cd.c >= cd.o;
           const color = up ? UP : DOWN;
@@ -662,7 +662,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
                       stroke={color}
                       strokeWidth={2.8}
                       strokeDasharray="10 7"
-                      strokeDashoffset={-((f - start) * 0.6)}
+                      strokeDashoffset={-((f - start) * 0.4)}
                       style={{ filter: `drop-shadow(0 0 12px ${color})` }}
                     />
                     {label && <Tag x={cxp} y={cyp - ry - 26} text={label} color={color} />}
@@ -676,7 +676,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
               const popIn = spring({
                 fps,
                 frame: Math.max(0, f - start - 2),
-                config: { damping: 13, stiffness: 200 },
+                config: { damping: 16, stiffness: 140 },
               });
               return (
                 <g key={i} opacity={clamp01(popIn)} transform={`translate(${lxp} ${lyp}) scale(${0.6 + 0.4 * clamp01(popIn)})`}>
