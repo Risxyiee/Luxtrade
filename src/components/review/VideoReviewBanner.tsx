@@ -41,13 +41,23 @@ export default function VideoReviewBanner() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-start">
-        <video
-          src="/review/luxtrade-sl-pain-sample.mp4"
-          controls
-          playsInline
-          preload="metadata"
-          className="w-full max-w-[300px] rounded-xl border border-white/10 bg-black"
-        />
+        <div className="flex flex-col gap-2">
+          <video
+            src="/review/luxtrade-sl-pain-sample.mp4"
+            controls
+            playsInline
+            preload="metadata"
+            className="w-full max-w-[300px] rounded-xl border border-white/10 bg-black"
+          />
+          {/* Unduh langsung MP4 buat dipindah ke HP / dikirim ulang */}
+          <a
+            href="/review/luxtrade-sl-pain-sample.mp4"
+            download="luxtrade-sl-kena-sample.mp4"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors"
+          >
+            &#8681; Unduh Video (MP4, 3.8 MB)
+          </a>
+        </div>
         <ul className="text-sm text-gray-300 space-y-2 flex-1">
           <li>&bull; Scene 1 (0-6s): Hook — chart live, SL kena, lalu harga jalan (chip merah/hijau)</li>
           <li>&bull; Scene 2 (6-13.6s): Anatomy sweep likuiditas + kartu odometer ENTRY/SL/HARGA JALAN</li>
