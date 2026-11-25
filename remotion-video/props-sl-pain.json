@@ -1,0 +1,46 @@
+{
+  "scenes": [
+    {
+      "kind": "hook",
+      "title": "SL KENA DULU,",
+      "sub": "BARU HARGA JALAN",
+      "voFile": "vo/vo0.mp3",
+      "durationSec": 5.1
+    },
+    {
+      "kind": "tutorial",
+      "title": "SWEEP LIKUIDITAS DULU",
+      "sub": "equal highs = umpan — smart money narik dulu",
+      "voFile": "vo/vo1.mp3",
+      "durationSec": 8.6,
+      "draw": [
+        { "t": "high", "y1": 0.84, "label": "EQH", "color": "red" },
+        { "t": "circle", "x1": 0.66, "y1": 0.86, "label": "LIQUIDITY", "color": "cyan" },
+        { "t": "path", "x1": 0.62, "y1": 0.8, "x2": 0.3, "y2": 0.3, "label": "SWEEP", "color": "cyan" },
+        { "t": "zone", "x1": 0.12, "x2": 0.45, "y1": 0.34, "y2": 0.2, "label": "DEMAND", "color": "green" }
+      ]
+    },
+    {
+      "kind": "chart",
+      "title": "SL MEPET VS SL + BUFFER",
+      "sub": "stop di bawah zone + buffer ATR",
+      "voFile": "vo/vo2.mp3",
+      "durationSec": 7.7,
+      "draw": [
+        { "t": "zone", "x1": 0.1, "x2": 0.42, "y1": 0.42, "y2": 0.28, "label": "DEMAND", "color": "green" },
+        { "t": "level", "y1": 0.24, "label": "SL+ATR", "color": "red" },
+        { "t": "level", "y1": 0.46, "label": "ENTRY", "color": "cyan" },
+        { "t": "path", "x1": 0.45, "y1": 0.46, "x2": 0.85, "y2": 0.78, "label": "TARGET", "color": "green" }
+      ]
+    },
+    {
+      "kind": "cta",
+      "title": "STOP FEELING, IKUTI SISTEM",
+      "sub": "sinyal + jurnal otomatis — link di bio",
+      "voFile": "vo/vo3.mp3",
+      "durationSec": 7.3
+    }
+  ],
+  "handle": "@luxtradee",
+  "domain": "luxtradee.web.id"
+}

@@ -57,8 +57,14 @@ export function fmtNum(v: number, minFrac = 2): string {
   return (neg ? "-" : "") + intStr + fracStr;
 }
 
-const UP = C.green;
-const DOWN = C.red;
+/* ═══ STYLE TRADINGVIEW (arahan Bos: "candle dibikin kaya tradingview")
+   Warna + geometri candle mengikuti dark theme TradingView:
+   up #26a69a · down #ef5350 · wick tegas 2px full opacity ·
+   body solid tanpa rounded · grid #1e222d di atas bg #131722. */
+const UP = "#26a69a";
+const DOWN = "#ef5350";
+const TV_GRID = "#1e222d";
+const TV_AXIS = "rgba(178,181,190,0.85)";
 
 export interface CandleChartProps {
   seed?: number;
@@ -108,27 +114,19 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
   const y = (v: number) => padY + (1 - v) * innerH;
 
-  // polyline close prices
-  const pts = candles.map((cd, i) => [padX + step * (i + 0.5), y(cd.c)] as const);
-  let pathLen = 0;
-  for (let i = 1; i < pts.length; i++) {
-    pathLen += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-  }
-  const drawStart = n * 2 + 4;
+  /* candle muncul berurutan (spring pop per-candle) — gaya TradingView
+     tanpa overlay garis; timing "draw" dipertahankan untuk garis
+     entry/exit yang menyala setelah semua candle terbentuk. */
+  const settleDone = n * 2 + 4;
   const drawP = clamp01(
-    interpolate(f, [drawStart, drawStart + 34], [0, 1], { easing: EASE, extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+    interpolate(f, [settleDone, settleDone + 34], [0, 1], { easing: EASE, extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
   );
-  const dash = pathLen * drawP;
-
-  // kepala garis (dot glow) bergerak menyusuri path
-  const headIdx = Math.min(n - 1, Math.floor(drawP * (n - 1)));
-  const head = pts[headIdx];
 
   const gridLines = [0.25, 0.5, 0.75];
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: "block" }}>
-      {/* grid samar */}
+      {/* grid gaya TradingView — samar, warna solid #1e222d */}
       {gridLines.map((g) => (
         <line
           key={g}
@@ -136,7 +134,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
           x2={width - padX}
           y1={padY + g * innerH}
           y2={padY + g * innerH}
-          stroke="rgba(255,255,255,0.07)"
+          stroke={TV_GRID}
           strokeWidth={1}
         />
       ))}
@@ -151,28 +149,18 @@ export const CandleChart: React.FC<CandleChartProps> = ({
         const bodyH = Math.max(3, Math.abs(y(cd.o) - y(cd.c)));
         return (
           <g key={i} opacity={clamp01(appear)} transform={`translate(${xMid} ${y(cd.c)}) scale(${appear}) translate(${-xMid} ${-y(cd.c)})`}>
-            <line x1={xMid} x2={xMid} y1={y(cd.h)} y2={y(cd.l)} stroke={color} strokeWidth={2.5} strokeLinecap="round" opacity={0.75} />
-            <rect x={xMid - bw / 2} y={bodyTop} width={bw} height={bodyH} rx={4} fill={color} opacity={0.92} />
+            {/* wick tegas 2px full-opacity persis TradingView */}
+            <line x1={xMid} x2={xMid} y1={y(cd.h)} y2={y(cd.l)} stroke={color} strokeWidth={2} opacity={1} />
+            {/* body solid, sudut tajam (rx 0) — tanpa glow */}
+            <rect x={xMid - bw / 2} y={bodyTop} width={bw} height={bodyH} rx={0} fill={color} opacity={1} />
           </g>
         );
       })}
 
-      {/* garis harga menggambar dirinya */}
-      <polyline
-        points={pts.map((p) => `${p[0]},${p[1]}`).join(" ")}
-        fill="none"
-        stroke={C.accent}
-        strokeWidth={5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray={`${dash} ${pathLen + 10}`}
-        style={{ filter: "drop-shadow(0 0 12px rgba(34,211,238,0.65))" }}
-      />
-      {drawP > 0 && drawP < 1 && (
-        <circle cx={head[0]} cy={head[1]} r={9} fill={C.accent} style={{ filter: "drop-shadow(0 0 14px rgba(34,211,238,0.9))" }} />
-      )}
+      {/* GARIS HARGA dihapus — mode candlestick TradingView tidak
+          punya overlay polyline glow; candle saja sudah bersih. */}
 
-      {/* garis entry (abu) & exit (hasil) */}
+      {/* garis entry (abu) & exit (hasil) — gaya price line TradingView */}
       {entryY != null && drawP >= 1 && (
         <g opacity={1}>
           <line
@@ -180,11 +168,13 @@ export const CandleChart: React.FC<CandleChartProps> = ({
             x2={width - padX}
             y1={y(entryY)}
             y2={y(entryY)}
-            stroke="rgba(255,255,255,0.55)"
-            strokeWidth={2.5}
-            strokeDasharray="10 8"
+            stroke="rgba(178,181,190,0.7)"
+            strokeWidth={1.6}
+            strokeDasharray="6 5"
           />
-          <text x={width - padX - 8} y={y(entryY) - 12} textAnchor="end" fill="rgba(255,255,255,0.75)" fontSize={22} fontWeight={700} fontFamily="Manrope, DejaVu Sans, sans-serif">
+          {/* label kotak di axis kanan — seperti price line TradingView */}
+          <rect x={width - padX - 86} y={y(entryY) - 15} width={86} height={30} fill="#434651" rx={3} />
+          <text x={width - padX - 8} y={y(entryY) + 6} textAnchor="end" fill="#FFFFFF" fontSize={18} fontWeight={700} fontFamily="Manrope, DejaVu Sans, sans-serif">
             {entryLabel}
           </text>
         </g>
@@ -201,10 +191,10 @@ export const CandleChart: React.FC<CandleChartProps> = ({
             strokeDasharray="10 8"
             style={{ filter: `drop-shadow(0 0 8px ${exitColor})` }}
           />
-          <text x={width - padX - 8} y={y(exitY) - 12} textAnchor="end" fill={exitColor} fontSize={22} fontWeight={800} fontFamily="Manrope, DejaVu Sans, sans-serif">
+          <rect x={width - padX - 86} y={y(exitY) - 15} width={86} height={30} fill={exitColor} rx={3} />
+          <text x={width - padX - 8} y={y(exitY) + 6} textAnchor="end" fill="#FFFFFF" fontSize={18} fontWeight={800} fontFamily="Manrope, DejaVu Sans, sans-serif">
             {exitLabel}
           </text>
-          <circle cx={pts[n - 1][0]} cy={y(exitY)} r={10} fill={exitColor} style={{ filter: `drop-shadow(0 0 14px ${exitColor})` }} />
         </g>
       )}
     </svg>

@@ -24,11 +24,12 @@ export default function VideoReviewBanner() {
             Sample Review — Gaya Baru Konten (UI + Voice-Over)
           </p>
           <h2 className="text-lg md:text-xl font-bold text-white mt-1">
-            &ldquo;SL Kena Dulu, Baru Harga Jalan&rdquo; — 28 detik, 9:16, siap Reels/TikTok
+            &ldquo;SL Kena Dulu, Baru Harga Jalan&rdquo; v2 — 32 detik, 9:16 — candle TradingView + VO Indonesia native
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            Tema: pain point trader. Ada voice-over Bahasa Indonesia, caption TikTok-style, chart animasi,
-            dan CTA LuxTradee. Tekan play — <span className="text-gray-300">volume nyala</span> untuk dengar vonya.
+            Revisi Bos: (1) candle sekarang gaya <span className="text-amber-300">TradingView</span> (teal #26a69a / merah #ef5350,
+            wick tegas, chip harga live di axis); (2) voice-over <span className="text-amber-300">edge-tts id-ID-ArdiNeural</span> —
+            pelankan Bahasa Indonesia asli, bukan logat asing. Tekan play — <span className="text-gray-300">volume nyala</span>.
           </p>
         </div>
         <button
@@ -43,7 +44,7 @@ export default function VideoReviewBanner() {
       <div className="flex flex-col md:flex-row gap-4 items-start">
         <div className="flex flex-col gap-2">
           <video
-            src="/review/luxtrade-sl-pain-sample.mp4"
+            src="/review/luxtrade-sl-pain-v2.mp4"
             controls
             playsInline
             preload="metadata"
@@ -51,21 +52,20 @@ export default function VideoReviewBanner() {
           />
           {/* Unduh langsung MP4 buat dipindah ke HP / dikirim ulang */}
           <a
-            href="/review/luxtrade-sl-pain-sample.mp4"
-            download="luxtrade-sl-kena-sample.mp4"
+            href="/review/luxtrade-sl-pain-v2.mp4"
+            download="luxtrade-sl-kena-v2.mp4"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors"
           >
-            &#8681; Unduh Video (MP4, 3.8 MB)
+            &#8681; Unduh Video v2 (MP4, 5.8 MB)
           </a>
         </div>
         <ul className="text-sm text-gray-300 space-y-2 flex-1">
-          <li>&bull; Scene 1 (0-6s): Hook — chart live, SL kena, lalu harga jalan (chip merah/hijau)</li>
-          <li>&bull; Scene 2 (6-13.6s): Anatomy sweep likuiditas + kartu odometer ENTRY/SL/HARGA JALAN</li>
-          <li>&bull; Scene 3 (13.6-20.6s): Perbandingan SL mepet vs SL + buffer ATR (stamp SALAH/BENAR)</li>
-          <li>&bull; Scene 4 (20.6-28.4s): Brand LuxTradee + checklist fitur + FOLLOW @luxtradee + disclaimer</li>
+          <li>&bull; Scene 1 (0-5s): Hook — candle TradingView muncul berurutan, teks besar</li>
+          <li>&bull; Scene 2 (5-13s): Terminal TV + EQH/LIQUIDITY/SWEEP/DEMAND digambar sinkron VO</li>
+          <li>&bull; Scene 3 (13-21s): SL+ATR di bawah zone, chip harga live TV, target path</li>
+          <li>&bull; Scene 4 (21-32s): CTA &ldquo;STOP FEELING, IKUTI SISTEM&rdquo; + CEK LINK DI BIO</li>
           <li className="text-gray-400">
-            Catatan: musik latar belum dipasang (butuh katalog musik/sumber) — kalau gaya ini disetujui,
-            bisa ditambah + diintegrasikan ke pipeline video otomatis.
+            Musik latar bebas-copyright sudah ter-bake (level 0.16 di bawah VO).
           </li>
         </ul>
       </div>

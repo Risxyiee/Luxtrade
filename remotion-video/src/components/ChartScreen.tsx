@@ -109,6 +109,17 @@ const BASE_PRICE = 3652;
 const TFS = ["M15", "H1", "H4", "D1"];
 const TIME_LABELS = ["09:00", "11:00", "13:00", "15:00", "17:00"];
 
+/* ═══ STYLE TRADINGVIEW (arahan Bos: "candle dibikin kaya tradingview")
+   Dark theme TradingView asli: bg #131722, grid #1e222d, candle
+   up #26a69a / down #ef5350, axis text #b2b5be, chip harga live
+   berwarna di axis kanan. */
+const TV_BG = "#131722";
+const TV_GRID = "#1e222d";
+const TV_UP = "#26a69a";
+const TV_DOWN = "#ef5350";
+const TV_AXIS = "rgba(178,181,190,0.85)";
+const TV_MUTED = "rgba(178,181,190,0.6)";
+
 /* ---------------- ikon toolbar kiri ---------------- */
 
 const RailIcon: React.FC<{ kind: string; active: boolean }> = ({
@@ -277,7 +288,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         width,
         height,
         borderRadius: 26,
-        background: "#0A0F17",
+        background: TV_BG,
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
         overflow: "hidden",
@@ -400,7 +411,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
               LUXTRADE
             </text>
 
-            {/* grid */}
+            {/* grid gaya TradingView — warna solid #1e222d */}
             {gridRows.map((g) => (
               <line
                 key={g}
@@ -408,7 +419,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                 x2={plotX + plotW}
                 y1={plotY + g * plotH}
                 y2={plotY + g * plotH}
-                stroke="rgba(148,163,184,0.09)"
+                stroke={TV_GRID}
                 strokeWidth={1}
               />
             ))}
@@ -419,25 +430,48 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                 x2={plotX + i * step}
                 y1={plotY}
                 y2={plotY + plotH}
-                stroke="rgba(148,163,184,0.06)"
+                stroke={TV_GRID}
                 strokeWidth={1}
               />
             ))}
 
-            {/* axis harga kanan */}
+            {/* axis harga kanan — abu TV #b2b5be */}
             {[0.08, 0.29, 0.5, 0.71, 0.92].map((v) => (
               <text
                 key={v}
-                x={plotX + plotW + 12}
+                x={plotX + plotW + 10}
                 y={py(v) + 6}
-                fill="rgba(203,213,225,0.55)"
-                fontSize={18}
+                fill={TV_AXIS}
+                fontSize={16}
                 fontWeight={600}
                 fontFamily="Manrope, DejaVu Sans, sans-serif"
               >
-                {fmtNum(toPrice(v), 2)}
+                {fmtNum(toPrice(v), 1)}
               </text>
             ))}
+
+            {/* ═══ chip harga live di axis kanan — persis TradingView ═══ */}
+            <rect
+              x={plotX + plotW + 2}
+              y={cy(last.c) - 15}
+              width={70}
+              height={30}
+              rx={4}
+              fill={last.c >= last.o ? TV_UP : TV_DOWN}
+              opacity={priceP}
+            />
+            <text
+              x={plotX + plotW + 2 + 35}
+              y={cy(last.c) + 6}
+              textAnchor="middle"
+              fill="#FFFFFF"
+              fontSize={15}
+              fontWeight={800}
+              fontFamily="Manrope, DejaVu Sans, sans-serif"
+              opacity={priceP}
+            >
+              {fmtNum(priceShown, 2)}
+            </text>
 
             {/* label waktu bawah */}
             {TIME_LABELS.map((t, i) => (
@@ -445,7 +479,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                 key={t}
                 x={plotX + plotW * (0.08 + i * 0.21)}
                 y={plotY + plotH + 34}
-                fill="rgba(203,213,225,0.45)"
+                fill={TV_MUTED}
                 fontSize={17}
                 fontWeight={600}
                 fontFamily="Manrope, DejaVu Sans, sans-serif"
@@ -454,7 +488,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
               </text>
             ))}
 
-            {/* ═══ candle muncul satu per satu ═══ */}
+            {/* ═══ candle gaya TradingView: wick tegas 2px, body solid tajam ═══ */}
             {candles.map((cd, i) => {
               const appear = spring({
                 fps,
@@ -463,40 +497,34 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
               });
               const xMid = plotX + step * (i + 0.5);
               const up = cd.c >= cd.o;
-              const color = up ? C.green : C.red;
+              const color = up ? TV_UP : TV_DOWN;
               const bodyTop = cy(Math.max(cd.o, cd.c));
               const bodyH = Math.max(3, Math.abs(cy(cd.o) - cy(cd.c)));
-              const isLast = i === nCandles - 1;
-              const glow = isLast ? 0.55 + 0.45 * Math.sin(frame / 9) : 0;
               return (
                 <g
                   key={i}
                   opacity={clamp01(appear)}
                   transform={`translate(${xMid} ${cy(cd.c)}) scale(${clamp01(appear)}) translate(${-xMid} ${-cy(cd.c)})`}
                 >
+                  {/* wick 2px full-opacity, tanpa rounded cap — TradingView */}
                   <line
                     x1={xMid}
                     x2={xMid}
                     y1={cy(cd.h)}
                     y2={cy(cd.l)}
                     stroke={color}
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    opacity={0.8}
+                    strokeWidth={2}
+                    opacity={1}
                   />
+                  {/* body solid sudut tajam, tanpa glow */}
                   <rect
                     x={xMid - bw / 2}
                     y={bodyTop}
                     width={bw}
                     height={bodyH}
-                    rx={3}
+                    rx={0}
                     fill={color}
-                    opacity={isLast ? 0.75 + glow * 0.25 : 0.94}
-                    style={
-                      isLast
-                        ? { filter: `drop-shadow(0 0 ${8 + glow * 14}px ${color})` }
-                        : undefined
-                    }
+                    opacity={1}
                   />
                 </g>
               );
@@ -561,7 +589,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                         />
                       </g>
                       <Chip
-                        x={plotX + plotW * p - 8}
+                        x={Math.min(plotX + plotW * p - 8, plotX + plotW - 78)}
                         y={yLine - 24}
                         text={label || (t === "high" ? "HIGH" : "LOW")}
                         color={color}
