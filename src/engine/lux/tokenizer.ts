@@ -57,19 +57,58 @@ export function tokenize(src: string): Token[] {
   /** Kedalaman kurung antar-baris (line continuation Pine/TradingView). */
   let parenDepth = 0
 
+  /** Sedang di dalam komentar blok `/* ... *​/` yang menyeberang baris. */
+  let insideBlockComment = false
+
   for (let li = 0; li < lines.length; li++) {
     const raw = lines[li]
     const line = raw.replace(/\t/g, '    ')
 
-    // Baris kosong / komentar murni → lewati (tidak memengaruhi indentasi)
-    if (!line.trim() || line.trim().startsWith('//')) continue
+    // ── Strip komentar dulu (quote-aware) — baris yang tersisa kosong
+    //    (komentar murni / blok komentar) di-skip TOTAL: tidak memengaruhi
+    //    indentasi, tidak emit newline. ──
+    let eff = ''
+    let inStr: string | null = null
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (insideBlockComment) {
+        if (ch === '*' && line[i + 1] === '/') {
+          insideBlockComment = false
+          i++
+        }
+        continue
+      }
+      if (inStr) {
+        if (ch === '\\' && i + 1 < line.length) {
+          eff += ch + line[i + 1]
+          i++
+          continue
+        }
+        if (ch === inStr) inStr = null
+        eff += ch
+        continue
+      }
+      if (ch === '"' || ch === "'") {
+        inStr = ch
+        eff += ch
+        continue
+      }
+      if (ch === '/' && line[i + 1] === '/') break // komentar baris
+      if (ch === '/' && line[i + 1] === '*') {
+        // komentar blok — bisa menyeberang baris (toleransi paste dari
+        // bahasa lain; Pine asli hanya //, tapi biar script tetap jalan)
+        insideBlockComment = true
+        i++
+        continue
+      }
+      eff += ch
+    }
+    if (!eff.trim()) continue
 
     // Hitung indentasi — DI-SKIP saat sedang lanjutan call multi-baris
     let col = 0
-    while (col < line.length && line[col] === ' ') col++
-    const content = line.slice(col)
-    if (content.startsWith('//') && parenDepth === 0) continue
-    if (content.startsWith('//')) continue // komentar dalam continuation juga diabaikan
+    while (col < eff.length && eff[col] === ' ') col++
+    const content = eff.slice(col)
 
     if (parenDepth === 0) {
       if (col > indents[indents.length - 1]) {
@@ -92,9 +131,6 @@ export function tokenize(src: string): Token[] {
       const ch = content[i]
 
       if (ch === ' ') { i++; continue }
-
-      // Komentar sampai akhir baris
-      if (ch === '/' && content[i + 1] === '/') break
 
       if (ch >= '0' && ch <= '9') {
         let j = i

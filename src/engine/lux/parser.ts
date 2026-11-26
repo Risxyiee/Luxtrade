@@ -40,6 +40,7 @@ export type Stmt =
   | { t: 'declare'; name: string; isVar: boolean; e: Expr; line: number }
   | { t: 'assign'; name: string; e: Expr; line: number }
   | { t: 'tuple'; names: string[]; e: Expr; line: number }
+  | { t: 'tupleexpr'; items: Expr[]; line: number }
   | { t: 'if'; branches: IfBranch[]; line: number }
   | { t: 'ifassign'; name: string; isVar: boolean; branches: IfBranch[]; line: number }
   | { t: 'switchassign'; name: string; isVar: boolean; subject: Expr | null; branches: SwitchBranch[]; line: number }
@@ -47,7 +48,7 @@ export type Stmt =
   | { t: 'break'; line: number }
   | { t: 'continue'; line: number }
   | { t: 'for'; ivar: string; from: Expr; to: Expr; step: number; body: Stmt[]; line: number }
-  | { t: 'funcdef'; name: string; params: string[]; body: Expr; line: number }
+  | { t: 'funcdef'; name: string; params: string[]; body: Stmt[]; line: number }
   | { t: 'header'; kind: 'indicator' | 'strategy'; name: string; line: number }
 
 export interface LuxAst {
@@ -170,11 +171,12 @@ class Parser {
     const t = this.peek()
     const line = t.line
 
-    // Header indikator/strategi
-    if (t.kind === 'ident' && (t.value === 'indicator' || t.value === 'strategy')) {
+    // Header indikator/strategi — `study(...)` (Pine v4) dianggap alias
+    // `indicator(...)` biar script lama tetap jalan.
+    if (t.kind === 'ident' && (t.value === 'indicator' || t.value === 'strategy' || t.value === 'study')) {
       const nt = this.toks[this.pos + 1]
       if (nt && nt.kind === 'op' && nt.value === '(') {
-        const kind = t.value as 'indicator' | 'strategy'
+        const kind = (t.value === 'strategy' ? 'strategy' : 'indicator') as 'indicator' | 'strategy'
         this.pos += 2
         let name = ''
         // Argumen pertama biasanya judul string
@@ -205,24 +207,39 @@ class Parser {
     }
 
     // tuple destructuring: [a, b, c] = expr   /   [a, b] := expr
+    // ATAU tuple sebagai NILAI (return multi-value dari fungsi):
+    //   f(len) =>
+    //       hi = ta.highest(high, len)
+    //       [hi, lo]
     if (t.kind === 'op' && t.value === '[') {
       this.pos++
-      const names: string[] = []
+      const items: Expr[] = []
       for (;;) {
-        const id = this.next()
-        if (id.kind !== 'ident') throw new Error(`Baris ${line}: tuple destructuring butuh nama variabel`)
-        names.push(id.value)
+        items.push(this.parseExpr())
         if (this.eatOp(',')) continue
         break
       }
       this.expectOp(']')
       if (this.eatOp(':=')) {
+        const names: string[] = []
+        for (const it of items) {
+          if (it.t !== 'ident') throw new Error(`Baris ${line}: tuple := butuh nama variabel`)
+          names.push(it.name)
+        }
         const e = this.parseExpr()
         return { t: 'tuple', names, e, line }
       }
-      this.expectOp('=')
-      const e = this.parseExpr()
-      return { t: 'tuple', names, e, line }
+      if (this.eatOp('=')) {
+        const names: string[] = []
+        for (const it of items) {
+          if (it.t !== 'ident') throw new Error(`Baris ${line}: tuple destructuring butuh nama variabel`)
+          names.push(it.name)
+        }
+        const e = this.parseExpr()
+        return { t: 'tuple', names, e, line }
+      }
+      // tuple value tanpa '=' — nilai multi-value (terutama return fungsi)
+      return { t: 'tupleexpr', items, line }
     }
 
     if (t.kind === 'ident') {
@@ -379,8 +396,30 @@ class Parser {
     }
     this.expectOp(')')
     this.expectOp('=>')
+    // Pine v5: body fungsi bisa SATU ekspresi di baris yang sama
+    //   f(x) => x * 2
+    // ATAU blok multi-baris ter-indent (nilai kembali = ekspresi
+    // terakhir — pola paling umum di script TradingView):
+    //   f(x) =>
+    //       s = ta.sma(x, 5)
+    //       s * 1.1
+    if (this.peek().kind === 'newline') {
+      this.skipNewlines()
+      if (this.eatIndentIfAny()) {
+        const stmts: Stmt[] = []
+        this.skipNewlines()
+        while (this.peek().kind !== 'dedent' && this.peek().kind !== 'eof') {
+          stmts.push(this.parseStatement())
+          this.skipNewlines()
+        }
+        this.eatDedentIfAny()
+        return { t: 'funcdef', name, params, body: stmts, line }
+      }
+      // newline tanpa indent → body kosong/tidak valid; pesan jelas
+      throw new Error(`Baris ${line}: body fungsi "${name}" harus satu ekspresi pada baris "=>" atau blok ter-indent di baris berikutnya`)
+    }
     const body = this.parseExpr()
-    return { t: 'funcdef', name, params, body, line }
+    return { t: 'funcdef', name, params, body: [{ t: 'expr', e: body, line }], line }
   }
 
   private parseIf(): Extract<Stmt, { t: 'if' }> {

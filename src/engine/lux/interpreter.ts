@@ -189,7 +189,9 @@ class Interp {
   private timeArr: number[] = []
 
   private vars = new Map<string, SeriesVar>()
-  private funcs = new Map<string, { params: string[]; body: Expr }>()
+  private funcs = new Map<string, { params: string[]; body: Stmt[] }>()
+  /** Riwayat hasil call per call-site (seq) — dukung `ta.highest(high,20)[1]`. */
+  private callHist = new Map<number, LuxValue[]>()
   private locals: Map<string, FrameVal> | null = null
 
   private steps = 0
@@ -364,6 +366,14 @@ class Interp {
         }
         return
       }
+      case 'tupleexpr': {
+        // [a, b, c] sebagai NILAI — terutama return multi-value dari
+        // fungsi user (baris terakhir body). lastTuple dibaca call-site
+        // `[x, y, z] = f(...)`.
+        const vals = st.items.map((it) => this.evalExpr(it, bar))
+        this.lastTuple = vals
+        return
+      }
       case 'if': {
         for (const br of st.branches) {
           if (br.cond === null || toBool(this.evalExpr(br.cond, bar))) {
@@ -535,10 +545,22 @@ class Interp {
       case 'member':
         return this.memberVal(e.obj, e.path, bar, e.line)
       case 'index': {
-        if (e.base.t !== 'ident') throw new LuxError('Hanya variabel yang bisa diindeks riwayat x[n]', 'RUNTIME_ERROR')
         const nV = toNum(this.evalExpr(e.n, bar))
         const back = Math.round(nV)
         if (!Number.isFinite(back) || back < 0) return NA
+        // Riwayat hasil FUNGSI: `ta.highest(high, 20)[1]`, `ta.ema(close, 9)[3]`,
+        // `ta.crossover(a, b)[1]` — pola sangat umum di script TradingView asli.
+        // Hasil call per bar dicatat di buffer per call-site (seq), lalu dibaca
+        // mundur — semantik Pine: series hasil fungsi punya history sendiri.
+        if (e.base.t === 'call') {
+          this.evalExpr(e.base, bar) // state maju + isi buffer bar ini
+          const buf = this.callHist.get(e.base.seq)
+          const idx = bar - back
+          if (!buf || idx < 0 || idx >= buf.length) return NA
+          const v = buf[idx]
+          return v === undefined ? NA : v
+        }
+        if (e.base.t !== 'ident') throw new LuxError('Hanya variabel atau hasil fungsi yang bisa diindeks riwayat x[n]', 'RUNTIME_ERROR')
         return this.readIdent(e.base.name, bar, back, e.line)
       }
       case 'un': {
@@ -565,8 +587,18 @@ class Interp {
         // Array literal (options=[…] dsb.) — subset: nilai abstrak, tidak
         // bisa diakses elemennya (array.get dsb. tetap ditolak).
         return NA
-      case 'call':
-        return this.evalCall(e.name, e.args, e.seq, bar, e.line)
+      case 'call': {
+        const out = this.evalCall(e.name, e.args, e.seq, bar, e.line)
+        // Catat hasil per bar (untuk dukungan riwayat f(...)[n]).
+        let hbuf = this.callHist.get(e.seq)
+        if (!hbuf) {
+          hbuf = []
+          this.callHist.set(e.seq, hbuf)
+        }
+        while (hbuf.length < bar) hbuf.push(NA)
+        hbuf[bar] = out
+        return out
+      }
     }
   }
 
@@ -760,6 +792,14 @@ class Interp {
       case 'adjust': case 'barmerge': case 'text': case 'position':
       case 'line': case 'label': case 'box': case 'table':
         return NA
+      case 'ta':
+        // member series ta.* yang bukan fungsi — ta.obv dihitung beneran;
+        // sisanya no-op (jangan hard error, biar script tetap jalan)
+        if (p === 'obv') {
+          const arr = this.obvSeries()
+          return arr[bar] ?? NA
+        }
+        return NA
       case 'input': case 'na': case 'open': case 'high': case 'low':
       case 'close': case 'volume': case 'time': case 'int': case 'float':
       case 'bool': case 'string': case 'array': case 'matrix': case 'map':
@@ -844,7 +884,9 @@ class Interp {
       for (let i = 0; i < fn.params.length; i++) {
         this.locals.set(fn.params[i], { kind: 'local', v: argVals[i] })
       }
-      const out = this.evalExpr(fn.body, bar)
+      // body fungsi = blok statement — nilai kembali = ekspresi terakhir
+      // (semantik Pine v5, mendukung body multi-baris ter-indent)
+      const out = this.execBodyValue(fn.body, bar)
       this.locals = saved
       return out
     }
@@ -1590,6 +1632,9 @@ class Interp {
       case 'fill':
       case 'bgcolor':
       case 'barcolor':
+      case 'plotcandle':
+      case 'plotbar':
+      case 'plotarrow':
       case 'label.new':
       case 'label':
       case 'line.new':
@@ -1653,7 +1698,33 @@ class Interp {
         )
     }
 
+    // Fallback namespace strategy.* — fungsi order/visual/risk yang belum
+    // dipetakan = no-op (script tetap jalan, sinyal utama tetap dari
+    // strategy.entry/exit/close yang sudah di-mapping ke event).
+    if (name.startsWith('strategy.')) return NA
+
     throw new LuxError(`Fungsi "${name}" belum didukung Lux subset${line ? ` (baris ${line})` : ''}`, 'RUNTIME_ERROR')
+  }
+
+  /** OBV (On Balance Volume) — series kumulatif, dihitung sekali per run. */
+  private obvCache: number[] | null = null
+  private obvSeries(): number[] {
+    if (!this.obvCache) {
+      const arr: number[] = []
+      let acc = 0
+      for (let i = 0; i < this.n; i++) {
+        const c = this.close[i]
+        const pc = i > 0 ? this.close[i - 1] : c
+        const v = this.volume[i] ?? 0
+        if (Number.isFinite(c) && Number.isFinite(pc)) {
+          if (c > pc) acc += Number.isFinite(v) ? v : 0
+          else if (c < pc) acc -= Number.isFinite(v) ? v : 0
+        }
+        arr.push(acc)
+      }
+      this.obvCache = arr
+    }
+    return this.obvCache
   }
 
   /** True Range bar saat ini (TR). */
