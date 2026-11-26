@@ -21,16 +21,15 @@ export default function VideoReviewBanner() {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <p className="text-[11px] font-bold tracking-[0.18em] text-amber-400 uppercase">
-            Sample Review — Konten v4 (TradingView UI + VO Indonesia Native)
+            Sample Review — Konten Baru (pilihan Sinta): Pain Point #3 FOMO
           </p>
           <h2 className="text-lg md:text-xl font-bold text-white mt-1">
-            &ldquo;SL Kena Terus? Ini Penyebabnya&rdquo; v5 — 34 detik, 9:16 — kartu chart + stickman + VO Indo murni
+            &ldquo;Liat Candle Hijau, Langsung Ikut? Itu FOMO&rdquo; — 38 detik, 9:16 — tempo santai + VO natural +0%
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            Revisi Bos (3 poin): <span className="text-amber-300">① VO edge-tts id-ID-ArdiNeural — Indonesia murni, tanpa logat</span> ·{' '}
-            <span className="text-amber-300">② candle TradingView</span> (#26A69A/#EF5350, wick tegas, axis chip live){' '}
-            <span className="text-amber-300">③ gaya reel referensi</span> — kartu chart ber-border, STICKMAN riding candle,
-            step pills ✓, stamp/ticket glow. Tekan play — <span className="text-gray-300">volume nyala</span>.
+            Standar v5 penuh (revisi Bos &ldquo;terlalu cepet&rdquo;): <span className="text-amber-300">① VO rate +0% — pace natural, nggak buru-buru</span> ·{' '}
+            <span className="text-amber-300">② jeda napas 1 dtk/scene</span> ·{' '}
+            <span className="text-amber-300">③ spring lembut</span> (stiffness 105-150). Tekan play — <span className="text-gray-300">volume nyala</span>.
           </p>
         </div>
         <button
@@ -45,7 +44,7 @@ export default function VideoReviewBanner() {
       <div className="flex flex-col md:flex-row gap-4 items-start">
         <div className="flex flex-col gap-2">
           <video
-            src="/review/luxtrade-sl-pain-sample.mp4"
+            src="/review/luxtrade-fomo-zona-sample.mp4"
             controls
             playsInline
             preload="metadata"
@@ -53,20 +52,20 @@ export default function VideoReviewBanner() {
           />
           {/* Unduh langsung MP4 buat dipindah ke HP / dikirim ulang */}
           <a
-            href="/review/luxtrade-sl-pain-sample.mp4"
-            download="luxtrade-sl-kena-v5.mp4"
+            href="/review/luxtrade-fomo-zona-sample.mp4"
+            download="luxtrade-fomo-zona-v1.mp4"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors"
           >
-            &#8681; Unduh Video v5 (MP4, 6.3 MB)
+            &#8681; Unduh Video FOMO (MP4, 7.4 MB)
           </a>
         </div>
         <ul className="text-sm text-gray-300 space-y-2 flex-1">
-          <li>&bull; Scene 1 (0-5s): HOOK — judul &ldquo;SL KENA DULU, BARU HARGA JALAN&rdquo;, kartu chart streaming, stickman ?&rarr; SHOCK saat candle tembus SL (flash + shake + stamp) &rarr; CELEBRATE + ticket +$137 count-up</li>
-          <li>&bull; Scene 2 (5-15s): SWEEP LIKUIDITAS — step pills 1 EQH ✓ 2 LIQUIDITY 3 SWEEP 4 DEMAND, garis EQH, ring LIQUIDITY pulse, panah SWEEP glow, stickman jalan</li>
-          <li>&bull; Scene 3 (15-22s): SL MEPET VS SL + BUFFER — zone DEMAND gradient, garis SL+ATR & ENTRY, panah TARGET, stickman point</li>
-          <li>&bull; Scene 4 (22-34s): CTA — mockup app sinyal + chip PnL mengapung + row fitur ✓ ENTRY JELAS ✓ STOP LOGIS ✓ JURNAL OTOMATIS + FOLLOW glow</li>
+          <li>&bull; Scene 1 (0-8s): HOOK — candle sideways&rarr;rally, garis ENTRY deket puncak (chase), dump tembus SL &rarr; stamp &ldquo;SL KENA!&rdquo; &rarr; harga MASIH TURUN, ticket merah -$96 count-down, stickman shock</li>
+          <li>&bull; Scene 2 (8-17s): SOLUSI — step pills sinkron VO: 1 JANGAN KEJAR ✓ (circle merah di puncak) 2 ZONE ENTRY (gradient hijau, pullback masuk zona) 3 SL 4 TARGET (panah), stickman jalan&rarr;point&rarr;celebrate</li>
+          <li>&bull; Scene 3 (17-26s): INSIGHT — kartu &ldquo;GAK BALIK KE ZONA?&rdquo; + strip candle mini animasi (gada setup, gada trade)</li>
+          <li>&bull; Scene 4 (26-38s): CTA — mockup app sinyal XAUUSD BUY + ENTRY/SL/TP + TP1 HIT + count-up +$187.50 + chip ENTRY HIT/hasil mengapung + FOLLOW glow + domain</li>
           <li className="text-gray-400">
-            VO edge-tts id-ID-ArdiNeural rate +18% (Indonesia murni). Chart TradingView #26A69A/#EF5350 dalam kartu border teal + header DATA ILUSTRASI — gaya reel referensi Bos.
+            VO edge-tts id-ID-ArdiNeural rate +0% (Indonesia murni, tempo natural). Chart TradingView #26A69A/#EF5350 full-bleed kartu border teal + DATA ILUSTRASI — gaya reel referensi Bos.
           </li>
         </ul>
       </div>

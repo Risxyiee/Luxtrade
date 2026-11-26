@@ -145,6 +145,8 @@ export interface ChartCardProps {
   tf?: string;
   /** mode hook: streaming + ENTRY/SL + crash */
   hook?: boolean;
+  /** cerita loss (FOMO): stickman tetap shock setelah crash, bukan celebrate */
+  hookLoss?: boolean;
   /** SL normalisasi utk mode hook */
   slY?: number;
   /** entry normalisasi utk mode hook */
@@ -174,6 +176,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   symbol = "XAUUSD",
   tf = "1 JAM",
   hook = false,
+  hookLoss = false,
   slY = 0.3,
   entryY = 0.55,
   stickPoses,
@@ -256,7 +259,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   if (hook) {
     stickX = px(lastIdx / (N - 1));
     stickFootY = cy(last.c) + 8;
-    stickPose = recovered ? "celebrate" : slBroken ? "shock" : f < 40 ? "idle" : "walk";
+    stickPose = recovered ? (hookLoss ? "shock" : "celebrate") : slBroken ? "shock" : f < 40 ? "idle" : "walk";
     // sebelum crash: bubble ? saat mulai, lalu idle; sesudah: celebrate
     if (!recovered && !slBroken && f < crashFrame) stickPose = f < 24 ? "idle" : "idle";
   } else if (stickPoses && stickPoses.length > 0 && nSteps > 0) {

@@ -12,7 +12,6 @@ import {
 } from "remotion";
 import { Backdrop } from "./components/Backdrop";
 import { BackgroundMusic } from "./components/Music";
-import { genCandles } from "./components/Chart";
 import {
   ChartCard,
   activeCardStep,
@@ -46,6 +45,17 @@ export interface ReelsScene extends SceneProps {
   /** Narasi waypoint harga (normalisasi 0..1, 1 = tinggi) — chart
    *  full-bleed pakai ini biar cerita candle = cerita VO. */
   path?: number[];
+  /* ---- hook custom (cerita FOMO/revenge dsb.) ---- */
+  /** garis ENTRY (hook mode) */
+  entryY?: number;
+  /** garis SL (hook mode) — deteksi crash di sini */
+  slY?: number;
+  /** nilai PnL ticket (bisa negatif utk cerita loss) */
+  pnl?: number;
+  /** teks ticket di atas angka */
+  pnlLabel?: string;
+  /** win = hijau "harga jalan", loss = merah "masih turun" */
+  pnlTone?: "win" | "loss";
 }
 
 export interface SintaReelsProps {
@@ -221,20 +231,37 @@ const HOOK_SL = 0.3;
 const HOOK_RS = 6;
 const HOOK_IV = 5; /* streaming lebih lambat — sinkron dgn REVEAL_IV ChartCard */
 
-const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number; seed: number }> = ({
+const HookScene: React.FC<{
+  title: string;
+  sub: string;
+  durationInFrames: number;
+  seed: number;
+  path?: number[];
+  entryY?: number;
+  slY?: number;
+  pnl?: number;
+  pnlLabel?: string;
+  pnlTone?: "win" | "loss";
+}> = ({
   title,
   sub,
   durationInFrames,
   seed,
+  path = HOOK_PATH,
+  entryY = 0.55,
+  slY = HOOK_SL,
+  pnl: pnlTarget = 137.14,
+  pnlLabel = "HARGA JALAN ↗",
+  pnlTone = "win",
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const crash = hookCrashFrame(HOOK_N, HOOK_SL, seed, HOOK_PATH, HOOK_RS, HOOK_IV);
+  const crash = hookCrashFrame(HOOK_N, slY, seed, path, HOOK_RS, HOOK_IV);
   const recover = crash + 62; /* stamp sempat dibaca ±2 dtk (Bos: jgn kecepetan) */
 
   const stampS = spring({ fps, frame: Math.max(0, frame - crash - 2), config: { damping: 14, stiffness: 140, mass: 1 } });
   const winS = spring({ fps, frame: Math.max(0, frame - recover - 2), config: { damping: 15, stiffness: 130 } });
-  const pnl = interpolate(frame, [recover + 8, recover + 48], [0, 137.14], {
+  const pnl = interpolate(frame, [recover + 8, recover + 48], [0, pnlTarget], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.cubic),
@@ -260,11 +287,12 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
           width={968}
           height={1150}
           seed={seed}
-          path={HOOK_PATH}
+          path={path}
           durationInFrames={durationInFrames}
           hook
-          slY={HOOK_SL}
-          entryY={0.55}
+          slY={slY}
+          entryY={entryY}
+          hookLoss={pnlTone === "loss"}
           symbol="XAUUSD"
           tf="1 JAM"
         />
@@ -298,7 +326,7 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
         </div>
       )}
 
-      {/* ticket recovery — PnL count-up glow */}
+      {/* ticket hasil — win: harga jalan hijau / loss: masih turun merah */}
       {frame >= recover && (
         <div
           style={{
@@ -307,10 +335,13 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
             right: 80,
             padding: "18px 28px",
             borderRadius: 20,
-            background: "rgba(6,39,32,0.82)",
-            border: "1px solid rgba(52,211,153,0.55)",
+            background: pnlTone === "loss" ? "rgba(39,8,8,0.82)" : "rgba(6,39,32,0.82)",
+            border: pnlTone === "loss" ? "1px solid rgba(248,113,113,0.55)" : "1px solid rgba(52,211,153,0.55)",
             backdropFilter: "blur(10px)",
-            boxShadow: "0 20px 70px rgba(5,150,105,0.4), 0 0 44px rgba(52,211,153,0.22)",
+            boxShadow:
+              pnlTone === "loss"
+                ? "0 20px 70px rgba(153,27,27,0.45), 0 0 44px rgba(248,113,113,0.22)"
+                : "0 20px 70px rgba(5,150,105,0.4), 0 0 44px rgba(52,211,153,0.22)",
             fontFamily: FONT,
             zIndex: 14,
             textAlign: "right",
@@ -318,7 +349,7 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
             transform: `scale(${0.7 + 0.3 * clamp01(winS)})`,
           }}
         >
-          <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: 4, color: "#6EE7B7" }}>HARGA JALAN ↗</div>
+          <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: 4, color: pnlTone === "loss" ? "#FCA5A5" : "#6EE7B7" }}>{pnlLabel}</div>
           <div
             style={{
               marginTop: 4,
@@ -326,11 +357,11 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
               fontWeight: 900,
               color: "#FFFFFF",
               fontVariantNumeric: "tabular-nums",
-              textShadow: "0 0 34px rgba(52,211,153,0.75)",
+              textShadow: pnlTone === "loss" ? "0 0 34px rgba(248,113,113,0.75)" : "0 0 34px rgba(52,211,153,0.75)",
               lineHeight: 1,
             }}
           >
-            +${pnl.toFixed(2)}
+            {pnlTarget >= 0 ? "+" : "-"}${Math.abs(pnl).toFixed(2)}
           </div>
         </div>
       )}
@@ -339,7 +370,7 @@ const HookScene: React.FC<{ title: string; sub: string; durationInFrames: number
 };
 
 const PAIN_RE = /(SL|KENA|MC|FOMO|HABIS|BANTAI|MEPET|SIAL|JEBOL)/i;
-const WIN_RE = /(JALAN|CUAN|PROFIT|SISTEM|NAIK|BUFFER|AMAN|SWEEP|LIKUIDITAS|ZONA|ENTRY|TARGET|DEMAND)/i;
+const WIN_RE = /(JALAN|CUAN|PROFIT|SISTEM|NAIK|BUFFER|AMAN|SWEEP|LIKUIDITAS|ZONA|ENTRY|TARGET|DEMAND|SINYAL)/i;
 
 /* kata ter-highlight merah (pain) / teal (win) — gaya judul reel */
 const titleWordColor = (w: string): string => {
@@ -464,21 +495,37 @@ const PointScene: React.FC<{ title: string; sub: string; badge: number; duration
           />
         </svg>
 
-        {/* strip candle mini — kartu tidak polos teks saja (Bos 26-11:
-            "bukan teks aja sama animasi biasa") */}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 7, height: 84, marginTop: 34 }}>
-          {genCandles(badge * 17 + 5, badge % 2 === 0 ? "up" : "down", 22).map((cd, i) => {
-            const ap = spring({ fps, frame: Math.max(0, frame - 30 - i * 2.5), config: SPRING_POP });
-            const up = cd.c >= cd.o;
-            const bodyTop = (1 - Math.max(cd.o, cd.c)) * 84;
-            const bodyH = Math.max(3, Math.abs(cd.o - cd.c) * 84);
-            return (
-              <div key={i} style={{ flex: 1, opacity: clamp01(ap), transform: `scaleY(${Math.max(0.1, ap)})`, transformOrigin: "bottom" }}>
-                <div style={{ width: "100%", height: 2, background: up ? C.green : C.red, opacity: 0.7, transform: `translateY(${cd.h * 84 - 84}px)` }} />
-                <div style={{ width: "100%", height: bodyH, marginTop: bodyTop - 0, borderRadius: 3, background: up ? C.green : C.red, opacity: 0.9 }} />
-              </div>
-            );
-          })}
+        {/* strip candle mini — gelombang deterministik amplitudo besar,
+            candle chunky keliatan jelas (Bos 26-11: "bukan teks aja sama
+            animasi biasa") */}
+        <div style={{ marginTop: 34 }}>
+          <svg width="100%" height={84} viewBox="0 0 620 84" preserveAspectRatio="none">
+            {(() => {
+              const MINI_N = 12;
+              const wave = (i: number) =>
+                0.5 + Math.sin(i * 0.85 + badge * 1.37) * 0.3 + Math.cos(i * 0.42 + badge) * 0.06;
+              const y = (v: number) => 4 + (1 - clamp01(v)) * 76;
+              return Array.from({ length: MINI_N }).map((_, i) => {
+                const ap = spring({ fps, frame: Math.max(0, frame - 30 - i * 3), config: SPRING_POP });
+                const o = i === 0 ? wave(0) : wave(i - 1);
+                const c = wave(i);
+                const h = Math.max(o, c) + 0.07;
+                const l = Math.min(o, c) - 0.07;
+                const up = c >= o;
+                const color = up ? C.green : C.red;
+                const xMid = 620 * (i / (MINI_N - 1)) + 10;
+                const bw = 26;
+                const bodyTopY = y(Math.max(o, c));
+                const bodyH = Math.max(4, Math.abs(y(o) - y(c)));
+                return (
+                  <g key={i} opacity={clamp01(ap)} transform={`translate(0 ${(1 - clamp01(ap)) * 24})`}>
+                    <line x1={xMid} x2={xMid} y1={y(h)} y2={y(l)} stroke={color} strokeWidth={2.4} opacity={0.8} />
+                    <rect x={xMid - bw / 2} y={bodyTopY} width={bw} height={bodyH} rx={2.5} fill={color} opacity={0.92} />
+                  </g>
+                );
+              });
+            })()}
+          </svg>
         </div>
       </div>
     </SceneShell>
@@ -1008,7 +1055,7 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
         return (
           <Sequence key={`${scene.voFile}-${i}`} from={starts[i]} durationInFrames={frames[i]} name={`Scene ${i + 1} · ${kind}`}>
             {scene.voFile ? <Audio src={staticFile(scene.voFile)} /> : null}
-            {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} seed={seedBase + i * 17} />
+            {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} seed={seedBase + i * 17} path={scene.path} entryY={scene.entryY} slY={scene.slY} pnl={scene.pnl} pnlLabel={scene.pnlLabel} pnlTone={scene.pnlTone} />
             : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
             : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
             : kind === "quote" ? <QuoteScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />

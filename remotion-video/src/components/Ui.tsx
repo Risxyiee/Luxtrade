@@ -211,7 +211,7 @@ export const BrandChip: React.FC = () => {
           color: C.white,
         }}
       >
-        LUXTRADE
+        LUXTRADEE
       </span>
     </div>
   );
