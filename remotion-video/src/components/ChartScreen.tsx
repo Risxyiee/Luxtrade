@@ -6,6 +6,10 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+
+/* GROW easing — candle terbentuk organik kaya chart live (Bos 26-11:
+   "gerakan candle kurang smoot coba lagi"). Sin inOut tanpa jerk. */
+const GROW = Easing.inOut(Easing.sin);
 import { fmtNum, genCandles } from "./Chart";
 import { C, FONT, clamp01 } from "./Ui";
 
@@ -80,7 +84,12 @@ const defaultColor = (t: string): string => {
 
 /* ---------------- timing langkah gambar ---------------- */
 
-const SETTLE = 20; // candle "terbentuk" dulu sampai frame ini
+/* cadence candle: 1.2 → 2.2 frame/candle (Bos: "kurang smoot") —
+   streaming 34 candle jadi ±75 frame (2.5s), tempo tenang. */
+const CANDLE_IV = 2.2;
+const GROW_FRAMES = 8;
+/* candle "terbentuk" dulu sampai frame ini (2 + 33x2.2 + 8 grow) */
+const SETTLE = 86;
 const DRAW_FRAMES = 16; // durasi draw-in per langkah
 
 export const stepTiming = (
@@ -495,30 +504,39 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
               </text>
             ))}
 
-            {/* ═══ candle gaya TradingView: wick tegas 2px, body solid tajam ═══ */}
+            {/* ═══ candle gaya TradingView: wick tegas 2px, body solid tajam.
+                GROW organik: body merambat open→close, wick memanjang —
+                tanpa scale pop (dulu spring 180 mirik-mirik). ═══ */}
             {candles.map((cd, i) => {
-              const appear = spring({
-                fps,
-                frame: Math.max(0, f - 2 - i * 1.2),
-                config: { damping: 14, stiffness: 180 },
-              });
-              const xMid = plotX + step * (i + 0.5);
+              const startF = 2 + i * CANDLE_IV;
+              const grow = clamp01(
+                interpolate(f, [startF, startF + GROW_FRAMES], [0, 1], {
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                  easing: GROW,
+                }),
+              );
+              const fadeIn = clamp01(interpolate(f, [startF, startF + 3], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
               const up = cd.c >= cd.o;
               const color = up ? TV_UP : TV_DOWN;
-              const bodyTop = cy(Math.max(cd.o, cd.c));
-              const bodyH = Math.max(3, Math.abs(cy(cd.o) - cy(cd.c)));
+              const cNow = cd.o + (cd.c - cd.o) * grow;
+              const hNow = Math.max(cd.o, cNow) + (cd.h - Math.max(cd.o, cd.c)) * grow;
+              const lNow = Math.min(cd.o, cNow) - (Math.min(cd.o, cd.c) - cd.l) * grow;
+              const bodyTop = cy(Math.max(cd.o, cNow));
+              const bodyBot = cy(Math.min(cd.o, cNow));
+              const bodyH = Math.max(grow > 0.04 ? 3 : 0.5, bodyBot - bodyTop);
+              const xMid = plotX + step * (i + 0.5);
               return (
                 <g
                   key={i}
-                  opacity={clamp01(appear)}
-                  transform={`translate(${xMid} ${cy(cd.c)}) scale(${clamp01(appear)}) translate(${-xMid} ${-cy(cd.c)})`}
+                  opacity={fadeIn}
                 >
                   {/* wick 2px full-opacity, tanpa rounded cap — TradingView */}
                   <line
                     x1={xMid}
                     x2={xMid}
-                    y1={cy(cd.h)}
-                    y2={cy(cd.l)}
+                    y1={cy(hNow)}
+                    y2={cy(lNow)}
                     stroke={color}
                     strokeWidth={2}
                     opacity={1}

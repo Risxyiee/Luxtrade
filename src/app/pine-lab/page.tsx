@@ -97,6 +97,21 @@ plot(emaSlow, title='EMA Lambat')
 alertcondition(longCond, title='LONG', message='BUY: EMA cepat cross ke atas')
 alertcondition(shortCond, title='SHORT', message='SELL: EMA cepat cross ke bawah')`
 
+/* Preset script SIAP PAKAI (Bos: "ini masukin ke pinelab" — Sprint v11
+ * Propaniumm BOOST $2.500). File .pine disimpan di /pine-lab-templates/
+ * dan di-fetch saat dipilih — bundle halaman tetap ringan, script
+ * presis sama dengan file TradingView aslinya (lengkap dgn komentar). */
+const PRESETS = [
+  {
+    id: 'sprint-v11-propaniumm-boost',
+    label: 'Sprint v11 — Propaniumm BOOST $2.500',
+    desc: 'XAUUSD H1 · body 83% · ADX 17 · fractal 3 · SL $30 / TP $40 · BE · 1-LOSS · rollover 23:00',
+    file: '/pine-lab-templates/sprint-v11-propaniumm-boost.pine',
+    name: 'Sprint v11 Propaniumm BOOST 2500',
+    symbol: 'XAUUSD',
+  },
+] as const
+
 export default function PineLabPage() {
   const [phase, setPhase] = useState<'loading' | 'ok' | 'forbidden' | 'anon' | 'server'>('loading')
   const [email, setEmail] = useState('')
@@ -197,6 +212,34 @@ export default function PineLabPage() {
     setSource(TEMPLATE)
     setRunResult(null)
     setMsg(null)
+  }
+
+  /* Muat preset siap pakai ke editor (belum tersimpan — Bos tekan
+   * Simpan dulu, baru Run, pola sama seperti script manual). */
+  const [presetLoading, setPresetLoading] = useState<string | null>(null)
+  const loadPreset = async (p: (typeof PRESETS)[number]) => {
+    setPresetLoading(p.id)
+    setMsg(null)
+    try {
+      const r = await fetch(p.file, { credentials: 'same-origin' })
+      const txt = r.ok ? await r.text() : ''
+      if (!r.ok || !txt.trim()) {
+        setMsg({ kind: 'err', text: 'Gagal memuat preset (file template tidak ditemukan). Coba refresh halaman.' })
+        return
+      }
+      setSelectedId(null)
+      setName(p.name)
+      setSymbol(p.symbol)
+      setActive(false)
+      setSource(txt)
+      setRunResult(null)
+      dirtyRef.current = true
+      setMsg({ kind: 'ok', text: `Preset "${p.label}" dimuat. Tekan Simpan, lalu Run test.` })
+    } catch {
+      setMsg({ kind: 'err', text: 'Gagal memuat preset. Cek koneksi dan coba lagi.' })
+    } finally {
+      setPresetLoading(null)
+    }
   }
 
   const save = async () => {
@@ -376,6 +419,30 @@ export default function PineLabPage() {
           >
             <Plus className="w-4 h-4" /> Script Baru
           </button>
+
+          {/* ── Preset siap pakai (Bos 26-11: masukkan Sprint v11 ke PineLab) ── */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-2 space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 px-1 pt-1">Preset siap pakai</p>
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => void loadPreset(p)}
+                disabled={presetLoading === p.id}
+                className="w-full rounded-xl border border-cyan-400/25 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2.5 text-left transition-colors disabled:opacity-50 min-h-[44px]"
+              >
+                <div className="flex items-center gap-2">
+                  {presetLoading === p.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-300 shrink-0" />
+                  ) : (
+                    <FlaskConical className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                  )}
+                  <span className="text-[12px] font-semibold text-cyan-100 truncate">{p.label}</span>
+                </div>
+                <p className="text-[10px] text-white/40 mt-0.5 pl-5 leading-snug">{p.desc}</p>
+              </button>
+            ))}
+          </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-2 max-h-[420px] overflow-y-auto lux-scroll">
             {listLoading ? (

@@ -6,6 +6,12 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+
+/* ── easing helper utk candle GROW organik (Bos 26-11: "gerakan candle
+   kurang smoot coba lagi") — candle terbentuk PELAN kayak chart live
+   beneran, bukan pop instan. Easing.sin inOut = kecepatan halus
+   percepat-lambat tanpa jerk di ujung. */
+const GROW = Easing.inOut(Easing.sin);
 import { fmtNum, genCandles } from "./Chart";
 import { C, FONT, clamp01 } from "./Ui";
 
@@ -40,7 +46,13 @@ const ENTRY_Y = 0.52;
 const SL_Y = 0.2;
 const N_CANDLES = 34;
 const REVEAL_START = 4;
-const REVEAL_IV = 2.2;
+/* reveal diperlambat 2.2 → 3.4 frame/candle (Bos: "kurang smoot") —
+   streaming candle jadi ±3.8 detik penuh, tempo rally tenang & mudah
+   diikuti mata. HOOK_CRASH_FRAME ikut turun otomatis (dihitung dari
+   konstanta ini) jadi stamp/PnL tetap sinkron dgn candle. */
+const REVEAL_IV = 3.4;
+/* durasi formasi per-candle (frame) — dipakai GROW easing */
+const GROW_FRAMES = 7;
 
 /* candle pertama yang menembus SL — dihitung deterministik di module scope
    supaya scene lain (HookScene caption) bisa sinkron tanpa render. */
@@ -85,9 +97,14 @@ export const HookTerminal: React.FC<{ durationInFrames: number }> = ({ durationI
   const lastIdx = revealedCount - 1;
   const last = lastIdx >= 0 ? candles[lastIdx] : candles[0];
 
-  /* harga live = close candle terakhir yang tampil */
+  /* harga live = close candle TERAKHIR yang tampil, diglide halus dari
+     open → close selama formasi (sebelumnya melompat diskrit per candle
+     — itu salah satu sumber "kurang smoot"). growP dipakai sama dengan
+     candle yang sedang terbentuk supaya chip & PnL molor mulus. */
   const priceP = interpolate(f, [0, 10], [0, 1], { extrapolateRight: "clamp" });
-  const price = toPrice(last.c);
+  const lastGrow = clamp01(interpolate(f, [REVEAL_START + Math.max(0, lastIdx) * REVEAL_IV, REVEAL_START + Math.max(0, lastIdx) * REVEAL_IV + GROW_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: GROW }));
+  const lastCNow = lastIdx >= 0 ? last.o + (last.c - last.o) * lastGrow : candles[0].o;
+  const price = toPrice(lastCNow);
 
   /* ── event crash ── */
   const sinceCrash = f - crashFrame;
@@ -266,26 +283,39 @@ export const HookTerminal: React.FC<{ durationInFrames: number }> = ({ durationI
           );
         })()}
 
-        {/* ═══ candle streaming — TradingView style ═══ */}
+        {/* ═══ candle streaming — TradingView style, GROW organik ═══
+            Bos 26-11: "gerakan candle kurang smoot". Dulu: pop instan
+            (scale spring 190) → mirik-mirik. Sekarang: candle TERBENTUK
+            — body tumbuh dari open ke close, wick memanjang keluar dari
+            harga — persis candle live di TradingView. Tanpa scale pop. */}
         {candles.map((cd, i) => {
           if (i >= revealedCount) return null;
-          const appear = spring({
-            fps,
-            frame: Math.max(0, f - (REVEAL_START + i * REVEAL_IV)),
-            config: { damping: 15, stiffness: 190 },
-          });
+          const startF = REVEAL_START + i * REVEAL_IV;
+          const grow = clamp01(
+            interpolate(f, [startF, startF + GROW_FRAMES], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+              easing: GROW,
+            }),
+          );
+          const fadeIn = clamp01(interpolate(f, [startF, startF + 3], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
           const up = cd.c >= cd.o;
           const color = up ? TV_UP : TV_DOWN;
-          const bodyTop = py(Math.max(cd.o, cd.c));
-          const bodyH = Math.max(4, Math.abs(py(cd.o) - py(cd.c)));
+          /* close"hidup" — edge body merambat dari open ke close */
+          const cNow = cd.o + (cd.c - cd.o) * grow;
+          /* wick ikut memanjang keluar dari harga hidup (0 = open, 1 = full) */
+          const hNow = Math.max(cd.o, cNow) + (cd.h - Math.max(cd.o, cd.c)) * grow;
+          const lNow = Math.min(cd.o, cNow) - (Math.min(cd.o, cd.c) - cd.l) * grow;
+          const bodyTop = py(Math.max(cd.o, cNow));
+          const bodyBot = py(Math.min(cd.o, cNow));
+          const bodyH = Math.max(grow > 0.04 ? 3 : 0.5, bodyBot - bodyTop);
           const xMid = px(i);
           return (
             <g
               key={i}
-              opacity={clamp01(appear)}
-              transform={`translate(${xMid} ${py(cd.c)}) scale(${clamp01(appear)}) translate(${-xMid} ${-py(cd.c)})`}
+              opacity={fadeIn}
             >
-              <line x1={xMid} x2={xMid} y1={py(cd.h)} y2={py(cd.l)} stroke={color} strokeWidth={2.5} />
+              <line x1={xMid} x2={xMid} y1={py(hNow)} y2={py(lNow)} stroke={color} strokeWidth={2.5} />
               <rect x={xMid - bw / 2} y={bodyTop} width={bw} height={bodyH} fill={color} />
             </g>
           );

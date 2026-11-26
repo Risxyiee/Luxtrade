@@ -1,0 +1,346 @@
+//@version=6
+// ============================================================
+//  SPRINT v11 - PROPANIUMM BOOST $2.500 (26 Nov 2026)
+//  Pine Script v6 | XAUUSD H1 | Sinyal Champion Sprint (v7)
+//  *** TINGGAL COPY-PASTE KE TRADINGVIEW (Pine Editor v6) ***
+//
+//  FILE INI HANYA UNTUK PROPANIUMM BOOST $2.500.
+//  Bukan file universal - semua angka di bawah ini aturan Propaniumm,
+//  BUKAN FunderPro / CK / FTMO.
+//
+//  ATURAN PROPANIUMM BOOST $2.500 (sudah jadi default - jangan diubah
+//  kecuali kamu tahu yang kamu lakukan):
+//    accountSize 2500 | initial_capital 2500
+//    dailyPct 3%  -> daily loss max $75 (1 loss $30 = 40% daily)
+//    maxPct 10%   -> max DD $250 STATIC, lantai $2.250 (tidak naik)
+//    riskFrac 0,36 -> qty otomatis floor(75 x 0,36 / 30) = 1 oz
+//    SL $30 / TP $40 (RR 1:1,33), 1 SL = $30 = 1,2% akun
+//    BE ON (SL ke entry+5 setelah +$15) | SELL ON | 1-LOSS ON
+//    no-overnight 23:00 UTC ON | leverage XAU 1:100
+//    Margin: Propaniumm TIDAK punya aturan margin % -
+//    maxMarginPct 100 (cap dimatikan, tidak memblokir entry).
+//    Target lulus: +$125 (5%). Split funded 90%.
+//    Payout: min $15, maks $1.250, SATU payout per challenge
+//    (setelah WD akun selesai, beli challenge baru).
+//    Smart Exit 1,5% ($37,50) TIDAK PERNAH kena di 1 oz
+//    (SL $30 < $37,50) - pengamanmu = SL + daily $75 + 1-loss.
+//    Tiap kena Smart Exit split turun 10% (90 -> 80 -> 70 -> 60%).
+//    Per 27 Nov 2026: profit pas candle 15 mnt "high-risk"
+//    (range emas >= 0,50%) split-nya cuma 30%, bukan 90% -
+//    jangan entry pas rilis berita besar.
+//
+//  SINYAL v11 (tidak diubah dari v7):
+//    Candle impulsif body >= 83% | ADX(10) >= 17 | fractal 3 |
+//    retest Close sinyal dalam 9 bar | SL 30 / TP 40.
+//    BUY dan SELL aktif. Satu posisi dalam satu waktu.
+//
+//  HASIL UJI (Python, Dukascopy XAU/USD H1 3 tahun, 34 start):
+//    lulus 97,1%, median 99 hari, bust 0, PF 1,609, WR 64,5%,
+//    DD 5,69%, daily max 1,49%. 1-loss ON cuma nambah ~10 hari
+//    (median 89 -> 99) tapi daily max turun 2,03% -> 1,49%.
+//    2 oz LEBIH CEPAT (60 hari) TAPI DD terburuk $318 > buffer
+//    $250 - JANGAN dipakai. M30 GUGUR (PF 0,76, rugi).
+//    NAS100 JANGAN dipakai (PF 1,14, median 213 hari;
+//    0,28 lot + SE BANGKRUT, bust 44%).
+//    FASE FUNDED: pakai file ini juga, setting sama persis.
+//    Ekspektasi funded ~$33/bulan; $75 pertama jadi buffer.
+//
+//  BATAS KERAS (user 22 Nov 2026): DD tidak boleh sampai 10%,
+//  daily tidak boleh sampai 5%. Semua angka di atas LOLOS keduanya.
+//
+//  CARA PAKAI: Pine Editor (v6) -> tempel file ini -> Add to chart
+//  (XAUUSD, H1) -> cek panel kanan atas: "Qty", "1 SL / 1 TP",
+//  "Sisa ke lantai", "Margin status".
+strategy("Sprint v11 - Propaniumm BOOST 2500", shorttitle="v11 BOOST", overlay=true, initial_capital=2500, currency=currency.USD, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.cash_per_order, commission_value=0.035, slippage=3, pyramiding=0, calc_on_every_tick=false, process_orders_on_close=false)
+
+// ---------- INPUT: AKUN PROP FIRM (preset di header) ----------
+grpA = "Akun Prop Firm (preset di header)"
+accountSize = input.float(2500.0, "Ukuran akun (USD)", minval=100.0, step=100.0, group=grpA, tooltip="BOOST $2.500. Qty dihitung otomatis dari angka ini.")
+dailyPct    = input.float(3.0, "Daily loss limit (%)", minval=0.5, maxval=10.0, step=0.5, group=grpA, tooltip="Propaniumm BOOST: 3% ($75). Jangan diubah.")
+maxPct      = input.float(10.0, "Max loss limit (%)", minval=1.0, maxval=20.0, step=0.5, group=grpA, tooltip="Propaniumm BOOST: 10% ($250) STATIC. Jangan diubah.")
+maxLossMode = input.string("Static", "Mode max loss", options=["Static", "Trailing"], group=grpA, tooltip="Propaniumm BOOST: STATIC - lantai $2.250, tidak pernah naik.")
+riskFrac    = input.float(0.36, "Risk per SL (fraksi dari daily limit)", minval=0.1, maxval=0.9, step=0.01, group=grpA, tooltip="0,36 = default BOOST $2.500.")
+
+// ---------- INPUT: SINYAL (inti v7) ----------
+grpS = "Sinyal (inti v7 - teruji)"
+bodyMin    = input.float(83.0, "Body minimal (% dari range)", minval=0.0, maxval=100.0, step=1.0, group=grpS, tooltip="83 = resep teruji.")
+adxLen     = input.int(10, "ADX DI Length", minval=1, group=grpS)
+adxSmooth  = input.int(14, "ADX Smoothing (Wilder)", minval=1, group=grpS)
+adxMin     = input.float(17.0, "ADX minimal", minval=1.0, step=0.5, group=grpS, tooltip="17 = terbaik.")
+allowLong  = input.bool(true, "Aktifkan BUY", group=grpS)
+allowShort = input.bool(true, "Aktifkan SELL", group=grpS, tooltip="ON.")
+useAggr    = input.bool(false, "MODE AGRESIF: SELL ON (duplikat allowShort)", group=grpS, tooltip="Cadangan.")
+
+grpF = "Fractal"
+useFractal = input.bool(true, "Breakout harus tembus fractal", group=grpF)
+frLen      = input.int(3, "Panjang fractal (bar kiri = kanan)", minval=1, group=grpF, tooltip="3 = resep terbaik.")
+
+grpR = "Entry Retest"
+retestMode = input.string("Close sinyal", "Level retest", options=["Open sinyal", "50% sinyal", "Close sinyal"], group=grpR, tooltip="Close sinyal = terbaik.")
+retestBars = input.int(9, "Maks bar nunggu retest", minval=1, maxval=50, group=grpR)
+
+grpT = "Sesi"
+limitSess = input.bool(false, "Batasi sesi trading", group=grpT)
+sessStr   = input.session("0730-2200", "Sesi trading (WIB)", group=grpT)
+
+grpG = "Trading"
+slUsd    = input.float(30.0, "Stop Loss (USD)", minval=0.1, step=0.5, group=grpG, tooltip="30 = resep teruji.")
+tpUsd    = input.float(40.0, "Take Profit (USD)", minval=0.1, step=0.5, group=grpG, tooltip="RR 1:1,33.")
+useAutoQty = input.bool(true, "Qty otomatis (dari riskFrac)", group=grpG, tooltip="ON = qty otomatis.")
+qtyManual  = input.float(1.0, "Qty manual (oz) - kalau qty otomatis OFF", minval=0.01, step=0.01, group=grpG, tooltip="1 oz = lot 0.01.")
+useBE      = input.bool(true, "Breakeven: SL ke entry+5 setelah +15", group=grpG, tooltip="Mengunci profit kecil.")
+beTrigger  = input.float(15.0, "Breakeven trigger (USD gerak harga)", minval=1.0, step=1.0, group=grpG)
+beOffset   = input.float(5.0, "Breakeven offset (USD di atas entry)", minval=0.0, step=1.0, group=grpG)
+
+grpO = "No-Overnight (tutup sebelum rollover)"
+useRoll    = input.bool(true, "Tutup posisi sebelum rollover", group=grpO, tooltip="ON = tutup semua posisi jam rollHour.")
+rollHour   = input.int(23, "Jam tutup (0-23)", minval=0, maxval=23, group=grpO, tooltip="23 = 1 jam sebelum tengah malam.")
+rollTZ     = input.string("UTC", "Timezone jam tutup", options=["UTC", "America/New_York", "Europe/London", "Asia/Jakarta"], group=grpO)
+
+grpD = "Guard (anti daily-loss & lantai max loss)"
+useGuard  = input.bool(true, "Aktifkan equity guard", group=grpD, tooltip="Blokir entry baru + tutup paksa.")
+guardPct  = input.float(75.0, "Guard trip (% dari daily limit)", minval=10.0, maxval=95.0, step=5.0, group=grpD, tooltip="75% dari daily limit.")
+forcePct  = input.float(90.0, "Tutup paksa (% dari daily limit)", minval=50.0, maxval=99.0, step=5.0, group=grpD, tooltip="90% daily limit.")
+useOneLoss = input.bool(true, "ATURAN 1-LOSS: kalah 1x hari ini -> berhenti", group=grpD, tooltip="Kalah 1x = berhenti sampai besok.")
+useHalf   = input.bool(true, "Potong lot setengah setelah 2 loss beruntun", group=grpD, tooltip="Qty dipotong setengah sampai ada 1 win.")
+maxLosses = input.int(2, "Loss beruntun sebelum lot dipotong", minval=1, group=grpD)
+useBuf    = input.bool(true, "Buffer sizing (qty dibatasi sisa ke lantai)", group=grpD, tooltip="Mencegah 1 SL menembus lantai.")
+bufMult   = input.float(1.0, "Buffer multiplier", minval=0.5, maxval=2.0, step=0.1, group=grpD, tooltip="1.0 = ketat pas.")
+showInfo  = input.bool(true, "Tampilkan panel info", group=grpD)
+
+// ---------- INPUT: MARGIN ----------
+grpM = "Margin (aturan firm)"
+leverageXAU = input.float(100.0, "Leverage XAUUSD (misal 100 = 1:100)", minval=1.0, group=grpM, tooltip="Propaniumm emas 1:100.")
+maxMarginPct = input.float(100.0, "Max margin terpakai (% akun)", minval=1.0, maxval=100.0, group=grpM, tooltip="Cap dimatikan (100).")
+
+// ---------- HITUNGAN AKUN (otomatis, dari input) ----------
+float dailyLoss = accountSize * dailyPct / 100.0
+float maxLoss   = accountSize * maxPct / 100.0
+float targetUsd = accountSize * 5.0 / 100.0
+float autoQty   = math.max(1.0, math.floor(dailyLoss * riskFrac / slUsd))
+float oneSL     = (useAutoQty ? autoQty : qtyManual) * slUsd
+float oneTP     = (useAutoQty ? autoQty : qtyManual) * tpUsd
+int   tpNeeded  = int(math.ceil(targetUsd / oneTP))
+float guardUsd  = math.min(dailyLoss * guardPct / 100.0, accountSize * 0.03)
+float forceUsd  = dailyLoss * forcePct / 100.0
+float staticFloor = accountSize - maxLoss
+
+// ---------- SESI ----------
+bool inSess = not limitSess or not na(time(timeframe.period, sessStr, "Asia/Jakarta"))
+int  rollH  = hour(time, rollTZ)
+bool inRollHour = useRoll and rollH == rollHour
+
+// ---------- INDIKATOR ----------
+[diPlus, diMinus, adxVal] = ta.dmi(adxLen, adxSmooth)
+
+float ph = ta.pivothigh(high, frLen, frLen)
+float pl = ta.pivotlow(low, frLen, frLen)
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+
+float rng     = high - low
+float bodyAbs = math.abs(close - open)
+float bodyPct = rng > 0 ? (bodyAbs / rng) * 100.0 : 0.0
+
+bool bodyOk = bodyPct >= bodyMin
+bool adxOk  = adxVal >= adxMin
+bool brkUp  = close > math.max(high[1], high[2])
+bool brkDn  = close < math.min(low[1], low[2])
+bool fracUp = (not useFractal) or na(lastPH) or (close > lastPH)
+bool fracDn = (not useFractal) or na(lastPL) or (close < lastPL)
+bool diUp   = diPlus > diMinus
+bool diDn   = diMinus > diPlus
+
+// ---------- AKUN: balance, lantai, day peak ----------
+float closedEq = accountSize + strategy.netprofit
+bool newDay = ta.change(time("D")) != 0
+
+var float peakEOD = na
+if na(peakEOD)
+    peakEOD := accountSize
+if newDay and barstate.isconfirmed
+    peakEOD := math.max(nz(peakEOD, accountSize), closedEq)
+float floorUsd = maxLossMode == "Static" ? staticFloor : nz(peakEOD, accountSize) - maxLoss
+float bufferUsd = closedEq - floorUsd
+
+float floatNow = strategy.position_size != 0 ? (close - strategy.position_avg_price) * strategy.position_size : 0.0
+float myEquity = closedEq + floatNow
+
+var float dayPeak = na
+var float dayRef  = na
+if newDay
+    dayRef  := math.max(closedEq, myEquity)
+    dayPeak := dayRef
+dayPeak := math.max(nz(dayPeak, myEquity), myEquity)
+float dayDD = dayPeak - myEquity
+float dayDDpct = dayDD / accountSize * 100.0
+
+// ---------- PnL HARIAN + ATURAN 1-LOSS ----------
+var float dayPnl = 0.0
+var bool  dayHadLoss = false
+if newDay
+    dayPnl := 0.0
+    dayHadLoss := false
+bool justClosed = strategy.closedtrades != strategy.closedtrades[1]
+if justClosed
+    float lastProfit = strategy.closedtrades.profit(strategy.closedtrades - 1)
+    int   lastExitTime = strategy.closedtrades.exit_time(strategy.closedtrades - 1)
+    bool  exitedToday = lastExitTime >= time("D")
+    if exitedToday
+        dayPnl := dayPnl + lastProfit
+        dayHadLoss := lastProfit < 0
+bool oneLossBlock = useOneLoss and dayHadLoss
+
+// ---------- GUARD EKUITAS ----------
+bool guardBlock = useGuard and dayDD > guardUsd
+
+// ---------- LOSS STREAK ----------
+var int lossStreak = 0
+if justClosed
+    float lastP = strategy.closedtrades.profit(strategy.closedtrades - 1)
+    if lastP < 0
+        lossStreak := lossStreak + 1
+    else
+        lossStreak := 0
+bool halved = useHalf and (lossStreak >= maxLosses or (accountSize - closedEq) > 0.5 * maxLoss)
+float qtyHalf = math.max(1.0, math.floor((useAutoQty ? autoQty : qtyManual) / 2.0))
+float qtyBase = halved ? qtyHalf : (useAutoQty ? autoQty : qtyManual)
+float qtyCap = useBuf ? math.floor(bufferUsd / (bufMult * slUsd)) : 999999.0
+bool  bufOk  = (not useBuf) or qtyCap >= 1
+float qtyUse = bufOk ? math.min(qtyBase, math.max(1.0, qtyCap)) : qtyBase
+
+// ---------- MARGIN CAP ----------
+float marginPerOz = close / leverageXAU
+float maxMarginUsd = accountSize * maxMarginPct / 100.0
+float qtyMarginCap = math.floor(maxMarginUsd / marginPerOz)
+bool  marginOk = qtyMarginCap >= 1
+qtyUse := math.min(qtyUse, math.max(1.0, qtyMarginCap))
+float marginUsedUsd = qtyUse * marginPerOz
+float marginUsedPct = marginUsedUsd / accountSize * 100.0
+
+bool shortOn = allowShort or useAggr
+bool longSig  = allowLong and (close > open) and brkUp and bodyOk and adxOk and diUp and fracUp and inSess and not guardBlock and not oneLossBlock and bufOk and marginOk and not inRollHour
+bool shortSig = shortOn and (close < open) and brkDn and bodyOk and adxOk and diDn and fracDn and inSess and not guardBlock and not oneLossBlock and bufOk and marginOk and not inRollHour
+
+float lvlRetest = retestMode == "Open sinyal" ? open : retestMode == "50% sinyal" ? (open + close) / 2 : close
+
+// ---------- STATE ORDER PENDING ----------
+bool  flat = strategy.position_size == 0
+var int   pendDir = 0
+var int   pendBar = 0
+var float pendLvl = na
+
+if strategy.position_size != 0
+    pendDir := 0
+
+if pendDir != 0 and (bar_index - pendBar) >= retestBars
+    strategy.cancel(pendDir == 1 ? "ChampLong" : "ChampShort")
+    pendDir := 0
+    pendLvl := na
+
+if inRollHour and pendDir != 0
+    strategy.cancel(pendDir == 1 ? "ChampLong" : "ChampShort")
+    pendDir := 0
+    pendLvl := na
+
+if (not inSess) and pendDir != 0
+    strategy.cancel(pendDir == 1 ? "ChampLong" : "ChampShort")
+    pendDir := 0
+    pendLvl := na
+
+if oneLossBlock and pendDir != 0
+    strategy.cancel(pendDir == 1 ? "ChampLong" : "ChampShort")
+    pendDir := 0
+    pendLvl := na
+
+// ---------- PASANG ORDER LIMIT RETEST ----------
+var float tradeLvl = na
+if longSig and flat
+    strategy.cancel("ChampShort")
+    strategy.entry("ChampLong", strategy.long, qty=qtyUse, limit=lvlRetest, comment="BUY retest")
+    pendDir := 1
+    pendBar := bar_index
+    pendLvl := lvlRetest
+    tradeLvl := lvlRetest
+
+if shortSig and flat
+    strategy.cancel("ChampLong")
+    strategy.entry("ChampShort", strategy.short, qty=qtyUse, limit=lvlRetest, comment="SELL retest")
+    pendDir := -1
+    pendBar := bar_index
+    pendLvl := lvlRetest
+    tradeLvl := lvlRetest
+
+// ---------- EXIT: SL/TP + BREAKEVEN ----------
+var float entryPx = na
+var bool  beDone  = false
+bool justOpened = flat[1] and strategy.position_size != 0
+if justOpened
+    entryPx := strategy.position_avg_price
+    beDone  := false
+if flat
+    beDone := false
+
+if strategy.position_size > 0
+    float slPx = tradeLvl - slUsd
+    if useBE and not beDone and high >= entryPx + beTrigger
+        beDone := true
+    if useBE and beDone
+        slPx := math.max(slPx, entryPx + beOffset)
+    strategy.exit("ExitLong", from_entry="ChampLong", qty=math.abs(strategy.position_size), stop=slPx, limit=tradeLvl + tpUsd)
+
+if strategy.position_size < 0
+    float slPxS = tradeLvl + slUsd
+    if useBE and not beDone and low <= entryPx - beTrigger
+        beDone := true
+    if useBE and beDone
+        slPxS := math.min(slPxS, entryPx - beOffset)
+    strategy.exit("ExitShort", from_entry="ChampShort", qty=math.abs(strategy.position_size), stop=slPxS, limit=tradeLvl - tpUsd)
+
+// ---------- TUTUP PAKSA: rollover & equity guard ----------
+if useRoll and inRollHour and strategy.position_size != 0
+    strategy.close_all(comment="Rollover")
+if useGuard and dayDD >= forceUsd and strategy.position_size != 0
+    strategy.close_all(comment="EquityGuard")
+
+// ---------- VISUAL ----------
+plotshape(longSig, title="Sinyal BUY", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), size=size.small)
+plotshape(shortSig, title="Sinyal SELL", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small)
+plot(pendDir == 1 ? pendLvl : na, title="Level retest BUY", style=plot.style_linebr, color=color.new(color.lime, 20), linewidth=1)
+plot(pendDir == -1 ? pendLvl : na, title="Level retest SELL", style=plot.style_linebr, color=color.new(color.red, 20), linewidth=1)
+plot(useFractal ? lastPH : na, title="Fractal high", style=plot.style_stepline, color=color.new(color.aqua, 50), linewidth=1)
+plot(useFractal ? lastPL : na, title="Fractal low", style=plot.style_stepline, color=color.new(color.orange, 60), linewidth=1)
+plot(strategy.position_size != 0 ? strategy.position_avg_price : na, title="Harga entry", style=plot.style_linebr, color=color.new(color.gray, 30), linewidth=1)
+bgcolor(limitSess and (not inSess) ? color.new(color.gray, 92) : na, title="Di luar sesi")
+bgcolor(useGuard and dayDD > guardUsd ? color.new(color.red, 90) : na, title="Guard aktif")
+bgcolor(oneLossBlock ? color.new(color.orange, 90) : na, title="1-loss blokir")
+
+if longSig
+    alert("Sprint v11 Univ: sinyal BUY, order limit retest terpasang @ " + str.tostring(lvlRetest, "#.##") + " qty " + str.tostring(qtyUse, "#.#") + " oz", alert.freq_once_per_bar_close)
+if shortSig
+    alert("Sprint v11 Univ: sinyal SELL, order limit retest terpasang @ " + str.tostring(lvlRetest, "#.##") + " qty " + str.tostring(qtyUse, "#.#") + " oz", alert.freq_once_per_bar_close)
+
+// ---------- PANEL INFO ----------
+string posTxt = strategy.position_size > 0 ? "LONG" : (strategy.position_size < 0 ? "SHORT" : (pendDir != 0 ? "NUNGGU" : (oneLossBlock ? "1-LOSS" : (guardBlock ? "GUARD" : "IDLE"))))
+string modeTxt = shortOn ? "BUY+SELL" : "BUY only"
+string guardTxt = guardBlock ? "BLOKIR" : (halved ? "LOT 1/2" : "AKTIF")
+string floorTxt = maxLossMode == "Static" ? "STATIC $" + str.tostring(floorUsd, "#.#") : "TRAILING $" + str.tostring(floorUsd, "#.#")
+float remainDaily = dailyLoss - dayDD
+var table infoT = table.new(position.top_right, 2, 6, border_width=1, frame_width=1, frame_color=color.gray)
+if showInfo and barstate.islast
+    table.cell(infoT, 0, 0, "Qty", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 1, 0, str.tostring(qtyUse, "#.#") + " oz (" + str.tostring(qtyUse / 100.0, "#.##") + " lot)", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 0, 1, "1 SL / 1 TP", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 1, 1, "-$" + str.tostring(oneSL, "#.#") + " / +$" + str.tostring(oneTP, "#.#"), text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 0, 2, "Sisa daily", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 1, 2, "$" + str.tostring(remainDaily, "#.#"), text_color=remainDaily < dailyLoss * 0.25 ? color.red : color.lime, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 0, 3, "Sisa lantai", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 1, 3, "$" + str.tostring(bufferUsd, "#.#"), text_color=bufferUsd < maxLoss * 0.25 ? color.red : color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 0, 4, "Margin", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 1, 4, marginOk ? "OK" : "BLOKIR", text_color=marginOk ? color.lime : color.red, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 0, 5, "Posisi", text_color=color.white, bgcolor=color.new(color.black, 15))
+    table.cell(infoT, 1, 5, posTxt, text_color=strategy.position_size > 0 ? color.lime : (strategy.position_size < 0 ? color.red : (pendDir != 0 ? color.yellow : (oneLossBlock or guardBlock ? color.red : color.white))), bgcolor=color.new(color.black, 15))
