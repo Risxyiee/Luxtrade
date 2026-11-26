@@ -42,6 +42,9 @@ export interface TerminalStep {
   y1?: number;
   y2?: number;
   color?: string;
+  /** level: gambar juga chip label di KIRI garis (utk mode analisa
+   *  yang di-zoom — chip axis kanan bisa keluar frame). */
+  showLeftTag?: boolean;
 }
 
 /* ---- warna gaya TradingView (arahan Bos: candle kaya TradingView) ---- */
@@ -89,6 +92,69 @@ export const activeCardStep = (
   const { gap } = cardStepTiming(nSteps, durationInFrames);
   const i = Math.floor((frame - CARD_SETTLE) / gap);
   return Math.min(nSteps - 1, Math.max(0, i));
+};
+
+/* ---------------- MODE ANALISA (Bos 28-11) ----------------
+   "dizoom area entry kasih detail kenapa entry disitu, candle
+   berhenti saat dikasi penjelasan":
+   1. candle streaming satu-per-satu (pace hook) sampai candle pauseAt
+   2. candle BERHENTI (freeze — tanpa candle baru, tanpa tick)
+   3. kamera ZOOM ke area entry + callout detail muncul berurutan
+   4. zoom-out → streaming lanjut ke sasaran + langkah `after` */
+
+export interface AnalyzeSpec {
+  /** index candle tempat streaming BERHENTI (0-based). */
+  pauseAt: number;
+  /** durasi jeda analisa (frame). Default 300 (10 dtk @30fps). */
+  pauseFrames?: number;
+  /** area yang di-zoom — koordinat plot ternormalisasi (x waktu,
+   *  y harga; 1 = atas). */
+  zoom?: { x1: number; y1: number; x2: number; y2: number };
+  /** faktor zoom kamera. Default 1.65. */
+  zoomScale?: number;
+  /** callout detail kenapa entry di situ — muncul berurutan saat jeda. */
+  details?: TerminalStep[];
+  /** langkah gambar SETELAH jeda (mis. proyeksi sasaran). */
+  after?: TerminalStep[];
+  /** teks badge jeda. Default "ANALISA". */
+  pauseLabel?: string;
+}
+
+/* konstanta timing analisa — ChartCard & CardStepsScene harus sama */
+export const ANZ_STREAM_START = 8;
+export const ANZ_STREAM_IV = 5;
+const ANZ_ZOOM_IN_DELAY = 8;
+const ANZ_ZOOM_FRAMES = 36;
+const ANZ_DETAIL_TAIL = 46; /* ruang sebelum zoom-out dimulai */
+
+export const analyzeTiming = (a: AnalyzeSpec) => {
+  const freezeF = ANZ_STREAM_START + Math.max(0, a.pauseAt) * ANZ_STREAM_IV;
+  const pauseDur = a.pauseFrames ?? 300;
+  const pauseEnd = freezeF + pauseDur;
+  const zoomDone = freezeF + ANZ_ZOOM_IN_DELAY + ANZ_ZOOM_FRAMES;
+  const detailStart = zoomDone + 10;
+  const details = (a.details || []).slice(0, 5);
+  const detailAvail = Math.max(60, pauseEnd - ANZ_DETAIL_TAIL - detailStart);
+  const detailGap = Math.max(30, Math.floor(detailAvail / Math.max(1, details.length)));
+  const afterStart = pauseEnd + 40;
+  const after = (a.after || []).slice(0, 3);
+  const afterGap = Math.max(30, Math.floor(Math.max(40, 160 / Math.max(1, after.length))));
+  return { freezeF, pauseDur, pauseEnd, zoomDone, detailStart, details, detailGap, afterStart, after, afterGap };
+};
+
+/** index langkah aktif mode analisa (details dulu, lalu after) — sinkron VO. */
+export const analyzeActive = (
+  a: AnalyzeSpec | undefined,
+  frame: number,
+): number => {
+  if (!a) return -1;
+  const t = analyzeTiming(a);
+  if (frame < t.pauseEnd) {
+    const i = Math.floor((frame - t.detailStart) / t.detailGap);
+    return Math.min(Math.max(0, t.details.length - 1), Math.max(0, i));
+  }
+  const j = Math.floor((frame - t.afterStart) / t.afterGap);
+  return t.details.length + Math.min(Math.max(0, t.after.length - 1), Math.max(0, j));
 };
 
 /* ---- chip kecil gaya reel ---- */
@@ -155,6 +221,9 @@ export interface ChartCardProps {
   stickPoses?: StickmanPose[];
   /** Stickman pose manuaal (hook mode diatur internal) */
   delay?: number;
+  /** MODE ANALISA (Bos 28-11): streaming → candle berhenti → zoom
+   *  area entry → detail kenapa entry → lanjut ke sasaran. */
+  analyze?: AnalyzeSpec;
 }
 
 const BASE_PRICE = 3650;
@@ -187,6 +256,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   entryY = 0.55,
   stickPoses,
   delay = 0,
+  analyze,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -198,7 +268,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     [seed, N, path],
   );
 
-  /* ---- layout dalam kartu ---- */
+  /* ---- layout dalam kartu (DI ATAS — dipakai timing & zoom) ---- */
   const headH = 66;
   const padX = 44;
   const axisW = 96;
@@ -215,12 +285,63 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   const step = plotW / N;
   const bw = Math.min(30, step * 0.56);
 
+  /* ---- timing MODE ANALISA ---- */
+  const anz = analyze ? analyzeTiming(analyze) : null;
+  const anzP = anz ? Math.max(0, Math.min(N - 2, analyze!.pauseAt)) : 0;
+  /* revealF = jam efektif streaming: beku saat jeda, geser setelahnya */
+  const revealF = anz
+    ? f <= anz.freezeF
+      ? f
+      : f < anz.pauseEnd
+        ? anz.freezeF
+        : anz.freezeF + (f - anz.pauseEnd)
+    : f;
+  /* frame pertumbuhan candle i di mode analisa: candle <= pauseAt
+     tumbuh dgn jam ASLI lalu beku di bentuk final (candle pauseAt
+     selesai membentuk dirinya saat kamera mulai zoom — "candle
+     berhenti"); candle > pauseAt baru tumbuh setelah jeda, dgn jam
+     yang digeser sebesar durasi jeda. */
+  const anzGrowF = (i: number): number => {
+    if (!anz) return f;
+    const t0 = ANZ_STREAM_START + i * ANZ_STREAM_IV;
+    if (i <= anzP) return Math.min(f, t0 + CANDLE_GROW);
+    return Math.min(revealF, t0 + CANDLE_GROW);
+  };
+
+  /* ---- kamera zoom (mode analisa) ---- */
+  const zoomIn = anz
+    ? clamp01(
+        interpolate(
+          f,
+          [anz.freezeF + ANZ_ZOOM_IN_DELAY, anz.freezeF + ANZ_ZOOM_IN_DELAY + ANZ_ZOOM_FRAMES],
+          [0, 1],
+          { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) },
+        ),
+      )
+    : 0;
+  const zoomOut = anz
+    ? clamp01(
+        interpolate(f, [anz.pauseEnd - 44, anz.pauseEnd], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+          easing: Easing.inOut(Easing.cubic),
+        }),
+      )
+    : 1;
+  const zoomP = anz ? zoomIn * (1 - zoomOut) : 0;
+  const zScale = 1 + ((analyze?.zoomScale ?? 1.65) - 1) * zoomP;
+  const zr = analyze?.zoom;
+  const zox = zr ? plotX + (zr.x1 + zr.x2) * 0.5 * plotW : width / 2;
+  const zoy = zr ? plotY + (1 - (zr.y1 + zr.y2) * 0.5) * plotH : height / 2;
+
   /* ---- mode hook: streaming reveal ---- */
   const REVEAL_START = 6;
   const REVEAL_IV = 5; /* streaming candle lebih lambat (Bos) */
   const revealed = hook
     ? Math.min(N, Math.max(1, Math.floor((f - REVEAL_START) / REVEAL_IV) + 1))
-    : N;
+    : anz
+      ? Math.min(anzP + 1, Math.max(1, Math.floor((revealF - ANZ_STREAM_START) / ANZ_STREAM_IV) + 1))
+      : N;
 
   const lastIdx = revealed - 1;
   const last = candles[lastIdx];
@@ -258,18 +379,36 @@ export const ChartCard: React.FC<ChartCardProps> = ({
      baru) tetap ber-tick mikro tiap frame dan tick memudar mulus saat
      candle berikutnya muncul — chart selalu ada gerakan tiap frame,
      persis candle live TradingView. */
-  const candleT0 = (i: number) => (hook ? REVEAL_START + i * REVEAL_IV : 6 + i * 2.4);
-  const growP = (i: number) =>
-    clamp01(
-      interpolate(f, [candleT0(i), candleT0(i) + CANDLE_GROW], [0, 1], {
+  const candleT0 = (i: number) =>
+    hook ? REVEAL_START + i * REVEAL_IV : anz ? ANZ_STREAM_START + i * ANZ_STREAM_IV : 6 + i * 2.4;
+  const growP = (i: number) => {
+    const gf = anz ? anzGrowF(i) : f;
+    const t0 = candleT0(i);
+    return clamp01(
+      interpolate(gf, [t0, t0 + CANDLE_GROW], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
         easing: Easing.inOut(Easing.sin),
       }),
     );
+  };
   /* amplitude tick candle i: 1 selama jadi candle live, memudar 8 frame
-     setelah candle berikutnya mulai (tanpa lompatan) */
+     setelah candle berikutnya mulai (tanpa lompatan).
+     MODE ANALISA: tick = 0 selama jeda — candle BENAR-BENAR berhenti
+     saat VO kasih penjelasan (Bos 28-11); nyala lagi setelah jeda. */
   const tickAmp = (i: number) => {
+    if (anz) {
+      const end = ANZ_STREAM_START + (i + 1) * ANZ_STREAM_IV;
+      if (i === anzP) {
+        if (f < anz.freezeF) return 1;
+        if (f < anz.pauseEnd) return 0; /* BERHENTI */
+        return clamp01(interpolate(revealF, [end, end + 8], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
+      }
+      if (i > anzP) {
+        return clamp01(interpolate(revealF, [end, end + 8], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
+      }
+      return clamp01(interpolate(revealF, [end, end + 8], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
+    }
     if (i >= N - 1) return 1;
     const end = candleT0(i + 1);
     return clamp01(
@@ -289,8 +428,8 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   const lc = candles[lastIdx];
   const liveClose = lc.o + (lc.c - lc.o) * growP(lastIdx) + tickN(lastIdx);
 
-  /* ---- mode steps: langkah gambar ---- */
-  const list = (steps || []).slice(0, 6);
+  /* ---- mode steps: langkah gambar (mode analisa: details+after) ---- */
+  const list = anz ? [] : (steps || []).slice(0, 6);
   const nSteps = list.length;
   const { gap } = cardStepTiming(nSteps, durationInFrames);
   const active = activeCardStep(nSteps, f, durationInFrames);
@@ -306,6 +445,19 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     stickPose = recovered ? (hookLoss ? "shock" : "celebrate") : slBroken ? "shock" : f < 40 ? "idle" : "walk";
     // sebelum crash: bubble ? saat mulai, lalu idle; sesudah: celebrate
     if (!recovered && !slBroken && f < crashFrame) stickPose = f < 24 ? "idle" : "idle";
+  } else if (anz) {
+    /* mode analisa: jalan ikut candle live → berhenti + nunjuk saat
+       jeda penjelasan → jalan lagi menuju sasaran setelah zoom-out. */
+    stickX = px(lastIdx / (N - 1));
+    stickFootY = cy(liveClose) + 8;
+    stickPose =
+      f < anz.freezeF
+        ? "walk"
+        : f < anz.pauseEnd
+          ? "point"
+          : f >= durationInFrames - 46
+            ? "celebrate"
+            : "walk";
   } else if (stickPoses && stickPoses.length > 0 && nSteps > 0) {
     const pose = stickPoses[Math.min(active, stickPoses.length - 1)];
     const s = list[Math.min(active, list.length - 1)];
@@ -326,6 +478,13 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     const ci = Math.round(((stickX - plotX) / plotW) * (N - 1));
     stickFootY = cy(candles[Math.min(N - 1, Math.max(0, ci))].c) + 8;
     stickPose = pose;
+  }
+
+  /* kamera zoom juga memindahkan ruang stickman (dia di luar wrapper
+     svg — koordinatnya dikonversi manual biar tetap di atas candle). */
+  if (anz && zoomP > 0.001) {
+    stickX = zox + (stickX - zox) * zScale;
+    stickFootY = zoy + (stickFootY - zoy) * zScale;
   }
 
   const stickIn = clamp01(
@@ -388,7 +547,19 @@ export const ChartCard: React.FC<ChartCardProps> = ({
         </span>
       </div>
 
-      {/* chart svg */}
+      {/* chart svg — dibungkus wrapper zoom kamera (mode analisa) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width,
+          height,
+          transform: zScale > 1.001 ? `scale(${zScale})` : undefined,
+          transformOrigin: `${zox}px ${zoy - headH}px`,
+          zIndex: 1,
+        }}
+      >
       <svg
         width={width}
         height={height - headH}
@@ -537,13 +708,27 @@ export const ChartCard: React.FC<ChartCardProps> = ({
           {fmtNum(toPrice(liveClose), 2)}
         </text>
 
-        {/* ═══ langkah gambar (mode steps) ═══ */}
-        {!hook && nSteps > 0 && (
-          <g clipPath={`url(#cc-${seed})`}>
-            {list.map((s, i) => {
+        {/* ═══ langkah gambar — mode steps ATAU detail/after mode analisa ═══ */}
+        {(() => {
+          const groups: { s: TerminalStep; i: number; start: number }[] = [];
+          if (!hook) {
+            if (anz) {
+              anz.details.forEach((s, i) =>
+                groups.push({ s, i, start: anz.detailStart + i * anz.detailGap }),
+              );
+              anz.after.forEach((s, i) =>
+                groups.push({ s, i: 100 + i, start: anz.afterStart + i * anz.afterGap }),
+              );
+            } else {
+              list.forEach((s, i) => groups.push({ s, i, start: CARD_SETTLE + i * gap }));
+            }
+          }
+          if (!groups.length) return null;
+          return (
+            <g clipPath={`url(#cc-${seed})`}>
+              {groups.map(({ s, i, start }) => {
               const t = String(s.t || "label");
               const color = STEP_COLOR[String(s.color || "")] || defaultColor(t);
-              const start = CARD_SETTLE + i * gap;
               const p = clamp01(
                 interpolate(f, [start, start + DRAW_FRAMES], [0, 1], {
                   extrapolateLeft: "clamp",
@@ -651,6 +836,17 @@ export const ChartCard: React.FC<ChartCardProps> = ({
                     >
                       {label || fmtNum(toPrice(y1v), 2)}
                     </text>
+                    {s.showLeftTag && (
+                      <g opacity={clamp01(interpolate(f, [start + 8, start + 16], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }))}>
+                        <Tag
+                          x={plotX + plotW * (typeof s.x1 === "number" ? clamp01(s.x1) : 0.06)}
+                          y={yLine - 26}
+                          text={label || "LEVEL"}
+                          color={color}
+                          anchor="start"
+                        />
+                      </g>
+                    )}
                   </g>
                 );
               }
@@ -737,9 +933,10 @@ export const ChartCard: React.FC<ChartCardProps> = ({
                   </g>
                 </g>
               );
-            })}
-          </g>
-        )}
+              })}
+            </g>
+          );
+        })()}
 
         {/* flash crash (mode hook) */}
         {hook && flash > 0 && (
@@ -762,6 +959,47 @@ export const ChartCard: React.FC<ChartCardProps> = ({
           </defs>
         )}
       </svg>
+      </div>
+
+      {/* badge jeda ANALISA — tanda pasar "dipause" saat penjelasan */}
+      {anz && f >= anz.freezeF - 8 && f < anz.pauseEnd && (
+        <div
+          style={{
+            position: "absolute",
+            top: headH + 20,
+            right: 26,
+            zIndex: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "12px 24px",
+            borderRadius: 999,
+            background: "rgba(5,12,10,0.85)",
+            border: "1.6px solid rgba(34,211,238,0.75)",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 10px 34px rgba(0,0,0,0.45), 0 0 24px rgba(34,211,238,0.25)",
+            opacity: clamp01(
+              interpolate(f, [anz.freezeF - 8, anz.freezeF, anz.pauseEnd - 14, anz.pauseEnd], [0, 1, 1, 0], {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }),
+            ),
+          }}
+        >
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 999,
+              background: "#22D3EE",
+              boxShadow: "0 0 12px rgba(34,211,238,0.9)",
+            }}
+          />
+          <span style={{ fontWeight: 900, fontSize: 22, letterSpacing: 4, color: "#22D3EE" }}>
+            {(analyze?.pauseLabel || "ANALISA").toUpperCase()}
+          </span>
+        </div>
+      )}
 
       {/* ═══ Stickman riding candle ═══ */}
       {stickPose && (

@@ -21,15 +21,15 @@ export default function VideoReviewBanner() {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <p className="text-[11px] font-bold tracking-[0.18em] text-amber-400 uppercase">
-            Sample Review — Konten Baru (pilihan Sinta): Pain Point #3 FOMO
+            Sample Review — Konten Baru (pilihan Sinta): Pain Point #3 FOMO — v3
           </p>
           <h2 className="text-lg md:text-xl font-bold text-white mt-1">
-            &ldquo;Liat Candle Hijau, Langsung Ikut? Itu FOMO&rdquo; — 38 detik, 9:16 — tempo santai + VO natural +0%
+            &ldquo;Liat Candle Hijau, Langsung Ikut? Itu FOMO&rdquo; — ±59 detik, 9:16 — suara Bos + zoom analisa entry
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            Standar v5 penuh (revisi Bos &ldquo;terlalu cepet&rdquo;): <span className="text-amber-300">① VO rate +0% — pace natural, nggak buru-buru</span> ·{' '}
-            <span className="text-amber-300">② jeda napas 1 dtk/scene</span> ·{' '}
-            <span className="text-amber-300">③ spring lembut</span> (stiffness 105-150). Tekan play — <span className="text-gray-300">volume nyala</span>.
+            Revisi Bos 28-11: <span className="text-amber-300">① logat VO Indonesia murni + dikonversi suara Bos (OpenVoice, verifikasi kemiripan 0.87-0.91)</span> ·{' '}
+            <span className="text-amber-300">② zoom area entry + kandel BERHENTI saat penjelasan</span> ·{' '}
+            <span className="text-amber-300">③ detail kenapa entry disitu</span>. Tekan play — <span className="text-gray-300">volume nyala</span>.
           </p>
         </div>
         <button
@@ -53,19 +53,19 @@ export default function VideoReviewBanner() {
           {/* Unduh langsung MP4 buat dipindah ke HP / dikirim ulang */}
           <a
             href="/review/luxtrade-fomo-zona-sample.mp4"
-            download="luxtrade-fomo-zona-v1.mp4"
+            download="luxtrade-fomo-zona-v3.mp4"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors"
           >
-            &#8681; Unduh Video FOMO (MP4, 7.4 MB)
+            &#8681; Unduh Video FOMO (MP4)
           </a>
         </div>
         <ul className="text-sm text-gray-300 space-y-2 flex-1">
-          <li>&bull; Scene 1 (0-8s): HOOK — candle sideways&rarr;rally, garis ENTRY deket puncak (chase), dump tembus SL &rarr; stamp &ldquo;SL KENA!&rdquo; &rarr; harga MASIH TURUN, ticket merah -$96 count-down, stickman shock</li>
-          <li>&bull; Scene 2 (8-17s): SOLUSI — step pills sinkron VO: 1 JANGAN KEJAR ✓ (circle merah di puncak) 2 ZONE ENTRY (gradient hijau, pullback masuk zona) 3 SL 4 TARGET (panah), stickman jalan&rarr;point&rarr;celebrate</li>
-          <li>&bull; Scene 3 (17-26s): INSIGHT — kartu &ldquo;GAK BALIK KE ZONA?&rdquo; + strip candle mini animasi (gada setup, gada trade)</li>
-          <li>&bull; Scene 4 (26-38s): CTA — mockup app sinyal XAUUSD BUY + ENTRY/SL/TP + TP1 HIT + count-up +$187.50 + chip ENTRY HIT/hasil mengapung + FOLLOW glow + domain</li>
+          <li>&bull; Scene 1 (0-9s): HOOK — candle rally&rarr;dump tembus SL &rarr; stamp &ldquo;SL KENA!&rdquo; &rarr; ticket merah -$96, stickman shock</li>
+          <li>&bull; Scene 2 (9-26s): ANALISA BARU — candle streaming satu-satu &rarr; BERHENTI di zona (badge ⏸ ANALISA) &rarr; KAMERA ZOOM ke area entry &rarr; detail berurutan: ZONA ENTRY &rarr; BERHENTI &rarr; MOMENTUM ABIS &rarr; PENGAMAN &rarr; zoom-out &rarr; panah SASARAN — semua sinkron VO</li>
+          <li>&bull; Scene 3 (26-36s): INSIGHT — kartu &ldquo;GAK BALIK KE ZONA?&rdquo; + strip candle mini (gada setup, gada trade)</li>
+          <li>&bull; Scene 4 (36-59s): CTA branding — rekap 3 aturan &ldquo;YANG KAMU BAWA PULANG&rdquo; + chip SABAR/DISIPLIN + FOLLOW @luxtradee (tanpa jualan website, arahan Bos)</li>
           <li className="text-gray-400">
-            VO edge-tts id-ID-ArdiNeural rate +0% (Indonesia murni, tempo natural). Chart TradingView #26A69A/#EF5350 full-bleed kartu border teal + DATA ILUSTRASI — gaya reel referensi Bos.
+            VO: teks Indonesia murni (tanpa istilah Inggris) diucapkan id-ID-ArdiNeural rate +0%, lalu tone-color dikonversi ke suara Bos via OpenVoice (SE gabungan sampel Bos, tau 0.2) — pelafalan Indonesia diverifikasi ASR. Chart TradingView full-bleed + DATA ILUSTRASI.
           </li>
         </ul>
       </div>

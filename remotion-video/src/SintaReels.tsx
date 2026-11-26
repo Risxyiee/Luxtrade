@@ -20,6 +20,7 @@ import {
 } from "./components/ChartCard";
 import { BrandChip, C, CARD, FONT, ProgressBar, SceneDots, SPRING_POP, SPRING_SOFT, clamp01, pop, rise, SceneShell } from "./components/Ui";
 import { FPS, sceneFrames, type SceneProps } from "./LuxtradePromo";
+import { type AnalyzeSpec, analyzeActive } from "./components/ChartCard";
 
 /* ============================================================
    SintaReels — komposisi DATA-DRIVEN untuk konten edukasi/insight
@@ -45,6 +46,9 @@ export interface ReelsScene extends SceneProps {
   /** Narasi waypoint harga (normalisasi 0..1, 1 = tinggi) — chart
    *  full-bleed pakai ini biar cerita candle = cerita VO. */
   path?: number[];
+  /** MODE ANALISA (Bos 28-11): candle berhenti + zoom area entry +
+   *  detail kenapa entry disitu — sinkron VO. */
+  analyze?: AnalyzeSpec;
   /* ---- hook custom (cerita FOMO/revenge dsb.) ---- */
   /** garis ENTRY (hook mode) */
   entryY?: number;
@@ -546,14 +550,23 @@ const CardStepsScene: React.FC<{
   seed: number;
   durationInFrames: number;
   poses: StickmanPose[];
-}> = ({ title, sub, draw, path, seed, durationInFrames, poses }) => {
+  analyze?: AnalyzeSpec;
+}> = ({ title, sub, draw, path, seed, durationInFrames, poses, analyze }) => {
   const frame = useCurrentFrame();
   const steps = Array.isArray(draw) ? draw.slice(0, 6) : [];
-  const active = activeCardStep(steps.length, frame, durationInFrames);
+  /* mode analisa: pills = detail kenapa-entry + langkah after, sinkron
+     freeze/zoom kamera (Bos 28-11: "candle berhenti saat dikasi
+     penjelasan"). */
+  const pillSteps = analyze
+    ? [...(analyze.details || []).slice(0, 5), ...(analyze.after || []).slice(0, 3)]
+    : steps;
+  const active = analyze
+    ? analyzeActive(analyze, frame)
+    : activeCardStep(steps.length, frame, durationInFrames);
   return (
     <SceneShell durationInFrames={durationInFrames}>
       <BigTitle lines={[title]} size={72} />
-      <StepPills steps={steps} active={active} />
+      <StepPills steps={pillSteps} active={active} />
       <div
         style={{
           position: "absolute",
@@ -573,6 +586,7 @@ const CardStepsScene: React.FC<{
           stickPoses={poses}
           symbol="XAUUSD"
           tf="1 JAM"
+          analyze={analyze}
         />
       </div>
       <PlainCaption text={sub} delay={20} />
@@ -580,11 +594,11 @@ const CardStepsScene: React.FC<{
   );
 };
 
-const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = (props) => (
+const ChartScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number; analyze?: AnalyzeSpec }> = (props) => (
   <CardStepsScene {...props} poses={["walk", "point", "point", "celebrate"]} />
 );
 
-const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number }> = (props) => (
+const TutorialScene: React.FC<{ title: string; sub: string; draw?: TerminalStep[]; path?: number[]; seed: number; durationInFrames: number; analyze?: AnalyzeSpec }> = (props) => (
   <CardStepsScene {...props} poses={["point", "idle", "shock", "point"]} />
 );
 
@@ -750,14 +764,20 @@ const RecapRow: React.FC<{ no: string; text: string; delay: number }> = ({ no, t
 const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: string; durationInFrames: number }> = ({ title, sub, handle, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const cardS = spring({ fps, frame: Math.max(0, frame - 90), config: { damping: 17, stiffness: 105 } });
-  const pillS = spring({ fps, frame: Math.max(0, frame - 230), config: { damping: 15, stiffness: 130 } });
+  /* Timing ADAPTIF (fraksi durasi scene) — sinkron VO yang durasinya
+     beda-beda antar video (FOMO v3 VO3 19s vs sl-pain 11.4s):
+     kartu 15% → rekap 01 17.6% / 02 35.2% / 03 57.8% → SABAR 72% →
+     DISIPLIN 75.4% → pill FOLLOW 84.6% → tagline 86.3%. */
+  const D = durationInFrames;
+  const at = (frac: number) => Math.round(D * frac);
+  const cardS = spring({ fps, frame: Math.max(0, frame - at(0.15)), config: { damping: 17, stiffness: 105 } });
+  const pillS = spring({ fps, frame: Math.max(0, frame - at(0.846)), config: { damping: 15, stiffness: 130 } });
   const glow = 0.5 + 0.5 * Math.sin(frame / 22);
   const floatY = Math.sin(frame / 30) * 9;
   const floatY2 = Math.sin(frame / 24 + 1.7) * 11;
-  /* chip SABAR muncul awal, DISIPLIN pas VO bilang "itu disiplin" (±5,5s) */
-  const sabarS = spring({ fps, frame: Math.max(0, frame - 60), config: { damping: 16, stiffness: 120 } });
-  const disiplinS = spring({ fps, frame: Math.max(0, frame - 170), config: { damping: 16, stiffness: 120 } });
+  /* chip SABAR & DISIPLIN muncul pas VO bilang "sabar, disiplin" */
+  const sabarS = spring({ fps, frame: Math.max(0, frame - at(0.72)), config: { damping: 16, stiffness: 120 } });
+  const disiplinS = spring({ fps, frame: Math.max(0, frame - at(0.754)), config: { damping: 16, stiffness: 120 } });
 
   return (
     <SceneShell durationInFrames={durationInFrames}>
@@ -857,9 +877,9 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
         <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 30, color: C.accent, letterSpacing: 6, marginBottom: 16 }}>
           YANG KAMU BAWA PULANG
         </div>
-        <RecapRow no="01" text="Jangan kejar candle hijau" delay={105} />
-        <RecapRow no="02" text="Tunggu harga balik ke zona" delay={130} />
-        <RecapRow no="03" text="Gak balik? Duduk manis" delay={155} />
+        <RecapRow no="01" text="Jangan kejar candle hijau" delay={at(0.176)} />
+        <RecapRow no="02" text="Tunggu harga balik ke zona" delay={at(0.352)} />
+        <RecapRow no="03" text="Gak balik? Duduk manis" delay={at(0.578)} />
       </div>
 
       {/* CTA follow — satu-satunya ask (branding, bukan jualan) */}
@@ -888,7 +908,7 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
             fontSize: 23,
             color: "rgba(255,255,255,0.5)",
             letterSpacing: 4,
-            ...rise(frame, 260, 26),
+            ...rise(frame, at(0.863), 26),
           }}
         >
           BIAR KAMU YANG NUNGGU ZONA — BUKAN NGEJAR HARGA
@@ -945,8 +965,8 @@ export const SintaReels: React.FC<SintaReelsProps> = ({ scenes, handle, domain }
           <Sequence key={`${scene.voFile}-${i}`} from={starts[i]} durationInFrames={frames[i]} name={`Scene ${i + 1} · ${kind}`}>
             {scene.voFile ? <Audio src={staticFile(scene.voFile)} /> : null}
             {kind === "hook" ? <HookScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} seed={seedBase + i * 17} path={scene.path} entryY={scene.entryY} slY={scene.slY} pnl={scene.pnl} pnlLabel={scene.pnlLabel} pnlTone={scene.pnlTone} />
-            : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
-            : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} />
+            : kind === "chart" ? <ChartScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} analyze={scene.analyze} />
+            : kind === "tutorial" ? <TutorialScene title={scene.title} sub={scene.sub} draw={scene.draw} path={scene.path} seed={seedBase + i * 17} durationInFrames={frames[i]} analyze={scene.analyze} />
             : kind === "quote" ? <QuoteScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
             : kind === "stat" ? <StatScene title={scene.title} sub={scene.sub} durationInFrames={frames[i]} />
             : kind === "cta" ? <CtaScene title={scene.title} sub={scene.sub} domain={domain} handle={handle} durationInFrames={frames[i]} />

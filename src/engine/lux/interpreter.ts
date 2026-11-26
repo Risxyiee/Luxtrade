@@ -140,8 +140,11 @@ const KWARG_POS: Record<string, Record<string, number>> = {
   atr: { length: 0 },
   'ta.atr': { length: 0 },
   hline: { price: 0 },
-  'strategy.entry': { id: 0, direction: 1 },
-  'strategy.exit': { id: 0 },
+  // Sprint v11 dst: qty posisi ikut disimulasikan → notif ENTRY/SL/TP jalan.
+  'strategy.entry': { id: 0, direction: 1, qty: 2, limit: 3, stop: 4 },
+  // Signature Pine: exit(id, from_entry, qty, qty_percent, profit, limit, loss, stop, …)
+  'strategy.exit': { id: 0, from_entry: 1, qty: 2, qty_percent: 3, profit: 4, limit: 5, loss: 6, stop: 7 },
+  'strategy.close': { id: 0, when: 1, comment: 2, qty: 3 },
   'ta.macd': { source: 0, fastlen: 1, slowlen: 2, signallen: 3 },
   'ta.bb': { source: 0, length: 1, mult: 2 },
   'ta.dmi': { dilen: 0, adilen: 1 },
@@ -193,6 +196,25 @@ class Interp {
   /** Riwayat hasil call per call-site (seq) — dukung `ta.highest(high,20)[1]`. */
   private callHist = new Map<number, LuxValue[]>()
   private locals: Map<string, FrameVal> | null = null
+
+  /* ── Simulasi posisi (notif ENTRY/SL/TP ala Strategy Tester) ──
+   * Bos 28-11: "notif pinelab entry harus ada notif terus sl dan tp".
+   * strategy.entry → catat posisi (qty dari argumen, pyramiding=0);
+   * strategy.exit(stop=/limit= atau loss=/profit= tick) → pasang SL/TP;
+   * tiap bar berikutnya dicek: kena SL → event "SL HIT", kena TP →
+   * event "TP HIT" — ikut dipush ke notifikasi pemilik script. */
+  private pos: {
+    dir: 'long' | 'short'
+    entryBar: number
+    entryPrice: number
+    id: string
+    qty: number
+    sl: number
+    tp: number
+    /** Referensi event ENTRY di bar yang sama — dienrich SL/TP saat exit dipasang. */
+    entryEvent: LuxEvent | null
+  } | null = null
+  private closedTrades: { dir: 'long' | 'short'; entryBar: number; entry: number; exit: number; qty: number; exitBar: number }[] = []
 
   private steps = 0
   private stepBudget: number
@@ -252,6 +274,9 @@ class Interp {
         if ((bar & 31) === 0 && Date.now() > this.deadline) {
           throw new LuxError(`Eksekusi melewati batas waktu ${this.opts.deadlineMs} ms`, 'TIMEOUT')
         }
+        // Cek SL/TP posisi terbuka SEBELUM statement bar ini jalan —
+        // event SL/TP HIT memakai candle bar tempat level tersentuh.
+        this.checkPosition(bar)
         this.execBar(bar)
       }
 
@@ -716,16 +741,26 @@ class Interp {
         switch (p) {
           case 'long': return 'long'
           case 'short': return 'short'
-          case 'position_size':
-          case 'opentrades':
-          case 'closedtrades':
+          // Nilai simulasi nyata (notif ENTRY/SL/TP + guard 1 posisi):
+          case 'position_size': {
+            const q = this.pos
+            return q ? (q.dir === 'long' ? q.qty : -q.qty) : 0
+          }
+          case 'opentrades': return this.pos ? 1 : 0
+          case 'closedtrades': return this.closedTrades.length
           case 'wintrades':
-          case 'losstrades':
+          case 'losstrades': {
+            const win = this.closedTrades.filter((t) => Interp.tradePnl(t) > 0).length
+            return p === 'wintrades' ? win : this.closedTrades.length - win
+          }
           case 'equity':
-          case 'netprofit':
-          case 'initial_capital':
-            return 0
-          case 'position_avg_price': return NA
+          case 'netprofit': {
+            let pnl = 0
+            for (const t of this.closedTrades) pnl += Interp.tradePnl(t)
+            return pnl
+          }
+          case 'initial_capital': return 0
+          case 'position_avg_price': return this.pos ? this.pos.entryPrice : NA
           case 'closedtrades.entry_price':
           case 'closedtrades.exit_price': return NA
         }
@@ -1663,17 +1698,89 @@ class Interp {
       }
       case 'strategy.cancel':
       case 'strategy.cancel_all':
-      case 'strategy.close_all':
-        return NA // pesan pending/close dibatalkan — no-op di mode sinyal
-      case 'strategy.entry':
-      case 'strategy.exit':
+        return NA // pesan pending dibatalkan — no-op di mode sinyal
+      case 'strategy.close_all': {
+        if (this.pos) this.closeSimPos(bar, 'close all')
+        return NA
+      }
       case 'strategy.close': {
-        // Mode alert-only: entry/exit dipetakan jadi event agar push tetap jalan.
-        const idStr = this.argStr(args, 0, bar, name.split('.').pop() || 'order')
-        // Pine: strategy.entry(id, direction, …) — direction arg ke-2 (strategy.long/short)
+        const closeId = this.argStr(args, 0, bar, '')
+        if (this.pos && (!closeId || closeId === this.pos.id)) this.closeSimPos(bar, 'strategy.close')
+        return NA
+      }
+      case 'strategy.entry': {
+        // Pine: strategy.entry(id, direction, qty, …) — direction arg ke-2 (strategy.long/short)
+        const idStr = this.argStr(args, 0, bar, 'entry')
         const dirRaw = this.argStr(args, 1, bar, '')
-        const dir = dirRaw.includes('long') ? 'LONG' : dirRaw.includes('short') ? 'SHORT' : ''
-        if (dir) this.pushEvent(bar, idStr, `${dir} ${idStr}`)
+        const dir = dirRaw.includes('long') ? 'long' : dirRaw.includes('short') ? 'short' : ''
+        if (!dir) return NA
+        const qtyV = toNum(this.arg(args, 2, bar))
+        const qty = Number.isFinite(qtyV) && qtyV > 0 ? qtyV : 1
+        const px = this.close[bar]
+        if (this.pos) {
+          if (this.pos.dir === dir) return NA // pyramiding=0 — posisi sudah searah
+          // Entry lawan arah = reversal: posisi lama ditutup di harga close bar ini.
+          this.recordClosed(bar, px)
+        }
+        const ev = this.pushEvent(bar, `ENTRY ${dir.toUpperCase()}`, `${idStr} @ ${this.fmtPx(px)}`)
+        this.pos = { dir, entryBar: bar, entryPrice: px, id: idStr, qty, sl: NaN, tp: NaN, entryEvent: ev }
+        return NA
+      }
+      case 'strategy.exit': {
+        // Pine: exit(id, from_entry, qty, qty_percent, profit, limit, loss, stop, …)
+        // stop=/limit= harga absolut; loss=/profit= tick dari entry (mintick 0.01).
+        const stopV = toNum(this.arg(args, 7, bar))
+        const limitV = toNum(this.arg(args, 5, bar))
+        const profitV = toNum(this.arg(args, 4, bar))
+        const lossV = toNum(this.arg(args, 6, bar))
+        const p = this.pos
+        if (!p) return NA // tidak ada posisi terbuka → exit diabaikan
+        let sl = p.sl
+        let tp = p.tp
+        if (Number.isFinite(stopV)) sl = stopV
+        if (Number.isFinite(limitV)) tp = limitV
+        if (Number.isFinite(lossV) && lossV > 0) {
+          sl = p.dir === 'long' ? p.entryPrice - lossV * 0.01 : p.entryPrice + lossV * 0.01
+        }
+        if (Number.isFinite(profitV) && profitV > 0) {
+          tp = p.dir === 'long' ? p.entryPrice + profitV * 0.01 : p.entryPrice - profitV * 0.01
+        }
+        const changed = sl !== p.sl || tp !== p.tp
+        p.sl = sl
+        p.tp = tp
+        // Perkaya notif ENTRY di bar yang sama dgn level SL/TP hasil exit()
+        if (changed && p.entryBar === bar && p.entryEvent) {
+          let msg = p.entryEvent.message
+          if (Number.isFinite(sl)) msg += ` · SL ${this.fmtPx(sl)}`
+          if (Number.isFinite(tp)) msg += ` · TP ${this.fmtPx(tp)}`
+          p.entryEvent.message = msg.slice(0, 280)
+        }
+        return NA
+      }
+      /* ── trade tertutup (Sprint v11: deteksi 1-loss & BE) ── */
+      case 'strategy.closedtrades.entry_price':
+      case 'strategy.closedtrades.exit_price':
+      case 'strategy.closedtrades.entry_time':
+      case 'strategy.closedtrades.exit_time':
+      case 'strategy.closedtrades.profit':
+      case 'strategy.closedtrades.size': {
+        const idxV = toNum(this.arg(args, 0, bar))
+        const i = Number.isFinite(idxV) ? Math.round(idxV) : this.closedTrades.length - 1
+        const t = this.closedTrades[i]
+        if (!t) return NA
+        switch (name) {
+          case 'strategy.closedtrades.entry_price': return t.entry
+          case 'strategy.closedtrades.exit_price': return t.exit
+          case 'strategy.closedtrades.entry_time': return this.timeArr[t.entryBar] ?? NA
+          case 'strategy.closedtrades.exit_time': return this.timeArr[t.exitBar] ?? NA
+          case 'strategy.closedtrades.profit': return Interp.tradePnl(t)
+          case 'strategy.closedtrades.size': return t.dir === 'long' ? t.qty : -t.qty
+        }
+        return NA
+      }
+      case 'strategy.opentrades.entry_price': {
+        const idxV = toNum(this.arg(args, 0, bar))
+        if (this.pos && (!Number.isFinite(idxV) || Math.round(idxV) === 0)) return this.pos.entryPrice
         return NA
       }
       /* ── tidak didukung — pesan jelas ── */
@@ -1819,7 +1926,76 @@ class Interp {
     return (wasBelow && nowAbove) || (wasAbove && nowBelow)
   }
 
-  private pushEvent(bar: number, title: string, message: string): void {
+  /* ---------- simulasi posisi (ENTRY/SL/TP) ---------- */
+
+  /** Format harga 2 desimal utk pesan notif. */
+  private fmtPx(v: number): string {
+    return (Math.round(v * 100) / 100).toFixed(2)
+  }
+
+  /** Tutup posisi saat ini (strategy.close / close_all / reversal). */
+  private closeSimPos(bar: number, why: string): void {
+    const p = this.pos
+    if (!p) return
+    this.pushEvent(bar, 'CLOSE', `posisi ${p.dir.toUpperCase()} @ ${this.fmtPx(p.entryPrice)} ditutup (${why})`)
+    this.recordClosed(bar, this.close[bar])
+  }
+
+  /** Arsipkan posisi aktif jadi trade tertutup (utk strategy.closedtrades dll). */
+  private recordClosed(bar: number, exitPx: number): void {
+    const p = this.pos
+    if (!p) return
+    this.closedTrades.push({ dir: p.dir, entryBar: p.entryBar, entry: p.entryPrice, exit: exitPx, qty: p.qty, exitBar: bar })
+    if (this.closedTrades.length > 500) this.closedTrades.shift()
+    this.pos = null
+  }
+
+  /** P&L realized sebuah trade (arah diperhitungkan). */
+  private static tradePnl(t: { dir: 'long' | 'short'; entry: number; exit: number; qty: number }): number {
+    return (t.dir === 'long' ? t.exit - t.entry : t.entry - t.exit) * t.qty
+  }
+
+  /**
+   * Cek posisi terbuka di awal tiap bar: SL sentuh dulu (asumsi
+   * konservatif bila SL & TP kena di candle yang sama). Posisi baru
+   * aktif mulai bar SETELAH bar entry (Pine: fill di open bar berikut).
+   */
+  private checkPosition(bar: number): void {
+    const p = this.pos
+    if (!p || bar <= p.entryBar) return
+    const hi = this.high[bar]
+    const lo = this.low[bar]
+    if (!Number.isFinite(hi) || !Number.isFinite(lo)) return
+    const slF = Number.isFinite(p.sl)
+    const tpF = Number.isFinite(p.tp)
+    if (!slF && !tpF) return
+    const dirLbl = p.dir.toUpperCase()
+    if (p.dir === 'long') {
+      if (slF && lo <= p.sl) {
+        this.pushEvent(bar, 'SL HIT', `${dirLbl} entry @ ${this.fmtPx(p.entryPrice)} → stop loss @ ${this.fmtPx(p.sl)}`)
+        this.recordClosed(bar, p.sl)
+        return
+      }
+      if (tpF && hi >= p.tp) {
+        this.pushEvent(bar, 'TP HIT', `${dirLbl} entry @ ${this.fmtPx(p.entryPrice)} → take profit @ ${this.fmtPx(p.tp)}`)
+        this.recordClosed(bar, p.tp)
+        return
+      }
+    } else {
+      if (slF && hi >= p.sl) {
+        this.pushEvent(bar, 'SL HIT', `${dirLbl} entry @ ${this.fmtPx(p.entryPrice)} → stop loss @ ${this.fmtPx(p.sl)}`)
+        this.recordClosed(bar, p.sl)
+        return
+      }
+      if (tpF && lo <= p.tp) {
+        this.pushEvent(bar, 'TP HIT', `${dirLbl} entry @ ${this.fmtPx(p.entryPrice)} → take profit @ ${this.fmtPx(p.tp)}`)
+        this.recordClosed(bar, p.tp)
+        return
+      }
+    }
+  }
+
+  private pushEvent(bar: number, title: string, message: string): LuxEvent {
     // Sanitasi output: potong panjang, buang kontrol char
     const clean = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 280)
     const px = this.close[bar]
@@ -1827,14 +2003,16 @@ class Interp {
     // event BARU. Dulu `if (events.length >= max) return` memotong dari
     // sisi baru → histori menampilkan sinyal paling tua dan sinyal
     // terkini (Oktober–November) justru hilang dari hasil run.
-    this.events.push({
+    const ev: LuxEvent = {
       time: this.timeArr[bar] ?? 0,
       bar,
       title: clean(String(title ?? '')).slice(0, 80) || 'Alert',
       message: clean(String(message ?? '')) || 'Lux signal',
       price: Number.isFinite(px) ? px : undefined,
-    })
+    }
+    this.events.push(ev)
     if (this.events.length > this.opts.maxEvents) this.events.shift()
+    return ev
   }
 }
 

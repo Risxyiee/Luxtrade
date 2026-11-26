@@ -5,7 +5,7 @@
       "title": "LIAT CANDLE HIJAU,",
       "sub": "LANGSUNG IKUT? ITU FOMO",
       "voFile": "vo/fomo-vo0.mp3",
-      "durationSec": 7.0,
+      "durationSec": 8.7,
       "path": [0.52, 0.56, 0.54, 0.58, 0.55, 0.6, 0.63, 0.68, 0.74, 0.8, 0.85, 0.72, 0.58, 0.44, 0.3, 0.2],
       "entryY": 0.7,
       "slY": 0.42,
@@ -16,30 +16,40 @@
     {
       "kind": "chart",
       "title": "TUNGGU HARGA BALIK KE ZONA",
-      "sub": "entry di zona — stop di bawah — target jelas",
+      "sub": "kandel berhenti di zona = area masuk paling jelas",
       "voFile": "vo/fomo-vo1.mp3",
-      "durationSec": 9.4,
-      "path": [0.3, 0.38, 0.48, 0.58, 0.68, 0.76, 0.8, 0.74, 0.64, 0.52, 0.44, 0.4, 0.46, 0.56, 0.68, 0.8, 0.86],
-      "draw": [
-        { "t": "circle", "x1": 0.37, "y1": 0.87, "label": "JANGAN KEJAR", "color": "red" },
-        { "t": "zone", "x1": 0.52, "x2": 0.8, "y1": 0.44, "y2": 0.24, "label": "ZONE ENTRY", "color": "green" },
-        { "t": "level", "y1": 0.14, "label": "SL", "color": "red" },
-        { "t": "path", "x1": 0.76, "y1": 0.38, "x2": 0.93, "y2": 0.82, "label": "TARGET", "color": "green" }
-      ]
+      "durationSec": 16.9,
+      "path": [0.3, 0.4, 0.52, 0.63, 0.72, 0.8, 0.85, 0.79, 0.68, 0.57, 0.48, 0.44, 0.43, 0.46, 0.44, 0.57, 0.72, 0.85],
+      "analyze": {
+        "pauseAt": 13,
+        "pauseFrames": 310,
+        "zoom": { "x1": 0.38, "y1": 0.12, "x2": 0.9, "y2": 0.8 },
+        "zoomScale": 1.6,
+        "pauseLabel": "ANALISA",
+        "details": [
+          { "t": "zone", "x1": 0.4, "x2": 0.92, "y1": 0.52, "y2": 0.34, "label": "ZONA ENTRY", "color": "green" },
+          { "t": "circle", "x1": 0.68, "y1": 0.42, "label": "BERHENTI", "color": "cyan" },
+          { "t": "label", "x1": 0.36, "y1": 0.63, "label": "MOMENTUM ABIS", "color": "amber" },
+          { "t": "level", "x1": 0.24, "y1": 0.22, "label": "PENGAMAN", "color": "red", "showLeftTag": true }
+        ],
+        "after": [
+          { "t": "path", "x1": 0.68, "y1": 0.45, "x2": 0.92, "y2": 0.82, "label": "SASARAN", "color": "green" }
+        ]
+      }
     },
     {
       "kind": "point",
       "title": "GAK BALIK KE ZONA?",
       "sub": "gada setup, gada trade — duduk manis itu posisi juga",
       "voFile": "vo/fomo-vo2.mp3",
-      "durationSec": 9.2
+      "durationSec": 10.5
     },
     {
       "kind": "cta",
       "title": "GAK ZONA? GAK ENTRY",
-      "sub": "gak ada setup ya gak ada trade — nunggu juga posisi",
+      "sub": "sabar itu jaga modal — nunggu juga posisi",
       "voFile": "vo/fomo-vo3.mp3",
-      "durationSec": 13.7
+      "durationSec": 19.0
     }
   ],
   "handle": "@luxtradee",

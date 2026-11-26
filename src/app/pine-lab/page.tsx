@@ -164,17 +164,22 @@ export default function PineLabPage() {
     }
   }, [])
 
-  /* Marker chart dari histori sinyal (LONG/SHORT dari pesan engine).
-   * PENTING: hook ini WAJIB dipanggil SEBELUM semua return-early gate —
-   * dulu ada di bawah (setelah gate) → jumlah hook berubah antar render
-   * (loading→ok) → React error #310 "Rendered more hooks than during the
-   * previous render" → seluruh halaman crash KHUSUS user yang sudah login
-   * (anon tidak kena karena selalu berhenti di gate). */
+  /* Marker chart dari histori sinyal. Engine kini memancarkan title
+   * baku: "ENTRY LONG" / "ENTRY SHORT" (notif SL/TP HIT = info dot).
+   * Fallback tetap baca awal pesan untuk event alertcondition lama
+   * ("LONG ..." / "SHORT ..."). PENTING: hook ini WAJIB dipanggil
+   * SEBELUM semua return-early gate — dulu ada di bawah (setelah gate)
+   * → jumlah hook berubah antar render (loading→ok) → React error #310
+   * "Rendered more hooks than during the previous render" → seluruh
+   * halaman crash KHUSUS user yang sudah login (anon tidak kena karena
+   * selalu berhenti di gate). */
   const chartMarkers: ChartMarker[] = useMemo(() => {
     const evs = runResult?.events ?? []
     return evs.map((ev) => {
-      const isLong = /^LONG\b/.test(ev.message) || /LONG\b/.test(ev.message.toUpperCase().slice(0, 12))
-      const isShort = /^SHORT\b/.test(ev.message) || /SHORT\b/.test(ev.message.toUpperCase().slice(0, 14))
+      const t = ev.title.toUpperCase()
+      const head = ev.message.toUpperCase().slice(0, 14)
+      const isLong = /ENTRY LONG/.test(t) || /^LONG\b/.test(ev.message) || /LONG\b/.test(head)
+      const isShort = /ENTRY SHORT/.test(t) || /^SHORT\b/.test(ev.message) || /SHORT\b/.test(head)
       return {
         bar: ev.bar,
         dir: isLong ? 'long' as const : isShort ? 'short' as const : 'info' as const,
