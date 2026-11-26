@@ -94,9 +94,14 @@ const HookSlot: React.FC<{ label: string; side: "LONG" | "SHORT"; title: string;
         <div style={{ marginTop: 54, fontFamily: FONT, fontWeight: 500, fontSize: 38, color: C.muted, maxWidth: 860, ...rise(frame, 16, 30) }}>
           {sub}
         </div>
-        <div style={{ marginTop: 30, fontFamily: FONT, fontWeight: 800, fontSize: 30, color: C.accent, letterSpacing: 2, opacity: 0.9, ...rise(frame, 22, 24) }}>
-          {title}
-        </div>
+        {(() => {
+          const d = rise(frame, 22, 24);
+          return (
+            <div style={{ marginTop: 30, fontFamily: FONT, fontWeight: 800, fontSize: 30, color: C.accent, letterSpacing: 2, opacity: 0.9 * clamp01(d.opacity), transform: d.transform }}>
+              {title}
+            </div>
+          );
+        })()}
       </div>
     </SceneShell>
   );
@@ -266,9 +271,14 @@ const CtaSlot: React.FC<{ title: string; sub: string; domain: string; durationIn
         >
           CEK LINK DI BIO
         </div>
-        <div style={{ marginTop: 40, fontFamily: FONT, fontWeight: 700, fontSize: 40, color: C.white, opacity: 0.9, ...rise(frame, 20, 24) }}>
-          {domain}
-        </div>
+        {(() => {
+          const d = rise(frame, 20, 24);
+          return (
+            <div style={{ marginTop: 40, fontFamily: FONT, fontWeight: 700, fontSize: 40, color: C.white, opacity: 0.9 * clamp01(d.opacity), transform: d.transform }}>
+              {domain}
+            </div>
+          );
+        })()}
       </div>
     </SceneShell>
   );

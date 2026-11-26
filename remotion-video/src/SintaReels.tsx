@@ -707,68 +707,80 @@ const StatScene: React.FC<{ title: string; sub: string; durationInFrames: number
   );
 };
 
-/* ---------------- cta — MOCKUP APP + FOLLOW (Bos: bukan teks doang) ----------------
-   Tampilkan APP-nya beneran: kartu sinyal XAUUSD BUY dengan ENTRY/SL/TP,
-   progress TP hit, hasil hari ini count-up, baru CTA follow + domain. */
+/* ---------------- cta — BRANDING (Bos 26-11: "jangan fokus jualan
+   website, fokus bangun branding dulu") ----------------
+   TANPA mockup produk / sinyal / profit / domain. Yang ditampilkan:
+   rekap nilai yang penonton bawa pulang (3 aturan video ini) + identitas
+   brand (nilai SABAR/DISIPLIN) + satu-satunya ask: FOLLOW. */
 
-const SignalRow: React.FC<{ label: string; value: string; color: string; delay: number; done?: boolean }> = ({ label, value, color, delay, done }) => {
+const RecapRow: React.FC<{ no: string; text: string; delay: number }> = ({ no, text, delay }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 17, stiffness: 130 } });
+  const s = spring({ fps, frame: Math.max(0, frame - delay), config: { damping: 17, stiffness: 120 } });
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
-        padding: "15px 0",
+        gap: 26,
+        padding: "21px 0",
         borderBottom: "1px solid rgba(255,255,255,0.07)",
         opacity: clamp01(s),
-        transform: `translateX(${(1 - s) * 44}px)`,
+        transform: `translateX(${(1 - s) * 52}px)`,
       }}
     >
-      <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 25, color: C.muted, letterSpacing: 1 }}>{label}</span>
-      <span style={{ fontFamily: FONT, fontWeight: 800, fontSize: 27, color, fontVariantNumeric: "tabular-nums" }}>
-        {done ? "\u2713 " : ""}
-        {value}
+      <span
+        style={{
+          fontFamily: FONT,
+          fontWeight: 900,
+          fontSize: 30,
+          color: C.accent,
+          opacity: 0.85,
+          letterSpacing: 2,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {no}
       </span>
+      <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 35, color: "#FFFFFF" }}>{text}</span>
     </div>
   );
 };
 
-const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: string; durationInFrames: number }> = ({ title, sub, domain, handle, durationInFrames }) => {
+const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: string; durationInFrames: number }> = ({ title, sub, handle, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const phoneS = spring({ fps, frame: Math.max(0, frame - 4), config: { damping: 17, stiffness: 105 } });
-  const pillS = spring({ fps, frame: Math.max(0, frame - 48), config: { damping: 15, stiffness: 130 } });
-  const glow = 0.5 + 0.5 * Math.sin(frame / 20);
-  const floatY = Math.sin(frame / 26) * 10;
-  const floatY2 = Math.sin(frame / 20 + 1.7) * 12;
-  const prog = interpolate(frame, [46, 92], [12, 68], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const pnl = interpolate(frame, [50, 104], [0, 187.5], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const cardS = spring({ fps, frame: Math.max(0, frame - 90), config: { damping: 17, stiffness: 105 } });
+  const pillS = spring({ fps, frame: Math.max(0, frame - 230), config: { damping: 15, stiffness: 130 } });
+  const glow = 0.5 + 0.5 * Math.sin(frame / 22);
+  const floatY = Math.sin(frame / 30) * 9;
+  const floatY2 = Math.sin(frame / 24 + 1.7) * 11;
+  /* chip SABAR muncul awal, DISIPLIN pas VO bilang "itu disiplin" (±5,5s) */
+  const sabarS = spring({ fps, frame: Math.max(0, frame - 60), config: { damping: 16, stiffness: 120 } });
+  const disiplinS = spring({ fps, frame: Math.max(0, frame - 170), config: { damping: 16, stiffness: 120 } });
 
   return (
     <SceneShell durationInFrames={durationInFrames}>
-      {/* glow orb cyan di belakang HP — depth + brand glow */}
+      {/* glow orb teal di belakang kartu — brand glow */}
       <div
         style={{
           position: "absolute",
-          top: 300,
+          top: 420,
           left: "50%",
-          marginLeft: -420,
-          width: 840,
-          height: 840,
+          marginLeft: -430,
+          width: 860,
+          height: 860,
           borderRadius: 999,
-          background: "radial-gradient(circle, rgba(34,211,238,0.16) 0%, rgba(59,130,246,0.07) 45%, rgba(0,0,0,0) 70%)",
+          background: "radial-gradient(circle, rgba(34,211,238,0.14) 0%, rgba(45,212,191,0.06) 45%, rgba(0,0,0,0) 70%)",
           filter: "blur(6px)",
-          opacity: clamp01(phoneS) * (0.75 + 0.25 * glow),
+          opacity: clamp01(cardS) * (0.75 + 0.25 * glow),
           zIndex: 0,
         }}
       />
 
       {/* judul atas — kata kunci di-highlight */}
       <div style={{ position: "absolute", top: 150, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14, zIndex: 12 }}>
-        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 72, color: "#FFFFFF", textShadow: "0 0 50px rgba(34,211,238,0.4)", ...rise(frame, 0, 36) }}>
+        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 76, color: "#FFFFFF", textShadow: "0 0 50px rgba(34,211,238,0.4)", ...rise(frame, 0, 36) }}>
           {title.split(/\s+/).map((w, i) => (
             <span key={i} style={{ color: WIN_RE.test(w) ? "#22D3EE" : "#FFFFFF" }}>{w} </span>
           ))}
@@ -778,194 +790,88 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
         </div>
       </div>
 
-      {/* chip mengapung kiri — ENTRY HIT */}
+      {/* chip nilai brand mengapung — identitas, bukan profit */}
       <div
         style={{
           position: "absolute",
-          top: 560,
-          left: 44,
-          padding: "14px 22px",
+          top: 468,
+          left: 60,
+          padding: "14px 26px",
           borderRadius: 16,
           background: "rgba(3,6,12,0.62)",
           border: "1px solid rgba(34,211,238,0.4)",
           backdropFilter: "blur(8px)",
           fontFamily: FONT,
           fontWeight: 900,
-          fontSize: 24,
+          fontSize: 26,
           color: "#22D3EE",
+          letterSpacing: 3,
           boxShadow: "0 12px 40px rgba(0,0,0,0.4), 0 0 26px rgba(34,211,238,0.25)",
-          opacity: clamp01(phoneS) * 0.95,
-          transform: `translateY(${floatY}px)`,
+          opacity: clamp01(sabarS) * 0.95,
+          transform: `translateY(${floatY + (1 - clamp01(sabarS)) * 26}px)`,
           zIndex: 12,
         }}
       >
-        ENTRY HIT ✓
+        SABAR
       </div>
-
-      {/* chip mengapung kanan — TP1 CUAICNG (count-up) */}
       <div
         style={{
           position: "absolute",
-          top: 480,
-          right: 40,
-          padding: "14px 22px",
+          top: 428,
+          right: 56,
+          padding: "14px 26px",
           borderRadius: 16,
           background: "rgba(6,39,32,0.7)",
           border: "1px solid rgba(52,211,153,0.5)",
           backdropFilter: "blur(8px)",
           fontFamily: FONT,
           fontWeight: 900,
-          fontSize: 24,
+          fontSize: 26,
           color: "#34D399",
+          letterSpacing: 3,
           textShadow: "0 0 22px rgba(52,211,153,0.6)",
           boxShadow: "0 12px 40px rgba(0,0,0,0.4), 0 0 26px rgba(52,211,153,0.25)",
-          opacity: clamp01(pillS),
-          transform: `translateY(${floatY2}px)`,
-          fontVariantNumeric: "tabular-nums",
+          opacity: clamp01(disiplinS) * 0.95,
+          transform: `translateY(${floatY2 + (1 - clamp01(disiplinS)) * 26}px)`,
           zIndex: 12,
         }}
       >
-        +${pnl.toFixed(2)} ✓
+        DISIPLIN
       </div>
 
-      {/* mockup HP — app LuxTradee */}
+      {/* kartu rekap 3 aturan — nilai yang dibawa pulang penonton */}
       <div
         style={{
           position: "absolute",
-          top: 500,
-          left: "50%",
-          width: 640,
-          marginLeft: -320,
-          borderRadius: 54,
-          background: "linear-gradient(180deg, #0B1220, #0A0F1A)",
-          border: "3px solid rgba(34,211,238,0.4)",
-          boxShadow: "0 40px 120px rgba(0,0,0,0.65), 0 0 90px rgba(34,211,238,0.16)",
-          padding: "34px 38px",
-          opacity: clamp01(phoneS),
-          transform: `translateY(${(1 - phoneS) * 130 + floatY}px) scale(${0.94 + 0.06 * clamp01(phoneS)})`,
+          top: 590,
+          left: 90,
+          right: 90,
+          padding: "46px 54px",
+          borderRadius: 44,
+          ...CARD,
           zIndex: 11,
+          opacity: clamp01(cardS),
+          transform: `translateY(${(1 - cardS) * 120}px)`,
         }}
       >
-        {/* app bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 26 }}>
-          <div style={{ width: 12, height: 12, borderRadius: 999, background: C.green, boxShadow: "0 0 10px rgba(52,211,153,0.9)" }} />
-          <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 26, letterSpacing: 5, color: "#FFFFFF" }}>LUXTRADEE</span>
-          <span
-            style={{
-              marginLeft: "auto",
-              padding: "6px 16px",
-              borderRadius: 999,
-              background: "rgba(52,211,153,0.16)",
-              color: C.green,
-              fontWeight: 800,
-              fontSize: 20,
-              letterSpacing: 1,
-            }}
-          >
-            AKTIF
-          </span>
+        <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 30, color: C.accent, letterSpacing: 6, marginBottom: 16 }}>
+          YANG KAMU BAWA PULANG
         </div>
-
-        {/* kartu sinyal */}
-        <div style={{ padding: "26px 30px", borderRadius: 26, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(34,211,238,0.25)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-            <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 34, color: "#FFFFFF" }}>XAUUSD</span>
-            <span style={{ padding: "6px 18px", borderRadius: 10, background: "rgba(52,211,153,0.18)", color: C.green, fontWeight: 900, fontSize: 24 }}>BUY</span>
-            <span style={{ marginLeft: "auto", fontFamily: FONT, fontWeight: 700, fontSize: 22, color: C.muted }}>M15</span>
-          </div>
-          <SignalRow label="ENTRY" value="3.646.20" color="#22D3EE" delay={16} />
-          <SignalRow label="STOP LOSS" value="3.641.80" color="#F87171" delay={22} />
-          <SignalRow label="TAKE PROFIT 1" value="3.652.40" color="#34D399" delay={28} done />
-          <SignalRow label="TAKE PROFIT 2" value="3.658.90" color="#34D399" delay={34} />
-
-          {/* progress TP */}
-          <div style={{ marginTop: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-              <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 22, color: C.muted }}>PROGRES</span>
-              <span style={{ fontFamily: FONT, fontWeight: 800, fontSize: 22, color: C.green }}>{"TP1 HIT \u2713"}</span>
-            </div>
-            <div style={{ height: 14, borderRadius: 999, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-              <div
-                style={{
-                  height: "100%",
-                  width: `${prog}%`,
-                  background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
-                  boxShadow: "0 0 16px rgba(34,211,238,0.5)",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* hasil hari ini — count-up */}
-        <div
-          style={{
-            marginTop: 26,
-            padding: "20px 26px",
-            borderRadius: 20,
-            background: "rgba(52,211,153,0.1)",
-            border: "1px solid rgba(52,211,153,0.3)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 24, color: "#D1FAE5" }}>HASIL HARI INI</span>
-          <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 30, color: C.green, fontVariantNumeric: "tabular-nums" }}>
-            +${pnl.toFixed(2)}
-          </span>
-        </div>
+        <RecapRow no="01" text="Jangan kejar candle hijau" delay={105} />
+        <RecapRow no="02" text="Tunggu harga balik ke zona" delay={130} />
+        <RecapRow no="03" text="Gak balik? Duduk manis" delay={155} />
       </div>
 
-      {/* row fitur — isi gap antara HP dan CTA */}
-      <div
-        style={{
-          position: "absolute",
-          top: 1280,
-          left: 60,
-          right: 60,
-          display: "flex",
-          justifyContent: "center",
-          gap: 16,
-          zIndex: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        {["✓ ENTRY JELAS", "✓ STOP LOGIS", "✓ JURNAL OTOMATIS"].map((t, i) => {
-          const s = spring({ fps, frame: Math.max(0, frame - 34 - i * 9), config: { damping: 16, stiffness: 140 } });
-          return (
-            <div
-              key={t}
-              style={{
-                padding: "16px 26px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(34,211,238,0.35)",
-                backdropFilter: "blur(8px)",
-                fontFamily: FONT,
-                fontWeight: 800,
-                fontSize: 26,
-                color: "#22D3EE",
-                opacity: clamp01(s),
-                transform: `translateY(${(1 - clamp01(s)) * 30}px)`,
-              }}
-            >
-              {t}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* CTA follow + domain */}
-      <div style={{ position: "absolute", bottom: 200, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 26, zIndex: 12 }}>
+      {/* CTA follow — satu-satunya ask (branding, bukan jualan) */}
+      <div style={{ position: "absolute", bottom: 205, left: 60, right: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 24, zIndex: 12 }}>
         <div
           style={{
-            padding: "30px 70px",
+            padding: "30px 74px",
             borderRadius: 999,
             background: `linear-gradient(90deg, ${C.accentDeep}, ${C.accent})`,
             fontFamily: FONT,
             fontWeight: 900,
-            fontSize: 44,
+            fontSize: 46,
             letterSpacing: 2,
             color: "#04121a",
             boxShadow: `0 0 ${34 + glow * 40}px rgba(34,211,238,${0.4 + glow * 0.35})`,
@@ -975,34 +881,17 @@ const CtaScene: React.FC<{ title: string; sub: string; domain: string; handle: s
         >
           FOLLOW {handle.toUpperCase()}
         </div>
-        {(() => {
-          const d = rise(frame, 54, 30);
-          return (
-            <div
-              style={{
-                fontFamily: FONT,
-                fontWeight: 700,
-                fontSize: 36,
-                color: "#FFFFFF",
-                opacity: 0.9 * clamp01(d.opacity),
-                transform: d.transform,
-              }}
-            >
-              {domain}
-            </div>
-          );
-        })()}
         <div
           style={{
             fontFamily: FONT,
             fontWeight: 600,
-            fontSize: 22,
-            color: "rgba(255,255,255,0.45)",
-            letterSpacing: 3,
-            ...rise(frame, 64, 26),
+            fontSize: 23,
+            color: "rgba(255,255,255,0.5)",
+            letterSpacing: 4,
+            ...rise(frame, 260, 26),
           }}
         >
-          SINYAL · JURNAL · DISIPLIN
+          BIAR KAMU YANG NUNGGU ZONA — BUKAN NGEJAR HARGA
         </div>
       </div>
     </SceneShell>

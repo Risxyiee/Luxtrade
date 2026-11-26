@@ -160,10 +160,16 @@ export interface ChartCardProps {
 const BASE_PRICE = 3650;
 const toPrice = (v: number) => BASE_PRICE + (v - 0.5) * 60;
 
+/* Lama 1 candle tumbuh penuh (frame) — Bos 26-11 v6 "gerakan candle kurang
+   smooth": candle bukan lagi POP diskrit, tapi TUMBUH kontinu dari open
+   (= close candle sebelumnya) ke bentuk final. Crash SL tercapai kira-kira
+   60% progres pertumbuhan candle → dipakai buat sinkronisasi stamp. */
+export const CANDLE_GROW = 14;
+
 export const hookCrashFrame = (nCandles: number, slY: number, seed: number, path: number[], revealStart: number, revealIv: number): number => {
   const cs = genCandles(seed, "flat", nCandles, path);
   const idx = Math.max(3, cs.findIndex((cd) => cd.l < slY - 0.02));
-  return Math.round(revealStart + idx * revealIv + 1);
+  return Math.round(revealStart + idx * revealIv + CANDLE_GROW * 0.6);
 };
 
 export const ChartCard: React.FC<ChartCardProps> = ({
@@ -223,12 +229,13 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     extrapolateLeft: "clamp",
   });
 
-  /* crash event (hook) */
+  /* crash event (hook) — sinkron dgn momen low candle menembus SL
+     (±60% progres pertumbuhan candle, lihat CANDLE_GROW) */
   const crashIdx = Math.max(
     3,
     candles.findIndex((cd) => cd.l < slY - 0.02),
   );
-  const crashFrame = Math.round(REVEAL_START + crashIdx * REVEAL_IV + 1);
+  const crashFrame = Math.round(REVEAL_START + crashIdx * REVEAL_IV + CANDLE_GROW * 0.6);
   const sinceCrash = f - crashFrame;
   const flash =
     hook && sinceCrash >= 0
@@ -245,6 +252,43 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   const RECOVER_AT = crashFrame + 62; /* beri jeda baca 'SL KENA' ±2 dtk (Bos: jgn kecepetan) */
   const recovered = hook && f >= RECOVER_AT;
 
+  /* ---- candle tumbuh kontinu (Bos: gerakan candle kurang smooth) ----
+     Setiap candle TUMBUH dari open ke bentuk final selama CANDLE_GROW
+     frame (easing sinus), bukan muncul sekaligus. Candle live (paling
+     baru) tetap ber-tick mikro tiap frame dan tick memudar mulus saat
+     candle berikutnya muncul — chart selalu ada gerakan tiap frame,
+     persis candle live TradingView. */
+  const candleT0 = (i: number) => (hook ? REVEAL_START + i * REVEAL_IV : 6 + i * 2.4);
+  const growP = (i: number) =>
+    clamp01(
+      interpolate(f, [candleT0(i), candleT0(i) + CANDLE_GROW], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: Easing.inOut(Easing.sin),
+      }),
+    );
+  /* amplitude tick candle i: 1 selama jadi candle live, memudar 8 frame
+     setelah candle berikutnya mulai (tanpa lompatan) */
+  const tickAmp = (i: number) => {
+    if (i >= N - 1) return 1;
+    const end = candleT0(i + 1);
+    return clamp01(
+      interpolate(f, [end, end + 8], [1, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      }),
+    );
+  };
+  /* tick mikro candle i (px → ternormalisasi): dua sin beda frekuensi
+     supaya terasa seperti tick pasar, bukan getaran mekanis */
+  const tickN = (i: number) =>
+    ((Math.sin(f * 0.95 + i * 2.13) * 5 + Math.sin(f * 1.7 + i * 1.31) * 3) * (1 - growP(i)) * tickAmp(i)) / plotH;
+
+  /* close candle live saat ini — dipakai chip harga + stickman biar
+     keduanya meluncur mulus mengikuti pertumbuhan candle */
+  const lc = candles[lastIdx];
+  const liveClose = lc.o + (lc.c - lc.o) * growP(lastIdx) + tickN(lastIdx);
+
   /* ---- mode steps: langkah gambar ---- */
   const list = (steps || []).slice(0, 6);
   const nSteps = list.length;
@@ -258,7 +302,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
 
   if (hook) {
     stickX = px(lastIdx / (N - 1));
-    stickFootY = cy(last.c) + 8;
+    stickFootY = cy(liveClose) + 8; /* ikut candle yang sedang tumbuh */
     stickPose = recovered ? (hookLoss ? "shock" : "celebrate") : slBroken ? "shock" : f < 40 ? "idle" : "walk";
     // sebelum crash: bubble ? saat mulai, lalu idle; sesudah: celebrate
     if (!recovered && !slBroken && f < crashFrame) stickPose = f < 24 ? "idle" : "idle";
@@ -442,51 +486,55 @@ export const ChartCard: React.FC<ChartCardProps> = ({
           </g>
         )}
 
-        {/* candle chunky */}
+        {/* candle chunky — TUMBUH kontinu + tick live (lihat catatan atas) */}
         {candles.map((cd, i) => {
-          if (i >= revealed) return null;
-          const appear = spring({
-            fps,
-            frame: Math.max(0, f - (hook ? REVEAL_START + i * REVEAL_IV : 6 + i * 2.4)),
-            config: { damping: 16, stiffness: 140 },
-          });
-          const up = cd.c >= cd.o;
-          const color = up ? UP : DOWN;
-          const bodyTop = py(Math.max(cd.o, cd.c));
-          const bodyH = Math.max(5, Math.abs(py(cd.o) - py(cd.c)));
+          const t0 = candleT0(i);
+          if (f < t0 || i >= revealed) return null;
+          const p = growP(i);
+          const op = clamp01(
+            interpolate(f, [t0, t0 + 4], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          );
+          const tk = tickN(i);
+          const oNow = cd.o;
+          const cNow = cd.o + (cd.c - cd.o) * p + tk;
+          const topN = Math.max(oNow, cNow);
+          const botN = Math.min(oNow, cNow);
+          /* wick menjulur keluar dari body seiring p → 1; tick selalu
+             hanya memperpanjang wick (tidak pernah menembus body) */
+          const hiN = Math.max(topN, topN + (cd.h - topN) * p + Math.abs(tk));
+          const loN = Math.min(botN, botN - (botN - cd.l) * p - Math.abs(tk));
+          const color = cd.c >= cd.o ? UP : DOWN;
           const xMid = plotX + step * (i + 0.5);
+          const bodyTop = py(topN);
+          const bodyBot = py(botN);
           return (
-            <g
-              key={i}
-              opacity={clamp01(appear)}
-              transform={`translate(${xMid} ${cy(cd.c)}) scale(${clamp01(appear)}) translate(${-xMid} ${-cy(cd.c)})`}
-            >
-              <line x1={xMid} x2={xMid} y1={py(cd.h)} y2={py(cd.l)} stroke={color} strokeWidth={3} />
-              <rect x={xMid - bw / 2} y={bodyTop} width={bw} height={bodyH} fill={color} />
+            <g key={i} opacity={op}>
+              <line x1={xMid} x2={xMid} y1={cy(hiN)} y2={cy(loN)} stroke={color} strokeWidth={3} strokeLinecap="round" />
+              <rect x={xMid - bw / 2} y={bodyTop} width={bw} height={Math.max(3, bodyBot - bodyTop)} fill={color} />
             </g>
           );
         })}
 
-        {/* chip harga live */}
+        {/* chip harga live — meluncur mengikuti pertumbuhan candle live */}
         <rect
           x={plotX + plotW + 4}
-          y={py(last.c) - 16}
+          y={py(liveClose) - 16}
           width={88}
           height={32}
           rx={5}
-          fill={last.c >= last.o ? UP : DOWN}
+          fill={liveClose >= lc.o ? UP : DOWN}
           opacity={priceP}
         />
         <text
           x={plotX + plotW + 48}
-          y={py(last.c) + 6}
+          y={py(liveClose) + 6}
           textAnchor="middle"
           fill="#FFFFFF"
           fontSize={16}
           fontWeight={800}
           opacity={priceP}
         >
-          {fmtNum(toPrice(last.c), 2)}
+          {fmtNum(toPrice(liveClose), 2)}
         </text>
 
         {/* ═══ langkah gambar (mode steps) ═══ */}
