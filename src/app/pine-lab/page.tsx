@@ -22,6 +22,7 @@ import Link from 'next/link'
 import {
   FlaskConical, Play, Save, Trash2, Loader2, ShieldAlert,
   Database, FileText, Plus, Power, CheckCircle2, XCircle, ArrowLeft,
+  BellRing, Smartphone,
 } from 'lucide-react'
 import SignalChart, { type ChartMarker } from '@/components/pine-lab/SignalChart'
 
@@ -130,6 +131,28 @@ export default function PineLabPage() {
   const [runResult, setRunResult] = useState<RunResp | null>(null)
   const [msg, setMsg] = useState<{ kind: 'err' | 'ok'; text: string } | null>(null)
   const dirtyRef = useRef(false)
+
+  /* ── Tombol uji notifikasi (permintaan Bos: bisa cek notif berfungsi)
+   * Kirim 3 push tes (ENTRY / TP HIT / SL HIT) via jalur cron yang sama
+   * → kalau tes ini menyala di HP, sinyal asli juga akan. */
+  interface NotifTestItem {
+    kind: 'ENTRY' | 'TP' | 'SL'
+    sent: number
+    skipped?: 'dedupe' | 'no-subs'
+    error?: string
+    body: string
+  }
+  interface NotifTestResp {
+    ok: boolean
+    sentTotal?: number
+    maxSent?: number
+    items?: NotifTestItem[]
+    noSubs?: boolean
+    message?: string
+    error?: string
+  }
+  const [notifTesting, setNotifTesting] = useState(false)
+  const [notifResult, setNotifResult] = useState<NotifTestResp | null>(null)
 
   // ── Gate check ──
   useEffect(() => {
@@ -338,6 +361,31 @@ export default function PineLabPage() {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  /* Uji jalur push notifikasi — 3 notif tes: ENTRY, TP HIT, SL HIT.
+   * Persis seperti yang dikirim cron jam-an saat sinyal beneran muncul. */
+  const testNotif = async () => {
+    setNotifTesting(true)
+    setNotifResult(null)
+    setMsg(null)
+    try {
+      const r = await fetch('/api/pine-lab/notify-test', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const j = (await r.json().catch(() => ({}))) as NotifTestResp & { error?: string }
+      if (!r.ok) {
+        setMsg({ kind: 'err', text: j.error ?? 'Gagal mengirim notifikasi tes.' })
+        return
+      }
+      setNotifResult(j)
+      setMsg(j.noSubs ? { kind: 'err', text: j.message ?? 'Belum ada device terdaftar.' } : { kind: 'ok', text: j.message ?? 'Notifikasi tes terkirim.' })
+    } catch {
+      setMsg({ kind: 'err', text: 'Koneksi bermasalah — coba lagi.' })
+    } finally {
+      setNotifTesting(false)
     }
   }
 
@@ -559,7 +607,7 @@ export default function PineLabPage() {
             />
           </div>
 
-          {/* Run + pesan */}
+          {/* Run + tes notif + pesan */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
               type="button"
@@ -571,12 +619,70 @@ export default function PineLabPage() {
               {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               Run Test
             </button>
+            <button
+              type="button"
+              onClick={testNotif}
+              disabled={notifTesting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/15 hover:bg-amber-500/25 disabled:opacity-40 px-5 py-2.5 text-sm font-bold text-amber-300 transition-colors min-h-[44px]"
+              title="Kirim 3 notifikasi tes (ENTRY / TP HIT / SL HIT) ke HP — bukti jalur push berfungsi"
+            >
+              {notifTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
+              Tes Notifikasi
+            </button>
             {msg && (
               <span className={`text-xs font-semibold px-3 py-2 rounded-lg border ${msg.kind === 'err' ? 'bg-red-500/10 border-red-400/30 text-red-300' : 'bg-emerald-500/10 border-emerald-400/30 text-emerald-300'}`}>
                 {msg.text}
               </span>
             )}
           </div>
+
+          {/* Hasil tes notifikasi */}
+          {notifResult && (
+            <div className={`rounded-2xl border p-4 space-y-2.5 ${notifResult.noSubs ? 'border-red-400/30 bg-red-500/[0.04]' : 'border-emerald-400/25 bg-emerald-500/[0.04]'}`}>
+              <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                {notifResult.ok
+                  ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  : <XCircle className="w-4 h-4 text-red-400" />}
+                {notifResult.noSubs ? 'Notifikasi belum aktif' : notifResult.ok ? 'Tes terkirim' : 'Tes gagal'}
+                {!notifResult.noSubs && typeof notifResult.maxSent === 'number' && notifResult.maxSent > 0 && (
+                  <span className="text-[10px] font-normal text-white/40">· {notifResult.maxSent} device menerima</span>
+                )}
+              </div>
+              {notifResult.noSubs && (
+                <p className="text-xs text-amber-200/90 leading-relaxed">
+                  Belum ada HP yang terdaftar untuk push. <strong>Aktifkan dulu:</strong> buka{' '}
+                  <Link href="/dashboard" className="text-cyan-400 underline underline-offset-2">Dashboard</Link> → ikon{' '}
+                  <BellRing className="inline w-3 h-3 mx-0.5 -mt-0.5" /> lonceng (Notifikasi) → tekan <em>“Aktifkan Notifikasi”</em> → izinkan di browser/HP → kembali ke sini dan tekan Tes Notifikasi lagi.
+                </p>
+              )}
+              {notifResult.items && (
+                <ul className="space-y-1.5">
+                  {notifResult.items.map((it) => (
+                    <li key={it.kind} className="flex items-start gap-2 text-[11px]">
+                      {it.sent > 0 ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5 text-red-400/80 shrink-0 mt-0.5" />
+                      )}
+                      <div className="min-w-0">
+                        <span className="rounded bg-cyan-500/15 text-cyan-300 px-1.5 py-px font-bold text-[10px] whitespace-nowrap">{it.kind}</span>{' '}
+                        <span className={it.sent > 0 ? 'text-emerald-300/90' : 'text-red-300/90'}>
+                          {it.sent > 0 ? `terkirim ke ${it.sent} device` : it.skipped === 'no-subs' ? 'gagal: belum ada device terdaftar' : `gagal: ${it.error ?? 'tidak diketahui'}`}
+                        </span>
+                        <p className="text-white/45 truncate">{it.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!notifResult.noSubs && (
+                <p className="text-[10px] text-white/35 flex items-center gap-1.5">
+                  <Smartphone className="w-3 h-3" />
+                  Cek notification tray HP sekarang — harusnya ada 3 notifikasi: ENTRY LONG, TP HIT, SL HIT. Kalau ketiganya muncul, jalur notif sinyal asli 100% siap.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Hasil run */}
           {runResult && (
