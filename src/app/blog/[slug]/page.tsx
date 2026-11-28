@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import DownloadArticlePdf, { buildStaticBlocks } from '@/components/blog/DownloadArticlePdf'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
@@ -271,6 +272,19 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
               )}
             </div>
 
+            {/* Unduh artikel sebagai PDF ber-watermark (permintaan Bos) */}
+            <DownloadArticlePdf
+              className="mb-8"
+              fileName={post.slug || slug}
+              title={post.title}
+              subtitle={post.meta_description}
+              author={post.author}
+              dateLabel={formatDate(post.created_at, language)}
+              readLabel={`${post.readMinutes} ${isEnglish ? 'min read' : 'menit baca'}`}
+              sourceUrl={`https://luxtradee.web.id/blog/${slug}`}
+              sourceSelector="#article-body"
+            />
+
             {post.meta_description && (
               <p className="text-lg text-white/80 leading-relaxed mb-10 border-l-4 border-cyan-400/50 pl-5 italic">
                 {post.meta_description}
@@ -278,7 +292,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             )}
 
             {/* Isi artikel — HTML sudah di-whitelist di API (tag aman saja) */}
-            <article className={articleStyles} dangerouslySetInnerHTML={{ __html: post.html }} />
+            <article id="article-body" className={articleStyles} dangerouslySetInnerHTML={{ __html: post.html }} />
 
             {/* CTA */}
             <Card className="backdrop-blur-xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/30 p-8 sm:p-12 mt-14 text-center">
@@ -363,6 +377,18 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                 {staticPost.author}
               </span>
             </div>
+
+            {/* Unduh artikel klasik sebagai PDF ber-watermark (permintaan Bos) */}
+            <DownloadArticlePdf
+              className="mb-8"
+              fileName={slug}
+              title={staticPost.title}
+              author={staticPost.author}
+              dateLabel={staticPost.date}
+              readLabel={staticPost.readTime}
+              sourceUrl={`https://luxtradee.web.id/blog/${slug}`}
+              staticBlocks={buildStaticBlocks(staticIntro, staticSections, staticConclusion)}
+            />
 
             <p className="text-xl text-white/80 leading-relaxed mb-12">
               {staticIntro}
